@@ -1,6 +1,13 @@
+<?php
+  require_once __DIR__ . '/../../includes/db.php';
+  $db = db();
+?>
 <div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
   <h1 class="text-2xl font-bold mb-2">Operator, Cooperative & Franchise Validation</h1>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Maintains operator and cooperative profiles and validates franchise references through cross-checks with Franchise Management.</p>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Summary Cards -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -270,13 +277,34 @@
   </div>
   <script>
     (function(){
+      // Toast System
+      function showToast(msg, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        const colors = type === 'success' ? 'bg-emerald-500' : 'bg-red-500';
+        const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+        
+        toast.className = `${colors} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px]`;
+        toast.innerHTML = `
+          <i data-lucide="${icon}" class="w-5 h-5"></i>
+          <span class="font-medium text-sm">${msg}</span>
+        `;
+        
+        container.appendChild(toast);
+        if (window.lucide) window.lucide.createIcons();
+        requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+        setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
+      }
+
       var modal = document.getElementById('entityModal');
       var body = document.getElementById('entityModalBody');
       var closeBtn = document.getElementById('entityModalClose');
       function open(html){ body.innerHTML = html; modal.classList.remove('hidden'); if (window.lucide && window.lucide.createIcons) window.lucide.createIcons(); }
       function close(){ modal.classList.add('hidden'); body.innerHTML = ''; }
-      closeBtn.addEventListener('click', close);
-      modal.addEventListener('click', function(e){ if (e.target === modal || e.target.classList.contains('bg-black/50')) close(); });
+      if(closeBtn) closeBtn.addEventListener('click', close);
+      if(modal) modal.addEventListener('click', function(e){ if (e.target === modal || e.target.classList.contains('bg-black/50')) close(); });
+      
       document.getElementById('opViewBtn').addEventListener('click', function(){
         var name = document.getElementById('opViewName').value.trim();
         if (!name) return;
@@ -288,51 +316,46 @@
         fetch('/tmm/admin/api/module1/coop_html.php?name='+encodeURIComponent(name)).then(r=>r.text()).then(open);
       });
 
-      // Franchise Application Handler
-      var applyForm = document.getElementById('franchiseApplyForm');
-      if (applyForm) {
-        applyForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnApply');
-            const originalContent = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processing...`;
-            if (window.lucide) window.lucide.createIcons();
+      // Generic Form Handler
+      function handleForm(formId, btnId, successMsg) {
+        const form = document.getElementById(formId);
+        const btn = document.getElementById(btnId);
+        if(!form || !btn) return;
 
-            try {
-                const formData = new FormData(applyForm);
-                const res = await fetch(applyForm.action, { method: 'POST', body: formData });
-                const data = await res.json();
-                
-                if (data.ok) {
-                    // Custom toast since showToast is defined inside another IIFE or not globally available?
-                    // We need to check if showToast is global. The previous turn added it inside an IIFE.
-                    // We should expose showToast or duplicate the logic for now to be safe, or just use alert fallback.
-                    // Actually, let's inject a toast manually or assume showToast if we refactor.
-                    // For now, let's use a simple alert or reuse the toast container if present.
-                    const container = document.getElementById('toast-container');
-                    if (container) {
-                         const toast = document.createElement('div');
-                         toast.className = `bg-emerald-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px]`;
-                         toast.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5"></i><span class="font-medium text-sm">Application Submitted!</span>`;
-                         container.appendChild(toast);
-                         if (window.lucide) window.lucide.createIcons();
-                         requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
-                         setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
-                    }
-                    applyForm.reset();
-                } else {
-                    alert(data.error || 'Submission failed');
-                }
-            } catch (err) {
-                alert('Error: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-                if (window.lucide) window.lucide.createIcons();
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const originalContent = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processing...`;
+          if (window.lucide) window.lucide.createIcons();
+
+          try {
+            const formData = new FormData(form);
+            const res = await fetch(form.action, { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.ok) {
+              showToast(successMsg);
+              form.reset();
+              setTimeout(() => location.reload(), 1000);
+            } else {
+              showToast(data.error || 'Operation failed', 'error');
             }
+          } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+          } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            if (window.lucide) window.lucide.createIcons();
+          }
         });
       }
+
+      handleForm('franchiseApplyForm', 'btnApply', 'Application Submitted Successfully!');
+      handleForm('saveOperatorForm', 'btnSaveOperator', 'Operator Saved!');
+      handleForm('saveCoopForm', 'btnSaveCoop', 'Cooperative Saved!');
+      handleForm('linkVehicleForm', 'btnLinkVehicle', 'Vehicle Linked Successfully!');
+
     })();
   </script>
 </div>
