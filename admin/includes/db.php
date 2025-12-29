@@ -111,6 +111,101 @@ function db() {
     lgu_approval_number VARCHAR(64) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS violation_types (
+    violation_code VARCHAR(32) PRIMARY KEY,
+    description VARCHAR(255),
+    fine_amount DECIMAL(10,2) DEFAULT 0,
+    category VARCHAR(64) DEFAULT NULL,
+    sts_equivalent_code VARCHAR(64) DEFAULT NULL
+  ) ENGINE=InnoDB");
+  $checkV = $conn->query("SELECT COUNT(*) AS c FROM violation_types");
+  if ($checkV && ($checkV->fetch_assoc()['c'] ?? 0) == 0) {
+    $conn->query("INSERT INTO violation_types(violation_code, description, fine_amount, category, sts_equivalent_code) VALUES
+      ('IP', 'Illegal Parking', 1000.00, 'Parking', 'STS-IP'),
+      ('DTS', 'Disregarding Traffic Signs', 500.00, 'General', 'STS-DTS'),
+      ('NLZ', 'No Loading/Unloading Zone', 1000.00, 'Loading', 'STS-NLZ')");
+  }
+  $conn->query("CREATE TABLE IF NOT EXISTS officers (
+    officer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(128),
+    role VARCHAR(64),
+    badge_no VARCHAR(64) UNIQUE,
+    station_id VARCHAR(64) DEFAULT NULL,
+    active_status TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+  $checkO = $conn->query("SELECT COUNT(*) AS c FROM officers");
+  if ($checkO && ($checkO->fetch_assoc()['c'] ?? 0) == 0) {
+    $conn->query("INSERT INTO officers(name, role, badge_no, station_id, active_status) VALUES
+      ('Officer Dela Cruz','Enforcer','MMDA-001','Station A',1),
+      ('Officer Santos','Enforcer','MMDA-002','Station B',1),
+      ('Officer Reyes','Supervisor','MMDA-010','HQ',1),
+      ('Officer Garcia','Enforcer','MMDA-003','Station C',1)");
+  }
+  $conn->query("CREATE TABLE IF NOT EXISTS tickets (
+    ticket_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_number VARCHAR(32) UNIQUE,
+    date_issued DATETIME DEFAULT CURRENT_TIMESTAMP,
+    violation_code VARCHAR(32),
+    vehicle_plate VARCHAR(32),
+    franchise_id VARCHAR(64) DEFAULT NULL,
+    coop_id INT DEFAULT NULL,
+    driver_name VARCHAR(128) DEFAULT NULL,
+    issued_by VARCHAR(128) DEFAULT NULL,
+    issued_by_badge VARCHAR(64) DEFAULT NULL,
+    officer_id INT DEFAULT NULL,
+    status ENUM('Pending','Validated','Settled','Escalated') DEFAULT 'Pending',
+    fine_amount DECIMAL(10,2) DEFAULT 0,
+    due_date DATE DEFAULT NULL,
+    payment_ref VARCHAR(64) DEFAULT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    INDEX (vehicle_plate),
+    FOREIGN KEY (violation_code) REFERENCES violation_types(violation_code)
+  ) ENGINE=InnoDB");
+  // Ensure new audit columns exist (safe migrations)
+  $colCheck = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets'");
+  $haveBadge = false; $haveOfficer = false;
+  if ($colCheck) {
+    while ($c = $colCheck->fetch_assoc()) {
+      if (($c['COLUMN_NAME'] ?? '') === 'issued_by_badge') $haveBadge = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'officer_id') $haveOfficer = true;
+    }
+  }
+  if (!$haveBadge) { $conn->query("ALTER TABLE tickets ADD COLUMN issued_by_badge VARCHAR(64) DEFAULT NULL"); }
+  if (!$haveOfficer) { 
+    $conn->query("ALTER TABLE tickets ADD COLUMN officer_id INT DEFAULT NULL");
+    // Add FK if table exists
+    $conn->query("ALTER TABLE tickets ADD INDEX idx_officer_id (officer_id)");
+    $conn->query("ALTER TABLE tickets ADD CONSTRAINT fk_tickets_officer FOREIGN KEY (officer_id) REFERENCES officers(officer_id)");
+  }
+  $conn->query("CREATE TABLE IF NOT EXISTS evidence (
+    evidence_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    file_path VARCHAR(255),
+    file_type VARCHAR(32),
+    uploaded_by VARCHAR(64) DEFAULT 'officer',
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (ticket_id),
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS payment_records (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    date_paid DATETIME DEFAULT CURRENT_TIMESTAMP,
+    receipt_ref VARCHAR(64),
+    verified_by_treasury TINYINT(1) DEFAULT 0,
+    INDEX (ticket_id),
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS compliance_summary (
+    vehicle_plate VARCHAR(32) PRIMARY KEY,
+    franchise_id VARCHAR(64) DEFAULT NULL,
+    violation_count INT DEFAULT 0,
+    last_violation_date DATE DEFAULT NULL,
+    compliance_status VARCHAR(32) DEFAULT 'Normal',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
   return $conn;
 }
 ?> 
