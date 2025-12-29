@@ -55,8 +55,8 @@ $sidebarItems = [
     'icon' => 'map-pin',
     'subItems' => [
       ['id' => 'overview', 'label' => 'Overview', 'path' => '/module5/overview'],
-      ['id' => 'submodule1', 'label' => 'Terminal Management', 'path' => '/module5/terminals'],
-      ['id' => 'submodule2', 'label' => 'Parking Area Management', 'path' => '/module5/parking'],
+      ['id' => 'submodule1', 'label' => 'Terminal Management', 'path' => '/module5/submodule1'],
+      ['id' => 'submodule2', 'label' => 'Parking Area Management', 'path' => '/module5/submodule2'],
       ['id' => 'submodule3', 'label' => 'Parking Fees, Enforcement & Analytics', 'path' => '/module5/submodule3'],
     ],
   ],

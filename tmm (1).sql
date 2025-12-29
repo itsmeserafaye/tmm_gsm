@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 29, 2025 at 11:50 AM
+-- Generation Time: Dec 29, 2025 at 03:27 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -83,6 +83,22 @@ CREATE TABLE `documents` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `drivers`
+--
+
+CREATE TABLE `drivers` (
+  `id` int(11) NOT NULL,
+  `operator_id` int(11) DEFAULT NULL,
+  `driver_name` varchar(255) DEFAULT NULL,
+  `license_no` varchar(50) DEFAULT NULL,
+  `contact_no` varchar(50) DEFAULT NULL,
+  `status` enum('Active','Inactive') DEFAULT 'Active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `endorsement_records`
 --
 
@@ -108,6 +124,23 @@ CREATE TABLE `evidence` (
   `uploaded_by` varchar(64) DEFAULT 'officer',
   `timestamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `fee_reconciliations`
+--
+
+CREATE TABLE `fee_reconciliations` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  `period_from` date DEFAULT NULL,
+  `period_to` date DEFAULT NULL,
+  `treasury_ref` varchar(50) DEFAULT NULL,
+  `status` enum('Pending','Verified') DEFAULT 'Pending',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -182,6 +215,32 @@ CREATE TABLE `ownership_transfers` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `parking_areas`
+--
+
+CREATE TABLE `parking_areas` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `type` varchar(50) DEFAULT NULL COMMENT 'Terminal Parking or Standalone',
+  `terminal_id` int(11) DEFAULT NULL,
+  `total_slots` int(11) DEFAULT 0,
+  `allowed_puv_types` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT 'Available'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `parking_areas`
+--
+
+INSERT INTO `parking_areas` (`id`, `name`, `city`, `location`, `type`, `terminal_id`, `total_slots`, `allowed_puv_types`, `status`) VALUES
+(1, 'City Hall Parking', 'Caloocan City', 'City Hall Complex', 'Standalone', NULL, 50, 'Private, Official', 'Available'),
+(2, 'Terminal A Annex', 'Caloocan City', '10th Ave', 'Terminal Parking', NULL, 30, 'Jeepney, UV Express', 'Available');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `payment_records`
 --
 
@@ -223,6 +282,76 @@ INSERT INTO `routes` (`id`, `route_id`, `route_name`, `max_vehicle_limit`, `stat
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `terminals`
+--
+
+CREATE TABLE `terminals` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `address` text DEFAULT NULL,
+  `type` enum('Terminal','Parking','LoadingBay') DEFAULT 'Terminal',
+  `capacity` int(11) DEFAULT 0,
+  `status` enum('Active','Inactive','Suspended') DEFAULT 'Active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `city` varchar(100) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `terminals`
+--
+
+INSERT INTO `terminals` (`id`, `name`, `address`, `type`, `capacity`, `status`, `created_at`, `city`, `location`) VALUES
+(1, 'Central Terminal A', NULL, '', 0, 'Active', '2025-12-29 13:31:59', 'Caloocan City', '10th Ave'),
+(2, 'North Hub B', NULL, '', 0, 'Active', '2025-12-29 13:31:59', 'Caloocan City', 'Monumento');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_areas`
+--
+
+CREATE TABLE `terminal_areas` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `area_name` varchar(100) DEFAULT NULL,
+  `route_name` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `slot_capacity` int(11) DEFAULT 0,
+  `puv_type` varchar(50) DEFAULT NULL,
+  `fare_range` varchar(50) DEFAULT NULL,
+  `status` enum('Active','Inactive') DEFAULT 'Active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_area_assignments`
+--
+
+CREATE TABLE `terminal_area_assignments` (
+  `id` int(11) NOT NULL,
+  `area_id` int(11) NOT NULL,
+  `operator_id` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_area_operators`
+--
+
+CREATE TABLE `terminal_area_operators` (
+  `id` int(11) NOT NULL,
+  `area_id` int(11) NOT NULL,
+  `operator_id` int(11) NOT NULL,
+  `assigned_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `terminal_assignments`
 --
 
@@ -241,6 +370,144 @@ CREATE TABLE `terminal_assignments` (
 
 INSERT INTO `terminal_assignments` (`id`, `plate_number`, `route_id`, `terminal_name`, `status`, `assigned_at`) VALUES
 (1, 'ABC-1234', 'R-99', 'West Yard', 'Authorized', '2025-12-29 04:20:12');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_charges`
+--
+
+CREATE TABLE `terminal_charges` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  `charge_type` enum('Permit Fee','Usage Fee','Stall Rent','Penalty') DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `status` enum('Unpaid','Paid','Overdue') DEFAULT 'Unpaid',
+  `receipt_no` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_designated_areas`
+--
+
+CREATE TABLE `terminal_designated_areas` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) NOT NULL,
+  `area_name` varchar(100) NOT NULL,
+  `route_name` varchar(255) DEFAULT NULL,
+  `fare_range` varchar(50) DEFAULT NULL,
+  `max_slots` int(11) DEFAULT 0,
+  `current_usage` int(11) DEFAULT 0,
+  `puv_type` varchar(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `terminal_designated_areas`
+--
+
+INSERT INTO `terminal_designated_areas` (`id`, `terminal_id`, `area_name`, `route_name`, `fare_range`, `max_slots`, `current_usage`, `puv_type`) VALUES
+(1, 1, 'Line 1', 'Downtown Route', '15-25 PHP', 20, 0, 'Tricycle'),
+(2, 1, 'Line 2', 'Barangay Route', '10-15 PHP', 15, 0, 'Tricycle');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_drivers`
+--
+
+CREATE TABLE `terminal_drivers` (
+  `id` int(11) NOT NULL,
+  `operator_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `license_no` varchar(50) DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'Active'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_incidents`
+--
+
+CREATE TABLE `terminal_incidents` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `vehicle_plate` varchar(20) DEFAULT NULL,
+  `incident_type` varchar(100) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `evidence_path` varchar(255) DEFAULT NULL,
+  `status` enum('Open','Resolved','Escalated') DEFAULT 'Open',
+  `reported_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_inspections`
+--
+
+CREATE TABLE `terminal_inspections` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `inspector_name` varchar(255) DEFAULT NULL,
+  `inspection_date` datetime DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `findings` text DEFAULT NULL,
+  `status` enum('Passed','Failed','Conditional') DEFAULT 'Passed',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_logs`
+--
+
+CREATE TABLE `terminal_logs` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `vehicle_plate` varchar(20) DEFAULT NULL,
+  `activity_type` enum('Entry','Exit','Unload','Load') NOT NULL,
+  `log_time` datetime DEFAULT current_timestamp(),
+  `remarks` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_operators`
+--
+
+CREATE TABLE `terminal_operators` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `operator_name` varchar(255) DEFAULT NULL,
+  `vehicle_plate` varchar(20) DEFAULT NULL,
+  `enrolled_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('Active','Inactive') DEFAULT 'Active'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `terminal_permits`
+--
+
+CREATE TABLE `terminal_permits` (
+  `id` int(11) NOT NULL,
+  `terminal_id` int(11) DEFAULT NULL,
+  `application_no` varchar(50) DEFAULT NULL,
+  `applicant_name` varchar(255) DEFAULT NULL,
+  `status` enum('Pending','Approved','Rejected','Revoked') DEFAULT 'Pending',
+  `issue_date` date DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `conditions` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -345,6 +612,12 @@ ALTER TABLE `documents`
   ADD KEY `plate_number` (`plate_number`);
 
 --
+-- Indexes for table `drivers`
+--
+ALTER TABLE `drivers`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `endorsement_records`
 --
 ALTER TABLE `endorsement_records`
@@ -356,6 +629,12 @@ ALTER TABLE `endorsement_records`
 ALTER TABLE `evidence`
   ADD PRIMARY KEY (`evidence_id`),
   ADD KEY `ticket_id` (`ticket_id`);
+
+--
+-- Indexes for table `fee_reconciliations`
+--
+ALTER TABLE `fee_reconciliations`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `franchise_applications`
@@ -386,6 +665,13 @@ ALTER TABLE `ownership_transfers`
   ADD KEY `plate_number` (`plate_number`);
 
 --
+-- Indexes for table `parking_areas`
+--
+ALTER TABLE `parking_areas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `terminal_id` (`terminal_id`);
+
+--
 -- Indexes for table `payment_records`
 --
 ALTER TABLE `payment_records`
@@ -400,12 +686,91 @@ ALTER TABLE `routes`
   ADD UNIQUE KEY `route_id` (`route_id`);
 
 --
+-- Indexes for table `terminals`
+--
+ALTER TABLE `terminals`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_areas`
+--
+ALTER TABLE `terminal_areas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `terminal_id` (`terminal_id`);
+
+--
+-- Indexes for table `terminal_area_assignments`
+--
+ALTER TABLE `terminal_area_assignments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `area_id` (`area_id`),
+  ADD KEY `operator_id` (`operator_id`);
+
+--
+-- Indexes for table `terminal_area_operators`
+--
+ALTER TABLE `terminal_area_operators`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `area_id` (`area_id`),
+  ADD KEY `operator_id` (`operator_id`);
+
+--
 -- Indexes for table `terminal_assignments`
 --
 ALTER TABLE `terminal_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_plate` (`plate_number`),
   ADD KEY `route_id` (`route_id`);
+
+--
+-- Indexes for table `terminal_charges`
+--
+ALTER TABLE `terminal_charges`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_designated_areas`
+--
+ALTER TABLE `terminal_designated_areas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `terminal_id` (`terminal_id`);
+
+--
+-- Indexes for table `terminal_drivers`
+--
+ALTER TABLE `terminal_drivers`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `operator_id` (`operator_id`);
+
+--
+-- Indexes for table `terminal_incidents`
+--
+ALTER TABLE `terminal_incidents`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_inspections`
+--
+ALTER TABLE `terminal_inspections`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_logs`
+--
+ALTER TABLE `terminal_logs`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_operators`
+--
+ALTER TABLE `terminal_operators`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `terminal_permits`
+--
+ALTER TABLE `terminal_permits`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `tickets`
@@ -452,6 +817,12 @@ ALTER TABLE `documents`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `drivers`
+--
+ALTER TABLE `drivers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `endorsement_records`
 --
 ALTER TABLE `endorsement_records`
@@ -462,6 +833,12 @@ ALTER TABLE `endorsement_records`
 --
 ALTER TABLE `evidence`
   MODIFY `evidence_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `fee_reconciliations`
+--
+ALTER TABLE `fee_reconciliations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `franchise_applications`
@@ -488,6 +865,12 @@ ALTER TABLE `ownership_transfers`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `parking_areas`
+--
+ALTER TABLE `parking_areas`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
 -- AUTO_INCREMENT for table `payment_records`
 --
 ALTER TABLE `payment_records`
@@ -500,10 +883,82 @@ ALTER TABLE `routes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT for table `terminals`
+--
+ALTER TABLE `terminals`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `terminal_areas`
+--
+ALTER TABLE `terminal_areas`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_area_assignments`
+--
+ALTER TABLE `terminal_area_assignments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_area_operators`
+--
+ALTER TABLE `terminal_area_operators`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `terminal_assignments`
 --
 ALTER TABLE `terminal_assignments`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `terminal_charges`
+--
+ALTER TABLE `terminal_charges`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_designated_areas`
+--
+ALTER TABLE `terminal_designated_areas`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `terminal_drivers`
+--
+ALTER TABLE `terminal_drivers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_incidents`
+--
+ALTER TABLE `terminal_incidents`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_inspections`
+--
+ALTER TABLE `terminal_inspections`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_logs`
+--
+ALTER TABLE `terminal_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_operators`
+--
+ALTER TABLE `terminal_operators`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `terminal_permits`
+--
+ALTER TABLE `terminal_permits`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `tickets`
@@ -540,16 +995,54 @@ ALTER TABLE `ownership_transfers`
   ADD CONSTRAINT `ownership_transfers_ibfk_1` FOREIGN KEY (`plate_number`) REFERENCES `vehicles` (`plate_number`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `parking_areas`
+--
+ALTER TABLE `parking_areas`
+  ADD CONSTRAINT `parking_areas_ibfk_1` FOREIGN KEY (`terminal_id`) REFERENCES `terminals` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `payment_records`
 --
 ALTER TABLE `payment_records`
   ADD CONSTRAINT `payment_records_ibfk_1` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`ticket_id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `terminal_areas`
+--
+ALTER TABLE `terminal_areas`
+  ADD CONSTRAINT `terminal_areas_ibfk_1` FOREIGN KEY (`terminal_id`) REFERENCES `terminals` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `terminal_area_assignments`
+--
+ALTER TABLE `terminal_area_assignments`
+  ADD CONSTRAINT `terminal_area_assignments_ibfk_1` FOREIGN KEY (`area_id`) REFERENCES `terminal_designated_areas` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `terminal_area_assignments_ibfk_2` FOREIGN KEY (`operator_id`) REFERENCES `terminal_operators` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `terminal_area_operators`
+--
+ALTER TABLE `terminal_area_operators`
+  ADD CONSTRAINT `terminal_area_operators_ibfk_1` FOREIGN KEY (`area_id`) REFERENCES `terminal_areas` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `terminal_area_operators_ibfk_2` FOREIGN KEY (`operator_id`) REFERENCES `operators` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `terminal_assignments`
 --
 ALTER TABLE `terminal_assignments`
   ADD CONSTRAINT `terminal_assignments_ibfk_1` FOREIGN KEY (`plate_number`) REFERENCES `vehicles` (`plate_number`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `terminal_designated_areas`
+--
+ALTER TABLE `terminal_designated_areas`
+  ADD CONSTRAINT `terminal_designated_areas_ibfk_1` FOREIGN KEY (`terminal_id`) REFERENCES `terminals` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `terminal_drivers`
+--
+ALTER TABLE `terminal_drivers`
+  ADD CONSTRAINT `terminal_drivers_ibfk_1` FOREIGN KEY (`operator_id`) REFERENCES `terminal_operators` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `tickets`
