@@ -1,4 +1,4 @@
-<div class="mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg">
+<div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
   <h1 class="text-2xl font-bold mb-2">Franchise Management — Overview</h1>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Handles LGU-level franchise endorsement workflows, permit issuance, validations, and monitoring aligned with LPTRP policies.</p>
 
@@ -29,7 +29,7 @@
     <div class="p-4 border rounded-lg dark:border-slate-700">
       <h2 class="text-lg font-semibold mb-3">Quick Actions</h2>
       <div class="flex gap-2">
-        <a href="?page=module2/submodule1" class="px-3 py-2 bg-[#4CAF50] text-white rounded">New Application</a>
+        <a href="?page=module2/submodule1" class="px-3 py-2 bg-[#4CAF50] text-white rounded w-full md:w-auto">New Application</a>
         <a href="?page=module2/submodule2" class="px-3 py-2 border rounded">Generate Endorsement</a>
         <a href="?page=module2/submodule3" class="px-3 py-2 border rounded">Renewals</a>
       </div>

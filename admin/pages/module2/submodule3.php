@@ -1,4 +1,4 @@
-<div class="mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg">
+<div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
   <h1 class="text-2xl font-bold mb-2">Renewals, Monitoring & Reporting</h1>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Tracks validity, renewal schedules, compliance history, and generates management reports.</p>
 
@@ -18,14 +18,14 @@
         <select class="px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700"><option>Period</option><option>30d</option><option>90d</option><option>Year</option></select>
         <select class="px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700"><option>Status</option><option>Endorsed</option><option>Conditional</option><option>Rejected</option></select>
         <select class="px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700"><option>Coop</option><option>United Transport</option><option>Bayanihan</option></select>
-        <button type="button" class="md:col-span-3 px-4 py-2 bg-[#4CAF50] text-white rounded">Generate Report</button>
+        <button type="button" class="md:col-span-3 px-4 py-2 bg-[#4CAF50] text-white rounded w-full md:w-auto">Generate Report</button>
       </form>
     </div>
   </div>
 
   <div class="overflow-x-auto mt-6">
     <table class="min-w-full text-sm">
-      <thead>
+      <thead class="hidden md:table-header-group">
         <tr class="text-left text-slate-600 dark:text-slate-300">
           <th class="py-2 px-3">Endorsement ID</th>
           <th class="py-2 px-3">Application</th>
@@ -36,21 +36,21 @@
         </tr>
       </thead>
       <tbody class="divide-y dark:divide-slate-700">
-        <tr>
-          <td class="py-2 px-3">END-2025-0101</td>
-          <td class="py-2 px-3">APP-2025-0011</td>
-          <td class="py-2 px-3">2025-12-20</td>
-          <td class="py-2 px-3">Email</td>
-          <td class="py-2 px-3">PER-2025-7781</td>
-          <td class="py-2 px-3"><span class="px-2 py-1 rounded bg-green-100 text-green-700">Active</span></td>
+        <tr class="grid grid-cols-1 md:table-row gap-2 md:gap-0 p-2 md:p-0">
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Endorsement ID: </span>END-2025-0101</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Application: </span>APP-2025-0011</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Issued: </span>2025-12-20</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Method: </span>Email</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Permit No.: </span>PER-2025-7781</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Status: </span><span class="px-2 py-1 rounded bg-green-100 text-green-700">Active</span></td>
         </tr>
-        <tr>
-          <td class="py-2 px-3">END-2025-0090</td>
-          <td class="py-2 px-3">APP-2025-0023</td>
-          <td class="py-2 px-3">2025-12-10</td>
-          <td class="py-2 px-3">Portal</td>
-          <td class="py-2 px-3">PER-2025-7702</td>
-          <td class="py-2 px-3"><span class="px-2 py-1 rounded bg-yellow-100 text-yellow-700">Conditional</span></td>
+        <tr class="grid grid-cols-1 md:table-row gap-2 md:gap-0 p-2 md:p-0">
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Endorsement ID: </span>END-2025-0090</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Application: </span>APP-2025-0023</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Issued: </span>2025-12-10</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Method: </span>Portal</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Permit No.: </span>PER-2025-7702</td>
+          <td class="py-2 px-3"><span class="md:hidden font-semibold">Status: </span><span class="px-2 py-1 rounded bg-yellow-100 text-yellow-700">Conditional</span></td>
         </tr>
       </tbody>
     </table>

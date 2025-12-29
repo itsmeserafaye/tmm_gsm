@@ -1,7 +1,7 @@
 <?php
 $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
 ?>
-<div id="sidebar" class="w-64 bg-white border-r border-slate-200/50 flex flex-col transition-[width] duration-200 dark:bg-slate-900 dark:border-slate-700">
+<div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col transition-transform duration-200">
   <div class="p-6">
     <a href="?page=dashboard" class="flex items-center space-x-3">
       <img src="/tmm/admin/includes/logo.jpg" alt="TMM" class="w-10 h-10 rounded-xl object-cover">

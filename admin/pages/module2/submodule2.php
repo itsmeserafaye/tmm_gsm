@@ -1,4 +1,4 @@
-<div class="mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg">
+<div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
   <h1 class="text-2xl font-bold mb-2">Validation, Endorsement & Compliance Engine</h1>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Document verification, LPTRP capacity enforcement, endorsement generation, and compliance workflows.</p>
 
@@ -33,7 +33,7 @@
           <option>Portal</option>
           <option>Manual</option>
         </select>
-        <button type="button" class="px-4 py-2 bg-[#4CAF50] text-white rounded-lg">Generate</button>
+        <button type="button" class="px-4 py-2 bg-[#4CAF50] text-white rounded-lg w-full md:w-auto">Generate</button>
       </form>
       <div class="mt-3 text-sm">Fee Receipt: <span class="px-2 py-1 rounded bg-green-100 text-green-700">Paid</span></div>
     </div>

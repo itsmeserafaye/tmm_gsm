@@ -35,6 +35,18 @@ foreach ($sidebarItems as $item) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/jpeg" href="/tmm/admin/includes/logo.jpg">
   <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var useDark = stored ? (stored === 'dark') : prefersDark;
+        document.documentElement.classList.toggle('dark', useDark);
+        document.body && document.body.classList.toggle('dark', useDark);
+        document.documentElement.setAttribute('data-theme', useDark ? 'dark' : 'light');
+      } catch (e) {}
+    })();
+  </script>
+  <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
@@ -52,17 +64,19 @@ foreach ($sidebarItems as $item) {
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="min-h-screen bg-bg dark:bg-slate-800 transition-colors duration-200">
+ <body class="min-h-screen bg-bg dark:bg-slate-800 transition-colors duration-200">
   <div class="flex h-screen overflow-hidden">
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>
     <div class="flex-1 flex flex-col">
       <?php include $baseDir . '/includes/header.php'; ?>
-      <main class="flex-1 overflow-auto p-8 dark:bg-slate-800">
+      <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
         <?php include $pageFile; ?>
       </main>
     </div>
   </div>
   <script>
+    function isMobile() { return window.matchMedia('(max-width: 767px)').matches }
     function initTheme() {
       var stored = localStorage.getItem('theme');
       if (stored) {
@@ -77,40 +91,64 @@ foreach ($sidebarItems as $item) {
       var isDark = document.documentElement.classList.contains('dark');
       var next = isDark ? 'light' : 'dark';
       document.documentElement.classList.toggle('dark', next === 'dark');
+      document.body.classList.toggle('dark', next === 'dark');
+      document.documentElement.setAttribute('data-theme', next);
       localStorage.setItem('theme', next);
       var btnText = document.getElementById('themeState');
       if (btnText) btnText.textContent = next;
+      try { window.dispatchEvent(new CustomEvent('themechange', { detail: next })); } catch(e) {}
+      try { if (window.tailwind) { /* ensure repaint */ } } catch(e) {}
+      setTimeout(function(){ location.reload(); }, 0);
     }
     function initSidebar() {
-      var collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
       var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('sidebar-overlay');
       var labels = document.querySelectorAll('.sidebar-label');
       var chevrons = document.querySelectorAll('.sidebar-chevron');
-      if (collapsed) {
-        sidebar.classList.remove('w-64'); sidebar.classList.add('w-16');
-        labels.forEach(el => el.classList.add('hidden'));
-        chevrons.forEach(el => el.classList.add('hidden'));
-      } else {
-        sidebar.classList.remove('w-16'); sidebar.classList.add('w-64');
+      if (isMobile()) {
+        var open = localStorage.getItem('sidebarOpenMobile') === 'true';
+        sidebar.classList.toggle('-translate-x-full', !open);
+        overlay.classList.toggle('hidden', !open);
         labels.forEach(el => el.classList.remove('hidden'));
         chevrons.forEach(el => el.classList.remove('hidden'));
+      } else {
+        var collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        overlay.classList.add('hidden');
+        if (collapsed) {
+          sidebar.classList.add('w-16');
+          labels.forEach(el => el.classList.add('hidden'));
+          chevrons.forEach(el => el.classList.add('hidden'));
+        } else {
+          sidebar.classList.remove('w-16');
+          labels.forEach(el => el.classList.remove('hidden'));
+          chevrons.forEach(el => el.classList.remove('hidden'));
+        }
+        sidebar.classList.remove('-translate-x-full');
       }
     }
     function toggleSidebar() {
       var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('sidebar-overlay');
       var labels = document.querySelectorAll('.sidebar-label');
       var chevrons = document.querySelectorAll('.sidebar-chevron');
-      var collapsed = sidebar.classList.contains('w-16');
-      if (collapsed) {
-        sidebar.classList.remove('w-16'); sidebar.classList.add('w-64');
-        labels.forEach(el => el.classList.remove('hidden'));
-        chevrons.forEach(el => el.classList.remove('hidden'));
-        localStorage.setItem('sidebarCollapsed', 'false');
+      if (isMobile()) {
+        var open = !overlay.classList.contains('hidden');
+        overlay.classList.toggle('hidden', open);
+        sidebar.classList.toggle('-translate-x-full', open);
+        localStorage.setItem('sidebarOpenMobile', String(!open));
       } else {
-        sidebar.classList.remove('w-64'); sidebar.classList.add('w-16');
-        labels.forEach(el => el.classList.add('hidden'));
-        chevrons.forEach(el => el.classList.add('hidden'));
-        localStorage.setItem('sidebarCollapsed', 'true');
+        var collapsed = sidebar.classList.contains('w-16');
+        if (collapsed) {
+          sidebar.classList.remove('w-16');
+          labels.forEach(el => el.classList.remove('hidden'));
+          chevrons.forEach(el => el.classList.remove('hidden'));
+          localStorage.setItem('sidebarCollapsed', 'false');
+        } else {
+          sidebar.classList.add('w-16');
+          labels.forEach(el => el.classList.add('hidden'));
+          chevrons.forEach(el => el.classList.add('hidden'));
+          localStorage.setItem('sidebarCollapsed', 'true');
+        }
       }
     }
     function setupExpandableNav() {
@@ -129,6 +167,13 @@ foreach ($sidebarItems as $item) {
           }
         });
       });
+      var overlay = document.getElementById('sidebar-overlay');
+      overlay.addEventListener('click', function () {
+        var sidebar = document.getElementById('sidebar');
+        overlay.classList.add('hidden');
+        sidebar.classList.add('-translate-x-full');
+        localStorage.setItem('sidebarOpenMobile', 'false');
+      });
     }
     document.addEventListener('DOMContentLoaded', function () {
       initTheme();
@@ -136,6 +181,7 @@ foreach ($sidebarItems as $item) {
       setupExpandableNav();
       if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
     });
+    window.addEventListener('resize', function () { initSidebar() });
   </script>
 </body>
 </html>
