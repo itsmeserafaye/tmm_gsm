@@ -61,6 +61,12 @@ $sidebarItems = [
     ],
   ],
   [
+    'id' => 'complaints',
+    'label' => 'Citizen Complaints',
+    'icon' => 'message-square',
+    'path' => '/complaints/list',
+  ],
+  [
     'id' => 'settings',
     'label' => 'Settings',
     'icon' => 'settings',
