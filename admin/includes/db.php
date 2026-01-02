@@ -33,6 +33,14 @@ function db() {
     INDEX (plate_number),
     FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $colDocs = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='documents'");
+  $haveVerifiedCol = false;
+  if ($colDocs) {
+    while ($c = $colDocs->fetch_assoc()) {
+      if (($c['COLUMN_NAME'] ?? '') === 'verified') { $haveVerifiedCol = true; break; }
+    }
+  }
+  if (!$haveVerifiedCol) { $conn->query("ALTER TABLE documents ADD COLUMN verified TINYINT(1) DEFAULT 0"); }
   $conn->query("CREATE TABLE IF NOT EXISTS ownership_transfers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -205,6 +213,58 @@ function db() {
     last_violation_date DATE DEFAULT NULL,
     compliance_status VARCHAR(32) DEFAULT 'Normal',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS inspection_schedules (
+    schedule_id INT AUTO_INCREMENT PRIMARY KEY,
+    plate_number VARCHAR(32) NOT NULL,
+    scheduled_at DATETIME NOT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    inspector_id INT DEFAULT NULL,
+    status ENUM('Scheduled','Completed','Cancelled','Rescheduled','Pending Verification') DEFAULT 'Scheduled',
+    cr_verified TINYINT(1) DEFAULT 0,
+    or_verified TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (plate_number),
+    FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE,
+    FOREIGN KEY (inspector_id) REFERENCES officers(officer_id)
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS inspection_results (
+    result_id INT AUTO_INCREMENT PRIMARY KEY,
+    schedule_id INT NOT NULL,
+    overall_status ENUM('Passed','Failed','Pending','For Reinspection') DEFAULT 'Pending',
+    remarks VARCHAR(255) DEFAULT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (schedule_id),
+    FOREIGN KEY (schedule_id) REFERENCES inspection_schedules(schedule_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS inspection_checklist_items (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    result_id INT NOT NULL,
+    item_code VARCHAR(32),
+    item_label VARCHAR(128),
+    status ENUM('Pass','Fail','NA') DEFAULT 'NA',
+    INDEX (result_id),
+    FOREIGN KEY (result_id) REFERENCES inspection_results(result_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS inspection_certificates (
+    cert_id INT AUTO_INCREMENT PRIMARY KEY,
+    certificate_number VARCHAR(32) UNIQUE,
+    schedule_id INT NOT NULL,
+    issued_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_by INT DEFAULT NULL,
+    qr_ref VARCHAR(64) DEFAULT NULL,
+    status ENUM('Issued','Revoked') DEFAULT 'Issued',
+    INDEX (schedule_id),
+    FOREIGN KEY (schedule_id) REFERENCES inspection_schedules(schedule_id) ON DELETE CASCADE,
+    FOREIGN KEY (approved_by) REFERENCES officers(officer_id)
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS inspection_photos (
+    photo_id INT AUTO_INCREMENT PRIMARY KEY,
+    result_id INT NOT NULL,
+    file_path VARCHAR(255),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (result_id),
+    FOREIGN KEY (result_id) REFERENCES inspection_results(result_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
   return $conn;
 }
