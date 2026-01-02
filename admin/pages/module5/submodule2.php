@@ -91,8 +91,8 @@ foreach ($parking_areas as $area) {
             <h1 class="text-2xl font-bold">Parking Area Management</h1>
             <p class="text-sm text-slate-500 dark:text-slate-400">City-wide parking areas and status monitoring.</p>
         </div>
-        <button onclick="openCreateModal()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center gap-2 shadow-sm">
-            <i data-lucide="plus" class="w-4 h-4"></i>
+        <button onclick="openCreateModal()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             Add Parking Area
         </button>
     </div>
@@ -110,7 +110,7 @@ foreach ($parking_areas as $area) {
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php foreach ($areas as $area): ?>
-                    <div onclick="openParkingModal(<?php echo $area['id']; ?>)" class="cursor-pointer group relative p-6 rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+                    <div onclick="openParkingModal(<?php echo $area['id']; ?>)" class="cursor-pointer group relative p-6 border rounded-lg hover:shadow-xl transition-all duration-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:-translate-y-1">
                         <!-- Status Badge -->
                         <div class="absolute top-4 right-4">
                             <?php 

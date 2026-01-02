@@ -162,7 +162,7 @@
 
     <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-emerald-500 shadow-sm">
       <h3 class="text-md font-semibold mb-4 flex items-center gap-2"><i data-lucide="file-plus" class="w-5 h-5 text-emerald-500"></i> New Application Intake</h3>
-      <form id="franchiseApplyForm" class="space-y-3" method="POST" action="/tmm/admin/api/franchise/apply.php">
+      <form id="franchiseApplyForm" class="space-y-3" method="POST" action="api/franchise/apply.php">
         <div>
           <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">LTFRB Case No. / Ref #</label>
           <input name="franchise_ref" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all uppercase" placeholder="e.g. 2024-00123" required>
@@ -308,12 +308,12 @@
       document.getElementById('opViewBtn').addEventListener('click', function(){
         var name = document.getElementById('opViewName').value.trim();
         if (!name) return;
-        fetch('/tmm/admin/api/module1/operator_html.php?name='+encodeURIComponent(name)).then(r=>r.text()).then(open);
+        fetch('api/module1/operator_html.php?name='+encodeURIComponent(name)).then(r=>r.text()).then(open);
       });
       document.getElementById('coopViewBtn').addEventListener('click', function(){
         var name = document.getElementById('coopViewName').value.trim();
         if (!name) return;
-        fetch('/tmm/admin/api/module1/coop_html.php?name='+encodeURIComponent(name)).then(r=>r.text()).then(open);
+        fetch('api/module1/coop_html.php?name='+encodeURIComponent(name)).then(r=>r.text()).then(open);
       });
 
       // Generic Form Handler

@@ -33,7 +33,7 @@ foreach ($sidebarItems as $item) {
   <meta charset="UTF-8">
   <title>TMM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/jpeg" href="/tmm/admin/includes/logo.jpg">
+  <link rel="icon" type="image/jpeg" href="includes/logo.jpg">
   <script>
     (function () {
       try {
@@ -71,7 +71,16 @@ foreach ($sidebarItems as $item) {
     <div class="flex-1 flex flex-col">
       <?php include $baseDir . '/includes/header.php'; ?>
       <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-        <?php include $pageFile; ?>
+        <?php 
+        try {
+          include $pageFile; 
+        } catch (Throwable $e) {
+          echo '<div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">';
+          echo '<h2 class="text-lg font-bold mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Application Error</h2>';
+          echo '<p class="font-mono text-sm break-all">' . htmlspecialchars($e->getMessage()) . '</p>';
+          echo '</div>';
+        }
+        ?>
       </main>
     </div>
   </div>
@@ -157,12 +166,20 @@ foreach ($sidebarItems as $item) {
           var target = document.getElementById(this.getAttribute('data-nav-toggle'));
           if (!target) return;
           var expanded = target.getAttribute('data-expanded') === 'true';
+          
+          // Toggle chevron rotation
+          var chevron = this.querySelector('.sidebar-chevron');
+          if (chevron) {
+            chevron.classList.toggle('rotate-180', !expanded);
+          }
+
           target.setAttribute('data-expanded', expanded ? 'false' : 'true');
           target.classList.toggle('hidden', expanded);
           if (!expanded) {
             var first = target.querySelector('a[data-first-subitem]');
             if (first && !first.classList.contains('bg-accent/10')) {
-              window.location.href = first.href;
+              // Optional: auto-redirect logic
+              // window.location.href = first.href;
             }
           }
         });

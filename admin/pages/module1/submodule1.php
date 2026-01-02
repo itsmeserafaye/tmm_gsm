@@ -328,7 +328,7 @@
       document.querySelectorAll('button[data-plate]').forEach(function(btn){
         btn.addEventListener('click', function(){
           var plate = this.getAttribute('data-plate');
-          fetch('/tmm/admin/api/module1/view_html.php?plate='+encodeURIComponent(plate)).then(function(r){ return r.text(); }).then(function(html){ openModal(html); });
+          fetch('api/module1/view_html.php?plate='+encodeURIComponent(plate)).then(function(r){ return r.text(); }).then(function(html){ openModal(html); });
         });
       });
     })();

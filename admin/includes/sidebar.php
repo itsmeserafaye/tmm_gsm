@@ -4,7 +4,7 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
 <div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col transition-transform duration-200">
   <div class="p-6">
     <a href="?page=dashboard" class="flex items-center space-x-3">
-      <img src="/tmm/admin/includes/logo.jpg" alt="TMM" class="w-10 h-10 rounded-xl object-cover">
+      <img src="includes/logo.jpg" alt="TMM" class="w-10 h-10 rounded-xl object-cover">
       <div>
         <h1 class="sidebar-label text-xl font-bold dark:text-white">TMM</h1>
         <p class="sidebar-label text-xs text-slate-500">Admin Dashboard</p>
@@ -46,7 +46,7 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
                   : 'text-slate-700 dark:text-slate-500 hover:bg-slate-200 dark:hover:text-slate-600 dark:hover:bg-slate-100';
               ?>
               <a href="?page=<?php echo ltrim($sub['path'], '/'); ?>" class="block w-full ml-2 text-sm text-left p-2 rounded-lg <?php echo $subClasses; ?>" <?php echo $idx === 0 ? 'data-first-subitem="1"' : ''; ?>>
-                <?php echo $sub['label']; ?>
+                <span class="sidebar-label"><?php echo $sub['label']; ?></span>
               </a>
             <?php endforeach; ?>
           </div>
@@ -63,7 +63,7 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
   </nav>
   <hr class="border-slate-300 dark:border-slate-700 mx-2">
   <div class="flex items-center p-4">
-    <img src="/tmm/admin/includes/user.png" alt="Admin" class="w-10 h-10 rounded-full">
+    <img src="<?php echo $baseUrl; ?>/includes/user.png" alt="Admin" class="w-10 h-10 rounded-full">
     <div class="sidebar-label ml-3">
       <div class="text-sm font-semibold dark:text-white">ADMIN</div>
       <div class="text-xs text-slate-500">Administrator</div>

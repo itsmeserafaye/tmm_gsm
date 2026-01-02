@@ -361,8 +361,8 @@ if ($ops_res) {
         </div>
     </div>
 </div>
-        <button onclick="openCreateModal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
-            <i data-lucide="plus" class="w-4 h-4"></i>
+        <button onclick="openCreateModal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             Add Terminal
         </button>
     </div>
@@ -370,7 +370,7 @@ if ($ops_res) {
     <!-- Terminal Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <?php foreach($terminals as $term): ?>
-            <div class="group relative p-6 rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+            <div class="group relative p-6 border rounded-lg hover:shadow-xl transition-all duration-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:-translate-y-1">
                 <!-- Delete Button -->
                 <form method="POST" onsubmit="return confirm('Are you sure you want to delete this terminal?');" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition z-10">
                     <input type="hidden" name="action" value="delete_terminal">
@@ -383,7 +383,7 @@ if ($ops_res) {
                 <div onclick="openTerminalModal(<?php echo $term['id']; ?>)" class="cursor-pointer">
                     <div class="mb-4">
                         <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-                            <i data-lucide="building-2" class="w-6 h-6"></i>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($term['name']); ?></h3>
                         <p class="text-sm text-slate-500"><?php echo htmlspecialchars($term['city'] ?? 'Unknown City'); ?></p>
