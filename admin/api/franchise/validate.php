@@ -3,41 +3,42 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 header('Content-Type: application/json');
 
-$ref = trim($_GET['ref'] ?? '');
-
-if ($ref === '') {
-    echo json_encode(['error' => 'Reference number is required']);
+$fid = trim($_GET['franchise_id'] ?? '');
+if ($fid === '') {
+    echo json_encode(['error' => 'Franchise ID required']);
     exit;
 }
 
-// Check application
-$stmt = $db->prepare("
-    SELECT fa.*, o.full_name as operator_name, c.coop_name 
-    FROM franchise_applications fa 
-    JOIN operators o ON fa.operator_id = o.id 
-    LEFT JOIN coops c ON fa.coop_id = c.id 
-    WHERE fa.franchise_ref_number = ? OR fa.application_id = ?
-");
-$stmt->bind_param('ss', $ref, $ref);
+// Check local DB first
+$stmt = $db->prepare("SELECT fa.franchise_ref_number, o.full_name as operator, c.coop_name, fa.status 
+                      FROM franchise_applications fa 
+                      LEFT JOIN operators o ON fa.operator_id = o.id 
+                      LEFT JOIN coops c ON fa.coop_id = c.id 
+                      WHERE fa.franchise_ref_number = ?");
+$stmt->bind_param('s', $fid);
 $stmt->execute();
 $res = $stmt->get_result();
 
 if ($row = $res->fetch_assoc()) {
-    // Check if already endorsed
-    $isEndorsed = $row['status'] === 'Endorsed';
-    
     echo json_encode([
-        'found' => true,
-        'data' => [
-            'application_id' => $row['application_id'],
-            'ref_number' => $row['franchise_ref_number'],
-            'operator' => $row['operator_name'],
-            'coop' => $row['coop_name'] ?? 'Individual',
-            'status' => $row['status'],
-            'vehicle_count' => $row['vehicle_count']
-        ]
+        'ok' => true,
+        'valid' => $row['status'] === 'Endorsed',
+        'franchise_id' => $row['franchise_ref_number'],
+        'operator' => $row['operator'],
+        'coop' => $row['coop_name'] ?? 'N/A',
+        'valid_until' => '2025-12-31', // Placeholder logic
+        'status' => $row['status']
     ]);
 } else {
-    echo json_encode(['found' => false, 'error' => 'Application not found']);
+    // If not found, return empty/invalid
+    echo json_encode([
+        'ok' => true,
+        'valid' => false,
+        'franchise_id' => $fid,
+        'operator' => 'Not Found',
+        'coop' => 'N/A',
+        'valid_until' => 'N/A',
+        'status' => 'Not Registered'
+    ]);
 }
 ?>
