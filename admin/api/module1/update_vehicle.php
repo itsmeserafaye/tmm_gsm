@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
+require_role(['Admin','Encoder']);
+header('Content-Type: application/json');
 $plate = trim($_POST['plate_number'] ?? '');
 $status = trim($_POST['status'] ?? '');
 $type = trim($_POST['vehicle_type'] ?? '');
@@ -17,6 +20,5 @@ $types .= 's';
 $stmt = $db->prepare($sql);
 $stmt->bind_param($types, ...$params);
 $ok = $stmt->execute();
-header('Content-Type: application/json');
 echo json_encode(['ok'=>$ok, 'plate_number'=>$plate]);
 ?> 

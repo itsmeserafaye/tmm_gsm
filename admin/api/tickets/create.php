@@ -50,6 +50,31 @@ if ($stmtIns->execute()) {
   $id = $db->insert_id;
   $ticketNo = 'TCK-' . date('Y') . '-' . str_pad((string)$id, 4, '0', STR_PAD_LEFT);
   $db->query("UPDATE tickets SET ticket_number = '" . $db->real_escape_string($ticketNo) . "' WHERE ticket_id = " . (int)$id);
+  $franchiseId = null;
+  $stmtVeh = $db->prepare("SELECT franchise_id, status FROM vehicles WHERE plate_number=?");
+  $stmtVeh->bind_param('s', $plate);
+  $stmtVeh->execute();
+  $veh = $stmtVeh->get_result()->fetch_assoc();
+  if ($veh) { $franchiseId = $veh['franchise_id'] ?? null; }
+  $stmtCS = $db->prepare("INSERT INTO compliance_summary(vehicle_plate, franchise_id, violation_count, last_violation_date, compliance_status) VALUES (?, ?, 1, CURDATE(), 'Normal') ON DUPLICATE KEY UPDATE violation_count=violation_count+1, last_violation_date=CURDATE()");
+  $stmtCS->bind_param('ss', $plate, $franchiseId);
+  $stmtCS->execute();
+  $stmtUC = $db->prepare("SELECT COUNT(*) AS c FROM tickets WHERE vehicle_plate=? AND status IN ('Pending','Validated','Escalated')");
+  $stmtUC->bind_param('s', $plate);
+  $stmtUC->execute();
+  $cnt = (int)($stmtUC->get_result()->fetch_assoc()['c'] ?? 0);
+  if ($cnt >= 3) {
+    $stmtSV = $db->prepare("UPDATE vehicles SET status='Suspended' WHERE plate_number=? AND status<>'Suspended'");
+    $stmtSV->bind_param('s', $plate);
+    $stmtSV->execute();
+    $stmtSC = $db->prepare("UPDATE compliance_summary SET compliance_status='Suspended' WHERE vehicle_plate=?");
+    $stmtSC->bind_param('s', $plate);
+    $stmtSC->execute();
+  } else {
+    $stmtNC = $db->prepare("UPDATE compliance_summary SET compliance_status='Normal' WHERE vehicle_plate=? AND compliance_status<>'Normal'");
+    $stmtNC->bind_param('s', $plate);
+    $stmtNC->execute();
+  }
   echo json_encode(['ok' => true, 'ticket_number' => $ticketNo, 'ticket_id' => $id]);
 } else {
   echo json_encode(['error' => 'Failed to create ticket']);

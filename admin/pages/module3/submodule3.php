@@ -58,6 +58,8 @@
         <a class="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white font-medium rounded-lg text-center transition-colors" target="_blank" href="/tmm/admin/api/tickets/export_pdf.php?period=<?php echo urlencode($period); ?>&status=<?php echo urlencode($status); ?>&officer_id=<?php echo (int)$officer_id; ?>&q=<?php echo urlencode($q); ?>">Export PDF</a>
         <button class="px-4 py-2 border rounded hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors">Notify Inspection</button>
         <button class="px-4 py-2 border rounded hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors">Notify Parking</button>
+        <button id="runEnforceBtn" class="md:col-span-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors">Run Compliance Enforcement</button>
+        <div id="enforceResult" class="md:col-span-2 mt-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded border dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300">No enforcement run yet.</div>
       </div>
     </div>
   </div>
@@ -129,3 +131,55 @@
     </table>
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('runEnforceBtn');
+  const out = document.getElementById('enforceResult');
+  if (btn) {
+    btn.addEventListener('click', async function() {
+      try {
+        btn.disabled = true;
+        const prevText = btn.textContent;
+        btn.textContent = 'Running...';
+        out.textContent = 'Running enforcement...';
+        const resp = await fetch('/tmm/admin/api/module3/enforce_compliance.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-User-Role': 'Admin'
+          },
+          body: 'mode=auto_all'
+        });
+        const data = await resp.json();
+        if (!data.ok) {
+          out.textContent = 'Error: ' + (data.error || 'unknown');
+        } else {
+          const u = data.updated || {};
+          const vs = (u.vehicles_suspended || []).length;
+          const vu = (u.vehicles_unsuspended || []).length;
+          const fs = (u.franchises_suspended || []).length;
+          const fu = (u.franchises_unsuspended || []).length;
+          const co = (u.cases_opened || []).length;
+          const ts = new Date().toLocaleString();
+          out.innerHTML = `
+            <div class="flex flex-wrap gap-2">
+              <span class="px-2 py-1 rounded bg-red-100 text-red-700 ring-1 ring-red-600/20">Vehicles Suspended: ${vs}</span>
+              <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 ring-1 ring-emerald-600/20">Vehicles Unsuspended: ${vu}</span>
+              <span class="px-2 py-1 rounded bg-amber-100 text-amber-700 ring-1 ring-amber-600/20">Franchises Suspended: ${fs}</span>
+              <span class="px-2 py-1 rounded bg-blue-100 text-blue-700 ring-1 ring-blue-600/20">Franchises Unsuspended: ${fu}</span>
+              <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-700 ring-1 ring-indigo-600/20">Cases Opened: ${co}</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">Last run: ${ts}</div>
+          `;
+        }
+        btn.textContent = prevText;
+        btn.disabled = false;
+      } catch (e) {
+        out.textContent = 'Unexpected error';
+        btn.disabled = false;
+        btn.textContent = 'Run Compliance Enforcement';
+      }
+    });
+  }
+});
+</script>

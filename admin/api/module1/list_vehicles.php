@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
+require_role(['Admin','Encoder','Inspector']);
 $q = trim($_GET['q'] ?? '');
 $status = trim($_GET['status'] ?? '');
 $sql = "SELECT plate_number, vehicle_type, operator_name, coop_name, franchise_id, route_id, status FROM vehicles";

@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
+require_role(['Admin','Encoder']);
 header('Content-Type: application/json');
 
 $name = trim($_POST['full_name'] ?? '');
@@ -12,7 +14,6 @@ if ($name === '') {
     exit;
 }
 
-// Check/Insert COOP if provided
 $coopId = null;
 if ($coop !== '') {
     $stmtC = $db->prepare("SELECT id FROM coops WHERE coop_name = ?");
@@ -29,7 +30,6 @@ if ($coop !== '') {
     }
 }
 
-// Insert/Update Operator
 $stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, coop_id) VALUES (?, ?, ?) 
                       ON DUPLICATE KEY UPDATE contact_info=VALUES(contact_info), coop_id=VALUES(coop_id)");
 $stmt->bind_param('ssi', $name, $contact, $coopId);
@@ -39,4 +39,4 @@ if ($stmt->execute()) {
 } else {
     echo json_encode(['error' => 'Failed to save operator: ' . $db->error]);
 }
-?>
+?> 

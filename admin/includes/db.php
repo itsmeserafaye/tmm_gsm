@@ -23,6 +23,18 @@ function db() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $colVeh = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicles'");
+  $haveInspStatus = false; $haveInspDate = false; $haveInspCert = false;
+  if ($colVeh) {
+    while ($c = $colVeh->fetch_assoc()) {
+      if (($c['COLUMN_NAME'] ?? '') === 'inspection_status') $haveInspStatus = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'inspection_last_date') $haveInspDate = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'inspection_cert_ref') $haveInspCert = true;
+    }
+  }
+  if (!$haveInspStatus) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_status VARCHAR(16) DEFAULT NULL"); }
+  if (!$haveInspDate) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_last_date DATETIME DEFAULT NULL"); }
+  if (!$haveInspCert) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL"); }
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -88,6 +100,7 @@ function db() {
     status ENUM('Pending', 'Under Review', 'Endorsed', 'Rejected') DEFAULT 'Pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Pending','Under Review','Endorsed','Rejected','Suspended') DEFAULT 'Pending'");
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (
     case_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -266,6 +279,214 @@ function db() {
     INDEX (result_id),
     FOREIGN KEY (result_id) REFERENCES inspection_results(result_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS terminal_permits (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    application_no VARCHAR(64),
+    applicant_name VARCHAR(128),
+    status ENUM('Pending','Pending Payment','Active','Expired','Revoked') DEFAULT 'Pending',
+    conditions TEXT,
+    issue_date DATE DEFAULT NULL,
+    expiry_date DATE DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (terminal_id),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $colTP = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='terminal_permits'");
+  $havePayRec = false; $havePayVer = false; $haveFeeAmt = false; $haveIdCol = false;
+  $haveAppNo = false; $haveApplicant = false; $haveIssueDate = false; $haveExpiryDate = false; $haveCreatedAt = false; $haveTerminalId = false;
+  if ($colTP) {
+    while ($c = $colTP->fetch_assoc()) {
+      if (($c['COLUMN_NAME'] ?? '') === 'payment_receipt') $havePayRec = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'payment_verified') $havePayVer = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'fee_amount') $haveFeeAmt = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'id') $haveIdCol = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'application_no') $haveAppNo = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'applicant_name') $haveApplicant = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'issue_date') $haveIssueDate = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'expiry_date') $haveExpiryDate = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'created_at') $haveCreatedAt = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'terminal_id') $haveTerminalId = true;
+    }
+  }
+  if (!$haveIdCol) {
+    $autoRes = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='terminal_permits' AND EXTRA LIKE '%auto_increment%'");
+    $autoCol = null;
+    if ($autoRes) { $row = $autoRes->fetch_assoc(); if ($row) { $autoCol = $row['COLUMN_NAME'] ?? null; } }
+    $pkRes = $conn->query("SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='terminal_permits' AND CONSTRAINT_NAME='PRIMARY'");
+    $pkCol = null;
+    if ($pkRes) { $row2 = $pkRes->fetch_assoc(); if ($row2) { $pkCol = $row2['COLUMN_NAME'] ?? null; } }
+    if ($autoCol) {
+      $conn->query("ALTER TABLE terminal_permits ADD COLUMN id INT DEFAULT NULL");
+      $conn->query("UPDATE terminal_permits SET id = `" . $autoCol . "`");
+      $conn->query("ALTER TABLE terminal_permits ADD UNIQUE INDEX uniq_terminal_permits_id (id)");
+    } elseif ($pkCol) {
+      $conn->query("ALTER TABLE terminal_permits ADD COLUMN id INT DEFAULT NULL");
+      $conn->query("UPDATE terminal_permits SET id = `" . $pkCol . "`");
+      $conn->query("ALTER TABLE terminal_permits ADD UNIQUE INDEX uniq_terminal_permits_id (id)");
+    } else {
+      $conn->query("ALTER TABLE terminal_permits ADD COLUMN id INT AUTO_INCREMENT PRIMARY KEY");
+    }
+  }
+  if (!$havePayRec) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN payment_receipt VARCHAR(64) DEFAULT NULL"); }
+  if (!$havePayVer) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN payment_verified TINYINT(1) DEFAULT 0"); }
+  if (!$haveFeeAmt) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN fee_amount DECIMAL(10,2) DEFAULT 0.00"); }
+  if (!$haveAppNo) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN application_no VARCHAR(64) DEFAULT NULL"); }
+  if (!$haveApplicant) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN applicant_name VARCHAR(128) DEFAULT NULL"); }
+  if (!$haveIssueDate) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN issue_date DATE DEFAULT NULL"); }
+  if (!$haveExpiryDate) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN expiry_date DATE DEFAULT NULL"); }
+  if (!$haveCreatedAt) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"); }
+  if (!$haveTerminalId) { $conn->query("ALTER TABLE terminal_permits ADD COLUMN terminal_id INT DEFAULT NULL"); }
+  $conn->query("ALTER TABLE terminal_permits MODIFY COLUMN status ENUM('Pending','Pending Payment','Active','Expired','Revoked') DEFAULT 'Pending'");
+  $conn->query("CREATE TABLE IF NOT EXISTS terminal_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    vehicle_plate VARCHAR(32) NOT NULL,
+    operator_id INT DEFAULT NULL,
+    time_in DATETIME DEFAULT NULL,
+    time_out DATETIME DEFAULT NULL,
+    activity_type ENUM('Arrival','Departure') DEFAULT 'Arrival',
+    remarks VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (terminal_id),
+    INDEX (vehicle_plate),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE,
+    FOREIGN KEY (vehicle_plate) REFERENCES vehicles(plate_number) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("ALTER TABLE terminal_logs MODIFY COLUMN activity_type ENUM('Arrival','Departure','Dispatch') DEFAULT 'Arrival'");
+  // Optimization Indexes
+  $idxLogs = $conn->query("SHOW INDEX FROM terminal_logs WHERE Key_name='idx_logs_time'");
+  if ($idxLogs && $idxLogs->num_rows == 0) { $conn->query("ALTER TABLE terminal_logs ADD INDEX idx_logs_time (time_in)"); }
+  
+  $idxLogs2 = $conn->query("SHOW INDEX FROM terminal_logs WHERE Key_name='idx_logs_activity'");
+  if ($idxLogs2 && $idxLogs2->num_rows == 0) { $conn->query("ALTER TABLE terminal_logs ADD INDEX idx_logs_activity (activity_type, time_in)"); }
+
+  $idxTickets1 = $conn->query("SHOW INDEX FROM tickets WHERE Key_name='idx_tickets_date'");
+  if ($idxTickets1 && $idxTickets1->num_rows == 0) { $conn->query("ALTER TABLE tickets ADD INDEX idx_tickets_date (date_issued)"); }
+
+  $idxTickets2 = $conn->query("SHOW INDEX FROM tickets WHERE Key_name='idx_tickets_status'");
+  if ($idxTickets2 && $idxTickets2->num_rows == 0) { $conn->query("ALTER TABLE tickets ADD INDEX idx_tickets_status (status)"); }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS route_cap_schedule (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    route_id VARCHAR(64) NOT NULL,
+    ts DATETIME NOT NULL,
+    cap INT NOT NULL,
+    reason VARCHAR(255) DEFAULT NULL,
+    confidence DOUBLE DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX(route_id, ts)
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS demand_forecasts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    route_id VARCHAR(64) NOT NULL,
+    ts DATETIME NOT NULL,
+    horizon_min INT NOT NULL,
+    forecast_trips DOUBLE NOT NULL,
+    lower_ci DOUBLE DEFAULT NULL,
+    upper_ci DOUBLE DEFAULT NULL,
+    model_version VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (terminal_id, route_id, ts),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  // Forecast & Cap Optimizations (Indexes)
+  $idxForecastTs = $conn->query("SHOW INDEX FROM demand_forecasts WHERE Key_name='idx_forecast_ts_only'");
+  if ($idxForecastTs && $idxForecastTs->num_rows == 0) { $conn->query("ALTER TABLE demand_forecasts ADD INDEX idx_forecast_ts_only (ts)"); }
+
+  $idxCapTs = $conn->query("SHOW INDEX FROM route_cap_schedule WHERE Key_name='idx_cap_ts_only'");
+  if ($idxCapTs && $idxCapTs->num_rows == 0) { $conn->query("ALTER TABLE route_cap_schedule ADD INDEX idx_cap_ts_only (ts)"); }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS demand_forecast_jobs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    job_type ENUM('train','forecast') NOT NULL,
+    status ENUM('queued','running','succeeded','failed') NOT NULL DEFAULT 'queued',
+    params_json TEXT,
+    started_at DATETIME DEFAULT NULL,
+    finished_at DATETIME DEFAULT NULL,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    location TEXT,
+    type VARCHAR(50) NOT NULL,
+    terminal_id INT NULL,
+    total_slots INT DEFAULT 0,
+    allowed_puv_types TEXT,
+    status VARCHAR(50) DEFAULT 'Available',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parking_area_id INT NULL,
+    terminal_id INT NULL,
+    vehicle_plate VARCHAR(20),
+    amount DECIMAL(10,2) NOT NULL,
+    transaction_type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'Paid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parking_area_id) REFERENCES parking_areas(id) ON DELETE SET NULL,
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_violations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parking_area_id INT NULL,
+    vehicle_plate VARCHAR(20),
+    violation_type VARCHAR(100) NOT NULL,
+    penalty_amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'Unpaid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parking_area_id) REFERENCES parking_areas(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS weather_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    ts DATETIME NOT NULL,
+    temp_c DOUBLE DEFAULT NULL,
+    humidity DOUBLE DEFAULT NULL,
+    rainfall_mm DOUBLE DEFAULT NULL,
+    wind_kph DOUBLE DEFAULT NULL,
+    weather_code VARCHAR(32) DEFAULT NULL,
+    source VARCHAR(64) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_weather (terminal_id, ts),
+    INDEX idx_weather_ts (terminal_id, ts),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS event_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    title VARCHAR(128) NOT NULL,
+    ts_start DATETIME NOT NULL,
+    ts_end DATETIME DEFAULT NULL,
+    expected_attendance INT DEFAULT NULL,
+    priority INT DEFAULT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    source VARCHAR(64) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_event_ts (terminal_id, ts_start),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS traffic_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    route_id VARCHAR(64) DEFAULT NULL,
+    ts DATETIME NOT NULL,
+    avg_speed_kph DOUBLE DEFAULT NULL,
+    congestion_index DOUBLE DEFAULT NULL,
+    travel_time_min DOUBLE DEFAULT NULL,
+    source VARCHAR(64) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_traffic (terminal_id, route_id, ts),
+    INDEX idx_traffic_ts (terminal_id, route_id, ts),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
   return $conn;
 }
-?> 
+?>

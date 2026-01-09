@@ -1,0 +1,9 @@
+Running Scheduler in mode: hourly
+Found 4 active terminal-route pairs.
+Forecasting for Terminal 8 / Route R-12 ... OK (4 rows)
+Forecasting for Terminal 19 / Route TEST-R-E2E ... OK (4 rows)
+Forecasting for Terminal 19 / Route R-12 ... OK (4 rows)
+Forecasting for Terminal 18 / Route TEST-R-E2E ... OK (4 rows)
+Computing Dynamic Caps...
+Caps Updated: 3 inserted.
+Done.

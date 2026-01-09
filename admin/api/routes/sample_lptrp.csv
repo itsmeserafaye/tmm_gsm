@@ -1,0 +1,3 @@
+route_id,route_name,origin,destination,distance_km,fare,max_vehicle_limit,status
+R-01,Mainline A,North,South,12.5,15,80,Active
+R-02,Mainline B,East,West,9.3,12,60,Active

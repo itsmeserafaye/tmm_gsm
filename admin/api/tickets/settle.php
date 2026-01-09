@@ -24,6 +24,25 @@ if ($row = $res->fetch_assoc()) {
   $stmtP->bind_param('idsi', $tid, $amount, $receipt, $verified);
   if ($stmtP->execute()) {
     $db->query("UPDATE tickets SET status='Settled', payment_ref='" . $db->real_escape_string($receipt) . "' WHERE ticket_id = $tid");
+    $stmtVP = $db->prepare("SELECT vehicle_plate FROM tickets WHERE ticket_id=?");
+    $stmtVP->bind_param('i', $tid);
+    $stmtVP->execute();
+    $r = $stmtVP->get_result()->fetch_assoc();
+    if ($r && !empty($r['vehicle_plate'])) {
+      $p = $r['vehicle_plate'];
+      $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM tickets WHERE vehicle_plate=? AND status IN ('Pending','Validated','Escalated')");
+      $stmtC->bind_param('s', $p);
+      $stmtC->execute();
+      $cnt = (int)($stmtC->get_result()->fetch_assoc()['c'] ?? 0);
+      if ($cnt < 3) {
+        $stmtRV = $db->prepare("UPDATE vehicles SET status='Active' WHERE plate_number=? AND status='Suspended'");
+        $stmtRV->bind_param('s', $p);
+        $stmtRV->execute();
+        $stmtRC = $db->prepare("UPDATE compliance_summary SET compliance_status='Normal' WHERE vehicle_plate=? AND compliance_status='Suspended'");
+        $stmtRC->bind_param('s', $p);
+        $stmtRC->execute();
+      }
+    }
     echo json_encode(['ok' => true, 'ticket_id' => $tid, 'status' => 'Settled']);
   } else {
     echo json_encode(['error' => 'Failed to record payment']);

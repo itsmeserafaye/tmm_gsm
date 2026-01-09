@@ -1,0 +1,10 @@
+2026-01-09 23:10:42,945 [INFO] Forecast request: terminal_id=1 route_id='R-12' horizon_min=60 granularity_min=15 start=None end=None
+2026-01-09 23:10:42,946 [INFO] Fetching series from http://127.0.0.1/tmm/admin/api/analytics/export_dispatch_series.php with params {'route_id': 'R-12', 'terminal_id': 1, 'start': '2025-12-10T15:10:42.946699+00:00', 'end': '2026-01-09T15:10:42.946699+00:00'}
+2026-01-09 23:12:05,788 [INFO] Forecast request: terminal_id=8 route_id='R-12' horizon_min=240 granularity_min=60 start=None end=None
+2026-01-09 23:12:05,789 [INFO] Fetching series from http://127.0.0.1/tmm/admin/api/analytics/export_dispatch_series.php with params {'route_id': 'R-12', 'terminal_id': 8, 'start': '2025-12-10T15:12:05.789864+00:00', 'end': '2026-01-09T15:12:05.789864+00:00'}
+2026-01-09 23:12:05,946 [INFO] Forecast request: terminal_id=19 route_id='TEST-R-E2E' horizon_min=240 granularity_min=60 start=None end=None
+2026-01-09 23:12:05,947 [INFO] Fetching series from http://127.0.0.1/tmm/admin/api/analytics/export_dispatch_series.php with params {'route_id': 'TEST-R-E2E', 'terminal_id': 19, 'start': '2025-12-10T15:12:05.947421+00:00', 'end': '2026-01-09T15:12:05.947421+00:00'}
+2026-01-09 23:12:06,051 [INFO] Forecast request: terminal_id=19 route_id='R-12' horizon_min=240 granularity_min=60 start=None end=None
+2026-01-09 23:12:06,052 [INFO] Fetching series from http://127.0.0.1/tmm/admin/api/analytics/export_dispatch_series.php with params {'route_id': 'R-12', 'terminal_id': 19, 'start': '2025-12-10T15:12:06.052153+00:00', 'end': '2026-01-09T15:12:06.052153+00:00'}
+2026-01-09 23:12:06,158 [INFO] Forecast request: terminal_id=18 route_id='TEST-R-E2E' horizon_min=240 granularity_min=60 start=None end=None
+2026-01-09 23:12:06,158 [INFO] Fetching series from http://127.0.0.1/tmm/admin/api/analytics/export_dispatch_series.php with params {'route_id': 'TEST-R-E2E', 'terminal_id': 18, 'start': '2025-12-10T15:12:06.158757+00:00', 'end': '2026-01-09T15:12:06.158757+00:00'}

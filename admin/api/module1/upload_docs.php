@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-$plate = trim($_POST['plate_number'] ?? '');
+require_role(['Admin','Encoder']);
 header('Content-Type: application/json');
 
+$plate = trim($_POST['plate_number'] ?? '');
 if ($plate === '') {
     echo json_encode(['error' => 'Plate number required']);
     exit;
@@ -31,8 +33,7 @@ foreach (['or', 'cr', 'deed'] as $type) {
         if (move_uploaded_file($_FILES[$type]['tmp_name'], $dest)) {
             $uploaded[] = $filename;
             
-            // Update DB
-            $stmt = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
+            $stmt = $db->prepare("INSERT INTO documents (plate_number, type, file_path, verified) VALUES (?, ?, ?, 0)");
             $stmt->bind_param('sss', $plate, $type, $filename);
             $stmt->execute();
         } else {
