@@ -19,7 +19,20 @@ $existing = $db->prepare("SELECT cert_id, certificate_number FROM inspection_cer
 $existing->bind_param('i', $schedule_id);
 $existing->execute();
 $ex = $existing->get_result()->fetch_assoc();
-if ($ex) { echo json_encode(['ok'=>true,'certificate_number'=>$ex['certificate_number'],'cert_id'=>$ex['cert_id']]); exit; }
+if ($ex) {
+    $plateStmt = $db->prepare("SELECT plate_number FROM inspection_schedules WHERE schedule_id=?");
+    $plateStmt->bind_param('i', $schedule_id);
+    $plateStmt->execute();
+    $prow = $plateStmt->get_result()->fetch_assoc();
+    if ($prow && ($prow['plate_number'] ?? '') !== '') {
+        $plate = $prow['plate_number'];
+        $upVeh = $db->prepare("UPDATE vehicles SET inspection_status='Passed', inspection_cert_ref=? WHERE plate_number=?");
+        $upVeh->bind_param('ss', $ex['certificate_number'], $plate);
+        $upVeh->execute();
+    }
+    echo json_encode(['ok'=>true,'certificate_number'=>$ex['certificate_number'],'cert_id'=>$ex['cert_id']]);
+    exit;
+}
 $rs = $db->prepare("SELECT result_id, overall_status FROM inspection_results WHERE schedule_id=? ORDER BY submitted_at DESC LIMIT 1");
 $rs->bind_param('i', $schedule_id);
 $rs->execute();
@@ -36,5 +49,17 @@ $cert_no = 'CERT-' . $year . '-' . str_pad((string)$cid, 4, '0', STR_PAD_LEFT);
 $up = $db->prepare("UPDATE inspection_certificates SET certificate_number=? WHERE cert_id=?");
 $up->bind_param('si', $cert_no, $cid);
 $up->execute();
+
+$plateStmt2 = $db->prepare("SELECT plate_number FROM inspection_schedules WHERE schedule_id=?");
+$plateStmt2->bind_param('i', $schedule_id);
+$plateStmt2->execute();
+$prow2 = $plateStmt2->get_result()->fetch_assoc();
+if ($prow2 && ($prow2['plate_number'] ?? '') !== '') {
+    $plate2 = $prow2['plate_number'];
+    $upVeh2 = $db->prepare("UPDATE vehicles SET inspection_status='Passed', inspection_cert_ref=? WHERE plate_number=?");
+    $upVeh2->bind_param('ss', $cert_no, $plate2);
+    $upVeh2->execute();
+}
+
 echo json_encode(['ok'=>true,'certificate_number'=>$cert_no,'cert_id'=>$cid]);
 ?> 

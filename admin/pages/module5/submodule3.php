@@ -56,52 +56,11 @@ $res = $db->query("SELECT COUNT(*) as count FROM parking_violations");
 if($row = $res->fetch_assoc()) $incidents_count = $row['count'] ?? 0;
 
 $active_parking_areas = count($parking_areas);
-
-$terminals = [];
-$rt = $db->query("SELECT id, name FROM terminals ORDER BY name");
-while($row = $rt && $rt->fetch_assoc() ? $row : null) {}
-if ($rt) { $rt->data_seek(0); while($row = $rt->fetch_assoc()) { $terminals[] = $row; } }
-$permits = [];
-$rp = $db->query("SELECT p.id, p.application_no, p.status, p.payment_verified, p.expiry_date, t.name as terminal_name FROM terminal_permits p JOIN terminals t ON t.id=p.terminal_id ORDER BY p.created_at DESC LIMIT 50");
-while($row = $rp && $rp->fetch_assoc() ? $row : null) {}
-if ($rp) { $rp->data_seek(0); while($row = $rp->fetch_assoc()) { $permits[] = $row; } }
-$routes = [];
-$rq = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_name");
-if ($rq) { while($row = $rq->fetch_assoc()) { $routes[] = $row; } }
-$dispatch_today = (int)($db->query("SELECT COUNT(*) AS c FROM terminal_logs WHERE activity_type='Dispatch' AND DATE(time_in)=CURDATE()")->fetch_assoc()['c'] ?? 0);
-$avg_dwell_row = $db->query("SELECT AVG(TIMESTAMPDIFF(MINUTE, (SELECT MAX(a.time_in) FROM terminal_logs a WHERE a.terminal_id=l.terminal_id AND a.vehicle_plate=l.vehicle_plate AND a.activity_type='Arrival' AND a.time_in<=l.time_in), l.time_in)) AS avg_dwell FROM terminal_logs l WHERE l.activity_type='Dispatch' AND DATE(l.time_in)=CURDATE()");
-$avg_dwell = 0; if ($avg_dwell_row && ($r=$avg_dwell_row->fetch_assoc())) { $avg_dwell = (float)($r['avg_dwell'] ?? 0); }
-$route_headways = [];
-$rh = $db->query("SELECT v.route_id, COUNT(*) AS cnt, MIN(l.time_in) AS min_t, MAX(l.time_in) AS max_t FROM terminal_logs l JOIN vehicles v ON v.plate_number=l.vehicle_plate WHERE l.activity_type='Dispatch' AND DATE(l.time_in)=CURDATE() GROUP BY v.route_id");
-if ($rh) { while ($rw = $rh->fetch_assoc()) { $cnt = (int)($rw['cnt'] ?? 0); if ($cnt > 1) { $minT = $rw['min_t']; $maxT = $rw['max_t']; $hw = (int)$db->query("SELECT TIMESTAMPDIFF(MINUTE, '".$db->real_escape_string($minT)."', '".$db->real_escape_string($maxT)."') AS d")->fetch_assoc()['d']; $route_headways[$rw['route_id'] ?? ''] = ['cnt'=>$cnt, 'headway'=>round($hw/($cnt-1),1)]; } else { $route_headways[$rw['route_id'] ?? ''] = ['cnt'=>$cnt, 'headway'=>null]; } } }
-$route_counts = $db->query("SELECT v.route_id, COUNT(*) AS cnt FROM terminal_logs l JOIN vehicles v ON v.plate_number=l.vehicle_plate WHERE l.activity_type='Dispatch' AND DATE(l.time_in)=CURDATE() GROUP BY v.route_id ORDER BY cnt DESC LIMIT 5");
-$vehicle_counts = $db->query("SELECT l.vehicle_plate, COUNT(*) AS cnt FROM terminal_logs l WHERE l.activity_type='Dispatch' AND DATE(l.time_in)=CURDATE() GROUP BY l.vehicle_plate ORDER BY cnt DESC LIMIT 10");
-
-// Fetch Forecasts
-$forecasts = [];
-$rf = $db->query("SELECT f.ts, f.route_id, f.forecast_trips, f.lower_ci, f.upper_ci FROM demand_forecasts f WHERE f.ts >= NOW() AND f.ts < DATE_ADD(NOW(), INTERVAL 4 HOUR) ORDER BY f.ts ASC, f.route_id ASC");
-if ($rf) { while($row = $rf->fetch_assoc()) { $forecasts[] = $row; } }
-
-// Daily Recommendations (Simple Heuristic)
-$recommendations = [];
-$rr = $db->query("SELECT route_id, DATE_FORMAT(ts, '%H:00') as hour, SUM(forecast_trips) as total_demand FROM demand_forecasts WHERE ts >= NOW() AND ts < DATE_ADD(NOW(), INTERVAL 24 HOUR) GROUP BY route_id, hour HAVING total_demand > 10 ORDER BY total_demand DESC LIMIT 5");
-if ($rr) { while($row = $rr->fetch_assoc()) { $recommendations[] = $row; } }
-
 ?>
 
 <div class="mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg">
   <h1 class="text-2xl font-bold mb-2">Parking Fees, Enforcement & Analytics</h1>
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Manage fees, issue tickets, and view analytics for Parking Areas.</p>
-  <div class="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-    <h2 class="text-lg font-semibold mb-2">Quick Guide</h2>
-    <ul class="text-sm space-y-1">
-      <li>Use Permit Payment to verify payment and set status.</li>
-      <li>Activation blocks when route capacity is reached.</li>
-      <li>Dynamic Caps shows current limit and assigned vehicles.</li>
-      <li>Dispatch Analytics summarizes trips and headways.</li>
-      <li>Compute Caps updates limits from recent demand.</li>
-    </ul>
-  </div>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
     <div class="p-4 border rounded-lg dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
@@ -118,60 +77,7 @@ if ($rr) { while($row = $rr->fetch_assoc()) { $recommendations[] = $row; } }
     </div>
   </div>
 
-
-  <div class="mt-2 flex justify-end">
-    <button id="toggleAdvancedBtn" class="px-3 py-2 text-sm bg-slate-600 hover:bg-slate-700 text-white rounded">Show Advanced Tools</button>
-  </div>
-
-  <div id="advancedToolsTop" style="display:none">
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="p-4 border rounded-lg dark:border-slate-700">
-      <h2 class="text-lg font-semibold mb-3">Terminal Permit Payment</h2>
-      <div class="grid grid-cols-1 gap-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1">Permit</label>
-          <select id="permitSelect" title="Select permit to update" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-            <?php foreach($permits as $p): ?>
-              <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars(($p['application_no'] ?? 'N/A').' • '.$p['terminal_name'].' • '.$p['status']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Fee Amount (₱)</label>
-            <input id="feeAmount" type="number" step="0.01" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Receipt Ref</label>
-            <input id="receiptRef" type="text" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Expiry</label>
-            <input id="expiryDate" type="date" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Payment Verified</label>
-            <select id="payVerified" title="Mark treasury payment verified" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-              <option value="0">No</option>
-              <option value="1">Yes</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-500 mb-1">Set Status</label>
-            <select id="permitStatus" title="Choose permit status" class="w-full px-3 py-2 border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-              <option value="Pending Payment">Pending Payment</option>
-              <option value="Active">Active</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button id="activatePermitBtn" title="Update permit; oversupply blocks activation" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">Update Permit</button>
-          <div id="permitStatusMsg" class="text-sm text-slate-600 dark:text-slate-400"></div>
-        </div>
-      </div>
-    </div>
     <!-- Fee Charges Form -->
     <div class="p-4 border rounded-lg dark:border-slate-700">
       <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
@@ -260,85 +166,6 @@ if ($rr) { while($row = $rr->fetch_assoc()) { $recommendations[] = $row; } }
     </div>
   </div>
 
-  </div>
-  <div class="mt-6 p-4 border rounded-lg dark:border-slate-700">
-    <h2 class="text-lg font-semibold mb-3">Dispatch Analytics</h2>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-      <div class="p-4 border rounded-lg dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div class="text-sm text-slate-500">Dispatches Today</div>
-        <div class="text-3xl font-bold text-amber-600"><?php echo (int)$dispatch_today; ?></div>
-      </div>
-      <div class="p-4 border rounded-lg dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div class="text-sm text-slate-500">Avg Dwell (Arrival→Dispatch)</div>
-        <div class="text-3xl font-bold text-blue-600"><?php echo round($avg_dwell,1); ?> min</div>
-      </div>
-      <div class="p-4 border rounded-lg dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-        <div class="text-sm text-slate-500">Top Routes by Trips</div>
-        <div class="mt-2 space-y-1">
-          <?php if ($route_counts && $route_counts->num_rows>0): while($rc=$route_counts->fetch_assoc()): $rid = $rc['route_id'] ?? ''; $hw = $route_headways[$rid]['headway'] ?? null; ?>
-            <div class="flex items-center justify-between text-sm">
-              <span class="font-medium"><?php echo htmlspecialchars($rid ?: 'Unknown'); ?></span>
-              <span class="text-slate-600 dark:text-slate-400"><?php echo (int)$rc['cnt']; ?> trips<?php echo $hw!==null ? ' • '.$hw.' min' : ''; ?></span>
-            </div>
-          <?php endwhile; else: ?>
-            <div class="text-sm text-slate-500">No data.</div>
-          <?php endif; ?>
-  </div>
-
-
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <h3 class="text-sm font-medium text-slate-500 mb-2">Top Vehicles (Trips Today)</h3>
-        <div class="bg-slate-50 dark:bg-slate-800 rounded border dark:border-slate-700 max-h-60 overflow-y-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="text-xs text-slate-500 uppercase bg-slate-100 dark:bg-slate-700 sticky top-0">
-              <tr>
-                <th class="px-3 py-2">Plate</th>
-                <th class="px-3 py-2 text-right">Trips</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if ($vehicle_counts && $vehicle_counts->num_rows>0): while($vc=$vehicle_counts->fetch_assoc()): ?>
-                <tr class="border-b dark:border-slate-700">
-                  <td class="px-3 py-2 font-medium"><?php echo htmlspecialchars($vc['vehicle_plate']); ?></td>
-                  <td class="px-3 py-2 text-right font-bold"><?php echo (int)$vc['cnt']; ?></td>
-                </tr>
-              <?php endwhile; else: ?>
-                <tr><td colspan="2" class="px-3 py-2 text-center text-slate-500">No data.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div>
-        <h3 class="text-sm font-medium text-slate-500 mb-2">Headway by Route (Today)</h3>
-        <div class="bg-slate-50 dark:bg-slate-800 rounded border dark:border-slate-700 max-h-60 overflow-y-auto">
-          <table class="w-full text-sm text-left">
-            <thead class="text-xs text-slate-500 uppercase bg-slate-100 dark:bg-slate-700 sticky top-0">
-              <tr>
-                <th class="px-3 py-2">Route</th>
-                <th class="px-3 py-2 text-right">Avg Headway (min)</th>
-                <th class="px-3 py-2 text-right">Trips</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach($route_headways as $rid=>$info): ?>
-                <tr class="border-b dark:border-slate-700">
-                  <td class="px-3 py-2 font-medium"><?php echo htmlspecialchars($rid ?: 'Unknown'); ?></td>
-                  <td class="px-3 py-2 text-right"><?php echo $info['headway']!==null ? $info['headway'] : '—'; ?></td>
-                  <td class="px-3 py-2 text-right"><?php echo (int)$info['cnt']; ?></td>
-                </tr>
-              <?php endforeach; if (empty($route_headways)): ?>
-                <tr><td colspan="3" class="px-3 py-2 text-center text-slate-500">No data.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="mt-6 p-4 border rounded-lg dark:border-slate-700">
       <h2 class="text-lg font-semibold mb-3">Recent Activity</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -408,28 +235,3 @@ if ($rr) { while($row = $rr->fetch_assoc()) { $recommendations[] = $row; } }
       </div>
   </div>
 </div>
-<script>
-document.getElementById('activatePermitBtn')?.addEventListener('click', async function(){
-  const permit_id = document.getElementById('permitSelect').value;
-  const fee_amount = document.getElementById('feeAmount').value;
-  const payment_receipt = document.getElementById('receiptRef').value;
-  const expiry_date = document.getElementById('expiryDate').value;
-  const payment_verified = document.getElementById('payVerified').value;
-  const status = document.getElementById('permitStatus').value;
-  document.getElementById('permitStatusMsg').innerText = 'Updating...';
-  try {
-    const res = await fetch('/tmm/admin/api/module5/update_permit.php', { method: 'POST', body: new URLSearchParams({ permit_id, fee_amount, payment_receipt, expiry_date, payment_verified, status }) });
-    const data = await res.json();
-    if (data.success) {
-      document.getElementById('permitStatusMsg').innerText = 'Updated';
-      setTimeout(() => { window.location.reload(); }, 500);
-    } else {
-      document.getElementById('permitStatusMsg').innerText = data.message || 'Failed';
-    }
-  } catch (e) {
-    document.getElementById('permitStatusMsg').innerText = 'Network error';
-  }
-});
-
-
-</script>

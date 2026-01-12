@@ -15,7 +15,7 @@ function showToast(msg, type) {
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
-    container.className = 'fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none';
+    container.className = 'fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none';
     document.body.appendChild(container);
   }
   var toast = document.createElement('div');

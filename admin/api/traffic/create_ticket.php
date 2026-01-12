@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -94,16 +95,37 @@ if ($db->query($sql)) {
     foreach (['photo', 'video'] as $type) {
         if (isset($_FILES[$type]) && $_FILES[$type]['error'] === UPLOAD_ERR_OK) {
             $tmp = $_FILES[$type]['tmp_name'];
+
+            // Basic server-side type check to prevent non-photos/videos being saved
+            $mime = @mime_content_type($tmp);
+            if ($type === 'photo') {
+                if ($mime && strpos($mime, 'image/') !== 0) {
+                    continue;
+                }
+            } else {
+                if ($mime && strpos($mime, 'video/') !== 0) {
+                    continue;
+                }
+            }
+
             $name = time() . '_' . basename($_FILES[$type]['name']);
             $target = $uploadDir . $name;
             
-            if (move_uploaded_file($tmp, $target)) {
-                $db_path = 'uploads/evidence/' . $name;
-                $stmt = $db->prepare("INSERT INTO evidence (ticket_id, file_path, file_type) VALUES (?, ?, ?)");
-                $stmt->bind_param('iss', $ticket_id, $db_path, $type);
-                $stmt->execute();
-                $uploaded_files[] = $name;
+            if (!move_uploaded_file($tmp, $target)) {
+                continue;
             }
+
+            $safe = tmm_scan_file_for_viruses($target);
+            if (!$safe) {
+                if (is_file($target)) { @unlink($target); }
+                continue;
+            }
+
+            $db_path = 'uploads/evidence/' . $name;
+            $stmt = $db->prepare("INSERT INTO evidence (ticket_id, file_path, file_type) VALUES (?, ?, ?)");
+            $stmt->bind_param('iss', $ticket_id, $db_path, $type);
+            $stmt->execute();
+            $uploaded_files[] = $name;
         }
     }
     

@@ -19,6 +19,20 @@ $sql = "CREATE TABLE IF NOT EXISTS coops (
 if ($db->query($sql)) log_msg("Table 'coops' checked/created.\n");
 else log_msg("Error 'coops': " . $db->error . "\n");
 
+$idxCoopName = $db->query("SHOW INDEX FROM coops WHERE Key_name='uniq_coop_name'");
+if ($idxCoopName && $idxCoopName->num_rows === 0) {
+    if ($db->query("ALTER TABLE coops ADD UNIQUE KEY uniq_coop_name (coop_name)")) {
+        log_msg("Unique index 'uniq_coop_name' ensured on 'coops'.\n");
+    }
+}
+
+$idxLguApproval = $db->query("SHOW INDEX FROM coops WHERE Key_name='uniq_lgu_approval'");
+if ($idxLguApproval && $idxLguApproval->num_rows === 0) {
+    if ($db->query("ALTER TABLE coops ADD UNIQUE KEY uniq_lgu_approval (lgu_approval_number)")) {
+        log_msg("Unique index 'uniq_lgu_approval' ensured on 'coops'.\n");
+    }
+}
+
 // Update coops if columns missing
 $columns_to_add_coops = [
     "accreditation_date" => "DATE",

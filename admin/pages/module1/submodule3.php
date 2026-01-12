@@ -3,13 +3,19 @@
   <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Assign vehicles to LPTRP-approved routes and authorized terminals, enforcing capacity and eligibility.</p>
 
   <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+  <?php
+    require_once __DIR__ . '/../../includes/db.php';
+    $db = db();
+    $routesForSuggestions = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_id");
+  ?>
 
   <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-green-500 shadow-sm mb-6">
     <h2 class="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center gap-2"><i data-lucide="map-pin" class="w-5 h-5 text-green-500"></i> Assign Route</h2>
     <form id="assignRouteForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4" method="POST" action="/tmm/admin/api/module1/assign_route.php">
-      <input name="plate_number" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all w-full uppercase" placeholder="Plate number" required>
-      <input name="route_id" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all w-full uppercase" placeholder="Route ID" required>
+      <input name="plate_number" value="<?php echo htmlspecialchars($_GET['plate'] ?? ''); ?>" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all w-full uppercase" placeholder="Plate number" required>
+      <input name="route_id" list="route-list" value="<?php echo htmlspecialchars($_GET['route_id'] ?? ''); ?>" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all w-full uppercase" placeholder="Route ID" required>
       <select name="terminal_name" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all w-full">
         <option value="">Select Terminal</option>
         <option>Central Terminal</option>
@@ -29,15 +35,32 @@
         </button>
       </div>
     </form>
+    <datalist id="route-list">
+      <?php if ($routesForSuggestions): ?>
+        <?php while ($r = $routesForSuggestions->fetch_assoc()): ?>
+          <option value="<?php echo htmlspecialchars($r['route_id']); ?>"><?php echo htmlspecialchars($r['route_id'] . ' — ' . $r['route_name']); ?></option>
+        <?php endwhile; ?>
+      <?php endif; ?>
+    </datalist>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-blue-500 shadow-sm">
       <h3 class="text-md font-semibold mb-3 flex items-center gap-2"><i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-500"></i> Route Capacity</h3>
       <?php
-        require_once __DIR__ . '/../../includes/db.php';
-        $db = db();
-        $routeId = htmlspecialchars($_GET['route_id'] ?? 'R-12');
+        if (!isset($db)) {
+          require_once __DIR__ . '/../../includes/db.php';
+          $db = db();
+        }
+        $routeId = htmlspecialchars($_GET['route_id'] ?? '');
+        if ($routeId === '') {
+          $resFirstRoute = $db->query("SELECT route_id FROM routes ORDER BY route_id LIMIT 1");
+          if ($resFirstRoute && ($rowFirstRoute = $resFirstRoute->fetch_assoc())) {
+            $routeId = htmlspecialchars($rowFirstRoute['route_id']);
+          } else {
+            $routeId = 'R_001';
+          }
+        }
         $stmtR = $db->prepare("SELECT route_name, max_vehicle_limit FROM routes WHERE route_id=?");
         $stmtR->bind_param('s', $routeId);
         $stmtR->execute();
@@ -80,8 +103,22 @@
 
   <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-indigo-500 mt-6 shadow-sm">
     <h3 class="text-md font-semibold mb-4 flex items-center gap-2"><i data-lucide="settings" class="w-5 h-5 text-indigo-500"></i> Manage Routes</h3>
+    <?php
+      $nextRouteId = 'R_001';
+      if (!isset($db)) {
+        require_once __DIR__ . '/../../includes/db.php';
+        $db = db();
+      }
+      $resNext = $db->query("SELECT route_id FROM routes WHERE route_id LIKE 'R\\_%' ORDER BY route_id DESC LIMIT 1");
+      if ($resNext && ($rowNext = $resNext->fetch_assoc())) {
+        if (preg_match('/^R_(\d+)$/', $rowNext['route_id'], $m)) {
+          $n = (int)$m[1] + 1;
+          $nextRouteId = 'R_' . str_pad((string)$n, 3, '0', STR_PAD_LEFT);
+        }
+      }
+    ?>
     <form id="saveRouteForm" class="grid grid-cols-1 md:grid-cols-5 gap-4" method="POST" action="/tmm/admin/api/routes/save.php">
-      <input name="route_id" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all uppercase" placeholder="Route ID" required>
+      <input name="route_id" value="<?php echo htmlspecialchars($nextRouteId); ?>" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all uppercase" placeholder="Route ID" required readonly>
       <input name="route_name" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="Route Name" required>
       <input name="max_vehicle_limit" type="number" min="1" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all" placeholder="Capacity" required>
       <select name="status" class="px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all">
@@ -149,7 +186,7 @@
             </div>
             <form method="POST" action="/tmm/admin/api/module1/assign_route.php" class="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 md:border-0 md:pt-0 md:mt-0">
               <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($a['plate_number']); ?>">
-              <input name="route_id" class="w-20 px-2 py-1 text-xs border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-1 focus:ring-green-500" placeholder="Route" value="<?php echo htmlspecialchars($a['route_id']); ?>">
+              <input name="route_id" list="route-list" class="w-20 px-2 py-1 text-xs border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-1 focus:ring-green-500" placeholder="Route" value="<?php echo htmlspecialchars($a['route_id']); ?>">
               <input name="terminal_name" class="w-24 px-2 py-1 text-xs border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-1 focus:ring-green-500" placeholder="Terminal" value="<?php echo htmlspecialchars($a['terminal_name']); ?>">
               <select name="status" class="w-24 px-2 py-1 text-xs border rounded bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-1 focus:ring-green-500"><option <?php echo $a['status']==='Authorized'?'selected':''; ?>>Authorized</option><option <?php echo $a['status']!=='Authorized'?'selected':''; ?>>Pending</option></select>
               <button title="Update Assignment" class="p-1.5 rounded-full text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors"><i data-lucide="check" class="w-4 h-4"></i><span class="sr-only">Update</span></button>
@@ -194,6 +231,26 @@
         setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
       }
 
+      function mapAssignRouteError(code) {
+        var c = (code || '').toString();
+        switch (c) {
+          case 'missing_fields':
+            return 'Plate, route, and terminal are all required.';
+          case 'vehicle_not_found':
+            return 'Vehicle not found in registry.';
+          case 'inspection_not_passed':
+            return 'Inspection status must be PASSED before assigning a route.';
+          case 'franchise_invalid':
+            return 'Franchise is not endorsed. Route assignment is blocked.';
+          case 'route_not_found':
+            return 'Route ID not found in Routes registry.';
+          case 'route_over_capacity':
+            return 'Route is already at capacity. Choose another route or review LPTRP.';
+          default:
+            return 'Error: ' + c;
+        }
+      }
+
       // Generic Form Handler
       function handleForm(formId, btnId, successMsg) {
         const form = document.getElementById(formId);
@@ -214,12 +271,17 @@
             const res = await fetch(form.action, { method: 'POST', body: formData });
             const data = await res.json();
             
-            if (data.ok || data.status === 'success' || (Array.isArray(data) && data.length > 0)) {
+            const ok = data && (data.ok || data.status === 'success' || (Array.isArray(data) && data.length > 0));
+            if (ok) {
               showToast(successMsg);
               form.reset();
               setTimeout(() => location.reload(), 1000);
             } else {
-              throw new Error(data.error || 'Operation failed');
+              let errMsg = (data && data.error) ? data.error : 'Operation failed';
+              if (formId === 'assignRouteForm') {
+                errMsg = mapAssignRouteError(errMsg);
+              }
+              throw new Error(errMsg);
             }
           } catch (err) {
             showToast(err.message, 'error');

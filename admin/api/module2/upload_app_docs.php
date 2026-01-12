@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -32,19 +33,30 @@ foreach ($_FILES as $key => $file) {
         $filename = "APP{$app_id}_{$key}_" . time() . ".$ext";
         $dest = $uploadDir . $filename;
 
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
-            $db_path = "uploads/franchise/$filename";
-            $type = ucfirst(str_replace('doc_', '', $key)); // e.g., doc_ltfrb -> Ltfrb
+        if (!move_uploaded_file($file['tmp_name'], $dest)) {
+            $errors[] = "$key: Upload failed";
+            continue;
+        }
 
-            $stmt = $db->prepare("INSERT INTO documents (application_id, type, file_path) VALUES (?, ?, ?)");
+        $safe = tmm_scan_file_for_viruses($dest);
+        if (!$safe) {
+            if (is_file($dest)) { @unlink($dest); }
+            $errors[] = "$key: File failed security scan";
+            continue;
+        }
+
+        $db_path = "uploads/franchise/$filename";
+        $type = ucfirst(str_replace('doc_', '', $key));
+
+        $stmt = $db->prepare("INSERT INTO documents (application_id, type, file_path) VALUES (?, ?, ?)");
+        if ($stmt) {
             $stmt->bind_param('iss', $app_id, $type, $db_path);
             $stmt->execute();
             $uploaded[] = $filename;
         } else {
-            $errors[] = "$key: Upload failed";
+            $errors[] = "$key: Database error: " . $db->error;
         }
     }
 }
 
 echo json_encode(['ok' => true, 'uploaded' => $uploaded, 'errors' => $errors]);
-?>

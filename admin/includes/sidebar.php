@@ -63,7 +63,7 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
   </nav>
   <hr class="border-slate-300 dark:border-slate-700 mx-2">
   <div class="flex items-center p-4">
-    <img src="<?php echo $baseUrl; ?>/includes/user.png" alt="Admin" class="w-10 h-10 rounded-full">
+    <img src="includes/user.png" alt="Admin" class="w-10 h-10 rounded-full">
     <div class="sidebar-label ml-3">
       <div class="text-sm font-semibold dark:text-white">ADMIN</div>
       <div class="text-xs text-slate-500">Administrator</div>

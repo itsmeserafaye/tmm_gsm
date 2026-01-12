@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 header('Content-Type: application/json');
 
@@ -26,13 +27,20 @@ if (!in_array($ext, ['jpg','jpeg','png','pdf','mp4','mov'])) { echo json_encode(
 
 $filename = $ticket . '_ev_' . time() . '.' . $ext;
 $dest = $uploads_dir . '/' . $filename;
-if (move_uploaded_file($_FILES['evidence']['tmp_name'], $dest)) {
-  $type = in_array($ext, ['mp4','mov']) ? 'video' : ($ext === 'pdf' ? 'pdf' : 'image');
-  $stmtE = $db->prepare("INSERT INTO evidence (ticket_id, file_path, file_type) VALUES (?, ?, ?)");
-  $stmtE->bind_param('iss', $tid, $filename, $type);
-  $stmtE->execute();
-  echo json_encode(['ok' => true, 'file' => $filename]);
-} else {
+if (!move_uploaded_file($_FILES['evidence']['tmp_name'], $dest)) {
   echo json_encode(['error' => 'Failed to save file']);
+  exit;
 }
-?> 
+
+$safe = tmm_scan_file_for_viruses($dest);
+if (!$safe) {
+  if (is_file($dest)) { @unlink($dest); }
+  echo json_encode(['error' => 'File failed security scan']);
+  exit;
+}
+
+$type = in_array($ext, ['mp4','mov']) ? 'video' : ($ext === 'pdf' ? 'pdf' : 'image');
+$stmtE = $db->prepare("INSERT INTO evidence (ticket_id, file_path, file_type) VALUES (?, ?, ?)");
+$stmtE->bind_param('iss', $tid, $filename, $type);
+$stmtE->execute();
+echo json_encode(['ok' => true, 'file' => $filename]);

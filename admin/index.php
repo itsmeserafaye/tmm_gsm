@@ -46,21 +46,7 @@ foreach ($sidebarItems as $item) {
       } catch (e) {}
     })();
   </script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: '#4CAF50',
-            secondary: '#4A90E2',
-            accent: '#FDA811',
-            bg: '#FBFBFB'
-          }
-        }
-      }
-    }
-  </script>
+  <!-- Tailwind config removed - using CDN version -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>

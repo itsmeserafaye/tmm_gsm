@@ -3,6 +3,8 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 header('Content-Type: application/json');
+ini_set('display_errors', '0');
+error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
@@ -28,7 +30,7 @@ $coop_status = 'Passed';
 
 // Check Coop
 $coop_res = $db->query("SELECT * FROM coops WHERE id = $coop_id");
-$coop = $coop_res->fetch_assoc();
+$coop = $coop_res ? $coop_res->fetch_assoc() : null;
 if ($coop) {
     if (($coop['consolidation_status'] ?? '') !== 'Consolidated') {
         $coop_status = 'Failed';
@@ -41,7 +43,7 @@ if ($coop) {
 
 // Check LPTRP
 $route_res = $db->query("SELECT * FROM lptrp_routes WHERE id = $route_id");
-$route = $route_res->fetch_assoc();
+$route = $route_res ? $route_res->fetch_assoc() : null;
 if ($route) {
     $projected = $route['current_vehicle_count'] + $vehicle_count;
     if ($projected > $route['max_vehicle_capacity']) {
@@ -58,14 +60,22 @@ $notes_str = $db->real_escape_string(implode("\n", $validation_notes));
 // 2. Find/Create Operator
 $operator_id = 0;
 $res = $db->prepare("SELECT id FROM operators WHERE full_name = ?");
+$c_name = (is_array($coop) && isset($coop['coop_name'])) ? $coop['coop_name'] : 'Unknown';
+if (!$res) {
+    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $db->error]);
+    exit;
+}
 $res->bind_param('s', $rep_name);
 $res->execute();
 $op_res = $res->get_result();
 if ($op_res->num_rows > 0) {
     $operator_id = $op_res->fetch_assoc()['id'];
 } else {
-    $c_name = $coop['coop_name'] ?? 'Unknown';
     $stmt = $db->prepare("INSERT INTO operators (full_name, coop_name) VALUES (?, ?)");
+    if (!$stmt) {
+        echo json_encode(['ok' => false, 'error' => 'Database error: ' . $db->error]);
+        exit;
+    }
     $stmt->bind_param('ss', $rep_name, $c_name);
     $stmt->execute();
     $operator_id = $db->insert_id;
@@ -76,9 +86,26 @@ $stmt = $db->prepare("INSERT INTO franchise_applications
     (franchise_ref_number, operator_id, coop_id, vehicle_count, route_ids, fee_receipt_id, status, validation_notes, lptrp_status, coop_status) 
     VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)");
 
-$stmt->bind_param('siisisssss', $franchise_ref, $operator_id, $coop_id, $vehicle_count, $route_id, $fee_receipt, $notes_str, $lptrp_status, $coop_status);
+if (!$stmt) {
+    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $db->error]);
+    exit;
+}
 
-if ($stmt->execute()) {
+$route_ids_val = (string)$route_id;
+$stmt->bind_param('siiisssss', $franchise_ref, $operator_id, $coop_id, $vehicle_count, $route_ids_val, $fee_receipt, $notes_str, $lptrp_status, $coop_status);
+
+try {
+    $execOk = $stmt->execute();
+} catch (mysqli_sql_exception $e) {
+    if ($e->getCode() === 1062) {
+        echo json_encode(['ok' => false, 'error' => 'Application with this Franchise Reference already exists']);
+        exit;
+    }
+    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    exit;
+}
+
+if ($execOk) {
     $app_id = $db->insert_id;
     echo json_encode(['ok' => true, 'application_id' => $app_id, 'message' => "Application submitted. ID: APP-$app_id"]);
 } else {

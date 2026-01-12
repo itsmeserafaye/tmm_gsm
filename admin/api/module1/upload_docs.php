@@ -1,13 +1,22 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/security.php';
 $db = db();
-require_role(['Admin','Encoder']);
+$plate = trim($_POST['plate_number'] ?? '');
 header('Content-Type: application/json');
 
-$plate = trim($_POST['plate_number'] ?? '');
 if ($plate === '') {
     echo json_encode(['error' => 'Plate number required']);
+    exit;
+}
+
+$chk = $db->prepare("SELECT plate_number FROM vehicles WHERE plate_number=?");
+$chk->bind_param('s', $plate);
+$chk->execute();
+$exists = $chk->get_result()->fetch_assoc();
+if (!$exists) {
+    http_response_code(404);
+    echo json_encode(['error' => 'vehicle_not_found']);
     exit;
 }
 
@@ -30,14 +39,24 @@ foreach (['or', 'cr', 'deed'] as $type) {
         $filename = $plate . '_' . $type . '_' . time() . '.' . $ext;
         $dest = $uploads_dir . '/' . $filename;
         
-        if (move_uploaded_file($_FILES[$type]['tmp_name'], $dest)) {
-            $uploaded[] = $filename;
-            
-            $stmt = $db->prepare("INSERT INTO documents (plate_number, type, file_path, verified) VALUES (?, ?, ?, 0)");
-            $stmt->bind_param('sss', $plate, $type, $filename);
-            $stmt->execute();
-        } else {
+        if (!move_uploaded_file($_FILES[$type]['tmp_name'], $dest)) {
             $errors[] = "$type: Failed to move file";
+            continue;
+        }
+
+        $safe = tmm_scan_file_for_viruses($dest);
+        if (!$safe) {
+            if (is_file($dest)) { @unlink($dest); }
+            $errors[] = "$type: File failed security scan";
+            continue;
+        }
+
+        $uploaded[] = $filename;
+        $stmt = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
+        $stmt->bind_param('sss', $plate, $type, $filename);
+        if (!$stmt->execute()) {
+            if (is_file($dest)) { @unlink($dest); }
+            $errors[] = "$type: DB insert failed";
         }
     }
 }
@@ -49,4 +68,3 @@ if (empty($uploaded) && empty($errors)) {
 } else {
     echo json_encode(['ok' => true, 'files' => $uploaded]);
 }
-?> 

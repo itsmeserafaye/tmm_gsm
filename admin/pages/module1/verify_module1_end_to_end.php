@@ -1,4 +1,5 @@
 <?php
+ob_start();
 define('TMM_TEST', true);
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/util.php';
@@ -13,7 +14,7 @@ $db->query("DELETE FROM vehicles WHERE plate_number = 'TEST-E2E-001'");
 $db->query("DELETE FROM franchise_applications WHERE operator_name = 'TEST_E2E_OP'");
 $db->query("DELETE FROM operators WHERE full_name = 'TEST_E2E_OP'");
 $db->query("DELETE FROM coops WHERE coop_name = 'TEST_E2E_COOP'");
-$db->query("DELETE FROM routes WHERE route_id = 'TEST-R-E2E'");
+$db->query("DELETE FROM routes WHERE route_id = 'R-999'");
 $db->query("DELETE FROM vehicles WHERE plate_number = 'TEST-E2E-002'");
 $db->query("DELETE FROM terminal_assignments WHERE plate_number = 'TEST-E2E-002'");
 $db->query("DELETE FROM franchise_applications WHERE franchise_ref_number = 'FR-TEST-1'");
@@ -65,12 +66,12 @@ assert_true($app_id > 0, "Created Franchise Application (ID: $app_id)");
 // 5. Route Creation
 echo "\n--- Route Creation ---\n";
 $sql = "INSERT INTO routes (route_id, route_name, origin, destination, distance_km, fare, status) 
-        VALUES ('TEST-R-E2E', 'Test Route E2E', 'Origin A', 'Dest B', 10.5, 15.00, 'Active')";
+        VALUES ('R_999', 'Test Route E2E', 'Origin A', 'Dest B', 10.5, 15.00, 'Active')";
 if (!$db->query($sql)) {
     echo "Error: " . $db->error . "\n";
     exit(1);
 }
-assert_true($db->affected_rows > 0, "Created Route (ID: TEST-R-E2E)");
+assert_true($db->affected_rows > 0, "Created Route (ID: R_999)");
 
 // 6. Vehicle Registration via API (RBAC allowed)
 echo "\n--- Vehicle Registration (API, RBAC) ---\n";
@@ -98,7 +99,7 @@ assert_true($resp['ok'] === true, "API create_vehicle ok");
 echo "\n--- Route Assignment (Blocked before inspection) ---\n";
 $_POST = [
   'plate_number' => 'TEST-E2E-001',
-  'route_id' => 'TEST-R-E2E',
+  'route_id' => 'R-999',
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -163,7 +164,7 @@ assert_true(($vrow['inspection_cert_ref'] ?? '') === $cert_no, "Vehicle cert_ref
 echo "\n--- Route Assignment (After inspection Passed) ---\n";
 $_POST = [
   'plate_number' => 'TEST-E2E-001',
-  'route_id' => 'TEST-R-E2E',
+  'route_id' => 'R_999',
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -189,7 +190,7 @@ assert_true($row['terminal_name'] === 'Central Terminal', "Terminal Match");
 
 // 9. Route Capacity Enforcement
 echo "\n--- Route Capacity Enforcement ---\n";
-$db->query("UPDATE routes SET max_vehicle_limit = 1 WHERE route_id = 'TEST-R-E2E'");
+$db->query("UPDATE routes SET max_vehicle_limit = 1 WHERE route_id = 'R_999'");
 $_SERVER['HTTP_X_USER_ROLE'] = 'Admin';
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
@@ -203,7 +204,7 @@ ob_end_clean();
 $db->query("UPDATE vehicles SET inspection_status='Passed' WHERE plate_number='TEST-E2E-002'");
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
-  'route_id' => 'TEST-R-E2E',
+  'route_id' => 'R_999',
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -217,7 +218,7 @@ assert_true(($respCap['ok'] ?? false) === false && ($respCap['error'] ?? '') ===
 // 12. Franchise Validity Enforcement
 echo "\n--- Franchise Validity Enforcement ---\n";
 // Reset route capacity to avoid capacity interference
-$db->query("UPDATE routes SET max_vehicle_limit = 10 WHERE route_id = 'TEST-R-E2E'");
+$db->query("UPDATE routes SET max_vehicle_limit = 10 WHERE route_id = 'R_999'");
 $db->query("INSERT INTO franchise_applications (franchise_ref_number, operator_id, operator_name, application_type, status, submission_date) VALUES ('FR-TEST-1', $op_id, 'TEST_E2E_OP', 'Renewal', 'Rejected', CURDATE())");
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
@@ -236,7 +237,7 @@ assert_true(($respV['status'] ?? '') === 'Suspended', "Vehicle suspended when fr
 $db->query("UPDATE vehicles SET inspection_status='Passed' WHERE plate_number='TEST-E2E-002'");
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
-  'route_id' => 'TEST-R-E2E',
+  'route_id' => 'R-999',
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -283,7 +284,7 @@ assert_true(($rowOp['full_name'] ?? '') === 'TEST_API_OP', "Operator saved");
 // save_route
 $_SERVER['REQUEST_METHOD'] = 'POST';
 $_POST = [
-  'route_id' => 'API-ROUTE-1',
+  'route_id' => 'R_998',
   'route_name' => 'API Route One',
   'origin' => 'Origin Z',
   'destination' => 'Dest Z',
@@ -297,8 +298,8 @@ $out = ob_get_clean();
 preg_match('/\\{[\\s\\S]*\\}\\s*$/', $out, $mSR);
 $respSR = isset($mSR[0]) ? json_decode($mSR[0], true) : null;
 assert_true(($respSR['ok'] ?? false) === true, "API save_route ok");
-$rowRt = $db->query("SELECT route_id FROM routes WHERE route_id='API-ROUTE-1'")->fetch_assoc();
-assert_true(($rowRt['route_id'] ?? '') === 'API-ROUTE-1', "Route saved");
+$rowRt = $db->query("SELECT route_id FROM routes WHERE route_id='R_998'")->fetch_assoc();
+assert_true(($rowRt['route_id'] ?? '') === 'R_998', "Route saved");
 // save_franchise
 $_SERVER['REQUEST_METHOD'] = 'POST';
 $_POST = [
@@ -353,7 +354,7 @@ preg_match('/\\{[\\s\\S]*\\}\\s*$/', $out, $mLV);
 $respLV = isset($mLV[0]) ? json_decode($mLV[0], true) : null;
 assert_true(($respLV['ok'] ?? false) === true && is_array($respLV['data'] ?? null), "API list_vehicles ok");
 // list_assignments
-$_GET = ['route_id' => 'TEST-R-E2E'];
+$_GET = ['route_id' => 'R-999'];
 ob_start();
 include __DIR__ . '/../../api/module1/list_assignments.php';
 $out = ob_get_clean();
@@ -424,4 +425,5 @@ try {
 } catch (Exception $e) {
   assert_true($e->getMessage() === 'forbidden', "Inspector blocked by RBAC (exception)");
 }
+ob_end_flush();
 ?>

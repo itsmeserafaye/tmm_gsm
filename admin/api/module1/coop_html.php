@@ -10,7 +10,10 @@ $stmt->execute();
 $coop = $stmt->get_result()->fetch_assoc();
 if (!$coop) { echo '<div class="text-sm">Cooperative not found.</div>'; exit; }
 echo '<div class="space-y-4">';
-echo '<div class="flex items-center justify-between"><h2 class="text-lg font-semibold">Cooperative '.htmlspecialchars($coop['coop_name']).'</h2></div>';
+echo '<div class="flex items-center justify-between">';
+echo '<h2 class="text-lg font-semibold">Cooperative '.htmlspecialchars($coop['coop_name']).'</h2>';
+echo '<button type="button" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-500 hover:bg-teal-600 text-white" onclick="if(window.__useCoopInForm){window.__useCoopInForm(\''.htmlspecialchars($coop['coop_name'], ENT_QUOTES).'\', \''.htmlspecialchars($coop['address'] ?? '', ENT_QUOTES).'\', \''.htmlspecialchars($coop['chairperson_name'] ?? '', ENT_QUOTES).'\', \''.htmlspecialchars($coop['lgu_approval_number'] ?? '', ENT_QUOTES).'\');}">Use in Register Cooperative</button>';
+echo '</div>';
 echo '<div class="p-4 border rounded dark:border-slate-700"><div class="text-sm space-y-1"><div><span class="font-semibold">Address:</span> '.htmlspecialchars($coop['address'] ?? '').'</div><div><span class="font-semibold">Chairperson:</span> '.htmlspecialchars($coop['chairperson_name'] ?? '').'</div><div><span class="font-semibold">LGU Approval No.:</span> '.htmlspecialchars($coop['lgu_approval_number'] ?? '').'</div><div><span class="font-semibold">Created:</span> '.htmlspecialchars($coop['created_at']).'</div></div></div>';
 $stmtV = $db->prepare("SELECT plate_number, vehicle_type, status FROM vehicles WHERE coop_name=? ORDER BY created_at DESC LIMIT 10");
 $stmtV->bind_param('s', $name);

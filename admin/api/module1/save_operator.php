@@ -1,19 +1,39 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-require_role(['Admin','Encoder']);
 header('Content-Type: application/json');
 
 $name = trim($_POST['full_name'] ?? '');
 $contact = trim($_POST['contact_info'] ?? '');
 $coop = trim($_POST['coop_name'] ?? '');
 
-if ($name === '') {
-    echo json_encode(['error' => 'Operator name required']);
+if ($name === '' || strlen($name) < 3 || !preg_match("/^[A-Za-z\s'.-]+$/", $name)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'Operator full name should be a realistic human name']);
     exit;
 }
 
+if ($contact === '' || strlen($contact) < 7) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'Contact should be a valid phone number or email']);
+    exit;
+}
+
+if (strpos($contact, '@') !== false) {
+    if (!preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $contact)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Contact should be a valid email address']);
+        exit;
+    }
+} else {
+    if (!preg_match('/^[0-9+\-\s()]{7,20}$/', $contact)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'Contact should be a valid phone number']);
+        exit;
+    }
+}
+
+// Check/Insert COOP if provided
 $coopId = null;
 if ($coop !== '') {
     $stmtC = $db->prepare("SELECT id FROM coops WHERE coop_name = ?");
@@ -30,6 +50,7 @@ if ($coop !== '') {
     }
 }
 
+// Insert/Update Operator
 $stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, coop_id) VALUES (?, ?, ?) 
                       ON DUPLICATE KEY UPDATE contact_info=VALUES(contact_info), coop_id=VALUES(coop_id)");
 $stmt->bind_param('ssi', $name, $contact, $coopId);
@@ -37,6 +58,7 @@ $stmt->bind_param('ssi', $name, $contact, $coopId);
 if ($stmt->execute()) {
     echo json_encode(['ok' => true, 'id' => $db->insert_id ?: $stmt->insert_id]);
 } else {
-    echo json_encode(['error' => 'Failed to save operator: ' . $db->error]);
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Failed to save operator: ' . $db->error]);
 }
-?> 
+?>

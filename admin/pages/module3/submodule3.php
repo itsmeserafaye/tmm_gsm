@@ -7,6 +7,7 @@
     $status = trim($_GET['status'] ?? '');
     $q = trim($_GET['q'] ?? '');
     $officer_id = isset($_GET['officer_id']) ? (int)$_GET['officer_id'] : 0;
+    $view_ticket = trim($_GET['ticket'] ?? '');
     $sql = "SELECT ticket_number, violation_code, vehicle_plate, status, fine_amount, date_issued FROM tickets";
     $conds = [];
     if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escalated'])) { $conds[] = "status='".$db->real_escape_string($status)."'"; }
@@ -18,6 +19,31 @@
     if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }
     $sql .= " ORDER BY date_issued DESC LIMIT 100";
     $items = $db->query($sql);
+    $evidence_ticket = null;
+    $evidence_rows = [];
+    if ($view_ticket !== '') {
+      $stmtT = $db->prepare("SELECT ticket_id, ticket_number, violation_code, vehicle_plate, status, fine_amount, date_issued FROM tickets WHERE ticket_number = ? LIMIT 1");
+      if ($stmtT) {
+        $stmtT->bind_param('s', $view_ticket);
+        $stmtT->execute();
+        $resT = $stmtT->get_result();
+        if ($resT && ($rowT = $resT->fetch_assoc())) {
+          $evidence_ticket = $rowT;
+          $tid = (int)$rowT['ticket_id'];
+          $stmtE = $db->prepare("SELECT evidence_id, file_path, file_type, timestamp FROM evidence WHERE ticket_id = ? ORDER BY timestamp DESC");
+          if ($stmtE) {
+            $stmtE->bind_param('i', $tid);
+            $stmtE->execute();
+            $resE = $stmtE->get_result();
+            if ($resE) {
+              while ($rowE = $resE->fetch_assoc()) {
+                $evidence_rows[] = $rowE;
+              }
+            }
+          }
+        }
+      }
+    }
     $officers = $db->query("SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 ORDER BY name");
     $officer_stats = null; $officer_breakdown = null;
     if ($officer_id > 0) {
@@ -58,11 +84,67 @@
         <a class="px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white font-medium rounded-lg text-center transition-colors" target="_blank" href="/tmm/admin/api/tickets/export_pdf.php?period=<?php echo urlencode($period); ?>&status=<?php echo urlencode($status); ?>&officer_id=<?php echo (int)$officer_id; ?>&q=<?php echo urlencode($q); ?>">Export PDF</a>
         <button class="px-4 py-2 border rounded hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors">Notify Inspection</button>
         <button class="px-4 py-2 border rounded hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors">Notify Parking</button>
-        <button id="runEnforceBtn" class="md:col-span-2 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors">Run Compliance Enforcement</button>
-        <div id="enforceResult" class="md:col-span-2 mt-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded border dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300">No enforcement run yet.</div>
       </div>
     </div>
   </div>
+  <?php if ($evidence_ticket): ?>
+  <div class="mt-6 p-4 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900">
+    <div class="flex items-center justify-between mb-3">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">Evidence for Ticket</div>
+        <div class="text-lg font-semibold"><?php echo htmlspecialchars($evidence_ticket['ticket_number']); ?></div>
+        <div class="text-xs text-slate-500 mt-1">
+          <?php echo htmlspecialchars($evidence_ticket['violation_code']); ?>
+          · Plate <?php echo htmlspecialchars($evidence_ticket['vehicle_plate']); ?>
+          · Status <?php echo htmlspecialchars($evidence_ticket['status']); ?>
+        </div>
+      </div>
+      <div class="text-right text-sm">
+        <div>Fine: ₱<?php echo number_format((float)$evidence_ticket['fine_amount'], 2); ?></div>
+        <div class="text-xs text-slate-500">Issued <?php echo date('Y-m-d', strtotime($evidence_ticket['date_issued'])); ?></div>
+      </div>
+    </div>
+    <?php if (empty($evidence_rows)): ?>
+      <div class="text-sm text-slate-500">No evidence files have been uploaded for this ticket.</div>
+    <?php else: ?>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <?php foreach ($evidence_rows as $ev): ?>
+          <?php
+            $path = $ev['file_path'] ?? '';
+            $type = $ev['file_type'] ?? '';
+            $url = '';
+            if ($path !== '') {
+              if (strpos($path, 'uploads/') === 0) {
+                $url = '/tmm/admin/' . ltrim($path, '/');
+              } else {
+                $url = '/tmm/admin/uploads/' . ltrim($path, '/');
+              }
+            }
+          ?>
+          <div class="border rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+            <div class="aspect-video bg-slate-200 dark:bg-slate-900 flex items-center justify-center">
+              <?php if ($url && ($type === 'photo' || $type === 'image')): ?>
+                <img src="<?php echo htmlspecialchars($url); ?>" alt="Evidence" class="w-full h-full object-cover">
+              <?php elseif ($url && $type === 'video'): ?>
+                <video src="<?php echo htmlspecialchars($url); ?>" controls class="w-full h-full"></video>
+              <?php elseif ($url && $type === 'pdf'): ?>
+                <a href="<?php echo htmlspecialchars($url); ?>" target="_blank" class="text-xs px-3 py-2 rounded bg-white dark:bg-slate-800 border dark:border-slate-700">Open PDF</a>
+              <?php elseif ($url): ?>
+                <a href="<?php echo htmlspecialchars($url); ?>" target="_blank" class="text-xs px-3 py-2 rounded bg-white dark:bg-slate-800 border dark:border-slate-700">Open file</a>
+              <?php else: ?>
+                <div class="text-xs text-slate-500 px-3">Missing file path</div>
+              <?php endif; ?>
+            </div>
+            <div class="p-2 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
+              <span class="uppercase tracking-wide"><?php echo htmlspecialchars($type ?: 'file'); ?></span>
+              <span class="text-slate-400"><?php echo date('Y-m-d', strtotime($ev['timestamp'])); ?></span>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
   <?php if ($officer_id > 0 && $officer_stats): ?>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
     <div class="p-3 border rounded ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900">
@@ -109,6 +191,7 @@
           <th class="py-2 px-3">Status</th>
           <th class="py-2 px-3">Fine</th>
           <th class="py-2 px-3">Issued</th>
+          <th class="py-2 px-3">Evidence</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
@@ -123,63 +206,16 @@
           </td>
           <td class="py-2 px-3">₱<?php echo number_format((float)$r['fine_amount'],2); ?></td>
           <td class="py-2 px-3"><?php echo date('Y-m-d', strtotime($r['date_issued'])); ?></td>
+          <td class="py-2 px-3">
+            <a href="?page=module3/submodule3&period=<?php echo urlencode($period); ?>&status=<?php echo urlencode($status); ?>&officer_id=<?php echo (int)$officer_id; ?>&q=<?php echo urlencode($q); ?>&ticket=<?php echo urlencode($r['ticket_number']); ?>" class="inline-flex items-center px-2 py-1 border border-slate-300 dark:border-slate-600 rounded text-xs hover:bg-slate-100 dark:hover:bg-slate-800">
+              View
+            </a>
+          </td>
         </tr>
         <?php endwhile; else: ?>
-        <tr><td colspan="6" class="py-4 text-center text-slate-500">No records.</td></tr>
+        <tr><td colspan="7" class="py-4 text-center text-slate-500">No records.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
   </div>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const btn = document.getElementById('runEnforceBtn');
-  const out = document.getElementById('enforceResult');
-  if (btn) {
-    btn.addEventListener('click', async function() {
-      try {
-        btn.disabled = true;
-        const prevText = btn.textContent;
-        btn.textContent = 'Running...';
-        out.textContent = 'Running enforcement...';
-        const resp = await fetch('/tmm/admin/api/module3/enforce_compliance.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-User-Role': 'Admin'
-          },
-          body: 'mode=auto_all'
-        });
-        const data = await resp.json();
-        if (!data.ok) {
-          out.textContent = 'Error: ' + (data.error || 'unknown');
-        } else {
-          const u = data.updated || {};
-          const vs = (u.vehicles_suspended || []).length;
-          const vu = (u.vehicles_unsuspended || []).length;
-          const fs = (u.franchises_suspended || []).length;
-          const fu = (u.franchises_unsuspended || []).length;
-          const co = (u.cases_opened || []).length;
-          const ts = new Date().toLocaleString();
-          out.innerHTML = `
-            <div class="flex flex-wrap gap-2">
-              <span class="px-2 py-1 rounded bg-red-100 text-red-700 ring-1 ring-red-600/20">Vehicles Suspended: ${vs}</span>
-              <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 ring-1 ring-emerald-600/20">Vehicles Unsuspended: ${vu}</span>
-              <span class="px-2 py-1 rounded bg-amber-100 text-amber-700 ring-1 ring-amber-600/20">Franchises Suspended: ${fs}</span>
-              <span class="px-2 py-1 rounded bg-blue-100 text-blue-700 ring-1 ring-blue-600/20">Franchises Unsuspended: ${fu}</span>
-              <span class="px-2 py-1 rounded bg-indigo-100 text-indigo-700 ring-1 ring-indigo-600/20">Cases Opened: ${co}</span>
-            </div>
-            <div class="mt-2 text-xs text-slate-500">Last run: ${ts}</div>
-          `;
-        }
-        btn.textContent = prevText;
-        btn.disabled = false;
-      } catch (e) {
-        out.textContent = 'Unexpected error';
-        btn.disabled = false;
-        btn.textContent = 'Run Compliance Enforcement';
-      }
-    });
-  }
-});
-</script>
