@@ -1,208 +1,396 @@
-<?php
-require_once __DIR__ . '/../../includes/db.php';
-$db = db();
-
-$coopsRes = $db->query("SELECT id, coop_name, consolidation_status FROM coops ORDER BY coop_name");
-$routesRes = $db->query("SELECT id, route_code, description, max_vehicle_capacity, current_vehicle_count FROM lptrp_routes ORDER BY route_code");
-
-$coops = [];
-if ($coopsRes) {
-  while ($row = $coopsRes->fetch_assoc()) {
-    $coops[] = $row;
-  }
-}
-
-$routes = [];
-if ($routesRes) {
-  while ($row = $routesRes->fetch_assoc()) {
-    $routes[] = $row;
-  }
-}
-
-$q = trim($_GET['q'] ?? '');
-$statusFilter = trim($_GET['status'] ?? '');
-
-$sql = "SELECT fa.*, o.full_name AS operator, c.coop_name, r.route_code, r.description AS route_description 
-        FROM franchise_applications fa 
-        LEFT JOIN operators o ON fa.operator_id = o.id 
-        LEFT JOIN coops c ON fa.coop_id = c.id 
-        LEFT JOIN lptrp_routes r ON r.id = fa.route_ids";
-
-$conds = [];
-$params = [];
-$types = '';
-
-if ($q !== '') {
-  $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ? OR c.coop_name LIKE ?)";
-  $like = "%$q%";
-  $params[] = $like;
-  $params[] = $like;
-  $params[] = $like;
-  $types .= 'sss';
-}
-
-if ($statusFilter !== '' && $statusFilter !== 'All') {
-  $conds[] = "fa.status = ?";
-  $params[] = $statusFilter;
-  $types .= 's';
-}
-
-if ($conds) {
-  $sql .= " WHERE " . implode(" AND ", $conds);
-}
-
-$sql .= " ORDER BY fa.submitted_at DESC LIMIT 50";
-
-if ($params) {
-  $stmt = $db->prepare($sql);
-  if ($stmt && $types !== '') {
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $appsRes = $stmt->get_result();
-  } else {
-    $appsRes = false;
-  }
-} else {
-  $appsRes = $db->query($sql);
-}
-?>
-<div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
-  <h1 class="text-2xl font-bold mb-2">Franchise Application & Cooperative Management</h1>
-  <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Intake and tracking of franchise endorsement applications, cooperative profiles, consolidation status, and documentation.</p>
-
-  <div class="p-4 border rounded-lg dark:border-slate-700 mb-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-      <h2 class="text-lg font-semibold">Submit Application</h2>
-      <p class="text-xs text-slate-500 dark:text-slate-400 md:text-right">Runs automated checks on cooperative consolidation and LPTRP route capacity before queuing for validation.</p>
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Application & Cooperative</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Intake and tracking of franchise endorsement applications, cooperative profiles, and documentation.</p>
     </div>
-    <form id="module2AppForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm mb-1">Cooperative</label>
-        <select name="coop_id" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-          <option value="">Select cooperative</option>
-          <?php foreach ($coops as $c): ?>
-            <?php
-              $label = $c['coop_name'] ?? 'Coop';
-              $status = $c['consolidation_status'] ?? '';
-              if ($status !== '') {
-                $label .= " ({$status})";
-              }
-            ?>
-            <option value="<?php echo (int)$c['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm mb-1">Representative name</label>
-        <input name="rep_name" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700" placeholder="Coop representative">
-      </div>
-      <div>
-        <label class="block text-sm mb-1">LTFRB franchise reference</label>
-        <input name="franchise_ref" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700" placeholder="2024-00123">
-      </div>
-      <div>
-        <label class="block text-sm mb-1">Vehicle count requested</label>
-        <input name="vehicle_count" type="number" min="1" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700" placeholder="e.g. 10">
-      </div>
-      <div>
-        <label class="block text-sm mb-1">Proposed LPTRP route</label>
-        <select name="route_id" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-          <option value="">Select route</option>
-          <?php foreach ($routes as $r): ?>
-            <?php
-              $cap = (int)($r['max_vehicle_capacity'] ?? 0);
-              $curr = (int)($r['current_vehicle_count'] ?? 0);
-              $label = ($r['route_code'] ?? 'Route') . ' • ' . ($r['description'] ?? '') . " ({$curr}/{$cap})";
-            ?>
-            <option value="<?php echo (int)$r['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm mb-1">Fee receipt ID (optional)</label>
-        <input name="fee_receipt" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700" placeholder="OR / receipt reference">
-      </div>
-      <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm mb-1">LTFRB document</label>
-          <input name="doc_ltfrb" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm file:px-3 file:py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:text-white file:text-xs file:font-medium hover:file:bg-emerald-600 file:cursor-pointer">
-          <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Upload the LTFRB franchise decision or order as a clear PDF or image.</p>
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Coop registration</label>
-          <input name="doc_coop" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm file:px-3 file:py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:text-white file:text-xs file:font-medium hover:file:bg-emerald-600 file:cursor-pointer">
-          <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Upload the cooperative’s registration or accreditation document.</p>
-        </div>
-        <div>
-          <label class="block text-sm mb-1">Member vehicles list</label>
-          <input name="doc_members" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm file:px-3 file:py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-500 file:text-white file:text-xs file:font-medium hover:file:bg-emerald-600 file:cursor-pointer">
-          <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Upload a PDF, spreadsheet, or document listing the member vehicles.</p>
-        </div>
-      </div>
-      <?php if (getenv('TMM_AV_SCANNER')): ?>
-        <p class="md:col-span-2 text-[11px] text-slate-500 dark:text-slate-400">Files are scanned for viruses when uploaded.</p>
-      <?php endif; ?>
-      <div class="md:col-span-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <button type="button" id="module2SubmitBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg w-full md:w-auto">Create Application</button>
-        <div id="module2AppStatus" class="mt-1 text-xs text-slate-500"></div>
-      </div>
-    </form>
   </div>
 
-  <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="p-4 border rounded-lg dark:border-slate-700">
-      <h2 class="text-base font-semibold mb-2">Cooperative Directory</h2>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Review cooperatives and update their consolidation status after legal consolidation is complete.</p>
-      <div class="overflow-x-auto max-h-72">
-        <table class="min-w-full text-xs">
-          <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-            <tr class="text-left text-slate-600 dark:text-slate-300">
-              <th class="py-2 px-3">Cooperative</th>
-              <th class="py-2 px-3">Status</th>
-              <th class="py-2 px-3 text-right">Update</th>
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+  <?php
+    require_once __DIR__ . '/../../includes/db.php';
+    $db = db();
+
+    $coopsRes = $db->query("SELECT id, coop_name, consolidation_status FROM coops ORDER BY coop_name");
+    $routesRes = $db->query("SELECT id, route_code, description, max_vehicle_capacity, current_vehicle_count FROM lptrp_routes ORDER BY route_code");
+
+    $coops = [];
+    if ($coopsRes) {
+      while ($row = $coopsRes->fetch_assoc()) {
+        $coops[] = $row;
+      }
+    }
+
+    $routes = [];
+    if ($routesRes) {
+      while ($row = $routesRes->fetch_assoc()) {
+        $routes[] = $row;
+      }
+    }
+
+    $q = trim($_GET['q'] ?? '');
+    $statusFilter = trim($_GET['status'] ?? '');
+
+    $sql = "SELECT fa.*, o.full_name AS operator, c.coop_name, r.route_code, r.description AS route_description 
+            FROM franchise_applications fa 
+            LEFT JOIN operators o ON fa.operator_id = o.id 
+            LEFT JOIN coops c ON fa.coop_id = c.id 
+            LEFT JOIN lptrp_routes r ON r.id = fa.route_ids";
+
+    $conds = [];
+    $params = [];
+    $types = '';
+
+    if ($q !== '') {
+      $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ? OR c.coop_name LIKE ?)";
+      $like = "%$q%";
+      $params[] = $like;
+      $params[] = $like;
+      $params[] = $like;
+      $types .= 'sss';
+    }
+
+    if ($statusFilter !== '' && $statusFilter !== 'All') {
+      $conds[] = "fa.status = ?";
+      $params[] = $statusFilter;
+      $types .= 's';
+    }
+
+    if ($conds) {
+      $sql .= " WHERE " . implode(" AND ", $conds);
+    }
+
+    $sql .= " ORDER BY fa.submitted_at DESC LIMIT 50";
+
+    if ($params) {
+      $stmt = $db->prepare($sql);
+      if ($stmt && $types !== '') {
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $appsRes = $stmt->get_result();
+      } else {
+        $appsRes = false;
+      }
+    } else {
+      $appsRes = $db->query($sql);
+    }
+  ?>
+
+  <!-- Application Form -->
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-3">
+      <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+        <i data-lucide="file-plus" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">New Application</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Initiate franchise endorsement process</p>
+      </div>
+    </div>
+    
+    <div class="p-6">
+      <form id="module2AppForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Cooperative</label>
+            <div class="relative">
+              <select name="coop_id" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
+                <option value="">Select cooperative</option>
+                <?php foreach ($coops as $c): ?>
+                  <?php
+                    $label = $c['coop_name'] ?? 'Coop';
+                    $status = $c['consolidation_status'] ?? '';
+                    if ($status !== '') {
+                      $label .= " ({$status})";
+                    }
+                  ?>
+                  <option value="<?php echo (int)$c['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Representative Name</label>
+            <input name="rep_name" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. Juan Dela Cruz">
+          </div>
+          
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">LTFRB Franchise Ref</label>
+            <input name="franchise_ref" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 2024-00123">
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Count</label>
+              <input name="vehicle_count" type="number" min="1" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 10">
+            </div>
+            <div>
+               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Fee Receipt (Opt)</label>
+               <input name="fee_receipt" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="OR Reference">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Proposed LPTRP Route</label>
+            <div class="relative">
+              <select name="route_id" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
+                <option value="">Select route</option>
+                <?php foreach ($routes as $r): ?>
+                  <?php
+                    $cap = (int)($r['max_vehicle_capacity'] ?? 0);
+                    $curr = (int)($r['current_vehicle_count'] ?? 0);
+                    $label = ($r['route_code'] ?? 'Route') . ' • ' . ($r['description'] ?? '') . " ({$curr}/{$cap})";
+                  ?>
+                  <option value="<?php echo (int)$r['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Document Uploads -->
+        <div class="md:col-span-2 pt-4 border-t border-slate-100">
+          <h3 class="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <i data-lucide="paperclip" class="w-4 h-4 text-emerald-500"></i> Required Documents
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="group relative">
+              <label class="block text-xs font-medium text-slate-500 mb-2">LTFRB Decision/Order</label>
+              <div class="relative flex items-center justify-center w-full">
+                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
+                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                          <i data-lucide="upload-cloud" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
+                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Image</p>
+                      </div>
+                      <input name="doc_ltfrb" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
+                  </label>
+              </div>
+              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
+            </div>
+            
+            <div class="group relative">
+              <label class="block text-xs font-medium text-slate-500 mb-2">Coop Registration</label>
+              <div class="relative flex items-center justify-center w-full">
+                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
+                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                          <i data-lucide="file-badge" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
+                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Image</p>
+                      </div>
+                      <input name="doc_coop" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
+                  </label>
+              </div>
+              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
+            </div>
+            
+            <div class="group relative">
+              <label class="block text-xs font-medium text-slate-500 mb-2">Member Vehicles List</label>
+              <div class="relative flex items-center justify-center w-full">
+                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
+                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                          <i data-lucide="list" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
+                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Excel</p>
+                      </div>
+                      <input name="doc_members" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
+                  </label>
+              </div>
+              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
+            </div>
+          </div>
+          <?php if (getenv('TMM_AV_SCANNER')): ?>
+            <p class="mt-4 text-[11px] text-slate-400 flex items-center gap-1"><i data-lucide="shield-check" class="w-3 h-3"></i> Files are scanned for viruses when uploaded.</p>
+          <?php endif; ?>
+        </div>
+
+        <div class="md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700 pt-6">
+          <div id="module2AppStatus" class="text-xs font-medium text-slate-500"></div>
+          <button type="button" id="module2SubmitBtn" class="w-full md:w-auto px-6 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
+            <span>Create Application</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Cooperative Directory -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-1 flex flex-col h-full">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
+        <i data-lucide="users" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
+        <h2 class="font-bold text-slate-900 dark:text-white text-sm">Cooperative Status</h2>
+      </div>
+      <div class="overflow-y-auto max-h-[400px] p-2">
+        <?php if (!empty($coops)): ?>
+          <div class="space-y-2">
+            <?php foreach ($coops as $c): ?>
+              <?php $currentStatus = $c['consolidation_status'] ?? 'Not Consolidated'; ?>
+              <div class="p-3 rounded-xl border border-slate-100 bg-white hover:border-emerald-100 hover:shadow-sm transition-all group">
+                <div class="flex items-start justify-between mb-2">
+                  <div class="font-medium text-sm text-slate-800"><?php echo htmlspecialchars($c['coop_name'] ?? ''); ?></div>
+                  <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide
+                    <?php
+                      if ($currentStatus === 'Consolidated') echo 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                      elseif ($currentStatus === 'In Progress') echo 'bg-amber-50 text-amber-600 border border-amber-100';
+                      else echo 'bg-slate-50 text-slate-500 border border-slate-100';
+                    ?>
+                  ">
+                    <?php echo htmlspecialchars($currentStatus); ?>
+                  </span>
+                </div>
+                
+                <form class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-50" method="POST" action="/tmm/admin/api/module1/save_coop.php">
+                  <input type="hidden" name="coop_name" value="<?php echo htmlspecialchars($c['coop_name'] ?? '', ENT_QUOTES); ?>">
+                  <input type="hidden" name="address" value="KEEP_EXISTING">
+                  <input type="hidden" name="chairperson_name" value="KEEP_EXISTING">
+                  <input type="hidden" name="lgu_approval_number" value="KEEP_EXISTING">
+                  <select name="consolidation_status" class="w-full text-xs px-2 py-1.5 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-emerald-500 outline-none" onchange="window.updateCoopStatus(this);">
+                    <option value="Not Consolidated" <?php echo $currentStatus === 'Not Consolidated' ? 'selected' : ''; ?>>Not Consolidated</option>
+                    <option value="In Progress" <?php echo $currentStatus === 'In Progress' ? 'selected' : ''; ?>>In Progress</option>
+                    <option value="Consolidated" <?php echo $currentStatus === 'Consolidated' ? 'selected' : ''; ?>>Consolidated</option>
+                  </select>
+                </form>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        <?php else: ?>
+          <div class="text-center py-8 text-slate-400 text-xs">No cooperatives found.</div>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <!-- Recent Applications -->
+    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-2 flex flex-col h-full">
+      <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+          <h2 class="font-semibold text-slate-800 text-sm">Recent Applications</h2>
+        </div>
+        
+        <form id="module2FilterForm" method="GET" class="flex items-center gap-2">
+          <input type="hidden" name="page" value="module2/submodule1">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
+            <input name="q" list="module2SearchList" value="<?php echo htmlspecialchars($q); ?>" class="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none w-40 md:w-56" placeholder="Search...">
+            <?php
+              $module2SearchOptions = [];
+              $module2ResSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications ORDER BY submitted_at DESC LIMIT 100");
+              if ($module2ResSearch) {
+                while ($r = $module2ResSearch->fetch_assoc()) {
+                  $ref = trim((string)($r['franchise_ref_number'] ?? ''));
+                  $opn = trim((string)($r['operator_name'] ?? ''));
+                  if ($ref !== '') $module2SearchOptions[$ref] = true;
+                  if ($opn !== '') $module2SearchOptions[$opn] = true;
+                }
+              }
+            ?>
+            <datalist id="module2SearchList">
+              <?php foreach (array_keys($module2SearchOptions) as $opt): ?>
+                <option value="<?php echo htmlspecialchars($opt); ?>"></option>
+              <?php endforeach; ?>
+            </datalist>
+          </div>
+          <select name="status" class="px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
+            <option value="">Status</option>
+            <?php
+              $statuses = ['Pending','Under Review','Endorsed','Rejected'];
+              foreach ($statuses as $st):
+            ?>
+              <option value="<?php echo $st; ?>" <?php echo $statusFilter === $st ? 'selected' : ''; ?>><?php echo $st; ?></option>
+            <?php endforeach; ?>
+          </select>
+        </form>
+      </div>
+      
+      <div class="overflow-x-auto flex-1">
+        <table class="min-w-full text-sm text-left">
+          <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+            <tr>
+              <th class="py-3 px-4 text-xs uppercase tracking-wider">Reference</th>
+              <th class="py-3 px-4 text-xs uppercase tracking-wider">Details</th>
+              <th class="py-3 px-4 text-xs uppercase tracking-wider">Status</th>
+              <th class="py-3 px-4 text-right text-xs uppercase tracking-wider">Action</th>
             </tr>
           </thead>
-          <tbody class="divide-y dark:divide-slate-700">
-            <?php if (!empty($coops)): ?>
-              <?php foreach ($coops as $c): ?>
-                <?php $currentStatus = $c['consolidation_status'] ?? 'Not Consolidated'; ?>
-                <tr>
-                  <td class="py-2 px-3 align-middle">
-                    <div class="text-sm font-medium text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($c['coop_name'] ?? ''); ?></div>
+          <tbody class="divide-y divide-slate-100">
+            <?php if ($appsRes && $appsRes->num_rows > 0): ?>
+              <?php while ($row = $appsRes->fetch_assoc()): ?>
+                <?php
+                  $ref = $row['franchise_ref_number'] ?? '';
+                  $track = 'APP-' . (int)($row['application_id'] ?? 0);
+                  $status = $row['status'] ?? 'Pending';
+                  
+                  $badgeClass = 'bg-slate-100 text-slate-600 border border-slate-200';
+                  $dotClass = 'bg-slate-400';
+                  
+                  if ($status === 'Endorsed') {
+                    $badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+                    $dotClass = 'bg-emerald-500';
+                  } elseif ($status === 'Pending') {
+                    $badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100';
+                    $dotClass = 'bg-amber-500';
+                  } elseif ($status === 'Under Review') {
+                    $badgeClass = 'bg-blue-50 text-blue-700 border border-blue-100';
+                    $dotClass = 'bg-blue-500';
+                  } elseif ($status === 'Rejected') {
+                    $badgeClass = 'bg-rose-50 text-rose-700 border border-rose-100';
+                    $dotClass = 'bg-rose-500';
+                  }
+                  
+                  $lpStatus = $row['lptrp_status'] ?? '';
+                  $coopStatus = $row['coop_status'] ?? '';
+                  $routeLabel = ($row['route_code'] ?? '') !== '' ? ($row['route_code']) : ($row['route_ids'] ?? '');
+                  $openHref = $ref !== '' ? '?page=module1/submodule2&q=' . urlencode($ref) : '';
+                ?>
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                  <td class="py-3 px-4 align-top">
+                    <div class="font-medium text-slate-800"><?php echo htmlspecialchars($track); ?></div>
+                    <div class="text-xs text-slate-500 font-mono mt-0.5"><?php echo htmlspecialchars($ref !== '' ? $ref : 'No Ref'); ?></div>
                   </td>
-                  <td class="py-2 px-3 align-middle">
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
-                      <?php
-                        if ($currentStatus === 'Consolidated') {
-                          echo 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
-                        } elseif ($currentStatus === 'In Progress') {
-                          echo 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-                        } else {
-                          echo 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-                        }
-                      ?>
-                    ">
-                      <?php echo htmlspecialchars($currentStatus); ?>
+                  <td class="py-3 px-4 align-top">
+                    <div class="font-medium text-slate-700 text-sm"><?php echo htmlspecialchars($row['coop_name'] ?? '—'); ?></div>
+                    <div class="text-xs text-slate-500 mt-0.5">
+                      Route: <span class="font-semibold text-slate-600"><?php echo htmlspecialchars($routeLabel !== '' ? $routeLabel : '—'); ?></span> • 
+                      <?php echo (int)($row['vehicle_count'] ?? 0); ?> Units
+                    </div>
+                  </td>
+                  <td class="py-3 px-4 align-top">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium <?php echo $badgeClass; ?>">
+                      <span class="w-1.5 h-1.5 rounded-full <?php echo $dotClass; ?>"></span>
+                      <?php echo htmlspecialchars($status); ?>
                     </span>
+                    <div class="mt-1.5 flex gap-2">
+                       <?php if ($lpStatus !== ''): ?>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">LPTRP: <?php echo htmlspecialchars($lpStatus); ?></span>
+                      <?php endif; ?>
+                    </div>
                   </td>
-                  <td class="py-2 px-3 text-right align-middle">
-                    <form class="inline-flex items-center gap-1 text-xs" method="POST" action="/tmm/admin/api/module1/save_coop.php">
-                      <input type="hidden" name="coop_name" value="<?php echo htmlspecialchars($c['coop_name'] ?? '', ENT_QUOTES); ?>">
-                      <input type="hidden" name="address" value="KEEP_EXISTING">
-                      <input type="hidden" name="chairperson_name" value="KEEP_EXISTING">
-                      <input type="hidden" name="lgu_approval_number" value="KEEP_EXISTING">
-                      <select name="consolidation_status" class="px-2 py-1 border rounded bg-white dark:bg-slate-900 dark:border-slate-700" onchange="window.updateCoopStatus(this);">
-                        <option value="Not Consolidated" <?php echo $currentStatus === 'Not Consolidated' ? 'selected' : ''; ?>>Not Consolidated</option>
-                        <option value="In Progress" <?php echo $currentStatus === 'In Progress' ? 'selected' : ''; ?>>In Progress</option>
-                        <option value="Consolidated" <?php echo $currentStatus === 'Consolidated' ? 'selected' : ''; ?>>Consolidated</option>
-                      </select>
-                    </form>
+                  <td class="py-3 px-4 align-top text-right">
+                    <?php if ($openHref !== ''): ?>
+                      <a href="<?php echo htmlspecialchars($openHref); ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all shadow-sm">
+                        <span>Validate</span>
+                        <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                      </a>
+                    <?php else: ?>
+                      <span class="text-xs text-slate-400 italic">No Ref</span>
+                    <?php endif; ?>
                   </td>
                 </tr>
-              <?php endforeach; ?>
+              <?php endwhile; ?>
             <?php else: ?>
               <tr>
-                <td colspan="3" class="py-4 px-3 text-center text-xs text-slate-500">No cooperatives found. Register a cooperative in Module 1.</td>
+                <td colspan="4" class="py-8 text-center text-slate-400">
+                  <div class="flex flex-col items-center gap-2">
+                    <i data-lucide="inbox" class="w-8 h-8 stroke-1"></i>
+                    <span class="text-sm">No franchise applications found.</span>
+                  </div>
+                </td>
               </tr>
             <?php endif; ?>
           </tbody>
@@ -210,239 +398,141 @@ if ($params) {
       </div>
     </div>
   </div>
+</div>
 
-  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-    <h2 class="text-lg font-semibold">Recent Applications</h2>
-    <form id="module2FilterForm" method="GET" class="flex flex-col md:flex-row gap-2 md:items-center">
-      <input type="hidden" name="page" value="module2/submodule1">
-      <div class="relative">
-        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-        <input name="q" list="module2SearchList" value="<?php echo htmlspecialchars($q); ?>" class="pl-9 pr-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all" placeholder="Search Ref or Operator...">
-        <?php
-          $module2SearchOptions = [];
-          $module2ResSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications ORDER BY submitted_at DESC LIMIT 100");
-          if ($module2ResSearch) {
-            while ($r = $module2ResSearch->fetch_assoc()) {
-              $ref = trim((string)($r['franchise_ref_number'] ?? ''));
-              $opn = trim((string)($r['operator_name'] ?? ''));
-              if ($ref !== '') $module2SearchOptions[$ref] = true;
-              if ($opn !== '') $module2SearchOptions[$opn] = true;
-            }
-          }
-        ?>
-        <datalist id="module2SearchList">
-          <?php foreach (array_keys($module2SearchOptions) as $opt): ?>
-            <option value="<?php echo htmlspecialchars($opt); ?>"></option>
-          <?php endforeach; ?>
-        </datalist>
-      </div>
-      <select name="status" class="px-3 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all">
-        <option value="">Status</option>
-        <?php
-          $statuses = ['Pending','Under Review','Endorsed','Rejected'];
-          foreach ($statuses as $st):
-        ?>
-          <option value="<?php echo $st; ?>" <?php echo $statusFilter === $st ? 'selected' : ''; ?>><?php echo $st; ?></option>
-        <?php endforeach; ?>
-      </select>
-    </form>
-  </div>
-
-  <div class="overflow-x-auto">
-    <table class="min-w-full text-sm">
-      <thead class="hidden md:table-header-group">
-        <tr class="text-left text-slate-600 dark:text-slate-300">
-          <th class="py-2 px-3">Tracking #</th>
-          <th class="py-2 px-3">Cooperative</th>
-          <th class="py-2 px-3">Franchise Ref</th>
-          <th class="py-2 px-3">Route</th>
-          <th class="py-2 px-3">Vehicle Count</th>
-          <th class="py-2 px-3">Status</th>
-          <th class="py-2 px-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y dark:divide-slate-700">
-        <?php if ($appsRes && $appsRes->num_rows > 0): ?>
-          <?php while ($row = $appsRes->fetch_assoc()): ?>
-            <?php
-              $ref = $row['franchise_ref_number'] ?? '';
-              $track = 'APP-' . (int)($row['application_id'] ?? 0);
-              $status = $row['status'] ?? 'Pending';
-              $badgeClass = 'px-2 py-1 rounded bg-slate-100 text-slate-700';
-              if ($status === 'Endorsed') {
-                $badgeClass = 'px-2 py-1 rounded bg-emerald-100 text-emerald-700';
-              } elseif ($status === 'Pending') {
-                $badgeClass = 'px-2 py-1 rounded bg-amber-100 text-amber-700';
-              } elseif ($status === 'Under Review') {
-                $badgeClass = 'px-2 py-1 rounded bg-blue-100 text-blue-700';
-              } elseif ($status === 'Rejected') {
-                $badgeClass = 'px-2 py-1 rounded bg-rose-100 text-rose-700';
-              }
-              $lpStatus = $row['lptrp_status'] ?? '';
-              $coopStatus = $row['coop_status'] ?? '';
-              $routeLabel = ($row['route_code'] ?? '') !== '' ? ($row['route_code'] . ' • ' . ($row['route_description'] ?? '')) : ($row['route_ids'] ?? '');
-              $openHref = $ref !== '' ? '?page=module1/submodule2&q=' . urlencode($ref) : '';
-            ?>
-            <tr class="grid grid-cols-1 md:table-row gap-2 md:gap-0 p-2 md:p-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Tracking #: </span><?php echo htmlspecialchars($track); ?>
-              </td>
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Cooperative: </span><?php echo htmlspecialchars($row['coop_name'] ?? '—'); ?>
-              </td>
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Franchise Ref: </span><?php echo htmlspecialchars($ref !== '' ? $ref : '—'); ?>
-              </td>
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Route: </span><?php echo htmlspecialchars($routeLabel !== '' ? $routeLabel : '—'); ?>
-              </td>
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Vehicle Count: </span><?php echo (int)($row['vehicle_count'] ?? 0); ?>
-              </td>
-              <td class="py-2 px-3">
-                <span class="md:hidden font-semibold">Status: </span>
-                <span class="<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span>
-                <div class="mt-1 text-[11px] text-slate-500 space-x-2">
-                  <?php if ($lpStatus !== ''): ?>
-                    <span>LPTRP: <?php echo htmlspecialchars($lpStatus); ?></span>
-                  <?php endif; ?>
-                  <?php if ($coopStatus !== ''): ?>
-                    <span>Coop: <?php echo htmlspecialchars($coopStatus); ?></span>
-                  <?php endif; ?>
-                </div>
-              </td>
-              <td class="py-2 px-3 space-y-2 md:space-x-2 md:space-y-0 flex flex-col md:flex-row">
-                <?php if ($openHref !== ''): ?>
-                  <a href="<?php echo htmlspecialchars($openHref); ?>" class="px-2 py-1 border rounded w-full md:w-auto text-center text-xs">Open in Validation</a>
-                <?php else: ?>
-                  <span class="px-2 py-1 border rounded w-full md:w-auto text-center text-xs text-slate-400">No reference</span>
-                <?php endif; ?>
-              </td>
-            </tr>
-          <?php endwhile; ?>
-        <?php else: ?>
-          <tr>
-            <td colspan="7" class="py-6 px-3 text-center text-sm text-slate-500">No franchise applications found for the current filters.</td>
-          </tr>
-        <?php endif; ?>
-      </tbody>
-    </table>
-  </div>
-        </div>
-      </div>
-    </div>
-  </div>
 <script>
+// File Name Display Helper
+function showFileName(input) {
+  const display = input.parentElement.parentElement.nextElementSibling;
+  if (input.files && input.files[0]) {
+    display.textContent = input.files[0].name;
+    display.classList.remove('hidden');
+    // Change icon style to indicate success
+    const icon = input.parentElement.querySelector('i');
+    if(icon) {
+        icon.classList.remove('text-slate-400');
+        icon.classList.add('text-emerald-500');
+        icon.setAttribute('data-lucide', 'check-circle');
+        if(window.lucide) window.lucide.createIcons();
+    }
+  } else {
+    display.textContent = '';
+    display.classList.add('hidden');
+  }
+}
+
 (function() {
+  if (window.lucide) window.lucide.createIcons();
+
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if(!container) return;
+    const toast = document.createElement('div');
+    const colors = type === 'success' ? 'bg-emerald-500' : (type === 'error' ? 'bg-rose-500' : 'bg-amber-500');
+    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+    
+    toast.className = `${colors} text-white px-4 py-3 rounded-xl shadow-lg shadow-black/5 flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px] backdrop-blur-md`;
+    toast.innerHTML = `
+      <i data-lucide="${icon}" class="w-5 h-5"></i>
+      <span class="font-medium text-sm">${msg}</span>
+    `;
+    
+    container.appendChild(toast);
+    if (window.lucide) window.lucide.createIcons();
+    requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
+    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
+  }
+  window.showToast = showToast;
+
   var form = document.getElementById('module2AppForm');
   var btn = document.getElementById('module2SubmitBtn');
   var statusEl = document.getElementById('module2AppStatus');
-  if (!form || !btn || !statusEl) return;
+  
+  if (form && btn && statusEl) {
+    btn.addEventListener('click', function() {
+      if (btn.disabled) return;
+      var coopId = form.elements['coop_id'] ? form.elements['coop_id'].value : '';
+      
+      // Basic validation
+      if(!coopId) {
+          showToast('Please select a cooperative', 'error');
+          return;
+      }
 
-  btn.addEventListener('click', function() {
-    if (btn.disabled) return;
-    var coopId = form.elements['coop_id'] ? form.elements['coop_id'].value : '';
-    var repName = form.elements['rep_name'] ? form.elements['rep_name'].value : '';
-    var franchiseRef = form.elements['franchise_ref'] ? form.elements['franchise_ref'].value : '';
-    var vehicleCount = form.elements['vehicle_count'] ? form.elements['vehicle_count'].value : '';
-    var routeId = form.elements['route_id'] ? form.elements['route_id'].value : '';
-    var feeReceipt = form.elements['fee_receipt'] ? form.elements['fee_receipt'].value : '';
-    var docLtfrbInput = form.querySelector('input[name="doc_ltfrb"]');
-    var docCoopInput = form.querySelector('input[name="doc_coop"]');
-    var docMembersInput = form.querySelector('input[name="doc_members"]');
+      var fd = new FormData(form);
+      
+      // Manually append files if needed, but FormData(form) handles it usually.
+      // Explicitly check file inputs
+      var docLtfrbInput = form.querySelector('input[name="doc_ltfrb"]');
+      var docCoopInput = form.querySelector('input[name="doc_coop"]');
+      var docMembersInput = form.querySelector('input[name="doc_members"]');
 
-    var fd = new FormData();
-    fd.append('coop_id', coopId);
-    fd.append('rep_name', repName);
-    fd.append('franchise_ref', franchiseRef);
-    fd.append('vehicle_count', vehicleCount);
-    fd.append('route_id', routeId);
-    fd.append('fee_receipt', feeReceipt);
+      btn.disabled = true;
+      const originalBtnContent = btn.innerHTML;
+      btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...';
+      if(window.lucide) window.lucide.createIcons();
+      statusEl.textContent = 'Submitting application...';
+      statusEl.className = 'text-xs font-medium text-slate-500';
 
-    btn.disabled = true;
-    statusEl.textContent = 'Submitting application...';
-    statusEl.className = 'mt-1 text-xs text-slate-600';
-
-    fetch('api/module2/save_application.php', {
-      method: 'POST',
-      body: fd
-    })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data && data.ok) {
-          var appId = data.application_id || 0;
-          var hasLtfrb = docLtfrbInput && docLtfrbInput.files && docLtfrbInput.files.length > 0;
-          var hasCoop = docCoopInput && docCoopInput.files && docCoopInput.files.length > 0;
-          var hasMembers = docMembersInput && docMembersInput.files && docMembersInput.files.length > 0;
-          var hasAnyDocs = hasLtfrb || hasCoop || hasMembers;
-
-          if (appId && hasAnyDocs) {
-            statusEl.textContent = 'Application saved. Uploading documents...';
-            statusEl.className = 'mt-1 text-xs text-slate-600';
-
-            var docsFd = new FormData();
-            docsFd.append('application_id', appId);
-            if (hasLtfrb) {
-              docsFd.append('doc_ltfrb', docLtfrbInput.files[0]);
-            }
-            if (hasCoop) {
-              docsFd.append('doc_coop', docCoopInput.files[0]);
-            }
-            if (hasMembers) {
-              docsFd.append('doc_members', docMembersInput.files[0]);
-            }
-
-            return fetch('api/module2/upload_app_docs.php', {
-              method: 'POST',
-              body: docsFd
-            })
-              .then(function(r) { return r.json(); })
-              .then(function(docRes) {
-                var hasErrors = docRes && Array.isArray(docRes.errors) && docRes.errors.length > 0;
-                if (hasErrors) {
-                  statusEl.textContent = 'Application submitted. Some documents had issues: ' + docRes.errors.join('; ');
-                  statusEl.className = 'mt-1 text-xs text-amber-600';
-                } else {
-                  statusEl.textContent = 'Application and documents submitted successfully.';
-                  statusEl.className = 'mt-1 text-xs text-emerald-600';
-                }
-                form.reset();
-                setTimeout(function() {
-                  window.location.reload();
-                }, 900);
-              })
-              .catch(function(err) {
-                statusEl.textContent = 'Application saved, but document upload failed: ' + err.message;
-                statusEl.className = 'mt-1 text-xs text-amber-600';
-                setTimeout(function() {
-                  window.location.reload();
-                }, 1200);
-              })
-              .finally(function() {
-                btn.disabled = false;
-              });
-          } else {
-            statusEl.textContent = data.message || 'Application submitted.';
-            statusEl.className = 'mt-1 text-xs text-emerald-600';
-            form.reset();
-            setTimeout(function() {
-              window.location.reload();
-            }, 800);
-            btn.disabled = false;
-          }
-        } else {
-          statusEl.textContent = (data && data.error) ? data.error : 'Unable to submit application.';
-          statusEl.className = 'mt-1 text-xs text-red-600';
-          btn.disabled = false;
-        }
+      fetch('api/module2/save_application.php', {
+        method: 'POST',
+        body: fd
       })
-      .catch(function(err) {
-        statusEl.textContent = 'Error: ' + err.message;
-        statusEl.className = 'mt-1 text-xs text-red-600';
-        btn.disabled = false;
-      });
-  });
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data && data.ok) {
+            var appId = data.application_id || 0;
+            var hasLtfrb = docLtfrbInput && docLtfrbInput.files && docLtfrbInput.files.length > 0;
+            var hasCoop = docCoopInput && docCoopInput.files && docCoopInput.files.length > 0;
+            var hasMembers = docMembersInput && docMembersInput.files && docMembersInput.files.length > 0;
+            var hasAnyDocs = hasLtfrb || hasCoop || hasMembers;
+
+            if (appId && hasAnyDocs) {
+              statusEl.textContent = 'Uploading documents...';
+              
+              var docsFd = new FormData();
+              docsFd.append('application_id', appId);
+              if (hasLtfrb) docsFd.append('doc_ltfrb', docLtfrbInput.files[0]);
+              if (hasCoop) docsFd.append('doc_coop', docCoopInput.files[0]);
+              if (hasMembers) docsFd.append('doc_members', docMembersInput.files[0]);
+
+              return fetch('api/module2/upload_app_docs.php', {
+                method: 'POST',
+                body: docsFd
+              })
+                .then(function(r) { return r.json(); })
+                .then(function(docRes) {
+                  var hasErrors = docRes && Array.isArray(docRes.errors) && docRes.errors.length > 0;
+                  if (hasErrors) {
+                    showToast('Application saved, but some documents failed: ' + docRes.errors.join('; '), 'warning');
+                  } else {
+                    showToast('Application and documents submitted successfully!', 'success');
+                  }
+                  form.reset();
+                  setTimeout(function() { window.location.reload(); }, 1500);
+                });
+            } else {
+              showToast(data.message || 'Application submitted successfully!', 'success');
+              form.reset();
+              setTimeout(function() { window.location.reload(); }, 1000);
+            }
+          } else {
+            showToast((data && data.error) ? data.error : 'Unable to submit application.', 'error');
+          }
+        })
+        .catch(function(err) {
+          showToast('Error: ' + err.message, 'error');
+        })
+        .finally(function() {
+          btn.disabled = false;
+          btn.innerHTML = originalBtnContent;
+          if(window.lucide) window.lucide.createIcons();
+          statusEl.textContent = '';
+        });
+    });
+  }
 })();
+
 (function(){
   var form = document.getElementById('module2FilterForm');
   if (!form) return;
@@ -468,24 +558,26 @@ window.updateCoopStatus = function(el) {
   var form = el && el.closest ? el.closest('form') : null;
   if (!form) return false;
   var fd = new FormData(form);
-  var name = fd.get('coop_name') || '';
-  var status = fd.get('consolidation_status') || '';
-  if (name === '' || status === '') return false;
   if (el && el.disabled) return false;
+  
+  const originalVal = el.value;
   if (el) el.disabled = true;
+  
   fetch(form.action, { method: 'POST', body: fd })
     .then(function(r){ return r.json(); })
     .then(function(data){
       if (!data || data.ok === false) {
         var err = data && data.error ? data.error : 'Failed to update cooperative';
         if (window.showToast) window.showToast(err, 'error');
+        el.value = originalVal; // Revert
       } else {
-        if (window.showToast) window.showToast('Cooperative updated', 'success');
-        window.location.reload();
+        if (window.showToast) window.showToast('Cooperative status updated', 'success');
+        setTimeout(() => window.location.reload(), 500);
       }
     })
     .catch(function(err){
       if (window.showToast) window.showToast('Error: ' + err.message, 'error');
+      el.value = originalVal;
     })
     .finally(function(){
       if (el) el.disabled = false;

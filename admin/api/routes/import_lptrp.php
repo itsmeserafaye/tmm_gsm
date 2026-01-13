@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-require_role(['Admin']);
+require_permission('module1.routes.write');
 header('Content-Type: application/json');
 $csv = '';
 if (!empty($_POST['csv'])) { $csv = $_POST['csv']; }

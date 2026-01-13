@@ -41,5 +41,22 @@ if ($params) {
 
 $rows = [];
 while ($r = $res->fetch_assoc()) { $rows[] = $r; }
-echo json_encode(['items' => $rows]);
+
+$officers = [];
+if ($q !== '') {
+  $like = '%' . $db->real_escape_string($q) . '%';
+  $sqlO = "SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 AND (name LIKE '$like' OR badge_no LIKE '$like') ORDER BY name LIMIT 10";
+  $resO = $db->query($sqlO);
+  if ($resO) {
+    while ($o = $resO->fetch_assoc()) {
+      $officers[] = [
+        'officer_id' => (int)$o['officer_id'],
+        'name' => $o['name'],
+        'badge_no' => $o['badge_no'],
+      ];
+    }
+  }
+}
+
+echo json_encode(['items' => $rows, 'officers' => $officers]);
 ?> 

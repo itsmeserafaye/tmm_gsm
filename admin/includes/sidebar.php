@@ -62,11 +62,22 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
     <?php endforeach; ?>
   </nav>
   <hr class="border-slate-300 dark:border-slate-700 mx-2">
-  <div class="flex items-center p-4">
-    <img src="includes/user.png" alt="Admin" class="w-10 h-10 rounded-full">
-    <div class="sidebar-label ml-3">
-      <div class="text-sm font-semibold dark:text-white">ADMIN</div>
-      <div class="text-xs text-slate-500">Administrator</div>
+  <div class="p-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="includes/user.png" alt="User" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50">
+        <div class="sidebar-label">
+          <div class="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]" title="<?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin User'); ?>">
+            <?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin User'); ?>
+          </div>
+          <div class="text-xs font-medium text-slate-500 truncate max-w-[120px]" title="<?php echo htmlspecialchars(current_user_role()); ?>">
+            <?php echo htmlspecialchars(current_user_role()); ?>
+          </div>
+        </div>
+      </div>
+      <a href="../gsm_login/Login/login.php?logout=true" class="sidebar-label p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all" title="Logout">
+        <i data-lucide="log-out" class="w-5 h-5"></i>
+      </a>
     </div>
   </div>
 </div>

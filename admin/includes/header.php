@@ -1,7 +1,7 @@
 <?php
 $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
 ?>
-<div class="bg-white/-80 backdrop-blur-xl border-b border-slate-200 px-6 py-4 dark:bg-slate-800 dark:border-slate-700/50">
+<div class="bg-white/80 backdrop-blur-xl border-b border-slate-200 px-6 py-4 dark:bg-slate-800 dark:border-slate-700/50">
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">
       <button class="p-2 rounded-lg text-slate-500 hover:bg-slate-200 transition-colors duration-200" onclick="toggleSidebar()">
@@ -19,7 +19,7 @@ $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
     <div class="flex-1 max-w-md mx-8">
       <div class="relative">
         <i data-lucide="search" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
-        <input type="text" placeholder="Search..." class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:border-transparent focus:ring-secondary hover:border-secondary transition-all">
+        <input type="text" placeholder="Search..." class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
         <button class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
           <i data-lucide="filter" class="w-5 h-5"></i>
         </button>
@@ -28,7 +28,7 @@ $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
     <div class="flex items-center space-x-1">
       <button class="relative rounded-xl p-2 text-slate-600 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
         <i data-lucide="bell" class="w-6 h-6"></i>
-        <span class="absolute top-0 w-4 h-4 text-white text-xs bg-accent rounded-full flex items-center justify-center">1</span>
+        <span class="absolute top-0 w-4 h-4 text-white text-xs bg-blue-600 rounded-full flex items-center justify-center">1</span>
       </button>
       <button class="ml-2 rounded-xl p-2 bg-slate-300 text-slate-600 hover:bg-slate-400 dark:bg-slate-700 dark:text-yellow-400 dark:hover:bg-slate-900 transition-colors cursor-pointer" onclick="toggleTheme()" aria-label="Toggle dark mode">
         <span id="themeState" class="sr-only">light</span>

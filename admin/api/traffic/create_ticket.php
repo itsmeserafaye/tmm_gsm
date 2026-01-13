@@ -17,7 +17,13 @@ $driver_name = $db->real_escape_string($_POST['driver_name'] ?? '');
 $location = $db->real_escape_string($_POST['location'] ?? '');
 $notes = $db->real_escape_string($_POST['notes'] ?? '');
 $issued_at = $_POST['issued_at'] ?? date('Y-m-d H:i:s');
-$issued_by = 'Officer Admin'; // Static for now, or from session
+$issued_by = 'Officer Admin';
+$issued_by_badge = null;
+$officer_name_input = trim($_POST['officer_name'] ?? '');
+
+if ($officer_name_input !== '') {
+    $issued_by = $db->real_escape_string($officer_name_input);
+}
 
 if (!$violation_code || !$plate_number) {
     echo json_encode(['ok' => false, 'error' => 'Violation Code and Plate Number are required']);
@@ -81,8 +87,11 @@ if ($franchise_id) {
 }
 
 // 6. Insert Ticket
-$sql = "INSERT INTO tickets (ticket_number, violation_code, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, status) 
-        VALUES ('$ticket_number', '$violation_code', '$plate_number', " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by', '$status')";
+$issued_by_sql = $db->real_escape_string($issued_by);
+$issued_by_badge_sql = $issued_by_badge !== null ? "'" . $issued_by_badge . "'" : "NULL";
+
+$sql = "INSERT INTO tickets (ticket_number, violation_code, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status) 
+        VALUES ('$ticket_number', '$violation_code', '$plate_number', " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status')";
 
 if ($db->query($sql)) {
     $ticket_id = $db->insert_id;

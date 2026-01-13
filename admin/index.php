@@ -1,5 +1,15 @@
 <?php
+$baseUrl = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/admin/index.php')));
+$baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
+$rootUrl = preg_replace('#/admin$#', '', $baseUrl);
+if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+if (php_sapi_name() !== 'cli' && empty($_SESSION['user_id'])) {
+  header('Location: ' . $rootUrl . '/index.php');
+  exit;
+}
+
 $baseDir = __DIR__;
+require_once $baseDir . '/includes/auth.php';
 require_once $baseDir . '/includes/sidebar_items.php';
 
 $page = isset($_GET['page']) ? trim($_GET['page'], '/') : 'dashboard';
@@ -49,8 +59,9 @@ foreach ($sidebarItems as $item) {
   <!-- Tailwind config removed - using CDN version -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="includes/unified.css">
 </head>
- <body class="min-h-screen bg-bg dark:bg-slate-800 transition-colors duration-200">
+ <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200">
   <div class="flex h-screen overflow-hidden">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>

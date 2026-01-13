@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 header('Content-Type: application/json');
 $db = db();
-require_role(['Admin']);
+require_permission('module1.coops.write');
 $name = trim($_POST['coop_name'] ?? '');
 $isTestEnv = defined('TMM_TEST') && TMM_TEST;
 $isTestName = preg_match('/^TEST[_-]/i', $name) === 1;

@@ -10,5 +10,10 @@ $stmt = $db->prepare("INSERT INTO routes(route_id, route_name, max_vehicle_limit
 $stmt->bind_param('ssis', $route_id, $route_name, $limit, $status);
 $ok = $stmt->execute();
 header('Content-Type: application/json');
-echo json_encode(['ok'=>$ok, 'route_id'=>$route_id]);
+if (!$ok) {
+  http_response_code(400);
+  echo json_encode(['ok'=>false,'error'=>'save_failed']);
+  exit;
+}
+echo json_encode(['ok'=>true, 'route_id'=>$route_id]);
 ?> 

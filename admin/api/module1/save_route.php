@@ -10,7 +10,7 @@ try {
     }
 
     $db = db();
-    require_role(['Admin']);
+    require_permission('module1.routes.write');
 
     $route_id = trim($_POST['route_id'] ?? '');
     $route_name = trim($_POST['route_name'] ?? '');

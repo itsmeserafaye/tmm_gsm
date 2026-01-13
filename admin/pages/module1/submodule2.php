@@ -2,93 +2,78 @@
   require_once __DIR__ . '/../../includes/db.php';
   $db = db();
 ?>
-<div class="mx-1 mt-1 p-4 md:p-6 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-lg">
-  <h1 class="text-2xl font-bold mb-2">Operator, Cooperative & Franchise Validation</h1>
-  <p class="mb-6 text-sm text-slate-600 dark:text-slate-400">Maintains operator and cooperative profiles and validates franchise references through cross-checks with Franchise Management.</p>
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
+  <!-- Header -->
+  <div>
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Operator & Franchise Validation</h1>
+    <p class="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400 max-w-3xl">Maintain operator profiles, cooperative registries, and validate franchise references against LGU records.</p>
+  </div>
 
   <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <!-- Summary Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="p-6 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-      <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        <i data-lucide="file-text" class="w-16 h-16 text-blue-500"></i>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Applications</div>
+        <i data-lucide="file-text" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
       </div>
-      <div class="relative z-10">
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Applications</p>
         <?php
-          $resT = $db->query("SELECT COUNT(*) as c FROM franchise_applications");
+          $resT = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE operator_name <> 'TEST_E2E_OP'");
           $total = $resT->fetch_assoc()['c'] ?? 0;
         ?>
-        <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><?php echo $total; ?></h3>
-        <div class="flex items-center mt-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 w-fit px-2 py-1 rounded-full">
-          <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i>
-          <span>All records</span>
-        </div>
-      </div>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $total; ?></h3>
     </div>
 
-    <div class="p-6 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-      <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        <i data-lucide="check-circle-2" class="w-16 h-16 text-emerald-500"></i>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Endorsed / Valid</div>
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
       </div>
-      <div class="relative z-10">
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Endorsed / Valid</p>
         <?php
-          $resE = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE status='Endorsed'");
+          $resE = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE status='Endorsed' AND operator_name <> 'TEST_E2E_OP'");
           $endorsed = $resE->fetch_assoc()['c'] ?? 0;
         ?>
-        <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><?php echo $endorsed; ?></h3>
-        <div class="flex items-center mt-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 w-fit px-2 py-1 rounded-full">
-          <i data-lucide="check" class="w-3 h-3 mr-1"></i>
-          <span>Permits Issued</span>
-        </div>
-      </div>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $endorsed; ?></h3>
     </div>
 
-    <div class="p-6 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-      <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        <i data-lucide="clock" class="w-16 h-16 text-amber-500"></i>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Review</div>
+        <i data-lucide="clock" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
       </div>
-      <div class="relative z-10">
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Review</p>
         <?php
-          $resP = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE status='Pending' OR status='Under Review'");
+          $resP = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE (status='Pending' OR status='Under Review') AND operator_name <> 'TEST_E2E_OP'");
           $pending = $resP->fetch_assoc()['c'] ?? 0;
         ?>
-        <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mt-1"><?php echo $pending; ?></h3>
-        <div class="flex items-center mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 w-fit px-2 py-1 rounded-full">
-          <i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i>
-          <span>Needs Action</span>
-        </div>
-      </div>
+        <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $pending; ?></h3>
     </div>
   </div>
 
   <!-- Registry Table -->
-  <div class="mb-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 space-y-4">
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 space-y-4 bg-slate-50 dark:bg-slate-700/30">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400">
             <i data-lucide="folder-open" class="w-5 h-5"></i>
           </div>
-          <h2 class="font-semibold text-slate-800 dark:text-slate-100">Franchise Applications</h2>
+          <h2 class="text-lg font-black text-slate-800 dark:text-white">Franchise Applications</h2>
         </div>
-        <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto justify-end">
-          <button type="button" onclick="openFranchiseFormModal()" class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg shadow-sm shadow-emerald-500/30">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto justify-end">
+          <button type="button" onclick="openFranchiseFormModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-md shadow-sm transition-all active:scale-[0.98]">
             <i data-lucide="file-plus" class="w-4 h-4"></i>
             <span>New Application</span>
           </button>
-          <form id="franchiseFilterForm" class="flex items-center gap-2 w-full md:w-auto" method="GET">
+          <form id="franchiseFilterForm" class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto" method="GET">
             <input type="hidden" name="page" value="module1/submodule2">
-            <div class="relative flex-1 md:w-64">
-              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-              <input name="q" list="franchiseSearchList" value="<?php echo htmlspecialchars($_GET['q']??''); ?>" class="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all" placeholder="Search Ref or Operator...">
+            <div class="relative flex-1 sm:w-64 group">
+              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+              <input name="q" list="franchiseSearchList" value="<?php echo htmlspecialchars($_GET['q']??''); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search Ref or Operator...">
               <?php
                 $searchOptions = [];
-                $resSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications ORDER BY submitted_at DESC LIMIT 100");
+                $resSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications WHERE operator_name <> 'TEST_E2E_OP' ORDER BY submitted_at DESC LIMIT 100");
                 if ($resSearch) {
                   while ($r = $resSearch->fetch_assoc()) {
                     $ref = trim((string)($r['franchise_ref_number'] ?? ''));
@@ -104,12 +89,15 @@
                 <?php endforeach; ?>
               </datalist>
             </div>
-            <select name="status" class="px-3 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all">
-              <option value="">Status</option>
-              <option value="Pending" <?php echo ($_GET['status']??'')==='Pending'?'selected':''; ?>>Pending</option>
-              <option value="Endorsed" <?php echo ($_GET['status']??'')==='Endorsed'?'selected':''; ?>>Endorsed</option>
-              <option value="Rejected" <?php echo ($_GET['status']??'')==='Rejected'?'selected':''; ?>>Rejected</option>
-            </select>
+            <div class="relative w-full sm:w-44">
+              <select name="status" class="px-4 py-2.5 pl-4 pr-10 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+                <option value="">Status</option>
+                <option value="Pending" <?php echo ($_GET['status']??'')==='Pending'?'selected':''; ?>>Pending</option>
+                <option value="Endorsed" <?php echo ($_GET['status']??'')==='Endorsed'?'selected':''; ?>>Endorsed</option>
+                <option value="Rejected" <?php echo ($_GET['status']??'')==='Rejected'?'selected':''; ?>>Rejected</option>
+              </select>
+              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+            </div>
           </form>
         </div>
       </div>
@@ -117,18 +105,18 @@
     
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
-        <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-          <tr class="text-left text-slate-600 dark:text-slate-400">
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Reference #</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Operator</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Cooperative</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Units</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Submitted</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs">Status</th>
-            <th class="py-3 px-4 font-semibold uppercase tracking-wider text-xs text-center">Actions</th>
+        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+          <tr class="text-left text-slate-500 dark:text-slate-400">
+            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Reference #</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Cooperative</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Units</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Submitted</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Status</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
           <?php
             $q = trim($_GET['q'] ?? '');
             $st = trim($_GET['status'] ?? '');
@@ -137,6 +125,9 @@
                     LEFT JOIN operators o ON fa.operator_id = o.id 
                     LEFT JOIN coops c ON fa.coop_id = c.id";
             $conds = []; $params = []; $types = '';
+            $conds[] = "fa.operator_name <> ?";
+            $params[] = 'TEST_E2E_OP';
+            $types .= 's';
             if ($q !== '') { $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ?)"; $params[]="%$q%"; $params[]="%$q%"; $types.='ss'; }
             if ($st !== '') { $conds[] = "fa.status = ?"; $params[]=$st; $types.='s'; }
             if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }
@@ -148,19 +139,19 @@
             if ($res->num_rows > 0):
             while ($row = $res->fetch_assoc()):
               $sBadge = match($row['status']) {
-                'Endorsed' => 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-600/20',
-                'Pending' => 'bg-amber-100 text-amber-700 ring-1 ring-amber-600/20',
-                'Rejected' => 'bg-red-100 text-red-700 ring-1 ring-red-600/20',
-                default => 'bg-slate-100 text-slate-700 ring-1 ring-slate-600/20'
+                'Endorsed' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                'Pending' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
               };
           ?>
-          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-            <td class="py-3 px-4 font-medium text-slate-900 dark:text-slate-100"><?php echo htmlspecialchars($row['franchise_ref_number']); ?></td>
-            <td class="py-3 px-4 text-slate-600 dark:text-slate-400">
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+            <td class="py-4 px-6 font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($row['franchise_ref_number']); ?></td>
+            <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">
               <?php if (!empty($row['operator'])): ?>
                 <button
                   type="button"
-                  class="text-slate-700 dark:text-slate-200 hover:text-teal-600 hover:underline"
+                  class="hover:text-violet-600 hover:underline transition-colors text-left"
                   data-op-name="<?php echo htmlspecialchars($row['operator']); ?>"
                 >
                   <?php echo htmlspecialchars($row['operator']); ?>
@@ -168,13 +159,18 @@
               <?php else: ?>
                 <span class="text-slate-400">-</span>
               <?php endif; ?>
+              <?php if (!empty($row['coop_name'] ?? '')): ?>
+                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium lg:hidden">
+                  <?php echo htmlspecialchars((string)($row['coop_name'] ?? '')); ?>
+                </div>
+              <?php endif; ?>
             </td>
-            <td class="py-3 px-4 text-slate-600 dark:text-slate-400">
+            <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium hidden lg:table-cell">
               <?php $coopName = $row['coop_name'] ?? ''; ?>
               <?php if ($coopName): ?>
                 <button
                   type="button"
-                  class="text-slate-700 dark:text-slate-200 hover:text-teal-600 hover:underline"
+                  class="hover:text-violet-600 hover:underline transition-colors text-left"
                   data-coop-name="<?php echo htmlspecialchars($coopName); ?>"
                 >
                   <?php echo htmlspecialchars($coopName); ?>
@@ -183,14 +179,14 @@
                 <span class="text-slate-400">-</span>
               <?php endif; ?>
             </td>
-            <td class="py-3 px-4 text-slate-600 dark:text-slate-400"><?php echo (int)$row['vehicle_count']; ?></td>
-            <td class="py-3 px-4 text-slate-500 text-xs"><?php echo date('M d, Y', strtotime($row['submitted_at'])); ?></td>
-            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-xs font-medium <?php echo $sBadge; ?>"><?php echo $row['status']; ?></span></td>
-            <td class="py-3 px-4 text-center">
-              <div class="flex items-center justify-center gap-2">
+            <td class="py-4 px-4 font-bold text-slate-700 dark:text-slate-300 hidden sm:table-cell"><?php echo (int)$row['vehicle_count']; ?></td>
+            <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden md:table-cell"><?php echo date('M d, Y', strtotime($row['submitted_at'])); ?></td>
+            <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $sBadge; ?>"><?php echo $row['status']; ?></span></td>
+            <td class="py-4 px-4 text-right">
+              <div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <button
                   title="View Details"
-                  class="p-2 rounded-full text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                  class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
                   data-app-view="1"
                   data-ref="<?php echo htmlspecialchars($row['franchise_ref_number']); ?>"
                   data-status="<?php echo htmlspecialchars($row['status']); ?>"
@@ -205,7 +201,7 @@
                 </button>
                 <a
                   href="?page=module1/submodule1&fr_ref=<?php echo urlencode($row['franchise_ref_number']); ?>&op=<?php echo urlencode($row['operator'] ?? ''); ?>"
-                  class="p-2 rounded-full text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors inline-flex items-center justify-center"
+                  class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all inline-flex items-center justify-center"
                   title="Register Vehicle"
                 >
                   <i data-lucide="plus-circle" class="w-4 h-4"></i>
@@ -214,39 +210,51 @@
             </td>
           </tr>
           <?php endwhile; else: ?>
-          <tr><td colspan="7" class="py-8 text-center text-slate-500 italic">No applications found.</td></tr>
+          <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No applications found.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-    <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-blue-500 shadow-sm">
-      <h3 class="text-md font-semibold mb-4 flex items-center gap-2"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i> Franchise Details</h3>
-      <div class="flex flex-col md:flex-row gap-2 mb-4 items-stretch md:items-center">
-        <div class="relative flex-1">
-          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="p-5 sm:p-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <h3 class="text-lg font-bold mb-6 flex items-center gap-3 text-slate-900 dark:text-white">
+        <div class="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+        </div>
+        Franchise Lookup
+      </h3>
+      <div class="flex flex-col md:flex-row gap-3 mb-6 items-stretch md:items-center">
+        <div class="relative flex-1 group">
+          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
           <input
             id="franchiseLookup"
-            class="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all uppercase"
+            class="w-full pl-10 pr-4 py-3 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case"
             placeholder="Enter Franchise Ref # (e.g. 2024-00123)"
           >
         </div>
         <button
-          id="franchiseLookupBtn"
-          type="button"
-          class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-        >
-          <i data-lucide="shield-check" class="w-4 h-4"></i>
+            id="franchiseLookupBtn"
+            type="button"
+            class="w-full md:w-auto px-6 py-3 text-sm font-bold rounded-md bg-blue-700 hover:bg-blue-800 text-white shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
           <span>Validate</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </button>
       </div>
-      <div id="franchiseResult" class="text-sm text-slate-500 italic py-4 text-center">Enter a Franchise Ref above to validate details.</div>
+      <div id="franchiseResult" class="min-h-[60px] flex items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-700">
+        <span class="text-sm font-medium text-slate-400">Enter a Franchise Ref above to validate details.</span>
+      </div>
     </div>
 
-    <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-teal-500 shadow-sm">
-      <h3 class="text-md font-semibold mb-4 flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-teal-500"></i> Operator & Cooperative</h3>
+    <div class="p-5 sm:p-8 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <h3 class="text-lg font-bold mb-6 flex items-center gap-3 text-slate-900 dark:text-white">
+        <div class="h-8 w-8 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-teal-600 dark:text-teal-400">
+          <i data-lucide="users" class="w-4 h-4"></i>
+        </div>
+        Operator & Cooperative
+      </h3>
       <?php
         $opNames = [];
         $resOp = $db->query("
@@ -282,14 +290,15 @@
           }
         }
       ?>
-      <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
+      <div class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="group relative">
+            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
             <input
               id="opViewName"
               list="opNameList"
-              class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-              placeholder="Search operator name..."
+              class="w-full pl-10 pr-4 py-3 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400"
+              placeholder="Search operator..."
             >
             <datalist id="opNameList">
               <?php foreach ($opNames as $name): ?>
@@ -297,12 +306,13 @@
               <?php endforeach; ?>
             </datalist>
           </div>
-          <div>
+          <div class="group relative">
+            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
             <input
               id="coopViewName"
               list="coopNameList"
-              class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all"
-              placeholder="Search cooperative name..."
+              class="w-full pl-10 pr-4 py-3 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400"
+              placeholder="Search cooperative..."
             >
             <datalist id="coopNameList">
               <?php foreach ($coopNames as $name): ?>
@@ -311,16 +321,16 @@
             </datalist>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="openOperatorFormModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+          <button type="button" onclick="openOperatorFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
             <i data-lucide="user-plus" class="w-4 h-4"></i>
-            <span>Add New Operator</span>
+            <span>Add Operator</span>
           </button>
-          <button type="button" onclick="openCoopFormModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+          <button type="button" onclick="openCoopFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
             <i data-lucide="users" class="w-4 h-4"></i>
-            <span>Register Cooperative</span>
+            <span>Register Coop</span>
           </button>
-          <button type="button" onclick="openVehicleLinkFormModal()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+          <button type="button" onclick="openVehicleLinkFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
             <i data-lucide="link-2" class="w-4 h-4"></i>
             <span>Link Vehicle</span>
           </button>
@@ -329,36 +339,54 @@
     </div>
   </div>
 
-  <div class="p-6 border rounded-lg ring-1 ring-slate-200 dark:ring-slate-700 bg-white dark:bg-slate-900 border-t-4 border-t-orange-500 shadow-sm mt-6">
-    <h3 class="text-md font-semibold mb-4 flex items-center gap-2"><i data-lucide="alert-circle" class="w-5 h-5 text-orange-500"></i> Validation Rules</h3>
-    <ul class="space-y-2 text-sm text-slate-600 dark:text-slate-300">
-      <li class="flex items-start gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-500 mt-0.5"></i> Only LGU-verified franchises are stored.</li>
-      <li class="flex items-start gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-500 mt-0.5"></i> Franchise must match LTFRB-issued reference.</li>
-      <li class="flex items-start gap-2"><i data-lucide="check-circle-2" class="w-4 h-4 text-green-500 mt-0.5"></i> COOP without LGU approval cannot register vehicles.</li>
+  <div class="p-6 rounded-lg bg-orange-50/50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30">
+    <h3 class="text-sm font-bold mb-4 flex items-center gap-2 text-orange-800 dark:text-orange-200 uppercase tracking-widest">
+      <i data-lucide="alert-circle" class="w-4 h-4"></i> Validation Rules
+    </h3>
+    <ul class="space-y-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+      <li class="flex items-start gap-3">
+        <div class="mt-0.5 h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+          <i data-lucide="check" class="w-3 h-3 text-emerald-600 dark:text-emerald-400"></i>
+        </div>
+        <span>Only LGU-verified franchises are stored in the system.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <div class="mt-0.5 h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+          <i data-lucide="check" class="w-3 h-3 text-emerald-600 dark:text-emerald-400"></i>
+        </div>
+        <span>Franchise references must strictly match the LTFRB-issued format.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <div class="mt-0.5 h-5 w-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+          <i data-lucide="check" class="w-3 h-3 text-emerald-600 dark:text-emerald-400"></i>
+        </div>
+        <span>Cooperatives without LGU approval numbers cannot register vehicles.</span>
+      </li>
     </ul>
   </div>
 
-  <div id="franchiseFormModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="franchiseFormModalPanel">
+  <!-- Modals -->
+  <div id="franchiseFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="franchiseFormModalPanel">
       <form id="franchiseApplyForm" class="space-y-0" method="POST" action="api/franchise/apply.php">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">New Franchise Application</h3>
-          <button type="button" onclick="closeFranchiseFormModal()" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <i data-lucide="x" class="w-5 h-5 text-slate-500"></i>
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">New Franchise Application</h3>
+          <button type="button" onclick="closeFranchiseFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
           <div>
-            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">LTFRB Case No. / Ref #</label>
-            <input name="franchise_ref" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all uppercase" placeholder="e.g. 2024-00123" required>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LTFRB Case No. / Ref #</label>
+            <input name="franchise_ref" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all uppercase placeholder:normal-case" placeholder="e.g. 2024-00123" required>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Operator</label>
-              <input name="operator_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Name" required>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Operator</label>
+              <input name="operator_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" placeholder="Name" required>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Cooperative</label>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Cooperative</label>
               <?php
                 $applyCoopNames = [];
                 $resApplyCoop = $db->query("SELECT DISTINCT coop_name FROM coops ORDER BY coop_name ASC LIMIT 200");
@@ -368,28 +396,27 @@
                   }
                 }
               ?>
-              <input name="coop_name" list="applyCoopNameList" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Existing Cooperative (must be registered)">
+              <input name="coop_name" list="applyCoopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" placeholder="Existing Coop">
               <datalist id="applyCoopNameList">
                 <?php foreach ($applyCoopNames as $name): ?>
                   <option value="<?php echo htmlspecialchars($name); ?>"></option>
                 <?php endforeach; ?>
               </datalist>
-              <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                Select a cooperative that is already registered with an LGU approval number, or leave blank if not under a coop.
-                If you enter a new cooperative name here, submitting this form will open the Register Cooperative dialog so you can capture its details and LGU approval number.
-              </p>
             </div>
           </div>
+          <p class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+            Select a registered cooperative. If you enter a new name, you'll be prompted to register it.
+          </p>
           <div>
-            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Requested Units</label>
-            <input name="vehicle_count" type="number" min="1" value="1" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all">
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Requested Units</label>
+            <input name="vehicle_count" type="number" min="1" value="1" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all">
           </div>
         </div>
-        <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-          <button type="button" onclick="closeFranchiseFormModal()" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeFranchiseFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
             Cancel
           </button>
-          <button type="submit" id="btnApply" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-emerald-500/30">
+          <button type="submit" id="btnApply" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 active:scale-[0.98]">
             <span>Submit Application</span>
             <i data-lucide="send" class="w-4 h-4"></i>
           </button>
@@ -398,29 +425,38 @@
     </div>
   </div>
 
-  <div id="operatorFormModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="operatorFormModalPanel">
+  <div id="operatorFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="operatorFormModalPanel">
       <form id="saveOperatorForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/save_operator.php">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Add New Operator</h3>
-          <button type="button" onclick="closeOperatorFormModal()" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <i data-lucide="x" class="w-5 h-5 text-slate-500"></i>
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Add New Operator</h3>
+          <button type="button" onclick="closeOperatorFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
-          <div class="grid grid-cols-1 gap-3">
-            <input name="full_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Full Name" required>
-            <div class="grid grid-cols-2 gap-3">
-              <input name="contact_info" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Contact" required>
-              <input name="coop_name" list="coopNameList" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Cooperative">
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Full Name</label>
+              <input name="full_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Full Name" required>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Contact Info</label>
+                <input name="contact_info" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Phone / Email" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Cooperative</label>
+                <input name="coop_name" list="coopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
+              </div>
             </div>
           </div>
         </div>
-        <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-          <button type="button" onclick="closeOperatorFormModal()" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeOperatorFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
             Cancel
           </button>
-          <button type="submit" id="btnSaveOperator" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+          <button type="submit" id="btnSaveOperator" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
             <span>Save Operator</span>
             <i data-lucide="save" class="w-4 h-4"></i>
           </button>
@@ -429,41 +465,57 @@
     </div>
   </div>
 
-  <div id="coopFormModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="coopFormModalPanel">
+  <div id="coopFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="coopFormModalPanel">
       <form id="saveCoopForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/save_coop.php">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Register Cooperative</h3>
-          <button type="button" onclick="closeCoopFormModal()" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <i data-lucide="x" class="w-5 h-5 text-slate-500"></i>
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Register Cooperative</h3>
+          <button type="button" onclick="closeCoopFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
-          <div id="coopContextMessage" class="mb-3 px-3 py-2 rounded-lg bg-amber-50 text-amber-800 text-xs flex items-start gap-2 hidden">
-            <i data-lucide="info" class="w-4 h-4 mt-0.5"></i>
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div id="coopContextMessage" class="mb-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-start gap-2 hidden">
+            <i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0"></i>
             <span>This cooperative was opened from a franchise endorsement attempt. Please enter the LGU approval number to continue.</span>
           </div>
-          <div class="grid grid-cols-1 gap-3">
-            <input name="coop_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Cooperative Name" required>
-            <input name="address" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Address" required>
-            <div class="grid grid-cols-2 gap-3">
-              <input name="chairperson_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Chairperson" required>
-              <input name="lgu_approval_number" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="LGU Approval No.">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop Name</label>
+              <input name="coop_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Cooperative Name" required>
             </div>
             <div>
-              <select name="consolidation_status" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm">
-                <option value="Not Consolidated">Not Consolidated</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Consolidated">Consolidated</option>
-              </select>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Address</label>
+              <input name="address" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Official Address" required>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Chairperson</label>
+                <input name="chairperson_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LGU Approval #</label>
+                <input name="lgu_approval_number" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Required">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Consolidation</label>
+              <div class="relative">
+                <select name="consolidation_status" class="w-full pl-4 pr-10 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none appearance-none cursor-pointer">
+                  <option value="Not Consolidated">Not Consolidated</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Consolidated">Consolidated</option>
+                </select>
+                <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-          <button type="button" onclick="closeCoopFormModal()" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeCoopFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
             Cancel
           </button>
-          <button type="submit" id="btnSaveCoop" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+          <button type="submit" id="btnSaveCoop" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
             <span>Save Cooperative</span>
             <i data-lucide="save" class="w-4 h-4"></i>
           </button>
@@ -472,34 +524,43 @@
     </div>
   </div>
 
-  <div id="vehicleLinkFormModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="vehicleLinkFormModalPanel">
+  <div id="vehicleLinkFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="vehicleLinkFormModalPanel">
       <form id="linkVehicleForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/link_vehicle_operator.php">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Link Vehicle</h3>
-          <button type="button" onclick="closeVehicleLinkFormModal()" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <i data-lucide="x" class="w-5 h-5 text-slate-500"></i>
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Link Vehicle</h3>
+          <button type="button" onclick="closeVehicleLinkFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
-        <div class="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
-          <div class="grid grid-cols-1 gap-3">
-            <input name="plate_number" list="plateList" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all uppercase" placeholder="Plate number" required>
-            <datalist id="plateList">
-              <?php foreach ($plateMap as $plate => $opName): ?>
-                <option value="<?php echo htmlspecialchars($plate); ?>" data-operator="<?php echo htmlspecialchars($opName); ?>"></option>
-              <?php endforeach; ?>
-            </datalist>
-            <div class="grid grid-cols-2 gap-3">
-              <input name="operator_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Operator Name" required>
-              <input name="coop_name" class="w-full px-4 py-2 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all" placeholder="Coop Name">
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Plate Number</label>
+              <input name="plate_number" list="plateList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="ABC-1234" required>
+              <datalist id="plateList">
+                <?php foreach ($plateMap as $plate => $opName): ?>
+                  <option value="<?php echo htmlspecialchars($plate); ?>" data-operator="<?php echo htmlspecialchars($opName); ?>"></option>
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Operator</label>
+                <input name="operator_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop</label>
+                <input name="coop_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
+              </div>
             </div>
           </div>
         </div>
-        <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-          <button type="button" onclick="closeVehicleLinkFormModal()" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeVehicleLinkFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
             Cancel
           </button>
-          <button type="submit" id="btnLinkVehicle" class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shadow-teal-500/30">
+          <button type="submit" id="btnLinkVehicle" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
             <span>Link to Vehicle</span>
             <i data-lucide="link" class="w-4 h-4"></i>
           </button>
@@ -509,14 +570,14 @@
   </div>
 
   <div id="entityModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 transform transition-all">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-t-xl">
-          <div class="text-lg font-semibold text-slate-800 dark:text-slate-100">Details</div>
-          <button id="entityModalClose" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
+      <div class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 transform transition-all overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div class="text-lg font-black text-slate-800 dark:text-white">Details</div>
+          <button id="entityModalClose" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
         </div>
-        <div id="entityModalBody" class="p-6 max-h-[70vh] overflow-y-auto"></div>
+        <div id="entityModalBody" class="p-0 max-h-[70vh] overflow-y-auto"></div>
       </div>
     </div>
   </div>
@@ -526,12 +587,14 @@
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
-        const colors = type === 'success' ? 'bg-emerald-500' : 'bg-red-500';
+        const colors = type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
         const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-        toast.className = `${colors} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px]`;
+        toast.className = `${colors} px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[320px] backdrop-blur-md`;
         toast.innerHTML = `
-          <i data-lucide="${icon}" class="w-5 h-5"></i>
-          <span class="font-medium text-sm">${msg}</span>
+          <div class="p-1 rounded-full bg-white/20">
+            <i data-lucide="${icon}" class="w-5 h-5"></i>
+          </div>
+          <span class="font-bold text-sm tracking-wide">${msg}</span>
         `;
         container.appendChild(toast);
         if (window.lucide) window.lucide.createIcons();
@@ -545,7 +608,7 @@
       function open(html){ body.innerHTML = html; modal.classList.remove('hidden'); if (window.lucide && window.lucide.createIcons) window.lucide.createIcons(); }
       function close(){ modal.classList.add('hidden'); body.innerHTML = ''; }
       if(closeBtn) closeBtn.addEventListener('click', close);
-      if(modal) modal.addEventListener('click', function(e){ if (e.target === modal || e.target.classList.contains('bg-black/50')) close(); });
+      if(modal) modal.addEventListener('click', function(e){ if (e.target === modal || e.target.classList.contains('backdrop-blur-sm')) close(); });
       
       function attachEntityAutoView(inputId, urlBase) {
         var input = document.getElementById(inputId);
@@ -602,41 +665,41 @@
         var container = document.getElementById('franchiseResult');
         if (!container) return;
         if (!data || data.ok === false) {
-          container.className = 'text-sm text-red-600 py-4 text-center';
+          container.className = 'min-h-[60px] flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-sm font-bold p-4';
           container.textContent = (data && data.error) ? data.error : 'Unable to validate franchise.';
           return;
         }
         var valid = !!data.valid;
         var badgeClasses = valid
-          ? 'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/30'
-          : 'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 ring-1 ring-red-500/30';
+          ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/30 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+          : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 ring-1 ring-red-500/30 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/20';
         var badgeLabel = valid ? 'Valid' : 'Not Valid';
         var html = ''
-          + '<div class="space-y-3 text-left">'
+          + '<div class="w-full p-4 space-y-4">'
           +   '<div class="flex items-center justify-between gap-2 flex-wrap">'
           +     '<div>'
-          +       '<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Franchise Reference</div>'
-          +       '<div class="text-base font-semibold text-slate-800 dark:text-slate-100">' + (data.franchise_id || '') + '</div>'
+          +       '<div class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Franchise Reference</div>'
+          +       '<div class="text-lg font-black text-slate-800 dark:text-white">' + (data.franchise_id || '') + '</div>'
           +     '</div>'
           +     '<span class="' + badgeClasses + '">'
           +       '<span class="w-2 h-2 rounded-full ' + (valid ? 'bg-emerald-500' : 'bg-red-500') + '"></span>'
           +       '<span>' + badgeLabel + '</span>'
           +     '</span>'
           +   '</div>'
-          +   '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">'
-          +     '<div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">'
-          +       '<div class="text-xs text-slate-500 mb-1">Operator</div>'
-          +       '<div class="font-medium text-slate-800 dark:text-slate-100">' + (data.operator || 'N/A') + '</div>'
-          +       '<div class="text-xs text-slate-500 mt-1">Cooperative: ' + (data.coop || 'N/A') + '</div>'
+          +   '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">'
+          +     '<div class="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">'
+          +       '<div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Operator</div>'
+          +       '<div class="font-bold text-slate-800 dark:text-white text-base">' + (data.operator || 'N/A') + '</div>'
+          +       '<div class="text-xs font-medium text-slate-500 mt-1">Coop: ' + (data.coop || 'N/A') + '</div>'
           +     '</div>'
-          +     '<div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">'
-          +       '<div class="text-xs text-slate-500 mb-1">Validity</div>'
-          +       '<div class="text-slate-700 dark:text-slate-200">Status: <span class="font-semibold">' + (data.status || 'Unknown') + '</span></div>'
-          +       '<div class="text-xs text-slate-500 mt-1">Valid Until: ' + (data.valid_until || 'N/A') + '</div>'
+          +     '<div class="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700">'
+          +       '<div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Validity</div>'
+          +       '<div class="text-slate-700 dark:text-slate-200 font-medium">Status: <span class="font-bold text-slate-900 dark:text-white">' + (data.status || 'Unknown') + '</span></div>'
+          +       '<div class="text-xs font-medium text-slate-500 mt-1">Valid Until: ' + (data.valid_until || 'N/A') + '</div>'
           +     '</div>'
           +   '</div>'
           + '</div>';
-        container.className = 'text-sm text-slate-700 dark:text-slate-200 py-2';
+        container.className = 'rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700 overflow-hidden';
         container.innerHTML = html;
       }
 
@@ -699,28 +762,28 @@
           var type = btn.getAttribute('data-type') || '';
           var notes = btn.getAttribute('data-notes') || '';
           var html = ''
-            + '<div class="space-y-4">'
+            + '<div class="space-y-6 p-6">'
             +   '<div class="flex items-center justify-between">'
             +     '<div>'
-            +       '<div class="text-xs uppercase tracking-wide text-slate-500 mb-1">Franchise Application</div>'
-            +       '<div class="text-lg font-semibold text-slate-800 dark:text-slate-100">' + ref + '</div>'
+            +       '<div class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Franchise Application</div>'
+            +       '<div class="text-2xl font-black text-slate-800 dark:text-white">' + ref + '</div>'
             +     '</div>'
-            +     '<span class="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">' + status + '</span>'
+            +     '<span class="px-3 py-1 rounded-lg text-sm font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">' + status + '</span>'
             +   '</div>'
             +   '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">'
-            +     '<div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">'
-            +       '<div class="text-xs text-slate-500 mb-1">Operator</div>'
-            +       '<div class="font-medium text-slate-800 dark:text-slate-100">' + operator + '</div>'
-            +       '<div class="text-xs text-slate-500 mt-1">Cooperative: ' + coop + '</div>'
+            +     '<div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">'
+            +       '<div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Operator</div>'
+            +       '<div class="font-bold text-lg text-slate-800 dark:text-white mb-1">' + operator + '</div>'
+            +       '<div class="text-sm font-medium text-slate-500">Cooperative: ' + coop + '</div>'
             +     '</div>'
-            +     '<div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">'
-            +       '<div class="text-xs text-slate-500 mb-1">Summary</div>'
-            +       '<div class="text-slate-700 dark:text-slate-200">Units Requested: <span class="font-semibold">' + vehicles + '</span></div>'
-            +       (type ? '<div class="text-slate-700 dark:text-slate-200">Type: <span class="font-semibold">' + type + '</span></div>' : '')
-            +       '<div class="text-xs text-slate-500 mt-1">Submitted: ' + submitted + '</div>'
+            +     '<div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">'
+            +       '<div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Summary</div>'
+            +       '<div class="text-slate-700 dark:text-slate-200 font-medium">Units Requested: <span class="font-bold text-slate-900 dark:text-white">' + vehicles + '</span></div>'
+            +       (type ? '<div class="text-slate-700 dark:text-slate-200 font-medium">Type: <span class="font-bold text-slate-900 dark:text-white">' + type + '</span></div>' : '')
+            +       '<div class="text-sm font-medium text-slate-500 mt-1">Submitted: ' + submitted + '</div>'
             +     '</div>'
             +   '</div>'
-            +   (notes ? '<div class="p-3 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-sm"><div class="text-xs text-slate-500 mb-1">Notes</div><div class="text-slate-700 dark:text-slate-200 whitespace-pre-line">' + notes + '</div></div>' : '')
+            +   (notes ? '<div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 text-sm"><div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Notes</div><div class="text-slate-700 dark:text-slate-200 font-medium whitespace-pre-line">' + notes + '</div></div>' : '')
             + '</div>';
           open(html);
         });

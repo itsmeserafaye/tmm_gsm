@@ -14,7 +14,7 @@ $db->query("DELETE FROM vehicles WHERE plate_number = 'TEST-E2E-001'");
 $db->query("DELETE FROM franchise_applications WHERE operator_name = 'TEST_E2E_OP'");
 $db->query("DELETE FROM operators WHERE full_name = 'TEST_E2E_OP'");
 $db->query("DELETE FROM coops WHERE coop_name = 'TEST_E2E_COOP'");
-$db->query("DELETE FROM routes WHERE route_id = 'R-999'");
+$db->query("DELETE FROM routes WHERE route_id IN ('R_999','R-999')");
 $db->query("DELETE FROM vehicles WHERE plate_number = 'TEST-E2E-002'");
 $db->query("DELETE FROM terminal_assignments WHERE plate_number = 'TEST-E2E-002'");
 $db->query("DELETE FROM franchise_applications WHERE franchise_ref_number = 'FR-TEST-1'");
@@ -65,13 +65,17 @@ assert_true($app_id > 0, "Created Franchise Application (ID: $app_id)");
 
 // 5. Route Creation
 echo "\n--- Route Creation ---\n";
+$resNext = $db->query("SELECT MAX(CAST(SUBSTRING(route_id,3) AS UNSIGNED)) AS m FROM routes WHERE route_id REGEXP '^R_[0-9]+$'");
+$m = 0;
+if ($resNext && ($rowNext = $resNext->fetch_assoc())) { $m = (int)($rowNext['m'] ?? 0); }
+$testRouteId = 'R_' . str_pad((string)max(1, $m + 1), 3, '0', STR_PAD_LEFT);
 $sql = "INSERT INTO routes (route_id, route_name, origin, destination, distance_km, fare, status) 
-        VALUES ('R_999', 'Test Route E2E', 'Origin A', 'Dest B', 10.5, 15.00, 'Active')";
+        VALUES ('$testRouteId', 'Test Route E2E', 'Origin A', 'Dest B', 10.5, 15.00, 'Active')";
 if (!$db->query($sql)) {
     echo "Error: " . $db->error . "\n";
     exit(1);
 }
-assert_true($db->affected_rows > 0, "Created Route (ID: R_999)");
+assert_true($db->affected_rows > 0, "Created Route (ID: $testRouteId)");
 
 // 6. Vehicle Registration via API (RBAC allowed)
 echo "\n--- Vehicle Registration (API, RBAC) ---\n";
@@ -99,7 +103,7 @@ assert_true($resp['ok'] === true, "API create_vehicle ok");
 echo "\n--- Route Assignment (Blocked before inspection) ---\n";
 $_POST = [
   'plate_number' => 'TEST-E2E-001',
-  'route_id' => 'R-999',
+  'route_id' => $testRouteId,
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -164,7 +168,7 @@ assert_true(($vrow['inspection_cert_ref'] ?? '') === $cert_no, "Vehicle cert_ref
 echo "\n--- Route Assignment (After inspection Passed) ---\n";
 $_POST = [
   'plate_number' => 'TEST-E2E-001',
-  'route_id' => 'R_999',
+  'route_id' => $testRouteId,
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];
@@ -190,7 +194,7 @@ assert_true($row['terminal_name'] === 'Central Terminal', "Terminal Match");
 
 // 9. Route Capacity Enforcement
 echo "\n--- Route Capacity Enforcement ---\n";
-$db->query("UPDATE routes SET max_vehicle_limit = 1 WHERE route_id = 'R_999'");
+$db->query("UPDATE routes SET max_vehicle_limit = 1 WHERE route_id = '$testRouteId'");
 $_SERVER['HTTP_X_USER_ROLE'] = 'Admin';
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
@@ -204,7 +208,7 @@ ob_end_clean();
 $db->query("UPDATE vehicles SET inspection_status='Passed' WHERE plate_number='TEST-E2E-002'");
 $_POST = [
   'plate_number' => 'TEST-E2E-002',
-  'route_id' => 'R_999',
+  'route_id' => $testRouteId,
   'terminal_name' => 'Central Terminal',
   'status' => 'Authorized'
 ];

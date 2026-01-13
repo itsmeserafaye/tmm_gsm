@@ -61,12 +61,21 @@ $sidebarItems = [
     ],
   ],
   [
+    'id' => 'users',
+    'label' => 'User Management',
+    'icon' => 'users',
+    'subItems' => [
+      ['id' => 'accounts', 'label' => 'Accounts & Roles', 'path' => '/users/accounts'],
+      ['id' => 'security', 'label' => 'Security Policy', 'path' => '/users/security'],
+      ['id' => 'activity', 'label' => 'Activity Logs', 'path' => '/users/activity'],
+    ],
+  ],
+  [
     'id' => 'settings',
     'label' => 'Settings',
     'icon' => 'settings',
     'subItems' => [
       ['id' => 'general-settings', 'label' => 'General', 'path' => '/settings/general'],
-      ['id' => 'security-settings', 'label' => 'Security', 'path' => '/settings/security'],
     ],
   ],
 ];

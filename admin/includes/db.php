@@ -23,6 +23,21 @@ function db() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $colVeh = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicles'");
+  $haveInspectionStatus = false;
+  $haveInspectionCert = false;
+  $haveInspectionPassedAt = false;
+  if ($colVeh) {
+    while ($c = $colVeh->fetch_assoc()) {
+      $colName = $c['COLUMN_NAME'] ?? '';
+      if ($colName === 'inspection_status') { $haveInspectionStatus = true; }
+      if ($colName === 'inspection_cert_ref') { $haveInspectionCert = true; }
+      if ($colName === 'inspection_passed_at') { $haveInspectionPassedAt = true; }
+    }
+  }
+  if (!$haveInspectionStatus) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_status VARCHAR(20) DEFAULT 'Pending'"); }
+  if (!$haveInspectionCert) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL"); }
+  if (!$haveInspectionPassedAt) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_passed_at DATETIME DEFAULT NULL"); }
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -81,6 +96,27 @@ function db() {
       ('R-08','East Corridor',30,'Active'),
       ('R-05','North Spur',40,'Active')");
   }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(64) PRIMARY KEY,
+    setting_value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+  $conn->query("INSERT IGNORE INTO app_settings(setting_key, setting_value) VALUES
+    ('weather_lat','14.5995'),
+    ('weather_lon','120.9842'),
+    ('weather_label','Manila, PH'),
+    ('events_country','PH'),
+    ('events_city','Manila'),
+    ('events_rss_url','')");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS external_data_cache (
+    cache_key VARCHAR(190) PRIMARY KEY,
+    payload LONGTEXT NOT NULL,
+    fetched_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    INDEX idx_expires (expires_at)
+  ) ENGINE=InnoDB");
 
   // Module 2: Franchise Management Tables
   $conn->query("CREATE TABLE IF NOT EXISTS franchise_applications (
@@ -276,6 +312,17 @@ function db() {
     INDEX (ticket_id),
     FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS ticket_notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    target_module VARCHAR(32) NOT NULL,
+    filter_period VARCHAR(16) DEFAULT '',
+    filter_status VARCHAR(16) DEFAULT '',
+    filter_officer_id INT DEFAULT NULL,
+    filter_q VARCHAR(128) DEFAULT '',
+    ticket_count INT NOT NULL DEFAULT 0,
+    last_ticket_date DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_summary (
     vehicle_plate VARCHAR(32) PRIMARY KEY,
     franchise_id VARCHAR(64) DEFAULT NULL,
@@ -289,8 +336,13 @@ function db() {
     plate_number VARCHAR(32) NOT NULL,
     scheduled_at DATETIME NOT NULL,
     location VARCHAR(255) DEFAULT NULL,
+    inspection_type VARCHAR(32) DEFAULT 'Annual',
+    requested_by VARCHAR(128) DEFAULT NULL,
+    contact_person VARCHAR(128) DEFAULT NULL,
+    contact_number VARCHAR(32) DEFAULT NULL,
     inspector_id INT DEFAULT NULL,
-    status ENUM('Scheduled','Completed','Cancelled','Rescheduled','Pending Verification') DEFAULT 'Scheduled',
+    inspector_label VARCHAR(128) DEFAULT NULL,
+    status ENUM('Scheduled','Completed','Cancelled','Rescheduled','Pending Verification','Pending Assignment') DEFAULT 'Pending Verification',
     cr_verified TINYINT(1) DEFAULT 0,
     or_verified TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -298,6 +350,27 @@ function db() {
     FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE,
     FOREIGN KEY (inspector_id) REFERENCES officers(officer_id)
   ) ENGINE=InnoDB");
+  $colCheckIns = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='inspection_schedules'");
+  $haveInspectionType = false;
+  $haveRequestedBy = false;
+  $haveContactPerson = false;
+  $haveContactNumber = false;
+  $haveInspectorLabel = false;
+  if ($colCheckIns) {
+    while ($c = $colCheckIns->fetch_assoc()) {
+      $cn = $c['COLUMN_NAME'] ?? '';
+      if ($cn === 'inspection_type') $haveInspectionType = true;
+      if ($cn === 'requested_by') $haveRequestedBy = true;
+      if ($cn === 'contact_person') $haveContactPerson = true;
+      if ($cn === 'contact_number') $haveContactNumber = true;
+      if ($cn === 'inspector_label') $haveInspectorLabel = true;
+    }
+  }
+  if (!$haveInspectionType) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspection_type VARCHAR(32) DEFAULT 'Annual'"); }
+  if (!$haveRequestedBy) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN requested_by VARCHAR(128) DEFAULT NULL"); }
+  if (!$haveContactPerson) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_person VARCHAR(128) DEFAULT NULL"); }
+  if (!$haveContactNumber) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_number VARCHAR(32) DEFAULT NULL"); }
+   if (!$haveInspectorLabel) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspector_label VARCHAR(128) DEFAULT NULL AFTER inspector_id"); }
   $conn->query("CREATE TABLE IF NOT EXISTS inspection_results (
     result_id INT AUTO_INCREMENT PRIMARY KEY,
     schedule_id INT NOT NULL,
@@ -335,6 +408,17 @@ function db() {
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX (result_id),
     FOREIGN KEY (result_id) REFERENCES inspection_results(result_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("CREATE TABLE IF NOT EXISTS puv_demand_observations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    area_type ENUM('terminal','parking_area') NOT NULL,
+    area_ref VARCHAR(128) NOT NULL,
+    observed_at DATETIME NOT NULL,
+    demand_count INT NOT NULL DEFAULT 0,
+    source VARCHAR(32) NOT NULL DEFAULT 'system',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_area_hour (area_type, area_ref, observed_at),
+    INDEX idx_area_time (area_type, area_ref, observed_at)
   ) ENGINE=InnoDB");
   return $conn;
 }

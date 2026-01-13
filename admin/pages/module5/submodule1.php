@@ -1,836 +1,786 @@
-<?php
-require_once __DIR__ . '/../../includes/db.php';
-$db = db();
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100">
+    <?php
+    require_once __DIR__ . '/../../includes/db.php';
+    $db = db();
 
-// --- Handle Actions (Create/Update/Delete) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action'])) {
-        // Terminal Actions
-        if ($_POST['action'] === 'create_terminal') {
-            $name = $db->real_escape_string($_POST['name']);
-            $city = $db->real_escape_string($_POST['city']);
-            $address = $db->real_escape_string($_POST['address']);
-            $capacity = (int)$_POST['capacity'];
-            
-            $sql = "INSERT INTO terminals (name, city, address, capacity, type) VALUES ('$name', '$city', '$address', $capacity, 'Terminal')";
-            if($db->query($sql)) {
+    function m5_column_exists($db, $table, $column) {
+        $t = $db->real_escape_string($table);
+        $c = $db->real_escape_string($column);
+        $res = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+
+    $terminalHasStatus = m5_column_exists($db, 'terminals', 'status');
+    $areaHasSlotCapacity = m5_column_exists($db, 'terminal_areas', 'slot_capacity');
+    $areaCapacityCol = $areaHasSlotCapacity ? 'slot_capacity' : 'max_slots';
+
+    // --- Handle Actions ---
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['action'])) {
+            // ... (Keep existing PHP logic for Create/Update/Delete) ...
+            if ($_POST['action'] === 'create_terminal') {
+                $name = $db->real_escape_string($_POST['name']);
+                $city = $db->real_escape_string($_POST['city']);
+                $address = $db->real_escape_string($_POST['address']);
+                $capacity = (int)$_POST['capacity'];
+                
+                $cols = "name, city, address, capacity, type";
+                $vals = "'$name', '$city', '$address', $capacity, 'Terminal'";
+                if ($terminalHasStatus) {
+                    $cols .= ", status";
+                    $vals .= ", 'Active'";
+                }
+                $sql = "INSERT INTO terminals ($cols) VALUES ($vals)";
+                if($db->query($sql)) {
+                    echo "<script>window.location.href = window.location.href;</script>";
+                }
+            }
+            if ($_POST['action'] === 'update_terminal') {
+                $id = (int)$_POST['id'];
+                $name = $db->real_escape_string($_POST['name']);
+                $city = $db->real_escape_string($_POST['city']);
+                $address = $db->real_escape_string($_POST['address']);
+                $capacity = (int)$_POST['capacity'];
+                
+                $sql = "UPDATE terminals SET name='$name', city='$city', address='$address', capacity=$capacity WHERE id=$id";
+                if($db->query($sql)) {
+                    echo "<script>window.location.href = window.location.href;</script>";
+                }
+            }
+            if ($_POST['action'] === 'delete_terminal') {
+                $id = (int)$_POST['id'];
+                $db->query("DELETE FROM terminals WHERE id = $id");
                 echo "<script>window.location.href = window.location.href;</script>";
             }
-        }
-        if ($_POST['action'] === 'update_terminal') {
-            $id = (int)$_POST['id'];
-            $name = $db->real_escape_string($_POST['name']);
-            $city = $db->real_escape_string($_POST['city']);
-            $address = $db->real_escape_string($_POST['address']);
-            $capacity = (int)$_POST['capacity'];
-            
-            $sql = "UPDATE terminals SET name='$name', city='$city', address='$address', capacity=$capacity WHERE id=$id";
-            if($db->query($sql)) {
-                echo "<script>window.location.href = window.location.href;</script>";
-            }
-        }
-        if ($_POST['action'] === 'delete_terminal') {
-            $id = (int)$_POST['id'];
-            $db->query("DELETE FROM terminals WHERE id = $id");
-            echo "<script>window.location.href = window.location.href;</script>";
-        }
 
-        // Terminal Area Actions
-        if ($_POST['action'] === 'create_terminal_area') {
-            $terminal_id = (int)$_POST['terminal_id'];
-            $area_name = $db->real_escape_string($_POST['area_name']);
-            $route_name = $db->real_escape_string($_POST['route_name']);
-            $fare_range = $db->real_escape_string($_POST['fare_range']);
-            $max_slots = (int)$_POST['max_slots'];
-            $puv_type = $db->real_escape_string($_POST['puv_type']);
+            // Terminal Area Actions
+            if ($_POST['action'] === 'create_terminal_area') {
+                $terminal_id = (int)$_POST['terminal_id'];
+                $area_name = $db->real_escape_string($_POST['area_name']);
+                $route_pick = trim((string)($_POST['route_name'] ?? ''));
+                if ($route_pick === '__custom__') {
+                    $route_pick = trim((string)($_POST['route_name_custom'] ?? ''));
+                }
+                $route_name = $db->real_escape_string($route_pick);
+                $fare_range = $db->real_escape_string($_POST['fare_range']);
+                $max_slots = (int)$_POST['max_slots'];
+                $puv_type = $db->real_escape_string($_POST['puv_type']);
 
-            $sql = "INSERT INTO terminal_areas (terminal_id, area_name, route_name, fare_range, slot_capacity, puv_type) 
-                    VALUES ($terminal_id, '$area_name', '$route_name', '$fare_range', $max_slots, '$puv_type')";
-            if($db->query($sql)) {
-                echo "<script>window.location.href = window.location.href;</script>";
-            }
-        }
-        if ($_POST['action'] === 'update_terminal_area') {
-            $id = (int)$_POST['id'];
-            $area_name = $db->real_escape_string($_POST['area_name']);
-            $route_name = $db->real_escape_string($_POST['route_name']);
-            $fare_range = $db->real_escape_string($_POST['fare_range']);
-            $max_slots = (int)$_POST['max_slots'];
-            $puv_type = $db->real_escape_string($_POST['puv_type']);
-
-            $sql = "UPDATE terminal_areas SET area_name='$area_name', route_name='$route_name', fare_range='$fare_range', slot_capacity=$max_slots, puv_type='$puv_type' WHERE id=$id";
-            if($db->query($sql)) {
-                echo "<script>window.location.href = window.location.href;</script>";
-            }
-        }
-        if ($_POST['action'] === 'delete_terminal_area') {
-            $id = (int)$_POST['id'];
-            $db->query("DELETE FROM terminal_areas WHERE id = $id");
-            echo "<script>window.location.href = window.location.href;</script>";
-        }
-
-        // Operator & Driver Actions
-        if ($_POST['action'] === 'assign_operator') {
-            $area_id = (int)$_POST['area_id'];
-            $is_new = (isset($_POST['is_new_operator']) && $_POST['is_new_operator'] == '1');
-            
-            if ($is_new) {
-                $name = $db->real_escape_string($_POST['new_op_name']);
-                $coop = $db->real_escape_string($_POST['new_op_coop']);
-                $db->query("INSERT INTO operators (full_name, coop_name) VALUES ('$name', '$coop')");
-                $operator_id = $db->insert_id;
-            } else {
-                $operator_id = (int)$_POST['operator_id'];
-            }
-
-            // Link to area
-            $db->query("INSERT INTO terminal_area_operators (area_id, operator_id) VALUES ($area_id, $operator_id)");
-            echo "<script>window.location.href = window.location.href;</script>";
-        }
-
-        if ($_POST['action'] === 'create_driver') {
-            $operator_id = (int)$_POST['operator_id'];
-            $name = $db->real_escape_string($_POST['driver_name']);
-            $license = $db->real_escape_string($_POST['license_no']);
-            $contact = $db->real_escape_string($_POST['contact_no']);
-            
-            $db->query("INSERT INTO drivers (operator_id, driver_name, license_no, contact_no) VALUES ($operator_id, '$name', '$license', '$contact')");
-            echo "<script>window.location.href = window.location.href;</script>";
-        }
-    }
-}
-
-// 1. Fetch Terminals
-$terminals_sql = "
-    SELECT t.*, COUNT(ta.id) as area_count 
-    FROM terminals t 
-    LEFT JOIN terminal_areas ta ON t.id = ta.terminal_id 
-    WHERE t.type != 'Parking'
-    GROUP BY t.id
-    ORDER BY t.id DESC
-";
-$terminals_res = $db->query($terminals_sql);
-$terminals = [];
-if ($terminals_res) {
-    while($row = $terminals_res->fetch_assoc()) {
-        $terminals[] = $row;
-    }
-}
-
-// 2. Fetch Areas
-$details_sql = "
-    SELECT 
-        t.id as terminal_id,
-        ta.id as area_id,
-        ta.area_name,
-        ta.route_name,
-        ta.fare_range,
-        ta.slot_capacity as max_slots,
-        ta.puv_type
-    FROM terminals t
-    JOIN terminal_areas ta ON t.id = ta.terminal_id
-";
-$details_res = $db->query($details_sql);
-$areas = [];
-if ($details_res) {
-    while($row = $details_res->fetch_assoc()) {
-        $areas[$row['terminal_id']][] = $row;
-    }
-}
-
-// 3. Fetch Operators & Drivers
-$ops_sql = "
-    SELECT 
-        ta.id as area_id,
-        o.id as operator_id,
-        o.full_name as operator_name,
-        o.coop_name as association_name,
-        d.driver_name
-    FROM terminal_areas ta
-    JOIN terminal_area_operators tao ON ta.id = tao.area_id
-    JOIN operators o ON tao.operator_id = o.id
-    LEFT JOIN drivers d ON o.id = d.operator_id
-";
-$ops_res = $db->query($ops_sql);
-$operators = [];
-if ($ops_res) {
-    while($row = $ops_res->fetch_assoc()) {
-        // Group drivers by operator within area
-        $key = $row['area_id'] . '_' . $row['operator_name'];
-        if (!isset($operators[$row['area_id']][$row['operator_name']])) {
-            $operators[$row['area_id']][$row['operator_name']] = [
-                'id' => $row['operator_id'],
-                'name' => $row['operator_name'],
-                'association' => $row['association_name'],
-                'drivers' => []
-            ];
-        }
-        if ($row['driver_name']) {
-            $operators[$row['area_id']][$row['operator_name']]['drivers'][] = $row['driver_name'];
-        }
-    }
-}
-?>
-
-<div class="mx-1 mt-1 p-6 dark:bg-slate-900 bg-white dark:text-slate-300 rounded-lg min-h-screen">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">Terminal Management</h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400">Manage terminals, routes, and operator assignments.</p>
-            <!-- Create Terminal Modal -->
-    <div id="createModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="createModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="create_terminal">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Add New Terminal</h2>
-                    <button type="button" onclick="closeCreateModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Terminal Name</label>
-                        <input type="text" name="name" required placeholder="e.g. Central Terminal" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City</label>
-                        <input type="text" name="city" required placeholder="e.g. Caloocan City" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
-                        <textarea name="address" rows="2" placeholder="Full address" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Total Capacity</label>
-                        <input type="number" name="capacity" placeholder="e.g. 500" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeCreateModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Create Terminal</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Edit Area Modal -->
-    <div id="editAreaModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="editAreaModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="update_terminal_area">
-                <input type="hidden" name="id" id="edit_area_id">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Edit Area/Route</h2>
-                    <button type="button" onclick="closeEditAreaModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Area/Line Name</label>
-                        <input type="text" name="area_name" id="edit_area_name" required class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Route Name</label>
-                        <input type="text" name="route_name" id="edit_route_name" required class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fare Range</label>
-                            <input type="text" name="fare_range" id="edit_fare_range" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Slots</label>
-                            <input type="number" name="max_slots" id="edit_max_slots" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">PUV Type</label>
-                        <select name="puv_type" id="edit_puv_type" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="Tricycle">Tricycle</option>
-                            <option value="Jeepney">Jeepney</option>
-                            <option value="Bus">Bus</option>
-                            <option value="Van">Van</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeEditAreaModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Assign Operator Modal -->
-    <div id="assignOperatorModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[70] transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="assignOperatorModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="assign_operator">
-                <input type="hidden" name="area_id" id="assign_area_id">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Assign Operator</h2>
-                    <button type="button" onclick="closeAssignOperatorModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                
-                <div class="p-6 space-y-4">
-                    <!-- Tab Switcher -->
-                    <div class="flex border-b dark:border-slate-700 mb-4">
-                        <button type="button" onclick="switchOpTab('existing')" id="tab_existing" class="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">Select Existing</button>
-                        <button type="button" onclick="switchOpTab('new')" id="tab_new" class="px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Create New</button>
-                    </div>
-
-                    <!-- Existing Operator -->
-                    <div id="op_existing_content">
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Select Operator</label>
-                        <select name="operator_id" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <?php
-                            $all_ops = $db->query("SELECT * FROM operators ORDER BY full_name ASC");
-                            if($all_ops){
-                                while($op = $all_ops->fetch_assoc()){
-                                    echo "<option value='{$op['id']}'>{$op['full_name']} ({$op['coop_name']})</option>";
-                                }
+                if ($fare_range === '' || $max_slots <= 0) {
+                    $stmtR = $db->prepare("SELECT fare, max_vehicle_limit FROM routes WHERE route_id=?");
+                    if ($stmtR) {
+                        $stmtR->bind_param('s', $route_pick);
+                        $stmtR->execute();
+                        $r = $stmtR->get_result()->fetch_assoc() ?: null;
+                        if ($r) {
+                            if ($fare_range === '' && isset($r['fare']) && (float)$r['fare'] > 0) {
+                                $fare_range = $db->real_escape_string('₱' . number_format((float)$r['fare'], 2));
                             }
-                            ?>
-                        </select>
-                    </div>
+                            if ($max_slots <= 0) {
+                                $limit = (int)($r['max_vehicle_limit'] ?? 0);
+                                $max_slots = $limit > 0 ? min($limit, 25) : 10;
+                            }
+                        }
+                    }
+                }
 
-                    <!-- New Operator -->
-                    <div id="op_new_content" class="hidden space-y-4">
-                        <input type="hidden" name="is_new_operator" id="is_new_operator" value="0">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-                            <input type="text" name="new_op_name" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Coop/Association</label>
-                            <input type="text" name="new_op_coop" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeAssignOperatorModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Assign Operator</button>
-                </div>
-            </form>
+                $sql = "INSERT INTO terminal_areas (terminal_id, area_name, route_name, fare_range, $areaCapacityCol, puv_type) 
+                        VALUES ($terminal_id, '$area_name', '$route_name', '$fare_range', $max_slots, '$puv_type')";
+                if($db->query($sql)) {
+                    echo "<script>window.location.href = window.location.href;</script>";
+                }
+            }
+            if ($_POST['action'] === 'update_terminal_area') {
+                $id = (int)$_POST['id'];
+                $area_name = $db->real_escape_string($_POST['area_name']);
+                $route_pick = trim((string)($_POST['route_name'] ?? ''));
+                if ($route_pick === '__custom__') {
+                    $route_pick = trim((string)($_POST['route_name_custom'] ?? ''));
+                }
+                $route_name = $db->real_escape_string($route_pick);
+                $fare_range = $db->real_escape_string($_POST['fare_range']);
+                $max_slots = (int)$_POST['max_slots'];
+                $puv_type = $db->real_escape_string($_POST['puv_type']);
+
+                if ($fare_range === '' || $max_slots <= 0) {
+                    $stmtR = $db->prepare("SELECT fare, max_vehicle_limit FROM routes WHERE route_id=?");
+                    if ($stmtR) {
+                        $stmtR->bind_param('s', $route_pick);
+                        $stmtR->execute();
+                        $r = $stmtR->get_result()->fetch_assoc() ?: null;
+                        if ($r) {
+                            if ($fare_range === '' && isset($r['fare']) && (float)$r['fare'] > 0) {
+                                $fare_range = $db->real_escape_string('₱' . number_format((float)$r['fare'], 2));
+                            }
+                            if ($max_slots <= 0) {
+                                $limit = (int)($r['max_vehicle_limit'] ?? 0);
+                                $max_slots = $limit > 0 ? min($limit, 25) : 10;
+                            }
+                        }
+                    }
+                }
+
+                $sql = "UPDATE terminal_areas SET area_name='$area_name', route_name='$route_name', fare_range='$fare_range', $areaCapacityCol=$max_slots, puv_type='$puv_type' WHERE id=$id";
+                if($db->query($sql)) {
+                    echo "<script>window.location.href = window.location.href;</script>";
+                }
+            }
+            if ($_POST['action'] === 'delete_terminal_area') {
+                $id = (int)$_POST['id'];
+                $db->query("DELETE FROM terminal_areas WHERE id = $id");
+                echo "<script>window.location.href = window.location.href;</script>";
+            }
+        }
+    }
+
+    // Fetch Data
+    $routes = [];
+    $routes_res = $db->query("SELECT route_id, route_name, origin, destination, fare, max_vehicle_limit, status FROM routes ORDER BY route_name ASC");
+    if ($routes_res) {
+        while ($row = $routes_res->fetch_assoc()) $routes[] = $row;
+    }
+
+    $terminals_sql = "
+        SELECT t.*, COUNT(ta.id) as area_count 
+        FROM terminals t 
+        LEFT JOIN terminal_areas ta ON t.id = ta.terminal_id 
+        WHERE t.type != 'Parking'
+        GROUP BY t.id
+        ORDER BY t.id DESC
+    ";
+    $terminals_res = $db->query($terminals_sql);
+    $terminals = [];
+    if ($terminals_res) {
+        while($row = $terminals_res->fetch_assoc()) $terminals[] = $row;
+    }
+
+    // Fetch Areas
+    $details_sql = "
+        SELECT 
+            t.id as terminal_id,
+            ta.id as area_id,
+            ta.area_name,
+            ta.route_name,
+            ta.fare_range,
+            ta.$areaCapacityCol as max_slots,
+            ta.puv_type,
+            r.route_name as linked_route_name,
+            r.origin as route_origin,
+            r.destination as route_destination,
+            r.fare as linked_fare,
+            r.max_vehicle_limit as route_limit
+        FROM terminals t
+        JOIN terminal_areas ta ON t.id = ta.terminal_id
+        LEFT JOIN routes r ON r.route_id = ta.route_name
+    ";
+    $details_res = $db->query($details_sql);
+    $areas = [];
+    if ($details_res) {
+        while($row = $details_res->fetch_assoc()) $areas[$row['terminal_id']][] = $row;
+    }
+
+    // Fetch Operators
+    $ops_sql = "
+        SELECT 
+            ta.id as area_id,
+            o.id as operator_id,
+            o.full_name as operator_name,
+            o.coop_name as association_name,
+            d.driver_name
+        FROM terminal_areas ta
+        JOIN terminal_area_operators tao ON ta.id = tao.area_id
+        JOIN operators o ON tao.operator_id = o.id
+        LEFT JOIN drivers d ON o.id = d.operator_id
+    ";
+    $ops_res = $db->query($ops_sql);
+    $operators = [];
+    if ($ops_res) {
+        while($row = $ops_res->fetch_assoc()) {
+            $key = $row['area_id'] . '_' . $row['operator_name'];
+            if (!isset($operators[$row['area_id']][$row['operator_name']])) {
+                $operators[$row['area_id']][$row['operator_name']] = [
+                    'id' => $row['operator_id'],
+                    'name' => $row['operator_name'],
+                    'association' => $row['association_name'],
+                    'drivers' => []
+                ];
+            }
+            if ($row['driver_name']) {
+                $operators[$row['area_id']][$row['operator_name']]['drivers'][] = $row['driver_name'];
+            }
+        }
+    }
+
+    $assignmentsByTerminalRoute = [];
+    $resAsn = $db->query("
+        SELECT 
+            ta.terminal_name,
+            ta.route_id,
+            ta.plate_number,
+            ta.status,
+            ta.assigned_at,
+            v.operator_name,
+            v.vehicle_type,
+            v.coop_name,
+            o.id AS fallback_operator_id
+        FROM terminal_assignments ta
+        LEFT JOIN vehicles v ON v.plate_number = ta.plate_number
+        LEFT JOIN operators o ON o.full_name = v.operator_name AND (o.coop_name = v.coop_name OR v.coop_name IS NULL OR v.coop_name = '')
+        ORDER BY ta.assigned_at DESC
+    ");
+    if ($resAsn) {
+        while ($r = $resAsn->fetch_assoc()) {
+            $tname = (string)($r['terminal_name'] ?? '');
+            $rid = (string)($r['route_id'] ?? '');
+            if ($tname === '' || $rid === '') continue;
+            $assignmentsByTerminalRoute[$tname][$rid][] = $r;
+        }
+    }
+
+    $statsTerminals = is_array($terminals) ? count($terminals) : 0;
+    $statsAreas = 0;
+    if (is_array($areas)) {
+        foreach ($areas as $list) if (is_array($list)) $statsAreas += count($list);
+    }
+    $statsAssignedOperators = 0;
+    $resOp = $db->query("SELECT COUNT(DISTINCT operator_id) AS c FROM terminal_area_operators");
+    if ($resOp && ($r = $resOp->fetch_assoc())) $statsAssignedOperators = (int)($r['c'] ?? 0);
+    ?>
+
+    <!-- Header -->
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8 border-b border-slate-200 dark:border-slate-700 pb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal Management</h1>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage public transport terminals, bay assignments, route links, and operator dispatching.</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="openCreateModal()" class="inline-flex items-center gap-2 rounded-lg bg-blue-700 hover:bg-blue-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                New Terminal
+            </button>
         </div>
     </div>
 
-    <!-- Add Driver Modal -->
-    <div id="addDriverModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[80] transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="addDriverModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="create_driver">
-                <input type="hidden" name="operator_id" id="driver_operator_id">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Add Driver</h2>
-                    <button type="button" onclick="closeAddDriverModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Driver Name</label>
-                        <input type="text" name="driver_name" required class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">License No.</label>
-                        <input type="text" name="license_no" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contact No.</label>
-                        <input type="text" name="contact_no" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeAddDriverModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Add Driver</button>
-                </div>
-            </form>
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
+        <!-- Stat Card 1 -->
+        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-400 transition-colors">
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Terminals</div>
+                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo (int)$statsTerminals; ?></div>
+        </div>
+
+        <!-- Stat Card 2 -->
+        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-blue-400 transition-colors">
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Bays & Areas</div>
+                <i data-lucide="grid" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo (int)$statsAreas; ?></div>
+        </div>
+
+        <!-- Stat Card 3 -->
+        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-purple-400 transition-colors">
+            <div class="flex items-center justify-between mb-2">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Operators Assigned</div>
+                <i data-lucide="users" class="w-4 h-4 text-purple-600 dark:text-purple-400"></i>
+            </div>
+            <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo (int)$statsAssignedOperators; ?></div>
         </div>
     </div>
-</div>
-        <button onclick="openCreateModal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Add Terminal
-        </button>
+
+    <!-- Filters -->
+    <div class="mb-6 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="relative max-w-md w-full">
+            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <i data-lucide="search" class="h-4 w-4 text-slate-400"></i>
+            </div>
+            <input id="terminalSearch" class="block w-full rounded-md border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Search terminals, cities, or areas...">
+        </div>
     </div>
 
-    <!-- Terminal Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <?php foreach($terminals as $term): ?>
-            <div class="group relative p-6 border rounded-lg hover:shadow-xl transition-all duration-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:-translate-y-1">
-                <!-- Delete Button -->
-                <form method="POST" onsubmit="return confirm('Are you sure you want to delete this terminal?');" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition z-10">
-                    <input type="hidden" name="action" value="delete_terminal">
-                    <input type="hidden" name="id" value="<?php echo $term['id']; ?>">
-                    <button type="submit" class="p-2 text-slate-400 hover:text-red-500">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+    <!-- Terminals Grid -->
+    <?php if (empty($terminals)): ?>
+        <div class="p-12 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-center">
+            <div class="mx-auto h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                <i data-lucide="map-off" class="w-6 h-6 text-slate-400"></i>
+            </div>
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">No terminals found</h3>
+            <p class="mt-1 text-sm text-slate-500 max-w-sm mx-auto">Get started by adding your first transport terminal to manage routes and assignments.</p>
+            <button onclick="openCreateModal()" class="mt-6 inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-all">
+                Add Terminal
+            </button>
+        </div>
+    <?php else: ?>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <?php foreach($terminals as $term): ?>
+                <div class="terminal-card group relative p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all" 
+                     data-name="<?php echo htmlspecialchars((string)$term['name'], ENT_QUOTES); ?>" 
+                     data-city="<?php echo htmlspecialchars((string)($term['city'] ?? ''), ENT_QUOTES); ?>">
+                    
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i data-lucide="bus" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="openEditModal(<?php echo $term['id']; ?>)" class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-600 transition-all">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i>
+                            </button>
+                            <form method="POST" onsubmit="return confirm('Delete this terminal?');" class="inline">
+                                <input type="hidden" name="action" value="delete_terminal">
+                                <input type="hidden" name="id" value="<?php echo $term['id']; ?>">
+                                <button type="submit" class="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-red-600 transition-all">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-1"><?php echo htmlspecialchars($term['name']); ?></h3>
+                    <div class="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 mb-4">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                        <?php echo htmlspecialchars($term['city'] ?? 'Unknown City'); ?>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 py-4 border-t border-slate-100 dark:border-slate-700">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Capacity</div>
+                            <div class="text-base font-bold text-slate-700 dark:text-slate-200"><?php echo number_format($term['capacity']); ?></div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Bays/Routes</div>
+                            <div class="text-base font-bold text-slate-700 dark:text-slate-200"><?php echo number_format($term['area_count']); ?></div>
+                        </div>
+                    </div>
+
+                    <button onclick="openTerminalModal(<?php echo $term['id']; ?>)" class="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-slate-50 dark:bg-slate-700/50 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all border border-slate-200 dark:border-slate-600">
+                        <span>Manage Bays & Dispatch</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
-                </form>
-
-                <div onclick="openTerminalModal(<?php echo $term['id']; ?>)" class="cursor-pointer">
-                    <div class="mb-4">
-                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($term['name']); ?></h3>
-                        <p class="text-sm text-slate-500"><?php echo htmlspecialchars($term['city'] ?? 'Unknown City'); ?></p>
-                    </div>
-                    <div class="flex items-center justify-between pt-4 border-t dark:border-slate-700">
-                        <div class="text-center">
-                            <span class="block text-2xl font-bold text-slate-700 dark:text-slate-200"><?php echo $term['area_count']; ?></span>
-                            <span class="text-xs text-slate-500 uppercase tracking-wide">Routes/Areas</span>
-                        </div>
-                        <div class="text-center">
-                            <span class="block text-2xl font-bold text-slate-700 dark:text-slate-200"><?php echo $term['capacity']; ?></span>
-                            <span class="text-xs text-slate-500 uppercase tracking-wide">Capacity</span>
-                        </div>
-                    </div>
                 </div>
-            </div>
-        <?php endforeach; ?>
-    </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-    <!-- Detail Modal -->
-    <div id="terminalModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-5xl max-h-[90vh] overflow-hidden transform scale-95 transition-transform" id="modalPanel">
-            <!-- Header -->
-            <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                <div>
-                    <h2 id="modalTitle" class="text-2xl font-bold text-slate-800 dark:text-slate-100">Terminal Details</h2>
-                    <p id="modalSubtitle" class="text-sm text-slate-500">View routes, operators, and status</p>
+    <!-- Modals -->
+    <!-- Create Terminal Modal -->
+    <div id="createModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:w-full sm:max-w-lg border border-slate-200 dark:border-slate-700">
+                    <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">New Terminal</h3>
+                        <button onclick="closeCreateModal()" class="text-slate-400 hover:text-slate-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <form method="POST" class="p-6 space-y-4">
+                        <input type="hidden" name="action" value="create_terminal">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Terminal Name</label>
+                            <input name="name" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. Central Terminal">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City / Municipality</label>
+                            <input name="city" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. Caloocan City">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
+                            <textarea name="address" rows="2" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Capacity</label>
+                            <input type="number" name="capacity" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="500">
+                        </div>
+                        <div class="pt-4 flex justify-end gap-3">
+                            <button type="button" onclick="closeCreateModal()" class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">Create Terminal</button>
+                        </div>
+                    </form>
                 </div>
-                <button onclick="closeTerminalModal()" class="text-slate-400 hover:text-red-500 transition">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <!-- Scrollable Content -->
-            <div class="p-6 overflow-y-auto max-h-[calc(90vh-100px)] space-y-8" id="modalContent">
-                <!-- Injected via JS -->
             </div>
         </div>
     </div>
 
     <!-- Edit Terminal Modal -->
-    <div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="editModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="update_terminal">
-                <input type="hidden" name="id" id="edit_id">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Edit Terminal</h2>
-                    <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+    <div id="editModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:w-full sm:max-w-lg border border-slate-200 dark:border-slate-700">
+                    <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Edit Terminal</h3>
+                        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <form method="POST" class="p-6 space-y-4">
+                        <input type="hidden" name="action" value="update_terminal">
+                        <input type="hidden" name="id" id="edit_id">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Terminal Name</label>
+                            <input name="name" id="edit_name" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City</label>
+                            <input name="city" id="edit_city" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
+                            <textarea name="address" id="edit_address" rows="2" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacity</label>
+                            <input type="number" name="capacity" id="edit_capacity" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div class="pt-4 flex justify-end gap-3">
+                            <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">Save Changes</button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Terminal Name</label>
-                        <input type="text" name="name" id="edit_name" required class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal (Manage Bays) -->
+    <div id="terminalModal" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:w-full sm:max-w-5xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+                    <!-- Header -->
+                    <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+                        <div>
+                            <h2 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Terminal Details</h2>
+                            <p id="modalSubtitle" class="text-xs text-slate-500 mt-0.5">View routes and assignments</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="openAddAreaModal()" class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-all shadow-sm">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Bay/Route
+                            </button>
+                            <button onclick="closeTerminalModal()" class="text-slate-400 hover:text-slate-500 transition-all">
+                                <i data-lucide="x" class="w-6 h-6"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">City</label>
-                        <input type="text" name="city" id="edit_city" required class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Address</label>
-                        <textarea name="address" id="edit_address" rows="2" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Capacity</label>
-                        <input type="number" name="capacity" id="edit_capacity" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
+                    <!-- Content -->
+                    <div id="modalContent" class="p-6 overflow-y-auto bg-slate-50/50 dark:bg-slate-900"></div>
                 </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Save Changes</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
     <!-- Add Area Modal -->
-    <div id="addAreaModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0">
-        <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-11/12 max-w-lg overflow-hidden transform scale-95 transition-transform" id="addAreaModalPanel">
-            <form method="POST">
-                <input type="hidden" name="action" value="create_terminal_area">
-                <input type="hidden" name="terminal_id" id="area_terminal_id">
-                <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Add New Area/Route</h2>
-                    <button type="button" onclick="closeAddAreaModal()" class="text-slate-400 hover:text-red-500 transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Area/Line Name</label>
-                        <input type="text" name="area_name" required placeholder="e.g. Line 1, North Wing" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <div id="addAreaModal" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:w-full sm:max-w-lg border border-slate-200 dark:border-slate-700">
+                    <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Add Bay / Route</h3>
+                        <button onclick="closeAddAreaModal()" class="text-slate-400 hover:text-slate-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Route Name</label>
-                        <input type="text" name="route_name" required placeholder="e.g. Downtown Route" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <form method="POST" class="p-6 space-y-4">
+                        <input type="hidden" name="action" value="create_terminal_area">
+                        <input type="hidden" name="terminal_id" id="area_terminal_id">
+                        
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fare Range</label>
-                            <input type="text" name="fare_range" placeholder="e.g. 15-25 PHP" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bay Name</label>
+                            <input name="area_name" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g. Bay 1 - Cubao">
                         </div>
+
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Slots</label>
-                            <input type="number" name="max_slots" value="10" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Route</label>
+                            <select name="route_name" id="add_route_select" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 pl-3 pr-10 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Select Route...</option>
+                                <?php foreach ($routes as $r): $rid = (string)($r['route_id'] ?? ''); ?>
+                                    <option value="<?php echo htmlspecialchars($rid); ?>"><?php echo htmlspecialchars(($r['route_name'] ?? $rid) . ' (' . $rid . ')'); ?></option>
+                                <?php endforeach; ?>
+                                <option value="__custom__">Custom / Other</option>
+                            </select>
+                            <input type="text" name="route_name_custom" id="add_route_custom" class="mt-2 block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm hidden" placeholder="Enter custom route label">
                         </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">PUV Type</label>
-                        <select name="puv_type" class="w-full px-3 py-2 border rounded bg-white dark:bg-slate-800 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="Tricycle">Tricycle</option>
-                            <option value="Jeepney" selected>Jeepney</option>
-                            <option value="Bus">Bus</option>
-                            <option value="Van">Van</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fare Range</label>
+                                <input name="fare_range" id="add_fare_range" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Slots</label>
+                                <input type="number" name="max_slots" id="add_max_slots" value="10" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">PUV Type</label>
+                            <select name="puv_type" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 pl-3 pr-10 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="Jeepney">Jeepney</option>
+                                <option value="Bus">Bus</option>
+                                <option value="Van">Van</option>
+                                <option value="Tricycle">Tricycle</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-4 flex justify-end gap-3">
+                            <button type="button" onclick="closeAddAreaModal()" class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">Add Bay</button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="p-4 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-700 text-right space-x-2">
-                    <button type="button" onclick="closeAddAreaModal()" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Add Area</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Area Modal -->
+    <div id="editAreaModal" class="fixed inset-0 z-[60] hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-slate-900 text-left shadow-xl transition-all sm:w-full sm:max-w-lg border border-slate-200 dark:border-slate-700">
+                    <div class="bg-slate-50 dark:bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Edit Bay / Route</h3>
+                        <button onclick="closeEditAreaModal()" class="text-slate-400 hover:text-slate-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                    <form method="POST" class="p-6 space-y-4">
+                        <input type="hidden" name="action" value="update_terminal_area">
+                        <input type="hidden" name="id" id="edit_area_id">
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Bay Name</label>
+                            <input name="area_name" id="edit_area_name" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Route</label>
+                            <select name="route_name" id="edit_route_select" required class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 pl-3 pr-10 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Select Route...</option>
+                                <?php foreach ($routes as $r): $rid = (string)($r['route_id'] ?? ''); ?>
+                                    <option value="<?php echo htmlspecialchars($rid); ?>"><?php echo htmlspecialchars(($r['route_name'] ?? $rid) . ' (' . $rid . ')'); ?></option>
+                                <?php endforeach; ?>
+                                <option value="__custom__">Custom / Other</option>
+                            </select>
+                            <input type="text" name="route_name_custom" id="edit_route_custom" class="mt-2 block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm hidden">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Fare Range</label>
+                                <input name="fare_range" id="edit_fare_range" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Slots</label>
+                                <input type="number" name="max_slots" id="edit_max_slots" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 px-3 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">PUV Type</label>
+                            <select name="puv_type" id="edit_puv_type" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 pl-3 pr-10 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="Jeepney">Jeepney</option>
+                                <option value="Bus">Bus</option>
+                                <option value="Van">Van</option>
+                                <option value="Tricycle">Tricycle</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-4 flex justify-end gap-3">
+                            <button type="button" onclick="closeEditAreaModal()" class="px-4 py-2 rounded-md text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-sm transition-all">Cancel</button>
+                            <button type="submit" class="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all">Save Changes</button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
+// Data
 const terminalData = <?php echo json_encode($terminals); ?>;
 const areaData = <?php echo json_encode($areas); ?>;
 const operatorData = <?php echo json_encode($operators); ?>;
+const routeData = <?php echo json_encode($routes); ?>;
+const assignmentsData = <?php echo json_encode($assignmentsByTerminalRoute); ?>;
+const routeMap = {};
+(routeData || []).forEach(r => { if(r.route_id) routeMap[r.route_id] = r; });
 
-let currentTerminalId = null;
+// Route Controls Update Helper
+function updateRouteControls(sel, cust, hint, fare, slots) {
+    if(!sel) return;
+    const v = sel.value;
+    const isCustom = v === '__custom__';
+    if(cust) cust.classList.toggle('hidden', !isCustom);
+    if(isCustom) return;
+    
+    const r = routeMap[v];
+    if(r) {
+        if(fare && !fare.value && r.fare > 0) fare.value = '₱' + Number(r.fare).toFixed(2);
+        if(slots && (!slots.value || slots.value <= 0) && r.max_vehicle_limit > 0) slots.value = Math.min(r.max_vehicle_limit, 25);
+    }
+}
 
-// Detail Modal Functions
-function openTerminalModal(id) {
+// Modal Toggle Helpers
+function toggleModal(id, show) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(show) {
+        el.classList.remove('hidden');
+        if(window.lucide) window.lucide.createIcons();
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+// Global functions for buttons
+window.openCreateModal = () => toggleModal('createModal', true);
+window.closeCreateModal = () => toggleModal('createModal', false);
+window.openEditModal = (id) => {
+    const t = terminalData.find(x => x.id == id);
+    if(!t) return;
+    document.getElementById('edit_id').value = t.id;
+    document.getElementById('edit_name').value = t.name;
+    document.getElementById('edit_city').value = t.city;
+    document.getElementById('edit_address').value = t.address;
+    document.getElementById('edit_capacity').value = t.capacity;
+    toggleModal('editModal', true);
+};
+window.closeEditModal = () => toggleModal('editModal', false);
+window.openAddAreaModal = () => toggleModal('addAreaModal', true);
+window.closeAddAreaModal = () => toggleModal('addAreaModal', false);
+window.closeTerminalModal = () => toggleModal('terminalModal', false);
+
+window.openEditAreaModal = (id) => {
+    let area = null;
+    for(let tid in areaData) {
+        const found = areaData[tid].find(a => a.area_id == id);
+        if(found) { area = found; break; }
+    }
+    if(!area) return;
+    
+    document.getElementById('edit_area_id').value = area.area_id;
+    document.getElementById('edit_area_name').value = area.area_name;
+    document.getElementById('edit_fare_range').value = area.fare_range;
+    document.getElementById('edit_max_slots').value = area.max_slots;
+    document.getElementById('edit_puv_type').value = area.puv_type;
+    
+    const sel = document.getElementById('edit_route_select');
+    if(sel) {
+        if(routeMap[area.route_name]) sel.value = area.route_name;
+        else sel.value = '__custom__';
+        
+        const cust = document.getElementById('edit_route_custom');
+        if(cust) {
+            cust.classList.toggle('hidden', sel.value !== '__custom__');
+            if(sel.value === '__custom__') cust.value = area.route_name;
+        }
+    }
+    toggleModal('editAreaModal', true);
+};
+window.closeEditAreaModal = () => toggleModal('editAreaModal', false);
+
+window.openTerminalModal = (id) => {
     const term = terminalData.find(t => t.id == id);
     if(!term) return;
-    
-    currentTerminalId = id;
     document.getElementById('area_terminal_id').value = id;
-
-    document.getElementById('modalTitle').innerText = term.name;
-    document.getElementById('modalSubtitle').innerText = `${term.city || ''} • ${term.address || 'No address'}`;
+    document.getElementById('modalTitle').textContent = term.name;
+    document.getElementById('modalSubtitle').textContent = (term.city || '') + ' • ' + (term.address || '');
     
     const areas = areaData[id] || [];
-    let html = '';
+    const container = document.getElementById('modalContent');
     
-    if (areas.length === 0) {
-        html = `
-            <div class="text-center py-12 text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed dark:border-slate-700">
-                <svg class="w-12 h-12 mx-auto mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0121 18.382V7.618a1 1 0 01-.553-.894L15 7m0 13V7m0 0L9 4"></path></svg>
-                <p>No designated areas or routes found for this terminal.</p>
-                <button onclick="openAddAreaModal()" class="mt-4 text-blue-600 hover:underline">Add one now</button>
+    if(areas.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-4">
+                    <i data-lucide="layers" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-sm font-semibold text-slate-900 dark:text-white">No bays configured</h3>
+                <p class="text-xs text-slate-500 mt-1">Add a bay or route to start assigning operators.</p>
             </div>
         `;
     } else {
-        html += '<div class="grid grid-cols-1 gap-6">';
-        
-        areas.forEach(area => {
+        container.innerHTML = `<div class="grid grid-cols-1 gap-4">` + areas.map(area => {
             const ops = operatorData[area.area_id] ? Object.values(operatorData[area.area_id]) : [];
+            const rMeta = routeMap[area.route_name];
+            const routeDisplay = rMeta ? (area.route_name + ' • ' + rMeta.route_name) : (area.route_name || 'Unlinked');
+            const termName = term.name;
+            const asns = (assignmentsData[termName] && assignmentsData[termName][area.route_name]) || [];
+            const authCount = asns.filter(x => x.status === 'Authorized').length;
             
-            html += `
-                <div class="border dark:border-slate-700 rounded-lg overflow-hidden relative group-area">
-                    <div class="bg-slate-50 dark:bg-slate-800 p-4 border-b dark:border-slate-700 flex justify-between items-center">
+            return `
+            <div class="group relative overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
+                <div class="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                <div class="p-5 pl-6">
+                    <div class="flex justify-between items-start mb-3">
                         <div>
-                            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-200">${area.area_name}</h3>
-                            <div class="flex items-center space-x-2 text-sm text-slate-500 mt-1">
-                                <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-semibold">${area.puv_type}</span>
-                                <span>•</span>
-                                <span>${area.route_name || 'No Route Name'}</span>
+                            <h4 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                ${area.area_name}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider">${area.puv_type}</span>
+                            </h4>
+                            <div class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
+                                <i data-lucide="map" class="w-3.5 h-3.5"></i> ${routeDisplay}
                             </div>
                         </div>
-                        <div class="flex items-center space-x-4">
-                            <div class="text-right">
-                                <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Fare: ${area.fare_range || 'N/A'}</div>
-                                <div class="text-xs text-slate-500">Max Slots: ${area.max_slots}</div>
-                            </div>
-                            
-                            <!-- Edit Area Button -->
-                            <button onclick="openEditAreaModal(${area.area_id})" class="text-slate-400 hover:text-blue-500 p-1">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            </button>
-
-                            <!-- Delete Area Button -->
-                            <form method="POST" onsubmit="return confirm('Delete this area and all its associations?');">
+                        <div class="flex items-center gap-1">
+                            <button onclick="openEditAreaModal(${area.area_id})" class="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-600 transition-all"><i data-lucide="settings-2" class="w-4 h-4"></i></button>
+                            <form method="POST" onsubmit="return confirm('Delete this area?');" class="inline">
                                 <input type="hidden" name="action" value="delete_terminal_area">
                                 <input type="hidden" name="id" value="${area.area_id}">
-                                <button type="submit" class="text-slate-400 hover:text-red-500 p-1">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                </button>
+                                <button class="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-red-600 transition-all"><i data-lucide="trash" class="w-4 h-4"></i></button>
                             </form>
                         </div>
                     </div>
                     
-                    <div class="p-4 bg-white dark:bg-slate-900">
-                        <div class="flex justify-between items-center mb-3">
-                            <h4 class="text-xs font-semibold uppercase text-slate-500 tracking-wider">Assigned Operators & Drivers</h4>
-                            <button onclick="openAssignOperatorModal(${area.area_id})" class="text-xs text-blue-600 hover:underline">+ Assign Operator</button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700">
+                            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Assigned Vehicles</div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-lg font-bold text-slate-900 dark:text-white">${authCount}</span>
+                                <span class="text-xs font-medium text-slate-500">/ ${area.max_slots} slots</span>
+                            </div>
+                            <div class="h-1.5 w-full bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                                <div class="h-full bg-emerald-500 rounded-full" style="width: ${Math.min((authCount/area.max_slots)*100, 100)}%"></div>
+                            </div>
+                            <a href="?page=module1/submodule3&route_id=${encodeURIComponent(area.route_name)}" class="mt-2 block text-center text-xs font-semibold text-blue-600 hover:text-blue-500 hover:underline">Manage Assignments</a>
                         </div>
                         
-                        ${ops.length > 0 ? `
-                            <div class="space-y-3">
-                                ${ops.map(op => `
-                                    <div class="flex items-start p-3 rounded bg-slate-50 dark:bg-slate-800/50">
-                                        <div class="flex-1">
-                                            <div class="flex items-center justify-between mr-2">
-                                                <div class="font-medium text-slate-800 dark:text-slate-200">${op.name}</div>
-                                                <button onclick="openAddDriverModal(${op.id})" class="text-xs text-blue-600 hover:underline" title="Add Driver">+ Driver</button>
-                                            </div>
-                                            <div class="text-xs text-slate-500">${op.association || 'Independent'}</div>
-                                        </div>
-                                        <div class="flex-1 border-l dark:border-slate-700 pl-3">
-                                            <div class="text-xs text-slate-400 mb-1">Drivers</div>
-                                            <div class="flex flex-wrap gap-1">
-                                                ${op.drivers.length > 0 
-                                                    ? op.drivers.map(d => `<span class="inline-block px-2 py-1 bg-white dark:bg-slate-700 border dark:border-slate-600 rounded text-xs">${d}</span>`).join('')
-                                                    : '<span class="text-xs italic text-slate-400">No drivers listed</span>'
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                `).join('')}
+                        <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700">
+                            <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">Operators</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${ops.length > 0 ? ops.map(o => `
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                        <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> ${o.name}
+                                    </span>
+                                `).join('') : '<span class="text-xs italic text-slate-400">No operators linked</span>'}
                             </div>
-                        ` : `
-                            <p class="text-sm text-slate-400 italic">No operators assigned to this area.</p>
-                        `}
+                        </div>
                     </div>
                 </div>
             `;
+        }).join('') + `</div>`;
+    }
+    toggleModal('terminalModal', true);
+};
+
+// Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    if(window.lucide) window.lucide.createIcons();
+    
+    const addSel = document.getElementById('add_route_select');
+    if(addSel) addSel.addEventListener('change', () => updateRouteControls(addSel, document.getElementById('add_route_custom'), null, document.getElementById('add_fare_range'), document.getElementById('add_max_slots')));
+    
+    const search = document.getElementById('terminalSearch');
+    if(search) {
+        search.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.terminal-card').forEach(el => {
+                const txt = (el.dataset.name + ' ' + el.dataset.city).toLowerCase();
+                el.classList.toggle('hidden', !txt.includes(q));
+            });
         });
-        
-        html += '</div>';
     }
-
-    document.getElementById('modalContent').innerHTML = html;
-    
-    const modal = document.getElementById('terminalModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('modalPanel').classList.remove('scale-95');
-        document.getElementById('modalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeTerminalModal() {
-    const modal = document.getElementById('terminalModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('modalPanel').classList.remove('scale-100');
-    document.getElementById('modalPanel').classList.add('scale-95');
-    
-    setTimeout(() => {
-        modal.classList.add('hidden');
-        currentTerminalId = null;
-    }, 300);
-}
-
-// Edit Modal Functions
-function openEditModal(id) {
-    const term = terminalData.find(t => t.id == id);
-    if(!term) return;
-
-    document.getElementById('edit_id').value = term.id;
-    document.getElementById('edit_name').value = term.name;
-    document.getElementById('edit_city').value = term.city;
-    document.getElementById('edit_address').value = term.address;
-    document.getElementById('edit_capacity').value = term.capacity;
-
-    const modal = document.getElementById('editModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('editModalPanel').classList.remove('scale-95');
-        document.getElementById('editModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeEditModal() {
-    const modal = document.getElementById('editModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('editModalPanel').classList.remove('scale-100');
-    document.getElementById('editModalPanel').classList.add('scale-95');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
-// Add Area Modal Functions
-function openAddAreaModal() {
-    const modal = document.getElementById('addAreaModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('addAreaModalPanel').classList.remove('scale-95');
-        document.getElementById('addAreaModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeAddAreaModal() {
-    const modal = document.getElementById('addAreaModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('addAreaModalPanel').classList.remove('scale-100');
-    document.getElementById('addAreaModalPanel').classList.add('scale-95');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
-// Create Modal Functions
-function openCreateModal() {
-    const modal = document.getElementById('createModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('createModalPanel').classList.remove('scale-95');
-        document.getElementById('createModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeCreateModal() {
-    const modal = document.getElementById('createModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('createModalPanel').classList.remove('scale-100');
-    document.getElementById('createModalPanel').classList.add('scale-95');
-    
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
-// Edit Area Modal Functions
-function openEditAreaModal(id) {
-    // Find the area data
-    let area = null;
-    for (let tId in areaData) {
-        const found = areaData[tId].find(a => a.area_id == id);
-        if (found) {
-            area = found;
-            break;
-        }
-    }
-    if(!area) return;
-
-    document.getElementById('edit_area_id').value = area.area_id;
-    document.getElementById('edit_area_name').value = area.area_name;
-    document.getElementById('edit_route_name').value = area.route_name;
-    document.getElementById('edit_fare_range').value = area.fare_range;
-    document.getElementById('edit_max_slots').value = area.max_slots;
-    document.getElementById('edit_puv_type').value = area.puv_type;
-
-    const modal = document.getElementById('editAreaModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('editAreaModalPanel').classList.remove('scale-95');
-        document.getElementById('editAreaModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeEditAreaModal() {
-    const modal = document.getElementById('editAreaModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('editAreaModalPanel').classList.remove('scale-100');
-    document.getElementById('editAreaModalPanel').classList.add('scale-95');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
-// Assign Operator Modal Functions
-function openAssignOperatorModal(areaId) {
-    document.getElementById('assign_area_id').value = areaId;
-    
-    const modal = document.getElementById('assignOperatorModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('assignOperatorModalPanel').classList.remove('scale-95');
-        document.getElementById('assignOperatorModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeAssignOperatorModal() {
-    const modal = document.getElementById('assignOperatorModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('assignOperatorModalPanel').classList.remove('scale-100');
-    document.getElementById('assignOperatorModalPanel').classList.add('scale-95');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
-
-function switchOpTab(tab) {
-    const tabExisting = document.getElementById('tab_existing');
-    const tabNew = document.getElementById('tab_new');
-    const contentExisting = document.getElementById('op_existing_content');
-    const contentNew = document.getElementById('op_new_content');
-    const isNewInput = document.getElementById('is_new_operator');
-
-    if (tab === 'existing') {
-        tabExisting.classList.add('text-blue-600', 'border-blue-600');
-        tabExisting.classList.remove('text-slate-500');
-        tabNew.classList.remove('text-blue-600', 'border-blue-600');
-        tabNew.classList.add('text-slate-500');
-        
-        contentExisting.classList.remove('hidden');
-        contentNew.classList.add('hidden');
-        isNewInput.value = '0';
-    } else {
-        tabNew.classList.add('text-blue-600', 'border-blue-600');
-        tabNew.classList.remove('text-slate-500');
-        tabExisting.classList.remove('text-blue-600', 'border-blue-600');
-        tabExisting.classList.add('text-slate-500');
-        
-        contentNew.classList.remove('hidden');
-        contentExisting.classList.add('hidden');
-        isNewInput.value = '1';
-    }
-}
-
-// Add Driver Modal Functions
-function openAddDriverModal(operatorId) {
-    document.getElementById('driver_operator_id').value = operatorId;
-    
-    const modal = document.getElementById('addDriverModal');
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        document.getElementById('addDriverModalPanel').classList.remove('scale-95');
-        document.getElementById('addDriverModalPanel').classList.add('scale-100');
-    }, 10);
-}
-
-function closeAddDriverModal() {
-    const modal = document.getElementById('addDriverModal');
-    modal.classList.add('opacity-0');
-    document.getElementById('addDriverModalPanel').classList.remove('scale-100');
-    document.getElementById('addDriverModalPanel').classList.add('scale-95');
-    setTimeout(() => {
-        modal.classList.add('hidden');
-    }, 300);
-}
+});
 </script>
