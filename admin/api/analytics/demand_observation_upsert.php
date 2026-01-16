@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('analytics.train');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   http_response_code(405);
@@ -14,7 +16,7 @@ $areaRef = trim((string)($_POST['area_ref'] ?? ''));
 $observedAt = trim((string)($_POST['observed_at'] ?? ''));
 $demandCount = (int)($_POST['demand_count'] ?? 0);
 
-if (!in_array($areaType, ['terminal', 'parking_area'], true)) {
+if (!in_array($areaType, ['terminal', 'route'], true)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_area_type']);
   exit;

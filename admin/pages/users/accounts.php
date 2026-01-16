@@ -30,6 +30,15 @@ if (current_user_role() !== 'SuperAdmin') {
     </div>
   </div>
 
+  <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="inline-flex rounded-2xl bg-slate-100 dark:bg-slate-900/30 p-1 gap-1">
+      <button id="tabBtnStaff" type="button" class="px-4 py-2 rounded-xl text-sm font-black bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm">Staff Accounts</button>
+      <button id="tabBtnCommuters" type="button" class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Citizen Accounts</button>
+      <button id="tabBtnOperators" type="button" class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Operator Accounts</button>
+    </div>
+  </div>
+
+  <div id="tabStaff">
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
     <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div class="flex items-center gap-3">
@@ -74,6 +83,100 @@ if (current_user_role() !== 'SuperAdmin') {
         </table>
       </div>
       <div id="usersMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
+    </div>
+  </div>
+  </div>
+
+  <div id="tabCommuters" class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-500/10 rounded-xl">
+          <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-slate-800 dark:text-white">Citizen Accounts</h2>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Commuters</p>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <input id="commuterQ" type="text" placeholder="Search name, email, mobile, barangay..." class="w-full sm:w-96 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+        <select id="commuterStatusFilter" class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Locked">Locked</option>
+        </select>
+        <button id="commuterRefresh" class="rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div class="p-6">
+      <div id="commuterError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
+      <div id="commuterSuccess" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"></div>
+      <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <thead class="bg-slate-50 dark:bg-slate-900/30">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">User</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Mobile</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Barangay</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Last Login</th>
+              <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="commuterBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+        </table>
+      </div>
+      <div id="commuterMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
+    </div>
+  </div>
+
+  <div id="tabOperators" class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-orange-500/10 rounded-xl">
+          <i data-lucide="id-card" class="w-5 h-5 text-orange-600"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-slate-800 dark:text-white">Operator Accounts</h2>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Operators</p>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <input id="operatorQ" type="text" placeholder="Search email, name, plate..." class="w-full sm:w-96 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-orange-500 transition-all">
+        <select id="operatorStatusFilter" class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-orange-500 transition-all">
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Locked">Locked</option>
+        </select>
+        <button id="operatorRefresh" class="rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div class="p-6">
+      <div id="operatorError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
+      <div id="operatorSuccess" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"></div>
+      <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <thead class="bg-slate-50 dark:bg-slate-900/30">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Operator</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Association</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Plates</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
+              <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="operatorBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+        </table>
+      </div>
+      <div id="operatorMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
     </div>
   </div>
 </div>
@@ -186,6 +289,41 @@ if (current_user_role() !== 'SuperAdmin') {
           </button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<div id="activityBackdrop" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-14 px-4 z-50 overflow-y-auto">
+  <div class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-emerald-500/10 rounded-xl">
+          <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div>
+          <div id="activityTitle" class="text-base font-black text-slate-900 dark:text-white">Login Activity</div>
+          <div id="activitySubtitle" class="text-xs font-bold text-slate-500">Recent sign-in attempts</div>
+        </div>
+      </div>
+      <button id="btnCloseActivity" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div class="p-6">
+      <div id="activityError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
+      <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <thead class="bg-slate-50 dark:bg-slate-900/30">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Result</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">IP</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">When</th>
+            </tr>
+          </thead>
+          <tbody id="activityBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+        </table>
+      </div>
+      <div id="activityMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
     </div>
   </div>
 </div>
@@ -327,6 +465,312 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   function setText(el, text) {
     if (el) el.textContent = text;
+  }
+
+  var tabBtnStaff = document.getElementById('tabBtnStaff');
+  var tabBtnCommuters = document.getElementById('tabBtnCommuters');
+  var tabBtnOperators = document.getElementById('tabBtnOperators');
+  var tabStaff = document.getElementById('tabStaff');
+  var tabCommuters = document.getElementById('tabCommuters');
+  var tabOperators = document.getElementById('tabOperators');
+
+  function setTab(name) {
+    var isStaff = name === 'staff';
+    var isCommuters = name === 'commuters';
+    var isOperators = name === 'operators';
+
+    show(tabStaff, isStaff);
+    show(tabCommuters, isCommuters);
+    show(tabOperators, isOperators);
+
+    if (btnOpenCreate) show(btnOpenCreate, isStaff);
+
+    if (tabBtnStaff) tabBtnStaff.className = 'px-4 py-2 rounded-xl text-sm font-black ' + (isStaff ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60');
+    if (tabBtnCommuters) tabBtnCommuters.className = 'px-4 py-2 rounded-xl text-sm font-black ' + (isCommuters ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60');
+    if (tabBtnOperators) tabBtnOperators.className = 'px-4 py-2 rounded-xl text-sm font-black ' + (isOperators ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60');
+
+    if (window.lucide) window.lucide.createIcons();
+    if (isCommuters) loadCommuters().catch(function () {});
+    if (isOperators) loadOperators().catch(function () {});
+  }
+
+  if (tabBtnStaff) tabBtnStaff.addEventListener('click', function () { setTab('staff'); });
+  if (tabBtnCommuters) tabBtnCommuters.addEventListener('click', function () { setTab('commuters'); });
+  if (tabBtnOperators) tabBtnOperators.addEventListener('click', function () { setTab('operators'); });
+
+  function apiUsersUrl(path) {
+    return basePrefix + '/admin/api/users/' + path;
+  }
+
+  var commuterQ = document.getElementById('commuterQ');
+  var commuterStatusFilter = document.getElementById('commuterStatusFilter');
+  var commuterRefresh = document.getElementById('commuterRefresh');
+  var commuterBody = document.getElementById('commuterBody');
+  var commuterMeta = document.getElementById('commuterMeta');
+  var commuterError = document.getElementById('commuterError');
+  var commuterSuccess = document.getElementById('commuterSuccess');
+
+  var operatorQ = document.getElementById('operatorQ');
+  var operatorStatusFilter = document.getElementById('operatorStatusFilter');
+  var operatorRefresh = document.getElementById('operatorRefresh');
+  var operatorBody = document.getElementById('operatorBody');
+  var operatorMeta = document.getElementById('operatorMeta');
+  var operatorError = document.getElementById('operatorError');
+  var operatorSuccess = document.getElementById('operatorSuccess');
+
+  var activityBackdrop = document.getElementById('activityBackdrop');
+  var btnCloseActivity = document.getElementById('btnCloseActivity');
+  var activityTitle = document.getElementById('activityTitle');
+  var activitySubtitle = document.getElementById('activitySubtitle');
+  var activityError = document.getElementById('activityError');
+  var activityBody = document.getElementById('activityBody');
+  var activityMeta = document.getElementById('activityMeta');
+
+  function openActivityModal(title, subtitle) {
+    if (!activityBackdrop) return;
+    show(activityError, false);
+    setText(activityError, '');
+    setText(activityTitle, title || 'Login Activity');
+    setText(activitySubtitle, subtitle || 'Recent sign-in attempts');
+    activityBackdrop.classList.remove('hidden');
+    activityBackdrop.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+  function closeActivityModal() {
+    if (!activityBackdrop) return;
+    activityBackdrop.classList.add('hidden');
+    activityBackdrop.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+  }
+  if (btnCloseActivity) btnCloseActivity.addEventListener('click', closeActivityModal);
+  if (activityBackdrop) activityBackdrop.addEventListener('click', function (e) { if (e.target === activityBackdrop) closeActivityModal(); });
+
+  function statusBadgeHtml(status) {
+    var s = String(status || '');
+    if (s === 'Active') return '<span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-700">Active</span>';
+    if (s === 'Locked') return '<span class="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700">Locked</span>';
+    return '<span class="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-700">Inactive</span>';
+  }
+
+  async function commutersGet() {
+    var params = new URLSearchParams();
+    if (commuterQ && commuterQ.value.trim()) params.set('q', commuterQ.value.trim());
+    if (commuterStatusFilter && commuterStatusFilter.value) params.set('status', commuterStatusFilter.value);
+    var res = await fetch(apiUsersUrl('commuters.php') + '?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+    return await res.json().catch(function () { return null; });
+  }
+  async function commutersPost(payload) {
+    var res = await fetch(apiUsersUrl('commuters.php'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload || {}) });
+    return await res.json().catch(function () { return null; });
+  }
+  async function loadCommuters() {
+    show(commuterError, false);
+    setText(commuterError, '');
+    show(commuterSuccess, false);
+    setText(commuterSuccess, '');
+    if (commuterBody) commuterBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Loading...</td></tr>';
+    var data = await commutersGet();
+    if (!data || data.ok !== true) {
+      show(commuterError, true);
+      setText(commuterError, (data && (data.error || data.message)) ? (data.error || data.message) : 'Failed to load commuters.');
+      if (commuterBody) commuterBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Error.</td></tr>';
+      return;
+    }
+    var users = data.users || [];
+    if (!users.length) {
+      if (commuterBody) commuterBody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">No commuters found.</td></tr>';
+      setText(commuterMeta, '0 results');
+      return;
+    }
+    commuterBody.innerHTML = users.map(function (u) {
+      var actions = '' +
+        '<div class="flex items-center justify-end gap-2">' +
+          '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
+            '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
+            '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
+            '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
+          '</select>' +
+          '<button data-action="activity" data-id="' + u.id + '" data-email="' + escapeHtml(u.email) + '" class="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 text-xs font-black">Activity</button>' +
+          '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
+          '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
+        '</div>';
+      return '' +
+        '<tr>' +
+          '<td class="px-4 py-3">' +
+            '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.name) + '</div>' +
+            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
+          '</td>' +
+          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.mobile || '—') + '</td>' +
+          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.barangay || '—') + '</td>' +
+          '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
+          '<td class="px-4 py-3 text-xs font-bold text-slate-500">' + escapeHtml(u.last_login_at || '—') + '</td>' +
+          '<td class="px-4 py-3">' + actions + '</td>' +
+        '</tr>';
+    }).join('');
+    setText(commuterMeta, users.length + ' result(s)');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function operatorsGet() {
+    var params = new URLSearchParams();
+    if (operatorQ && operatorQ.value.trim()) params.set('q', operatorQ.value.trim());
+    if (operatorStatusFilter && operatorStatusFilter.value) params.set('status', operatorStatusFilter.value);
+    var res = await fetch(apiUsersUrl('operators.php') + '?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+    return await res.json().catch(function () { return null; });
+  }
+  async function operatorsPost(payload) {
+    var res = await fetch(apiUsersUrl('operators.php'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload || {}) });
+    return await res.json().catch(function () { return null; });
+  }
+  async function loadOperators() {
+    show(operatorError, false);
+    setText(operatorError, '');
+    show(operatorSuccess, false);
+    setText(operatorSuccess, '');
+    if (operatorBody) operatorBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Loading...</td></tr>';
+    var data = await operatorsGet();
+    if (!data || data.ok !== true) {
+      show(operatorError, true);
+      setText(operatorError, (data && (data.error || data.message)) ? (data.error || data.message) : 'Failed to load operators.');
+      if (operatorBody) operatorBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Error.</td></tr>';
+      return;
+    }
+    var users = data.users || [];
+    if (!users.length) {
+      if (operatorBody) operatorBody.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-sm font-bold text-slate-500">No operators found.</td></tr>';
+      setText(operatorMeta, '0 results');
+      return;
+    }
+    operatorBody.innerHTML = users.map(function (u) {
+      var actions = '' +
+        '<div class="flex items-center justify-end gap-2">' +
+          '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
+            '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
+            '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
+            '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
+          '</select>' +
+          '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
+          '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
+        '</div>';
+      return '' +
+        '<tr>' +
+          '<td class="px-4 py-3">' +
+            '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.full_name || '—') + '</div>' +
+            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
+            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.contact_info || '') + '</div>' +
+          '</td>' +
+          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.association_name || '—') + '</td>' +
+          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.plates || '—') + '</td>' +
+          '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
+          '<td class="px-4 py-3">' + actions + '</td>' +
+        '</tr>';
+    }).join('');
+    setText(operatorMeta, users.length + ' result(s)');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  if (commuterRefresh) commuterRefresh.addEventListener('click', function () { loadCommuters().catch(function () {}); });
+  if (commuterQ) commuterQ.addEventListener('input', function () { clearTimeout(window.__cq); window.__cq = setTimeout(function () { loadCommuters().catch(function () {}); }, 250); });
+  if (commuterStatusFilter) commuterStatusFilter.addEventListener('change', function () { loadCommuters().catch(function () {}); });
+
+  if (operatorRefresh) operatorRefresh.addEventListener('click', function () { loadOperators().catch(function () {}); });
+  if (operatorQ) operatorQ.addEventListener('input', function () { clearTimeout(window.__oq); window.__oq = setTimeout(function () { loadOperators().catch(function () {}); }, 250); });
+  if (operatorStatusFilter) operatorStatusFilter.addEventListener('change', function () { loadOperators().catch(function () {}); });
+
+  if (commuterBody) {
+    commuterBody.addEventListener('change', function (e) {
+      var sel = e.target;
+      if (!sel || !sel.dataset || sel.dataset.action !== 'status') return;
+      var userId = parseInt(sel.dataset.id || '0', 10);
+      var st = sel.value;
+      commutersPost({ action: 'set_status', user_id: userId, status: st }).then(function (res) {
+        if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to update status.'); }
+        loadCommuters().catch(function () {});
+      });
+    });
+    commuterBody.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      var act = btn.dataset.action;
+      var userId = parseInt(btn.dataset.id || '0', 10);
+      if (act === 'delete') {
+        if (!confirm('Delete this commuter account?')) return;
+        commutersPost({ action: 'delete', user_id: userId }).then(function (res) {
+          if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to delete account.'); }
+          loadCommuters().catch(function () {});
+        });
+        return;
+      }
+      if (act === 'reset') {
+        if (!confirm('Reset password and unlock this commuter account?')) return;
+        commutersPost({ action: 'reset_password', user_id: userId }).then(function (res) {
+          if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to reset password.'); return; }
+          show(commuterSuccess, true);
+          setText(commuterSuccess, 'Temporary password: ' + (res.temporary_password || ''));
+          loadCommuters().catch(function () {});
+        });
+        return;
+      }
+      if (act === 'activity') {
+        var email = btn.dataset.email || '';
+        commutersPost({ action: 'activity', user_id: userId }).then(function (res) {
+          if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to load activity.'); return; }
+          var items = res.items || [];
+          openActivityModal('Login Activity', email ? ('Commuter: ' + email) : 'Recent sign-in attempts');
+          if (!items.length) {
+            if (activityBody) activityBody.innerHTML = '<tr><td colspan="3" class="px-6 py-10 text-center text-sm font-bold text-slate-500">No activity found.</td></tr>';
+            setText(activityMeta, '0 events');
+            return;
+          }
+          activityBody.innerHTML = items.map(function (it) {
+            var ok = it.ok ? '<span class="px-2 py-1 rounded-lg text-[11px] font-black bg-emerald-100 text-emerald-700">OK</span>' : '<span class="px-2 py-1 rounded-lg text-[11px] font-black bg-rose-100 text-rose-700">FAIL</span>';
+            return '<tr>' +
+              '<td class="px-4 py-3">' + ok + '</td>' +
+              '<td class="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">' + escapeHtml(it.ip || '—') + '</td>' +
+              '<td class="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">' + escapeHtml(it.created_at || '—') + '</td>' +
+            '</tr>';
+          }).join('');
+          setText(activityMeta, items.length + ' events');
+        });
+      }
+    });
+  }
+
+  if (operatorBody) {
+    operatorBody.addEventListener('change', function (e) {
+      var sel = e.target;
+      if (!sel || !sel.dataset || sel.dataset.action !== 'status') return;
+      var userId = parseInt(sel.dataset.id || '0', 10);
+      var st = sel.value;
+      operatorsPost({ action: 'set_status', user_id: userId, status: st }).then(function (res) {
+        if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to update status.'); }
+        loadOperators().catch(function () {});
+      });
+    });
+    operatorBody.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      var act = btn.dataset.action;
+      var userId = parseInt(btn.dataset.id || '0', 10);
+      if (act === 'delete') {
+        if (!confirm('Delete this operator account?')) return;
+        operatorsPost({ action: 'delete', user_id: userId }).then(function (res) {
+          if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to delete account.'); }
+          loadOperators().catch(function () {});
+        });
+        return;
+      }
+      if (act === 'reset') {
+        if (!confirm('Reset password and unlock this operator account?')) return;
+        operatorsPost({ action: 'reset_password', user_id: userId }).then(function (res) {
+          if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to reset password.'); return; }
+          show(operatorSuccess, true);
+          setText(operatorSuccess, 'Temporary password: ' + (res.temporary_password || ''));
+          loadOperators().catch(function () {});
+        });
+      }
+    });
   }
   function clearModalAlerts() {
     show(modalError, false);
@@ -619,6 +1063,8 @@ document.addEventListener('DOMContentLoaded', function () {
       setText(modalError, err.message || 'Save failed');
     });
   });
+
+  setTab('staff');
 
   Promise.resolve()
     .then(loadRoles)

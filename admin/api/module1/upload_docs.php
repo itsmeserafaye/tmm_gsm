@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 $plate = trim($_POST['plate_number'] ?? '');
 header('Content-Type: application/json');
+require_permission('module1.vehicles.write');
 
 if ($plate === '') {
     echo json_encode(['error' => 'Plate number required']);

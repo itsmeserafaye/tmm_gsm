@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 
 header('Content-Type: application/json');
+require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
 
 $res = $db->query("SELECT violation_code, description, fine_amount FROM violation_types ORDER BY description ASC");
 $violations = [];

@@ -1,0 +1,6 @@
+route_id,route_name,max_vehicle_limit,status
+CAL-01,Monumento Loop,50,Active
+CAL-02,Sangandaan Connector,40,Active
+CAL-03,Deparo Service,40,Active
+CAL-04,Bagong Silang Corridor,45,Active
+CAL-05,Caloocan North–South Line,50,Active

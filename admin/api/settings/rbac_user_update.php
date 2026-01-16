@@ -50,4 +50,3 @@ try {
   if (defined('TMM_TEST')) throw $e;
   json_out(400, ['ok' => false, 'error' => $e->getMessage()]);
 }
-

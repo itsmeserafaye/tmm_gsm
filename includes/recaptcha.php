@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/env.php';
+tmm_load_env(__DIR__ . '/../.env');
+
 function recaptcha_config(mysqli $db): array {
   $siteKey = '';
   $secretKey = '';
@@ -59,4 +62,3 @@ function recaptcha_verify(string $secretKey, string $token, string $remoteIp = '
     'hostname' => $json['hostname'] ?? null,
   ];
 }
-

@@ -1,3 +1,9 @@
+<?php
+require_once __DIR__ . '/../../includes/commuter_portal.php';
+$baseUrl = str_replace('\\', '/', (string)dirname(dirname(dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
+$baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
+commuter_portal_require_login($baseUrl . '/index.php');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,6 +41,10 @@
             <div class="flex items-center space-x-2">
                 <img src="images/logo.jpg" alt="Logo" class="w-10 h-10 rounded-lg shadow-lg object-cover">
                 <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">Commuter<span class="text-secondary">Portal</span></h1>
+            </div>
+            <div class="hidden md:flex items-center gap-3">
+                <div class="text-xs font-bold text-slate-500"><?php echo htmlspecialchars((string)($_SESSION['name'] ?? '')); ?></div>
+                <a href="logout.php" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition">Logout</a>
             </div>
             <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-600">
                 <button onclick="showSection('verify')" class="hover:text-primary transition-colors">Verify Vehicle</button>

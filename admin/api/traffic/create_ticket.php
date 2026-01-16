@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 
 header('Content-Type: application/json');
+require_permission('tickets.issue');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
@@ -11,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // 1. Get Input
-$violation_code_input = trim((string)($_POST['violation_code'] ?? ''));
+$violation_code = $db->real_escape_string($_POST['violation_code'] ?? '');
 $plate_number = $db->real_escape_string($_POST['plate_number'] ?? '');
 $driver_name = $db->real_escape_string($_POST['driver_name'] ?? '');
 $location = $db->real_escape_string($_POST['location'] ?? '');
@@ -20,39 +22,29 @@ $issued_at = $_POST['issued_at'] ?? date('Y-m-d H:i:s');
 $issued_by = 'Officer Admin';
 $issued_by_badge = null;
 $officer_name_input = trim($_POST['officer_name'] ?? '');
-$ticket_type = trim((string)($_POST['ticket_type'] ?? 'local'));
-$is_sts = $ticket_type === 'sts' ? 1 : 0;
-$sts_ticket_no = $db->real_escape_string($_POST['sts_ticket_no'] ?? '');
-$demerit_points = (int)($_POST['demerit_points'] ?? 0);
+$ticket_source = strtoupper(trim((string)($_POST['ticket_source'] ?? 'LOCAL_STS_COMPAT')));
+$external_ticket_number = trim((string)($_POST['external_ticket_number'] ?? ''));
+
+$allowedSources = ['LOCAL_STS_COMPAT','STS_PAPER','STS_EXTERNAL'];
+if (!in_array($ticket_source, $allowedSources, true)) $ticket_source = 'LOCAL_STS_COMPAT';
+if ($external_ticket_number !== '') {
+    $external_ticket_number = preg_replace('/\s+/', '', $external_ticket_number);
+    if (!preg_match('/^[A-Za-z0-9\-\/]{3,64}$/', $external_ticket_number)) {
+        echo json_encode(['ok' => false, 'error' => 'Invalid STS ticket number format']);
+        exit;
+    }
+}
+if (($ticket_source === 'STS_PAPER' || $ticket_source === 'STS_EXTERNAL') && $external_ticket_number === '') {
+    echo json_encode(['ok' => false, 'error' => 'STS ticket number is required for paper/external tickets']);
+    exit;
+}
 
 if ($officer_name_input !== '') {
     $issued_by = $db->real_escape_string($officer_name_input);
 }
 
-if ($violation_code_input === '' || !$plate_number) {
+if (!$violation_code || !$plate_number) {
     echo json_encode(['ok' => false, 'error' => 'Violation Code and Plate Number are required']);
-    exit;
-}
-
-$violation_code_db = '';
-$sts_violation_code = null;
-$fine = 0.00;
-
-$stmtV = $db->prepare("SELECT violation_code, sts_equivalent_code, fine_amount FROM violation_types WHERE sts_equivalent_code = ? OR violation_code = ? LIMIT 1");
-if ($stmtV) {
-    $stmtV->bind_param('ss', $violation_code_input, $violation_code_input);
-    $stmtV->execute();
-    $resV = $stmtV->get_result();
-    if ($resV && $resV->num_rows > 0) {
-        $rowV = $resV->fetch_assoc();
-        $violation_code_db = (string)($rowV['violation_code'] ?? '');
-        $sts_violation_code = ($rowV['sts_equivalent_code'] ?? '') !== '' ? (string)$rowV['sts_equivalent_code'] : null;
-        $fine = (float)($rowV['fine_amount'] ?? 0);
-    }
-}
-
-if ($violation_code_db === '') {
-    echo json_encode(['ok' => false, 'error' => 'Unknown violation code. Please update the fine matrix first.']);
     exit;
 }
 
@@ -80,6 +72,17 @@ if ($veh_check && $veh_check->num_rows > 0) {
     $status = 'Validated';
 }
 
+// 3. Get Fine Amount
+$fine = 0.00;
+$sts_violation_code = null;
+$v_res = $db->query("SELECT fine_amount, sts_equivalent_code FROM violation_types WHERE violation_code = '$violation_code' LIMIT 1");
+if ($v_res && $v_res->num_rows > 0) {
+    $vr = $v_res->fetch_assoc();
+    $fine = (float)($vr['fine_amount'] ?? 0);
+    $sts_violation_code = $vr['sts_equivalent_code'] ?? null;
+}
+if (!$sts_violation_code || trim((string)$sts_violation_code) === '') $sts_violation_code = $violation_code;
+
 // 4. Generate Ticket Number
 $year = date('Y');
 $month = date('m');
@@ -93,11 +96,10 @@ if ($franchise_id) {
     $esc_check = $db->query("SELECT COUNT(*) as c FROM tickets WHERE franchise_id = '$franchise_id' AND date_issued >= '$start_date'");
     $violation_count = $esc_check->fetch_assoc()['c'];
     
-    if ($violation_count >= 5 || $demerit_points >= 10) { // 5 prior tickets OR High Demerit Points
+    if ($violation_count >= 5) { // 5 prior + this one = >5
         $status = 'Escalated';
         // Automatic Compliance Case Creation
-        $reason = ($demerit_points >= 10) ? "Severe Violation (Demerit Points: $demerit_points)" : "Repeat Offender (>5 tickets in 30 days)";
-        $case_desc = "Automatic escalation: " . $reason;
+        $case_desc = "Automatic escalation: Franchise accumulated >5 tickets in 30 days.";
         $c_stmt = $db->prepare("INSERT INTO compliance_cases (franchise_ref_number, violation_type, status, violation_details) VALUES (?, 'Traffic Violation Escalation', 'Open', ?)");
         if ($c_stmt) {
             $c_stmt->bind_param('ss', $franchise_id, $case_desc);
@@ -109,11 +111,12 @@ if ($franchise_id) {
 // 6. Insert Ticket
 $issued_by_sql = $db->real_escape_string($issued_by);
 $issued_by_badge_sql = $issued_by_badge !== null ? "'" . $issued_by_badge . "'" : "NULL";
+$extSql = $external_ticket_number !== '' ? "'" . $db->real_escape_string($external_ticket_number) . "'" : "NULL";
+$srcSql = $db->real_escape_string($ticket_source);
+$stsSql = $db->real_escape_string((string)$sts_violation_code);
 
-$sts_violation_code_sql = ($is_sts && $sts_violation_code) ? ("'" . $db->real_escape_string($sts_violation_code) . "'") : "NULL";
-
-$sql = "INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status, sts_ticket_no, demerit_points, is_sts_violation) 
-        VALUES ('$ticket_number', '$violation_code_db', $sts_violation_code_sql, '$plate_number', " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status', " . ($sts_ticket_no ? "'$sts_ticket_no'" : "NULL") . ", $demerit_points, $is_sts)";
+$sql = "INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, external_ticket_number, ticket_source, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status) 
+        VALUES ('$ticket_number', '$violation_code', '$stsSql', $extSql, '$srcSql', '$plate_number', " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status')";
 
 if ($db->query($sql)) {
     $ticket_id = $db->insert_id;
@@ -164,6 +167,8 @@ if ($db->query($sql)) {
         'ok' => true, 
         'message' => 'Ticket generated successfully',
         'ticket_number' => $ticket_number,
+        'external_ticket_number' => $external_ticket_number,
+        'ticket_source' => $ticket_source,
         'fine' => $fine
     ]);
 } else {

@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module5.view','parking.manage']);
+?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100">
     <?php
     require_once __DIR__ . '/../../includes/db.php';

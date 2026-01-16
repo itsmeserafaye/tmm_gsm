@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
+?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div
     class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">

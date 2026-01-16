@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -19,6 +20,12 @@ $notes = $input['notes'] ?? ''; // Could be logged in a history table
 if (!$ticket_id || !$status) {
     echo json_encode(['ok' => false, 'error' => 'Missing required fields']);
     exit;
+}
+
+if ($status === 'Settled') {
+    require_permission('tickets.settle');
+} else {
+    require_permission('tickets.validate');
 }
 
 // Validate Payment Ref for Settlement

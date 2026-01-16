@@ -1,4 +1,13 @@
 <?php
+if (php_sapi_name() !== 'cli') {
+  echo '<div class="mx-auto max-w-3xl px-4 py-10">';
+  echo '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">';
+  echo '<div class="text-lg font-black">Access Denied</div>';
+  echo '<div class="mt-1 text-sm font-bold">This tool can only be run from the command line.</div>';
+  echo '</div>';
+  echo '</div>';
+  return;
+}
 ob_start();
 define('TMM_TEST', true);
 require_once __DIR__ . '/../../includes/db.php';

@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('module4.inspections.manage');
 $schedule_id = (int)($_POST['schedule_id'] ?? 0);
 $approved_by = isset($_POST['approved_by']) ? (int)$_POST['approved_by'] : 0;
 $approved_name = trim($_POST['approved_name'] ?? '');

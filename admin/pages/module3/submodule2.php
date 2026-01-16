@@ -1,8 +1,12 @@
+<?php
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module3.view','tickets.validate','tickets.settle']);
+?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Validation & Settlement (STS-Aligned)</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Cross-validate ticket data, process payments, and monitor repeat offenders following STS standards.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Validation, Payment & Compliance (STS-Compliant)</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Validate tickets, record OR payments, and monitor repeat offenders (tracks STS paper tickets via reference numbers).</p>
     </div>
     <div class="text-xs font-semibold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/30 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700">
       Data window: Last 30 days
@@ -27,11 +31,11 @@
 
     // Recent Lists
     $recentValidated = [];
-    $resVal = $db->query("SELECT ticket_number, vehicle_plate, status, date_issued FROM tickets WHERE status='Validated' ORDER BY date_issued DESC LIMIT 8");
+    $resVal = $db->query("SELECT ticket_number, external_ticket_number, vehicle_plate, status, date_issued FROM tickets WHERE status='Validated' ORDER BY date_issued DESC LIMIT 8");
     if($resVal) while($r = $resVal->fetch_assoc()) $recentValidated[] = $r;
 
     $recentPayments = [];
-    $resPay = $db->query("SELECT t.ticket_number, t.vehicle_plate, t.status, p.amount_paid, p.date_paid, p.receipt_ref FROM payment_records p JOIN tickets t ON p.ticket_id = t.ticket_id ORDER BY p.date_paid DESC LIMIT 8");
+    $resPay = $db->query("SELECT t.ticket_number, t.external_ticket_number, t.vehicle_plate, t.status, p.amount_paid, p.date_paid, p.receipt_ref FROM payment_records p JOIN tickets t ON p.ticket_id = t.ticket_id ORDER BY p.date_paid DESC LIMIT 8");
     if($resPay) while($p = $resPay->fetch_assoc()) $recentPayments[] = $p;
   ?>
 
@@ -51,8 +55,8 @@
         <form id="ticket-validate-form" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="relative">
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket Number</label>
-              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="TCK-2026-XXXX">
+              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
+              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="TCK-2026-XXXX or STS-XXXX">
               <div id="val-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             </div>
             <div>
@@ -79,7 +83,12 @@
                 <div class="flex items-center justify-between p-3 rounded-md bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="document.getElementById('val-ticket-number').value='<?php echo $v['ticket_number']; ?>'; document.getElementById('val-vehicle-plate').value='<?php echo $v['vehicle_plate']; ?>';">
                   <div>
                     <div class="font-semibold text-slate-900 dark:text-white text-sm"><?php echo htmlspecialchars($v['ticket_number']); ?></div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($v['vehicle_plate']); ?></div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400">
+                      <?php echo htmlspecialchars($v['vehicle_plate']); ?>
+                      <?php if (!empty($v['external_ticket_number'])): ?>
+                        <span class="font-semibold">• STS:</span> <?php echo htmlspecialchars($v['external_ticket_number']); ?>
+                      <?php endif; ?>
+                    </div>
                   </div>
                   <span class="text-[10px] font-bold px-2 py-1 rounded bg-blue-100 text-blue-700">Validated</span>
                 </div>
@@ -102,8 +111,8 @@
       <div class="p-6 flex-1">
         <form id="ticket-payment-form" class="space-y-4">
           <div class="relative">
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket Number</label>
-            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Search Ticket...">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
+            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Search Ticket or STS #...">
             <div id="pay-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             <div id="pay-ticket-context" class="mt-1 text-xs text-emerald-600 font-medium h-4"></div>
           </div>
@@ -140,7 +149,12 @@
                 <div class="flex items-center justify-between p-3 rounded-md bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                   <div>
                     <div class="font-semibold text-slate-900 dark:text-white text-sm"><?php echo htmlspecialchars($p['ticket_number']); ?></div>
-                    <div class="text-[10px] text-slate-500">OR: <?php echo htmlspecialchars($p['receipt_ref'] ?: 'N/A'); ?></div>
+                    <div class="text-[10px] text-slate-500">
+                      OR: <?php echo htmlspecialchars($p['receipt_ref'] ?: 'N/A'); ?>
+                      <?php if (!empty($p['external_ticket_number'])): ?>
+                        • STS: <?php echo htmlspecialchars($p['external_ticket_number']); ?>
+                      <?php endif; ?>
+                    </div>
                   </div>
                   <div class="text-right">
                     <div class="font-bold text-emerald-600 text-sm">₱<?php echo number_format($p['amount_paid'], 2); ?></div>
@@ -226,13 +240,14 @@
                         data.items.slice(0, 5).forEach(item => {
                             const div = document.createElement('div');
                             div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
-                            const displayTicket = item.sts_ticket_no ? `${item.ticket_number} <span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded ml-1 font-mono">STS: ${item.sts_ticket_no}</span>` : item.ticket_number;
+                            const primary = (item.external_ticket_number || item.ticket_number || '').toString();
+                            const alt = (item.external_ticket_number && item.ticket_number) ? `TMM: ${item.ticket_number}` : '';
                             div.innerHTML = `
-                                <div class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${displayTicket}</div>
-                                <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}</div>
+                                <div class="font-bold text-slate-800 text-sm">${primary}</div>
+                                <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}${alt ? ' • ' + alt : ''}</div>
                             `;
                             div.addEventListener('click', () => {
-                                input.value = item.ticket_number;
+                                input.value = primary;
                                 box.classList.add('hidden');
                                 if(onSelect) onSelect(item);
                             });

@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: text/html; charset=utf-8');
+require_permission('reports.export');
 
 $period = strtolower(trim($_GET['period'] ?? ''));
 $status = trim($_GET['status'] ?? '');
@@ -16,13 +18,13 @@ if ($officer_id > 0) {
   $officer = $stmtO->get_result()->fetch_assoc();
 }
 
-$sql = "SELECT ticket_number, violation_code, vehicle_plate, status, fine_amount, date_issued, issued_by, issued_by_badge FROM tickets";
+$sql = "SELECT ticket_number, external_ticket_number, ticket_source, violation_code, sts_violation_code, vehicle_plate, status, fine_amount, date_issued, issued_by, issued_by_badge FROM tickets";
 $conds = [];
 if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escalated'])) { $conds[] = "status='".$db->real_escape_string($status)."'"; }
 if ($period === '30d') { $conds[] = "date_issued >= DATE_SUB(NOW(), INTERVAL 30 DAY)"; }
 if ($period === '90d') { $conds[] = "date_issued >= DATE_SUB(NOW(), INTERVAL 90 DAY)"; }
 if ($period === 'year') { $conds[] = "YEAR(date_issued) = YEAR(NOW())"; }
-if ($q !== '') { $qv = $db->real_escape_string($q); $conds[] = "(vehicle_plate LIKE '%$qv%' OR ticket_number LIKE '%$qv%')"; }
+if ($q !== '') { $qv = $db->real_escape_string($q); $conds[] = "(vehicle_plate LIKE '%$qv%' OR ticket_number LIKE '%$qv%' OR external_ticket_number LIKE '%$qv%')"; }
 if ($officer_id > 0) { $conds[] = "officer_id=".$officer_id; }
 if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }
 $sql .= " ORDER BY date_issued DESC LIMIT 500";
@@ -73,7 +75,10 @@ if ($officer_id > 0) {
     <thead>
       <tr>
         <th>Ticket #</th>
+        <th>STS Ticket #</th>
+        <th>Source</th>
         <th>Violation</th>
+        <th>STS Code</th>
         <th>Plate</th>
         <th>Status</th>
         <th>Fine</th>
@@ -86,7 +91,10 @@ if ($officer_id > 0) {
       <?php if ($items && $items->num_rows > 0): while($r = $items->fetch_assoc()): ?>
       <tr>
         <td><?php echo htmlspecialchars($r['ticket_number']); ?></td>
+        <td><?php echo htmlspecialchars((string)($r['external_ticket_number'] ?? '')); ?></td>
+        <td><?php echo htmlspecialchars((string)($r['ticket_source'] ?? '')); ?></td>
         <td><?php echo htmlspecialchars($r['violation_code']); ?></td>
+        <td><?php echo htmlspecialchars((string)($r['sts_violation_code'] ?? '')); ?></td>
         <td><?php echo htmlspecialchars($r['vehicle_plate']); ?></td>
         <td><?php echo htmlspecialchars($r['status']); ?></td>
         <td><?php echo number_format((float)$r['fine_amount'], 2); ?></td>
@@ -95,7 +103,7 @@ if ($officer_id > 0) {
         <td><?php echo htmlspecialchars($r['issued_by_badge']); ?></td>
       </tr>
       <?php endwhile; else: ?>
-      <tr><td colspan="8">No records.</td></tr>
+      <tr><td colspan="11">No records.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>

@@ -16,13 +16,10 @@ $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
         </div>
       </div>
     </div>
-    <div class="flex-1 max-w-md mx-8 hidden">
-      <!-- Search bar removed -->
-    </div>
     <div class="flex items-center space-x-1">
       <button class="relative rounded-xl p-2 text-slate-600 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">
         <i data-lucide="bell" class="w-6 h-6"></i>
-        <span class="absolute top-0 w-4 h-4 text-white text-xs bg-blue-600 rounded-full flex items-center justify-center">1</span>
+        <span class="absolute top-0 w-4 h-4 text-white text-xs bg-red-600 rounded-full flex items-center justify-center">1</span>
       </button>
       <button class="ml-2 rounded-xl p-2 bg-slate-300 text-slate-600 hover:bg-slate-400 dark:bg-slate-700 dark:text-yellow-400 dark:hover:bg-slate-900 transition-colors cursor-pointer" onclick="toggleTheme()" aria-label="Toggle dark mode">
         <span id="themeState" class="sr-only">light</span>

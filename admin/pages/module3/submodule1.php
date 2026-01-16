@@ -1,12 +1,12 @@
+<?php
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module3.view','tickets.issue']);
+?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Traffic Violation Monitoring (STS-Compliant)</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">STS-aligned local ticketing workflow for violation recording, ticket generation, and evidence management (not the official STS platform).</p>
-    </div>
-    <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700">
-        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
-        Local Compliance Module
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">STS-compatible local ticketing flow (not the official STS), with evidence logging and ticket lifecycle tracking.</p>
     </div>
   </div>
 
@@ -18,7 +18,7 @@
     $db = db();
     
     $tickets = [];
-    $res = $db->query("SELECT ticket_number, violation_code, sts_violation_code, is_sts_violation, vehicle_plate, issued_by, status, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 20");
+    $res = $db->query("SELECT ticket_number, external_ticket_number, ticket_source, violation_code, vehicle_plate, issued_by, status, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 20");
     if ($res) {
       while ($row = $res->fetch_assoc()) {
         $tickets[] = $row;
@@ -40,51 +40,24 @@
     
     <div class="p-6">
       <form id="create-ticket-form" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data">
-        <!-- Ticket Type Selection (STS Integration) -->
-        <div class="md:col-span-12">
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-3">Ticket Type & Context</label>
-            <div class="flex items-center gap-4">
-                <label class="relative flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer bg-white dark:bg-slate-900/50 hover:border-blue-500 transition-all group">
-                    <input type="radio" name="ticket_type" value="local" checked class="peer sr-only" onchange="toggleSTSFields(false)">
-                    <span class="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center">
-                        <span class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"></span>
-                    </span>
-                    <div class="flex flex-col">
-                        <span class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">LGU Ordinance</span>
-                        <span class="text-xs text-slate-500">Local citation (City Traffic Code)</span>
-                    </div>
-                </label>
-                <label class="relative flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer bg-white dark:bg-slate-900/50 hover:border-blue-500 transition-all group">
-                    <input type="radio" name="ticket_type" value="sts" class="peer sr-only" onchange="toggleSTSFields(true)">
-                    <span class="w-5 h-5 rounded-full border border-slate-300 dark:border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center">
-                        <span class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"></span>
-                    </span>
-                    <div class="flex flex-col">
-                        <span class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">STS-Aligned Ticket (Local Mirror)</span>
-                        <span class="text-xs text-slate-500">Uses the configured STS codes and fines</span>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <!-- STS Specific Fields (Hidden by default) -->
-        <div id="sts-fields" class="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 hidden">
-             <div class="md:col-span-2 flex items-center gap-2 mb-2 text-blue-700 dark:text-blue-400">
-                <i data-lucide="info" class="w-4 h-4"></i>
-                <span class="text-xs font-bold uppercase">STS Reference (Local Record Only)</span>
-             </div>
-             <div>
-                <label class="block text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase mb-1.5">STS Ticket Number</label>
-                <input name="sts_ticket_no" id="sts_ticket_no" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-md focus:ring-1 focus:ring-blue-500 outline-none transition-all font-mono text-sm" placeholder="e.g. MMDA-2026-8888">
-             </div>
-             <div>
-                <label class="block text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase mb-1.5">Demerit Points</label>
-                <input type="number" name="demerit_points" id="demerit_points" min="0" max="20" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded-md focus:ring-1 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="0">
-             </div>
-        </div>
-
         <!-- Violation & Vehicle Info -->
         <div class="md:col-span-4 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issuance Mode</label>
+            <div class="relative">
+              <select id="ticket-source" name="ticket_source" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+                <option value="LOCAL_STS_COMPAT">Local STS-Compliant Ticket (TMM)</option>
+                <option value="STS_PAPER">Paper STS Ticket (Manual Entry)</option>
+              </select>
+              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+            </div>
+            <div class="mt-1 text-[11px] text-slate-500">Use “Paper STS Ticket” if the enforcer issued an official STS ticket manually; TMM will store it as a reference.</div>
+          </div>
+
+          <div id="external-ticket-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">STS Ticket Number</label>
+            <input id="external-ticket-number" name="external_ticket_number" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g. STS-2026-000123">
+          </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Code</label>
             <div class="relative">
@@ -94,6 +67,7 @@
               <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
             </div>
             <div id="violation-fine-preview" class="mt-1 text-xs font-bold text-rose-600 h-4"></div>
+            <div id="violation-sts-preview" class="mt-0.5 text-[11px] text-slate-500 h-4"></div>
           </div>
           
           <div class="relative">
@@ -207,16 +181,13 @@
                 elseif ($status === 'Pending') $badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100';
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                <td class="py-3 px-6 font-semibold text-slate-900 dark:text-white"><?php echo htmlspecialchars($t['ticket_number']); ?></td>
-                <td class="py-3 px-4 text-slate-600 dark:text-slate-300">
-                  <?php if (!empty($t['is_sts_violation']) && !empty($t['sts_violation_code'])): ?>
-                    <span class="font-mono font-bold"><?php echo htmlspecialchars($t['sts_violation_code']); ?></span>
-                    <span class="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">STS-Aligned</span>
-                    <span class="ml-2 text-xs text-slate-400">(<?php echo htmlspecialchars($t['violation_code']); ?>)</span>
-                  <?php else: ?>
-                    <?php echo htmlspecialchars($t['violation_code']); ?>
+                <td class="py-3 px-6 font-semibold text-slate-900 dark:text-white">
+                  <div><?php echo htmlspecialchars($t['ticket_number']); ?></div>
+                  <?php if (!empty($t['external_ticket_number'])): ?>
+                    <div class="text-[10px] text-slate-500 font-semibold">STS Ref: <?php echo htmlspecialchars($t['external_ticket_number']); ?></div>
                   <?php endif; ?>
                 </td>
+                <td class="py-3 px-4 text-slate-600 dark:text-slate-300"><?php echo htmlspecialchars($t['violation_code']); ?></td>
                 <td class="py-3 px-4">
                   <span class="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600">
                     <?php echo htmlspecialchars($t['vehicle_plate']); ?>
@@ -275,11 +246,27 @@
   var btn = document.getElementById('btnSubmitTicket');
   var violationSelect = document.getElementById('violation-select');
   var finePreview = document.getElementById('violation-fine-preview');
+  var stsPreview = document.getElementById('violation-sts-preview');
   var plateInput = document.getElementById('ticket-plate-input');
   var driverInput = document.getElementById('ticket-driver-input');
   var suggestionsBox = document.getElementById('ticket-plate-suggestions');
   var plateDebounceId = null;
   var violationMap = {};
+  var ticketSourceSel = document.getElementById('ticket-source');
+  var externalWrap = document.getElementById('external-ticket-wrap');
+  var externalInput = document.getElementById('external-ticket-number');
+
+  function syncTicketSourceUI() {
+    if (!ticketSourceSel || !externalWrap || !externalInput) return;
+    var v = (ticketSourceSel.value || '').toString();
+    var manual = v === 'STS_PAPER';
+    externalWrap.classList.toggle('hidden', !manual);
+    externalInput.required = manual;
+  }
+  if (ticketSourceSel) {
+    ticketSourceSel.addEventListener('change', syncTicketSourceUI);
+    syncTicketSourceUI();
+  }
 
   // Load Violation Types
   if (violationSelect) {
@@ -289,12 +276,11 @@
         if (data && Array.isArray(data.items)) {
           data.items.forEach(item => {
             if(!item.violation_code) return;
-            var selectCode = item.sts_equivalent_code ? item.sts_equivalent_code : item.violation_code;
-            violationMap[selectCode] = item;
+            violationMap[item.violation_code] = item;
             var opt = document.createElement('option');
-            opt.value = selectCode;
-            var suffix = (item.sts_equivalent_code && item.violation_code && item.violation_code !== item.sts_equivalent_code) ? ` (${item.violation_code})` : '';
-            opt.textContent = `${selectCode}${suffix} — ${item.description || ''}`;
+            opt.value = item.violation_code;
+            var sts = (item.sts_equivalent_code || '').toString().trim();
+            opt.textContent = sts ? `${item.violation_code} (${sts}) — ${item.description || ''}` : `${item.violation_code} — ${item.description || ''}`;
             violationSelect.appendChild(opt);
           });
         }
@@ -305,8 +291,11 @@
       if (code && violationMap[code]) {
         var fine = parseFloat(violationMap[code].fine_amount || 0);
         finePreview.textContent = 'Fine Amount: ₱' + fine.toLocaleString('en-US', {minimumFractionDigits: 2});
+        var sts = (violationMap[code].sts_equivalent_code || '').toString().trim();
+        if (stsPreview) stsPreview.textContent = sts ? ('STS Code: ' + sts) : '';
       } else {
         finePreview.textContent = '';
+        if (stsPreview) stsPreview.textContent = '';
       }
     });
   }
@@ -422,23 +411,6 @@
         // Using a simple redirect for now as the "View" action
         window.location.href = '?page=module3/submodule3&ticket=' + encodeURIComponent(ticketNo);
     }
-  };
-
-  // Toggle STS Fields
-  window.toggleSTSFields = function(isSTS) {
-      const container = document.getElementById('sts-fields');
-      const stsInput = document.getElementById('sts_ticket_no');
-      
-      if(isSTS) {
-          container.classList.remove('hidden');
-          container.classList.add('grid');
-          stsInput.setAttribute('required', 'required');
-      } else {
-          container.classList.add('hidden');
-          container.classList.remove('grid');
-          stsInput.removeAttribute('required');
-          stsInput.value = ''; // Clear value when switching back
-      }
   };
 
 })();

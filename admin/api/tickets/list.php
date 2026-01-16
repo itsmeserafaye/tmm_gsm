@@ -1,13 +1,15 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
 
 $status = trim($_GET['status'] ?? '');
 $q = trim($_GET['q'] ?? '');
 $period = trim($_GET['period'] ?? '');
 
-$sql = "SELECT t.ticket_id, t.ticket_number, t.date_issued, t.violation_code, t.sts_violation_code, t.is_sts_violation, t.demerit_points, t.vehicle_plate, t.issued_by, t.status, t.fine_amount, t.sts_ticket_no FROM tickets t";
+$sql = "SELECT t.ticket_id, t.ticket_number, t.external_ticket_number, t.ticket_source, t.date_issued, t.violation_code, t.sts_violation_code, t.vehicle_plate, t.issued_by, t.status, t.fine_amount FROM tickets t";
 $conds = [];
 $params = [];
 $types = '';
@@ -18,13 +20,11 @@ if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escala
   $types .= 's';
 }
 if ($q !== '') {
-  $conds[] = "(t.vehicle_plate LIKE ? OR t.ticket_number LIKE ? OR t.sts_ticket_no LIKE ? OR t.sts_violation_code LIKE ? OR t.violation_code LIKE ?)";
+  $conds[] = "(t.vehicle_plate LIKE ? OR t.ticket_number LIKE ? OR t.external_ticket_number LIKE ?)";
   $params[] = "%$q%";
   $params[] = "%$q%";
   $params[] = "%$q%";
-  $params[] = "%$q%";
-  $params[] = "%$q%";
-  $types .= 'sssss';
+  $types .= 'sss';
 }
 if ($period === '30d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 30 DAY)"; }
 if ($period === '90d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 90 DAY)"; }
