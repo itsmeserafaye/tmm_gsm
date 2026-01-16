@@ -1,7 +1,3 @@
-<?php
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module2.view','module2.franchises.manage']);
-?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8" id="module2-sub2-root">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
@@ -17,28 +13,8 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     require_once __DIR__ . '/../../includes/db.php';
     $db = db();
 
-    $hasDescCol = false;
-    $hasRouteNameCol = false;
-    $hasStartCol = false;
-    $hasEndCol = false;
-    $cols = $db->query("SHOW COLUMNS FROM lptrp_routes");
-    if ($cols) {
-      while ($c = $cols->fetch_assoc()) {
-        $f = (string)($c['Field'] ?? '');
-        if ($f === 'description') $hasDescCol = true;
-        if ($f === 'route_name') $hasRouteNameCol = true;
-        if ($f === 'start_point') $hasStartCol = true;
-        if ($f === 'end_point') $hasEndCol = true;
-      }
-    }
-    $descBase = $hasDescCol ? 'r.description' : ($hasRouteNameCol ? 'r.route_name' : "''");
-    $routeDescExpr = $descBase;
-    if ($hasStartCol && $hasEndCol) {
-      $routeDescExpr = "COALESCE(NULLIF($descBase,''), NULLIF(CONCAT_WS(' → ', r.start_point, r.end_point),''))";
-    }
-
     $validationSearchMap = [];
-    $resVS = $db->query("SELECT fa.application_id, fa.franchise_ref_number, o.full_name AS operator_name, c.coop_name, r.route_code, $routeDescExpr AS route_description FROM franchise_applications fa LEFT JOIN operators o ON fa.operator_id=o.id LEFT JOIN coops c ON fa.coop_id = c.id LEFT JOIN lptrp_routes r ON r.id = fa.route_ids ORDER BY fa.submitted_at DESC LIMIT 200");
+    $resVS = $db->query("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_name, c.coop_name, r.route_code, r.description AS route_description FROM franchise_applications fa LEFT JOIN coops c ON fa.coop_id = c.id LEFT JOIN lptrp_routes r ON r.id = fa.route_ids ORDER BY fa.submitted_at DESC LIMIT 200");
     if ($resVS) {
       while ($row = $resVS->fetch_assoc()) {
         $appIdRow = (int)($row['application_id'] ?? 0);
@@ -90,9 +66,8 @@ require_any_permission(['module2.view','module2.franchises.manage']);
       } elseif (ctype_digit($search)) {
         $appId = (int)$search;
       }
-      $sql = "SELECT fa.*, c.coop_name, r.route_code, $routeDescExpr AS route_description, r.max_vehicle_capacity, r.current_vehicle_count 
+      $sql = "SELECT fa.*, c.coop_name, r.route_code, r.description AS route_description, r.max_vehicle_capacity, r.current_vehicle_count 
               FROM franchise_applications fa 
-              LEFT JOIN operators o ON fa.operator_id=o.id
               LEFT JOIN coops c ON fa.coop_id = c.id 
               LEFT JOIN lptrp_routes r ON r.id = fa.route_ids ";
       

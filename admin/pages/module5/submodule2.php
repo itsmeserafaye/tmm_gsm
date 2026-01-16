@@ -1,7 +1,3 @@
-<?php
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module5.view','parking.manage']);
-?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100">
     <?php
     require_once __DIR__ . '/../../includes/db.php';
@@ -9,11 +5,6 @@ require_any_permission(['module5.view','parking.manage']);
 
     // --- Handle Actions ---
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (!has_permission('parking.manage')) {
-            http_response_code(403);
-            echo 'forbidden';
-            exit;
-        }
         if (isset($_POST['action'])) {
             if ($_POST['action'] === 'create_parking_area') {
                 $name = $db->real_escape_string($_POST['name']);

@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-require_any_permission(['module5.view','parking.manage']);
 
 function m5_table_exists($db, $name) {
   $esc = $db->real_escape_string($name);

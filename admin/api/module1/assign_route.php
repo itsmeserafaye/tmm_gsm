@@ -1,11 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/lptrp.php';
 
 $db = db();
 header('Content-Type: application/json');
-require_permission('module1.routes.write');
 
 $hasOperatorIdCol = false;
 $resCol = $db->query("SHOW COLUMNS FROM terminal_assignments LIKE 'operator_id'");
@@ -73,24 +70,6 @@ if (!$routeRow) {
     echo json_encode(['ok' => false, 'error' => 'route_not_found']);
     exit;
 }
-
-$lptrp = tmm_get_lptrp_route($db, $route);
-if (!$lptrp || !tmm_lptrp_is_approved($lptrp)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'route_not_lptrp_approved']);
-    exit;
-}
-if (!tmm_sync_routes_from_lptrp($db, $route)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'route_sync_failed']);
-    exit;
-}
-
-$stmtRoute = $db->prepare("SELECT route_id, max_vehicle_limit FROM routes WHERE route_id=?");
-$stmtRoute->bind_param('s', $route);
-$stmtRoute->execute();
-$routeRow = $stmtRoute->get_result()->fetch_assoc();
-$stmtRoute->close();
 
 $limit = (int)($routeRow['max_vehicle_limit'] ?? 0);
 if ($limit > 0) {

@@ -1,7 +1,3 @@
-<?php
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module2.view','module2.franchises.manage']);
-?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
@@ -17,27 +13,8 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     require_once __DIR__ . '/../../includes/db.php';
     $db = db();
 
-    $hasCons = false;
-    $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
-    if ($chkCons && $chkCons->num_rows > 0) $hasCons = true;
-    $coopsRes = $db->query("SELECT id, coop_name, " . ($hasCons ? "consolidation_status" : "'' AS consolidation_status") . " FROM coops ORDER BY coop_name");
-    $hasDescCol = false;
-    $hasRouteNameCol = false;
-    $hasApprovalCol = false;
-    $hasStatusCol = false;
-    $cc = $db->query("SHOW COLUMNS FROM lptrp_routes");
-    if ($cc) {
-      while ($c = $cc->fetch_assoc()) {
-        $f = (string)($c['Field'] ?? '');
-        if ($f === 'description') $hasDescCol = true;
-        if ($f === 'route_name') $hasRouteNameCol = true;
-        if ($f === 'approval_status') $hasApprovalCol = true;
-        if ($f === 'status') $hasStatusCol = true;
-      }
-    }
-    $descSel = $hasDescCol ? "description" : ($hasRouteNameCol ? "route_name" : "''");
-    $statusSel = $hasApprovalCol ? "approval_status" : ($hasStatusCol ? "status" : "''");
-    $routesRes = $db->query("SELECT id, route_code, $descSel AS route_desc, start_point, end_point, max_vehicle_capacity, current_vehicle_count, $statusSel AS route_status FROM lptrp_routes ORDER BY route_code");
+    $coopsRes = $db->query("SELECT id, coop_name, consolidation_status FROM coops ORDER BY coop_name");
+    $routesRes = $db->query("SELECT id, route_code, description, max_vehicle_capacity, current_vehicle_count FROM lptrp_routes ORDER BY route_code");
 
     $coops = [];
     if ($coopsRes) {
@@ -56,7 +33,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     $q = trim($_GET['q'] ?? '');
     $statusFilter = trim($_GET['status'] ?? '');
 
-    $sql = "SELECT fa.*, o.full_name AS operator, c.coop_name, r.route_code, $descSel AS route_desc, r.start_point, r.end_point 
+    $sql = "SELECT fa.*, o.full_name AS operator, c.coop_name, r.route_code, r.description AS route_description 
             FROM franchise_applications fa 
             LEFT JOIN operators o ON fa.operator_id = o.id 
             LEFT JOIN coops c ON fa.coop_id = c.id 
@@ -168,13 +145,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                   <?php
                     $cap = (int)($r['max_vehicle_capacity'] ?? 0);
                     $curr = (int)($r['current_vehicle_count'] ?? 0);
-                    $desc = (string)($r['route_desc'] ?? '');
-                    if ($desc === '') {
-                      $sp = (string)($r['start_point'] ?? '');
-                      $ep = (string)($r['end_point'] ?? '');
-                      $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                    }
-                    $label = ($r['route_code'] ?? 'Route') . ' • ' . $desc . " ({$curr}/{$cap})";
+                    $label = ($r['route_code'] ?? 'Route') . ' • ' . ($r['description'] ?? '') . " ({$curr}/{$cap})";
                   ?>
                   <option value="<?php echo (int)$r['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
                 <?php endforeach; ?>
@@ -248,91 +219,6 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     </div>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
-      <i data-lucide="map" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
-      <h2 class="font-bold text-slate-900 dark:text-white text-sm">LPTRP Route Masterlist</h2>
-    </div>
-    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <form id="module2LptrpForm" class="space-y-3 lg:col-span-1">
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Code</label>
-          <input name="route_code" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. ROUTE-01">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Name</label>
-          <input name="description" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Start Point</label>
-          <input name="start_point" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">End Point</label>
-          <input name="end_point" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Max Capacity</label>
-            <input name="max_vehicle_capacity" type="number" min="0" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="0">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Approval</label>
-            <div class="relative">
-              <select name="status" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
-                <option value="Approved">Approved</option>
-                <option value="Pending">Pending</option>
-                <option value="Suspended">Suspended</option>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-          </div>
-        </div>
-        <button type="button" id="module2LptrpSaveBtn" class="w-full px-6 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
-          <span>Save Route</span>
-          <i data-lucide="save" class="w-4 h-4"></i>
-        </button>
-      </form>
-
-      <div class="lg:col-span-2 overflow-x-auto">
-        <table class="min-w-full text-sm text-left border border-slate-100 rounded-xl overflow-hidden">
-          <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-            <tr>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Route</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Name / Points</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Capacity</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Approval</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <?php if (!empty($routes)): ?>
-              <?php foreach ($routes as $r): ?>
-                <?php
-                  $desc = (string)($r['route_desc'] ?? '');
-                  if ($desc === '') {
-                    $sp = (string)($r['start_point'] ?? '');
-                    $ep = (string)($r['end_point'] ?? '');
-                    $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                  }
-                ?>
-                <tr class="hover:bg-slate-50/50 transition-colors">
-                  <td class="py-2.5 px-3 font-semibold text-slate-700"><?php echo htmlspecialchars((string)($r['route_code'] ?? '')); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars($desc); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo (int)($r['current_vehicle_count'] ?? 0); ?>/<?php echo (int)($r['max_vehicle_capacity'] ?? 0); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars((string)($r['route_status'] ?? '')); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="4" class="py-6 text-center text-slate-400 text-sm">No LPTRP routes yet. Add your Caloocan routes here.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Cooperative Directory -->
     <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-1 flex flex-col h-full">
@@ -359,6 +245,17 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                   </span>
                 </div>
                 
+                <form class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-50" method="POST" action="/tmm/admin/api/module1/save_coop.php">
+                  <input type="hidden" name="coop_name" value="<?php echo htmlspecialchars($c['coop_name'] ?? '', ENT_QUOTES); ?>">
+                  <input type="hidden" name="address" value="KEEP_EXISTING">
+                  <input type="hidden" name="chairperson_name" value="KEEP_EXISTING">
+                  <input type="hidden" name="lgu_approval_number" value="KEEP_EXISTING">
+                  <select name="consolidation_status" class="w-full text-xs px-2 py-1.5 border rounded-lg bg-slate-50 focus:ring-1 focus:ring-emerald-500 outline-none" onchange="window.updateCoopStatus(this);">
+                    <option value="Not Consolidated" <?php echo $currentStatus === 'Not Consolidated' ? 'selected' : ''; ?>>Not Consolidated</option>
+                    <option value="In Progress" <?php echo $currentStatus === 'In Progress' ? 'selected' : ''; ?>>In Progress</option>
+                    <option value="Consolidated" <?php echo $currentStatus === 'Consolidated' ? 'selected' : ''; ?>>Consolidated</option>
+                  </select>
+                </form>
               </div>
             <?php endforeach; ?>
           </div>
@@ -383,15 +280,13 @@ require_any_permission(['module2.view','module2.franchises.manage']);
             <input name="q" list="module2SearchList" value="<?php echo htmlspecialchars($q); ?>" class="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none w-40 md:w-56" placeholder="Search...">
             <?php
               $module2SearchOptions = [];
-              $module2ResSearch = $db->query("SELECT DISTINCT fa.franchise_ref_number, o.full_name AS operator_name, c.coop_name FROM franchise_applications fa LEFT JOIN operators o ON fa.operator_id=o.id LEFT JOIN coops c ON fa.coop_id=c.id ORDER BY fa.submitted_at DESC LIMIT 100");
+              $module2ResSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications ORDER BY submitted_at DESC LIMIT 100");
               if ($module2ResSearch) {
                 while ($r = $module2ResSearch->fetch_assoc()) {
                   $ref = trim((string)($r['franchise_ref_number'] ?? ''));
                   $opn = trim((string)($r['operator_name'] ?? ''));
-                  $coopn = trim((string)($r['coop_name'] ?? ''));
                   if ($ref !== '') $module2SearchOptions[$ref] = true;
                   if ($opn !== '') $module2SearchOptions[$opn] = true;
-                  if ($coopn !== '') $module2SearchOptions[$coopn] = true;
                 }
               }
             ?>
@@ -450,14 +345,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                   
                   $lpStatus = $row['lptrp_status'] ?? '';
                   $coopStatus = $row['coop_status'] ?? '';
-                  $routeCode = (string)($row['route_code'] ?? '');
-                  $desc = (string)($row['route_desc'] ?? '');
-                  if ($desc === '') {
-                    $sp = (string)($row['start_point'] ?? '');
-                    $ep = (string)($row['end_point'] ?? '');
-                    $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                  }
-                  $routeLabel = $routeCode !== '' ? ($routeCode . ($desc !== '' ? (' • ' . $desc) : '')) : (string)($row['route_ids'] ?? '');
+                  $routeLabel = ($row['route_code'] ?? '') !== '' ? ($row['route_code']) : ($row['route_ids'] ?? '');
                   $openHref = $ref !== '' ? '?page=module1/submodule2&q=' . urlencode($ref) : '';
                 ?>
                 <tr class="hover:bg-slate-50/50 transition-colors">
@@ -645,32 +533,6 @@ function showFileName(input) {
   }
 })();
 
-(function() {
-  var lptrpForm = document.getElementById('module2LptrpForm');
-  var lptrpBtn = document.getElementById('module2LptrpSaveBtn');
-
-  if (lptrpForm && lptrpBtn) {
-    lptrpBtn.addEventListener('click', function () {
-      if (lptrpBtn.disabled) return;
-      var fd = new FormData(lptrpForm);
-      lptrpBtn.disabled = true;
-      fetch('/tmm/admin/api/module2/save_lptrp_route.php', { method: 'POST', body: fd })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.ok) {
-            if (window.showToast) window.showToast('LPTRP route saved', 'success');
-            lptrpForm.reset();
-            setTimeout(function () { window.location.reload(); }, 700);
-          } else {
-            if (window.showToast) window.showToast((data && data.error) ? data.error : 'Failed to save route', 'error');
-          }
-        })
-        .catch(function (e) { if (window.showToast) window.showToast('Error: ' + e.message, 'error'); })
-        .finally(function () { lptrpBtn.disabled = false; });
-    });
-  }
-})();
-
 (function(){
   var form = document.getElementById('module2FilterForm');
   if (!form) return;
@@ -692,4 +554,34 @@ function showFileName(input) {
   }
 })();
 
+window.updateCoopStatus = function(el) {
+  var form = el && el.closest ? el.closest('form') : null;
+  if (!form) return false;
+  var fd = new FormData(form);
+  if (el && el.disabled) return false;
+  
+  const originalVal = el.value;
+  if (el) el.disabled = true;
+  
+  fetch(form.action, { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data || data.ok === false) {
+        var err = data && data.error ? data.error : 'Failed to update cooperative';
+        if (window.showToast) window.showToast(err, 'error');
+        el.value = originalVal; // Revert
+      } else {
+        if (window.showToast) window.showToast('Cooperative status updated', 'success');
+        setTimeout(() => window.location.reload(), 500);
+      }
+    })
+    .catch(function(err){
+      if (window.showToast) window.showToast('Error: ' + err.message, 'error');
+      el.value = originalVal;
+    })
+    .finally(function(){
+      if (el) el.disabled = false;
+    });
+  return false;
+};
 </script>

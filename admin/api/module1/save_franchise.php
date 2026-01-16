@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 
 header('Content-Type: application/json');
-require_permission('module2.franchises.manage');
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

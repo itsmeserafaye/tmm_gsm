@@ -13,13 +13,7 @@ try {
   if ($status !== '' && !in_array($status, ['Active','Inactive','Locked'], true)) $status = '';
 
   $sql = "SELECT id, email, first_name, last_name, middle_name, suffix, employee_no, department, position_title, status, last_login_at, created_at
-          FROM rbac_users
-          WHERE id NOT IN (
-            SELECT ur.user_id
-            FROM rbac_user_roles ur
-            JOIN rbac_roles r ON r.id=ur.role_id
-            WHERE r.name='Commuter'
-          )";
+          FROM rbac_users";
   $conds = [];
   $params = [];
   $types = '';
@@ -35,7 +29,7 @@ try {
     $params[] = $status;
     $types .= 's';
   }
-  if ($conds) $sql .= " AND " . implode(" AND ", $conds);
+  if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
   $sql .= " ORDER BY created_at DESC LIMIT 500";
 
   if ($params) {
@@ -89,3 +83,4 @@ try {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
 }
+

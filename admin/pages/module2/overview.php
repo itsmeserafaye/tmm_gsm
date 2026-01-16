@@ -1,7 +1,5 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module2.view','module2.franchises.manage']);
 $db = db();
 
 $resPending = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending' OR status='Under Review'");

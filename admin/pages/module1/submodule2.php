@@ -1,10 +1,9 @@
 <?php
-  require_once __DIR__ . '/../../includes/auth.php';
-  require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
   require_once __DIR__ . '/../../includes/db.php';
   $db = db();
 ?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
+  <!-- Header -->
   <div>
     <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Operator & Franchise Validation</h1>
     <p class="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400 max-w-3xl">Maintain operator profiles, cooperative registries, and validate franchise references against LGU records.</p>

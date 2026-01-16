@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module2.franchises.manage');
 
 $fid = trim($_GET['franchise_id'] ?? '');
 if ($fid === '') {

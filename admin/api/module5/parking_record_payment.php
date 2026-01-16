@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.settle','parking.manage']);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   http_response_code(405);
@@ -15,9 +13,6 @@ $parkingAreaId = isset($_POST['parking_area_id']) && $_POST['parking_area_id'] !
 $plate = strtoupper(trim((string)($_POST['vehicle_plate'] ?? '')));
 $amount = (float)($_POST['amount'] ?? 0);
 $chargeType = trim((string)($_POST['charge_type'] ?? 'Usage Fee'));
-$receiptRef = trim((string)($_POST['receipt_ref'] ?? ($_POST['official_receipt_no'] ?? '')));
-$paymentChannel = trim((string)($_POST['payment_channel'] ?? ''));
-$externalPaymentId = trim((string)($_POST['external_payment_id'] ?? ''));
 
 if ($plate === '' || $amount <= 0) {
   http_response_code(400);
@@ -39,15 +34,15 @@ if ($parkingAreaId !== null && $parkingAreaId > 0) {
   }
 }
 
-$sql = "INSERT INTO parking_transactions (parking_area_id, terminal_id, amount, transaction_type, vehicle_plate, status, receipt_ref, payment_channel, external_payment_id, paid_at)
-        VALUES (?, ?, ?, ?, ?, 'Paid', ?, ?, ?, NOW())";
+$sql = "INSERT INTO parking_transactions (parking_area_id, terminal_id, amount, transaction_type, vehicle_plate, status)
+        VALUES (?, ?, ?, ?, ?, 'Paid')";
 $stmt = $db->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
-$stmt->bind_param('iidsssss', $parkingAreaId, $terminalId, $amount, $chargeType, $plate, $receiptRef, $paymentChannel, $externalPaymentId);
+$stmt->bind_param('iidss', $parkingAreaId, $terminalId, $amount, $chargeType, $plate);
 $ok = $stmt->execute();
 $stmt->close();
 

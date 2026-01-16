@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('parking.manage');
 
 $sql = "SELECT p.*, t.name as terminal_name, t.type, t.address 
         FROM terminal_permits p 

@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-require_role(['SuperAdmin']);
 
 // 1. Create Tables
 $queries = [
@@ -115,11 +113,10 @@ if ($check && $check->num_rows == 0) {
 }
 
 // 3. Seed Data
- $seedDemo = (string)($_GET['seed_demo'] ?? '') === '1';
 // Check if terminals are empty
 $result = $db->query("SELECT COUNT(*) as count FROM terminals");
 $row = $result->fetch_assoc();
-if ($seedDemo && $row['count'] == 0) {
+if ($row['count'] == 0) {
     // Insert Terminals
     $db->query("INSERT INTO terminals (name, city, address, type, capacity) VALUES 
         ('Central Integrated Terminal', 'Caloocan City', '123 Rizal Ave', 'Terminal', 500),
@@ -159,7 +156,7 @@ if ($seedDemo && $row['count'] == 0) {
 // Check if parking_areas are empty
 $result = $db->query("SELECT COUNT(*) as count FROM parking_areas");
 $row = $result->fetch_assoc();
-if ($seedDemo && $row['count'] == 0) {
+if ($row['count'] == 0) {
     $db->query("INSERT INTO parking_areas (name, city, location, type, total_slots, allowed_puv_types, status) VALUES 
         ('City Hall Parking', 'Caloocan City', 'City Hall Complex', 'Standalone', 100, 'Car,Van', 'Available'),
         ('Public Market Parking', 'Caloocan City', 'Wet Market Side', 'Standalone', 50, 'Tricycle,Jeepney', 'Full'),

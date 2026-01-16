@@ -1,7 +1,3 @@
-<?php
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
-?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <!-- Header -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -19,18 +15,10 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
   <?php
     require_once __DIR__ . '/../../includes/db.php';
     $db = db();
-    if (defined('TMM_TEST') && has_permission('module1.routes.write')) {
-      $db->query("UPDATE terminal_assignments SET route_id=NULL WHERE route_id IN ('R_999','R-999')");
-      $db->query("UPDATE vehicles SET route_id=NULL WHERE route_id IN ('R_999','R-999')");
-      $db->query("DELETE FROM routes WHERE route_id IN ('R_999','R-999')");
-    }
-    $hasLptrpRes = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='lptrp_routes' LIMIT 1");
-    $hasLptrp = (bool)($hasLptrpRes && $hasLptrpRes->fetch_row());
-    if ($hasLptrp) {
-      $routesForSuggestions = $db->query("SELECT r.route_id, r.route_name FROM routes r JOIN lptrp_routes lr ON lr.route_code=r.route_id ORDER BY r.route_id");
-    } else {
-      $routesForSuggestions = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_id");
-    }
+    $db->query("UPDATE terminal_assignments SET route_id=NULL WHERE route_id IN ('R_999','R-999')");
+    $db->query("UPDATE vehicles SET route_id=NULL WHERE route_id IN ('R_999','R-999')");
+    $db->query("DELETE FROM routes WHERE route_id IN ('R_999','R-999')");
+    $routesForSuggestions = $db->query("SELECT route_id, route_name FROM routes ORDER BY CASE WHEN route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(route_id,3) AS UNSIGNED) ELSE 99999999 END, route_id");
     $terminalsForSelect = [];
     $resTerminals = $db->query("SELECT name FROM terminals WHERE type <> 'Parking' ORDER BY name");
     if ($resTerminals) {
@@ -169,16 +157,12 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
             if ($resFirstRoute && ($rowFirstRoute = $resFirstRoute->fetch_assoc())) {
               $routeIdRaw = (string)($rowFirstRoute['route_id'] ?? '');
             } else {
-              $routeIdRaw = '';
+              $routeIdRaw = 'R_001';
             }
           }
           $routeIdEsc = htmlspecialchars($routeIdRaw, ENT_QUOTES);
 
-          if ($hasLptrp) {
-            $routesForOverview = $db->query("SELECT r.route_id, r.route_name FROM routes r JOIN lptrp_routes lr ON lr.route_code=r.route_id ORDER BY r.route_id");
-          } else {
-            $routesForOverview = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_id");
-          }
+          $routesForOverview = $db->query("SELECT route_id, route_name FROM routes ORDER BY CASE WHEN route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(route_id,3) AS UNSIGNED) ELSE 99999999 END, route_id");
         ?>
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-300">Route</span>
@@ -289,26 +273,53 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
       <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
         <i data-lucide="settings" class="w-5 h-5"></i>
       </div>
-      <h3 class="text-base font-bold text-slate-900 dark:text-white">LPTRP Route Masterlist</h3>
+      <h3 class="text-base font-bold text-slate-900 dark:text-white">Route Configuration</h3>
     </div>
     
     <div class="p-6">
-      <div class="mb-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 p-4 flex flex-col gap-2">
-        <div class="text-sm font-bold text-slate-900 dark:text-white">Routes are LPTRP-controlled</div>
-        <div class="text-xs text-slate-600 dark:text-slate-300">
-          Add/approve routes in Module 2 (LPTRP masterlist). This page only syncs and uses LPTRP-approved routes for assignment and capacity tracking.
+      <?php
+        $nextRouteId = 'R_001';
+        $resNext = $db->query("SELECT MAX(CAST(SUBSTRING(route_id,3) AS UNSIGNED)) AS m, MAX(CHAR_LENGTH(SUBSTRING(route_id,3))) AS pad FROM routes WHERE route_id REGEXP '^R_[0-9]+$'");
+        if ($resNext && ($rowNext = $resNext->fetch_assoc())) {
+          $m = (int)($rowNext['m'] ?? 0);
+          $pad = (int)($rowNext['pad'] ?? 3);
+          if ($pad < 3) $pad = 3;
+          if ($m > 0) {
+            $nextRouteId = 'R_' . str_pad((string)($m + 1), $pad, '0', STR_PAD_LEFT);
+          }
+        }
+      ?>
+      
+      <form id="saveRouteForm" class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8" method="POST" action="/tmm/admin/api/routes/save.php">
+        <div class="md:col-span-2">
+          <input name="route_id" id="routeIdInput" data-default-route-id="<?php echo htmlspecialchars($nextRouteId, ENT_QUOTES); ?>" value="<?php echo htmlspecialchars($nextRouteId, ENT_QUOTES); ?>" 
+                 class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-600 rounded-md text-slate-500 dark:text-slate-300 font-semibold text-sm outline-none cursor-not-allowed" 
+                 readonly>
         </div>
-        <div class="flex flex-col sm:flex-row gap-2 pt-1">
-          <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm transition-all text-sm">
-            <i data-lucide="arrow-right" class="w-4 h-4"></i>
-            Open Module 2 LPTRP
-          </a>
-          <form id="importLptrpForm" class="flex items-center gap-2" method="POST" action="/tmm/admin/api/routes/import_lptrp.php" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".csv" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-50">
-            <button type="submit" id="btnImportLptrp" class="px-4 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all text-sm whitespace-nowrap">Import CSV</button>
-          </form>
+        <div class="md:col-span-4">
+          <input name="route_name" id="routeNameInput" value="" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" 
+                 placeholder="Route Name (e.g. Downtown Loop)" required>
         </div>
-      </div>
+        <div class="md:col-span-2">
+          <input name="max_vehicle_limit" id="routeLimitInput" value="" type="number" min="1" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" 
+                 placeholder="Capacity" required>
+        </div>
+        <div class="md:col-span-2">
+          <select name="status" id="routeStatusSelect" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+            <option selected>Active</option>
+            <option>Inactive</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <div class="flex items-center gap-2">
+            <button type="submit" id="btnSaveRoute" class="flex-1 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Add Route</span>
+            </button>
+            <button type="button" id="btnCancelEditRoute" class="hidden px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-semibold text-sm">Cancel</button>
+          </div>
+        </div>
+      </form>
 
       <!-- Routes Table -->
       <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
@@ -319,15 +330,12 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
               <th class="py-3 px-4">Route Name</th>
               <th class="py-3 px-4">Capacity</th>
               <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
             <?php
-              if ($hasLptrp) {
-                $routes = $db->query("SELECT r.route_id, r.route_name, r.max_vehicle_limit, r.status FROM routes r JOIN lptrp_routes lr ON lr.route_code=r.route_id ORDER BY r.route_id");
-              } else {
-                $routes = $db->query("SELECT route_id, route_name, max_vehicle_limit, status FROM routes ORDER BY route_id");
-              }
+              $routes = $db->query("SELECT route_id, route_name, max_vehicle_limit, status FROM routes ORDER BY CASE WHEN route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(route_id,3) AS UNSIGNED) ELSE 99999999 END, route_id");
               while ($r = $routes->fetch_assoc()):
             ?>
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
@@ -349,10 +357,72 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                   </span>
                 <?php endif; ?>
               </td>
+              <td class="py-3 px-4 text-right">
+                <button type="button"
+                  data-route-edit="1"
+                  data-route-id="<?php echo htmlspecialchars((string)$r['route_id'], ENT_QUOTES); ?>"
+                  data-route-name="<?php echo htmlspecialchars((string)$r['route_name'], ENT_QUOTES); ?>"
+                  data-route-limit="<?php echo htmlspecialchars((string)$r['max_vehicle_limit'], ENT_QUOTES); ?>"
+                  data-route-status="<?php echo htmlspecialchars((string)$r['status'], ENT_QUOTES); ?>"
+                  class="inline-flex items-center justify-center p-1.5 rounded-md text-slate-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors" title="Edit Route">
+                  <i data-lucide="edit-2" class="w-4 h-4"></i>
+                </button>
+              </td>
             </tr>
             <?php endwhile; ?>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="routeEditModal" class="fixed inset-0 z-[70] hidden">
+    <div id="routeEditModalBackdrop" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity opacity-0"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div id="routeEditModalContent" class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+              <i data-lucide="edit-2" class="w-4 h-4"></i>
+            </div>
+            <div class="font-bold text-slate-900 dark:text-white">Edit Route</div>
+          </div>
+          <button id="routeEditModalClose" type="button" class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-300">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="p-5 overflow-y-auto">
+          <form id="routeEditForm" class="space-y-4" action="/tmm/admin/api/routes/save.php" method="POST">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-300 mb-1">Route ID</label>
+                <input id="routeEditId" name="route_id" readonly class="w-full px-4 py-2 bg-slate-100 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-600 rounded-md text-slate-500 dark:text-slate-300 font-semibold text-sm outline-none cursor-not-allowed">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-300 mb-1">Status</label>
+                <select id="routeEditStatus" name="status" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-300 mb-1">Route Name</label>
+              <input id="routeEditName" name="route_name" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" required>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-300 mb-1">Capacity</label>
+              <input id="routeEditLimit" name="max_vehicle_limit" type="number" min="1" class="w-full px-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" required>
+            </div>
+            <div class="flex flex-col sm:flex-row justify-end gap-3 pt-2">
+              <button id="routeEditCancel" type="button" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-semibold text-sm">Cancel</button>
+              <button id="routeEditSubmit" type="submit" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all text-sm">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
@@ -362,11 +432,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
     $assignRouteIdRaw = trim((string)($_GET['assign_route_id'] ?? 'all'));
     if ($assignRouteIdRaw === '') $assignRouteIdRaw = 'all';
     $assignRouteIdEsc = htmlspecialchars($assignRouteIdRaw, ENT_QUOTES);
-    if ($hasLptrp) {
-      $routesForAssignments = $db->query("SELECT r.route_id, r.route_name FROM routes r JOIN lptrp_routes lr ON lr.route_code=r.route_id ORDER BY r.route_id");
-    } else {
-      $routesForAssignments = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_id");
-    }
+    $routesForAssignments = $db->query("SELECT route_id, route_name FROM routes ORDER BY CASE WHEN route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(route_id,3) AS UNSIGNED) ELSE 99999999 END, route_id");
   ?>
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
     <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -545,33 +611,6 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
       }
 
-      function showToastAction(msg, actionLabel, actionHref) {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `bg-amber-500 text-white px-4 py-3 rounded-xl shadow-lg shadow-black/5 flex items-start gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[320px] backdrop-blur-md pointer-events-auto`;
-        toast.innerHTML = `
-          <i data-lucide="alert-triangle" class="w-5 h-5 mt-0.5 shrink-0"></i>
-          <div class="flex-1">
-            <div class="font-medium text-sm leading-snug">${msg}</div>
-            <div class="pt-2">
-              <a href="${actionHref}" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/20 transition-colors text-xs font-semibold">
-                <i data-lucide="calendar" class="w-4 h-4"></i>
-                <span>${actionLabel}</span>
-              </a>
-            </div>
-          </div>
-          <button type="button" class="p-1.5 rounded-lg hover:bg-white/15 transition-colors" data-toast-close="1" aria-label="Close">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        `;
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-        requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
-        const closeBtn = toast.querySelector('button[data-toast-close="1"]');
-        if (closeBtn) closeBtn.addEventListener('click', () => toast.remove());
-        setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 8000);
-      }
-
       function mapAssignRouteError(code) {
         var c = (code || '').toString();
         switch (c) {
@@ -585,11 +624,11 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         }
       }
 
-      function mapImportLptrpError(code) {
+      function mapSaveRouteError(code) {
         var c = (code || '').toString();
         switch (c) {
-          case 'missing_csv': return 'Please upload a CSV file.';
-          case 'empty_csv': return 'CSV file looks empty.';
+          case 'missing_fields': return 'Route name, capacity, and status are required.';
+          case 'save_failed': return 'Unable to save route. Please try again.';
           default: return 'Error: ' + c;
         }
       }
@@ -627,26 +666,19 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                 if (keepRoute) params.set('route_id', keepRoute);
                 if (keepPlate) params.set('plate', keepPlate);
                 setTimeout(() => { window.location.href = '?' + params.toString(); }, 600);
-              } else if (formId === 'importLptrpForm') {
-                setTimeout(() => location.reload(), 800);
+              } else if (formId === 'saveRouteForm') {
+                const params = new URLSearchParams(window.location.search || '');
+                params.set('page', 'module1/submodule3');
+                params.delete('edit_route_id');
+                setTimeout(() => { window.location.search = params.toString(); }, 600);
               } else {
                 form.reset();
                 setTimeout(() => location.reload(), 1000);
               }
             } else {
-              const errCode = (data && data.error) ? data.error : 'operation_failed';
-              if (formId === 'assignRouteForm' && errCode === 'inspection_not_passed') {
-                const plate = (formData.get('plate_number') || '').toString().trim();
-                const params = new URLSearchParams();
-                params.set('page', 'module4/submodule1');
-                if (plate) params.set('plate', plate);
-                params.set('prefill_type', 'Reinspection');
-                showToastAction('This vehicle has not passed inspection yet. Schedule an inspection to continue.', 'Schedule Inspection', '?' + params.toString());
-                return;
-              }
-              let errMsg = errCode;
+              let errMsg = (data && data.error) ? data.error : 'Operation failed';
               if (formId === 'assignRouteForm') errMsg = mapAssignRouteError(errMsg);
-              if (formId === 'importLptrpForm') errMsg = mapImportLptrpError(errMsg);
+              if (formId === 'saveRouteForm') errMsg = mapSaveRouteError(errMsg);
               throw new Error(errMsg);
             }
           } catch (err) {
@@ -660,7 +692,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
       }
 
       handleForm('assignRouteForm', 'btnAssignRoute', 'Route assigned successfully!');
-      handleForm('importLptrpForm', 'btnImportLptrp', 'LPTRP routes imported successfully!');
+      handleForm('saveRouteForm', 'btnSaveRoute', 'Route saved successfully!');
 
       const routeOverviewSelect = document.getElementById('routeOverviewSelect');
       if (routeOverviewSelect) {
@@ -692,6 +724,92 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
             const txt = (tr.textContent || '').toLowerCase();
             tr.style.display = txt.includes(q) ? '' : 'none';
           });
+        });
+      }
+
+      const saveRouteForm = document.getElementById('saveRouteForm');
+      const btnCancelEditRoute = document.getElementById('btnCancelEditRoute');
+      if (saveRouteForm && btnCancelEditRoute && btnCancelEditRoute.tagName === 'BUTTON') {
+        btnCancelEditRoute.addEventListener('click', function () {
+          saveRouteForm.reset();
+        });
+      }
+
+      const routeEditModal = document.getElementById('routeEditModal');
+      const routeEditModalBackdrop = document.getElementById('routeEditModalBackdrop');
+      const routeEditModalContent = document.getElementById('routeEditModalContent');
+      const routeEditModalClose = document.getElementById('routeEditModalClose');
+      const routeEditCancel = document.getElementById('routeEditCancel');
+      const routeEditForm = document.getElementById('routeEditForm');
+      const routeEditSubmit = document.getElementById('routeEditSubmit');
+      const routeEditId = document.getElementById('routeEditId');
+      const routeEditName = document.getElementById('routeEditName');
+      const routeEditLimit = document.getElementById('routeEditLimit');
+      const routeEditStatus = document.getElementById('routeEditStatus');
+
+      function openRouteEditModal() {
+        if (!routeEditModal) return;
+        routeEditModal.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          if (routeEditModalBackdrop) routeEditModalBackdrop.classList.remove('opacity-0');
+          if (routeEditModalContent) routeEditModalContent.classList.remove('scale-95', 'opacity-0');
+        });
+        if (window.lucide) window.lucide.createIcons();
+      }
+
+      function closeRouteEditModal() {
+        if (routeEditModalBackdrop) routeEditModalBackdrop.classList.add('opacity-0');
+        if (routeEditModalContent) routeEditModalContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+          if (routeEditModal) routeEditModal.classList.add('hidden');
+          if (routeEditForm) routeEditForm.reset();
+        }, 300);
+      }
+
+      if (routeEditModalClose) routeEditModalClose.addEventListener('click', closeRouteEditModal);
+      if (routeEditCancel) routeEditCancel.addEventListener('click', closeRouteEditModal);
+      if (routeEditModalBackdrop) routeEditModalBackdrop.addEventListener('click', closeRouteEditModal);
+
+      document.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-route-edit="1"]');
+        if (!btn) return;
+        if (routeEditId) routeEditId.value = btn.dataset.routeId || '';
+        if (routeEditName) routeEditName.value = btn.dataset.routeName || '';
+        if (routeEditLimit) routeEditLimit.value = btn.dataset.routeLimit || '';
+        if (routeEditStatus) routeEditStatus.value = (btn.dataset.routeStatus || 'Active');
+        openRouteEditModal();
+      });
+
+      if (routeEditForm && routeEditSubmit) {
+        routeEditForm.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          if (!routeEditForm.checkValidity()) { routeEditForm.reportValidity(); return; }
+          const originalContent = routeEditSubmit.innerHTML;
+          routeEditSubmit.disabled = true;
+          routeEditSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Saving...</span>`;
+          if (window.lucide) window.lucide.createIcons();
+
+          try {
+            const formData = new FormData(routeEditForm);
+            const res = await fetch(routeEditForm.action, { method: 'POST', body: formData });
+            const data = await res.json();
+            const ok = data && (data.ok || data.status === 'success' || (Array.isArray(data) && data.length > 0));
+            if (ok) {
+              showToast('Route updated successfully!');
+              closeRouteEditModal();
+              setTimeout(() => location.reload(), 700);
+            } else {
+              let errMsg = (data && data.error) ? data.error : 'Operation failed';
+              errMsg = mapSaveRouteError(errMsg);
+              throw new Error(errMsg);
+            }
+          } catch (err) {
+            showToast(err.message, 'error');
+          } finally {
+            routeEditSubmit.disabled = false;
+            routeEditSubmit.innerHTML = originalContent;
+            if (window.lucide) window.lucide.createIcons();
+          }
         });
       }
 

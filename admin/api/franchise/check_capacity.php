@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module2.franchises.manage');
 $route = trim($_GET['route_id'] ?? '');
 $requested = (int)($_GET['requested'] ?? 0);
 if ($route === '' || $requested <= 0) { echo json_encode(['error'=>'missing_params']); exit; }

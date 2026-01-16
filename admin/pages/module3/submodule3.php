@@ -1,7 +1,3 @@
-<?php
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module3.view','analytics.view','reports.export']);
-?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
@@ -75,16 +71,14 @@ require_any_permission(['module3.view','analytics.view','reports.export']);
         </div>
         <h2 class="text-base font-bold text-slate-900 dark:text-white">Report Configuration</h2>
       </div>
-      <?php if (has_permission('reports.export')): ?>
-        <div class="flex gap-2">
-           <a href="/tmm/admin/api/tickets/export_csv.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-             <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> CSV
-           </a>
-           <a href="/tmm/admin/api/tickets/export_pdf.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-             <i data-lucide="file-text" class="w-4 h-4"></i> PDF
-           </a>
-        </div>
-      <?php endif; ?>
+      <div class="flex gap-2">
+         <a href="/tmm/admin/api/tickets/export_csv.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
+           <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> CSV
+         </a>
+         <a href="/tmm/admin/api/tickets/export_pdf.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
+           <i data-lucide="file-text" class="w-4 h-4"></i> PDF
+         </a>
+      </div>
     </div>
     
     <div class="p-6">

@@ -1,7 +1,5 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module4.view','module4.inspections.manage']);
 $db = db();
 
 $flashNotice = isset($_GET['notice']) ? trim((string)$_GET['notice']) : '';

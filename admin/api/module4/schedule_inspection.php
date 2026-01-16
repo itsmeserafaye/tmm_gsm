@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
 $plate = trim($_POST['plate_number'] ?? '');
 $scheduledAt = trim($_POST['scheduled_at'] ?? '');
 $location = trim($_POST['location'] ?? '');

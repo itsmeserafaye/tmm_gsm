@@ -1,7 +1,5 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module4.view','module4.inspections.manage']);
 $db = db();
 $scheduleId = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
 $flashNotice = isset($_GET['notice']) ? trim($_GET['notice']) : '';

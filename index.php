@@ -74,11 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
           }
           rbac_write_login_audit($db, $userId, $email, true);
-          if ($primaryRole === 'Commuter') {
-            header('Location: ' . $baseUrl . '/citizen/commuter/index.php');
-          } else {
-            header('Location: ' . $baseUrl . '/admin/index.php');
-          }
+          header('Location: ' . $baseUrl . '/admin/index.php');
           exit;
         }
         rbac_write_login_audit($db, $user ? (int)$user['id'] : null, $email !== '' ? $email : null, false);
@@ -139,8 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form id="loginForm" method="post" class="space-y-5 form-compact" autocomplete="on">
-          <input type="hidden" name="login_type" value="staff">
+          <input type="hidden" name="login_type" id="loginType" value="staff">
           <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+          <div id="plateField" class="hidden">
+            <input
+              type="text"
+              id="plate_number"
+              name="plate_number"
+              placeholder="Enter plate number (e.g. ABC-1234)"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200"
+            >
+          </div>
           <div>
             <input
               type="email"
@@ -161,14 +166,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               required
             >
           </div>
-
-          <div class="flex items-center justify-between text-sm">
-            <label class="inline-flex items-center gap-2 text-gray-700">
-              <input type="checkbox" id="rememberMe" class="h-4 w-4">
-              <span>Remember me</span>
-            </label>
-            <button type="button" id="openForgotPassword" class="text-custom-secondary hover:underline font-semibold">Forgot password?</button>
-          </div>
           <button
             type="submit"
             id="btnLoginSubmit"
@@ -178,15 +175,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Login
           </button>
 
-          <div class="grid grid-cols-2 gap-3">
-            <button type="button" id="btnOperatorLoginOpen" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
-              Login as operator
-            </button>
+          <button type="button" id="btnOperatorMode" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
+            Login as operator
+          </button>
 
-            <button type="button" id="btnOperatorRegisterOpen" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
-              Register as operator
-            </button>
-          </div>
+          <button type="button" id="btnOperatorRegisterOpen" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
+            Register as operator
+          </button>
 
           <div class="relative flex py-2 items-center">
             <div class="flex-grow border-t border-gray-300"></div>
@@ -315,7 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <?php if ($recaptchaSiteKey !== ''): ?>
                 <div>
-                    <div id="citizenRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                    <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
                 </div>
                 <?php endif; ?>
 
@@ -374,110 +369,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
-    <div id="forgotPasswordModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 class="text-xl font-semibold mb-2 text-center">Reset Password</h3>
-            <p class="text-sm text-gray-600 mb-4 text-center">Enter your email. We will send a 6-digit OTP to reset your password.</p>
-            <form id="forgotPasswordForm" class="space-y-4">
-                <div class="flex gap-2">
-                    <button type="button" id="fpTypeStaff" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold bg-white">Commuter</button>
-                    <button type="button" id="fpTypeOperator" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold bg-white">Operator</button>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Email Address</label>
-                    <input type="email" id="fpEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com" required>
-                </div>
-                <div class="flex justify-end">
-                    <button type="button" id="fpSendOtp" class="px-4 py-2 rounded-lg bg-custom-secondary text-white font-semibold">Send OTP</button>
-                </div>
-
-                <div id="fpStep2" class="hidden space-y-4 pt-2 border-t">
-                    <div>
-                        <label class="block text-sm mb-2 text-center">Enter OTP</label>
-                        <div class="flex justify-center space-x-2" id="fpOtpInputs">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 1">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 2">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 3">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 4">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 5">
-                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 6">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">New Password</label>
-                        <div class="relative">
-                            <input type="password" id="fpNewPassword" minlength="10" class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" required>
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="fpNewPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
-                        </div>
-                        <ul id="fpPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
-                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
-                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
-                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
-                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
-                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Confirm New Password</label>
-                        <div class="relative">
-                            <input type="password" id="fpConfirmPassword" minlength="10" class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" required>
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="fpConfirmPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
-                        </div>
-                        <div id="fpConfirmError" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <button type="button" id="fpCancel" class="px-4 py-2 rounded-lg bg-red-500 text-white">Cancel</button>
-                        <button type="submit" id="fpSubmit" class="px-4 py-2 rounded-lg bg-custom-secondary text-white">Reset Password</button>
-                    </div>
-                </div>
-            </form>
-            <div class="flex justify-end pt-3">
-                <button type="button" id="fpClose" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="operatorLoginModal" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-20 px-4 overflow-y-auto z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full glass-card form-compact">
-            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Operator Login</h2>
-                <div class="mt-1 text-xs text-gray-500">
-                    No operator account yet?
-                    <button type="button" id="openOperatorRegisterFromLogin" class="text-custom-secondary font-semibold hover:underline">Register as operator</button>
-                </div>
-            </div>
-            <form id="operatorLoginForm" method="post" class="space-y-4 pt-4" autocomplete="on">
-                <input type="hidden" name="login_type" value="operator">
-                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-                <div>
-                    <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                    <input type="text" id="opLoginPlate" name="plate_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="ABC-1234">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
-                    <input type="email" id="opLoginEmail" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                    <div class="relative">
-                        <input type="password" id="opLoginPassword" name="password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle password visibility" data-target="opLoginPassword">
-                            <i class="far fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" id="btnOperatorLoginCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" id="btnOperatorLoginSubmit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg">Login</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-20 px-4 overflow-y-auto z-50">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full glass-card form-compact">
             <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
@@ -489,8 +380,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <input type="text" name="plate_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="ABC-1234">
                 </div>
                 <div>
-                    <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
-                    <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz">
+                    <label class="block text-sm mb-1">Full Name</label>
+                    <input type="text" name="full_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz">
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
@@ -523,7 +414,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <?php if ($recaptchaSiteKey !== ''): ?>
                 <div>
-                    <div id="operatorRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                    <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
                 </div>
                 <?php endif; ?>
                 <div class="flex justify-end space-x-3 pt-2">
@@ -755,16 +646,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <script>
     const BASE_URL = <?php echo json_encode($baseUrl); ?>;
     const RECAPTCHA_SITE_KEY = <?php echo json_encode($recaptchaSiteKey); ?>;
-    let citizenRecaptchaWidgetId = null;
-
-    function tryRenderCitizenRecaptcha() {
-        const citizenRecaptcha = document.getElementById('citizenRecaptcha');
-        if (!citizenRecaptcha || !window.grecaptcha || citizenRecaptchaWidgetId !== null) return;
-        const siteKey = citizenRecaptcha.getAttribute('data-sitekey') || '';
-        if (!siteKey) return;
-        citizenRecaptchaWidgetId = window.grecaptcha.render(citizenRecaptcha, { sitekey: siteKey });
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         initializePage();
         setupEventListeners();
@@ -776,91 +657,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         addLoadingStates();
         initializeFormValidation();
         addSmoothScrolling();
-        try {
-            const remembered = localStorage.getItem('gsm_remember') === '1';
-            const email = localStorage.getItem('gsm_email') || '';
-            const rememberEl = document.getElementById('rememberMe');
-            const emailEl = document.getElementById('email');
-            if (rememberEl) rememberEl.checked = remembered;
-            if (remembered && emailEl && email) emailEl.value = email;
-            const opEmail = localStorage.getItem('gsm_operator_email') || '';
-            const opPlate = localStorage.getItem('gsm_operator_plate') || '';
-            const opLoginEmail = document.getElementById('opLoginEmail');
-            const opLoginPlate = document.getElementById('opLoginPlate');
-            if (remembered && opLoginEmail && opEmail) opLoginEmail.value = opEmail;
-            if (remembered && opLoginPlate && opPlate) opLoginPlate.value = opPlate;
-        } catch (e) {}
     }
 
     function setupEventListeners() {
-        const rememberEl = document.getElementById('rememberMe');
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', () => {
-                try {
-                    const remember = !!(rememberEl && rememberEl.checked);
-                    if (remember) {
-                        localStorage.setItem('gsm_remember', '1');
-                        localStorage.setItem('gsm_email', String((document.getElementById('email') && document.getElementById('email').value) || '').trim());
-                    } else {
-                        localStorage.removeItem('gsm_remember');
-                        localStorage.removeItem('gsm_email');
-                        localStorage.removeItem('gsm_operator_email');
-                        localStorage.removeItem('gsm_operator_plate');
-                    }
-                } catch (e) {}
-            });
-        }
+        const loginType = document.getElementById('loginType');
+        const plateField = document.getElementById('plateField');
+        const plateInput = document.getElementById('plate_number');
+        const btnOperatorMode = document.getElementById('btnOperatorMode');
 
-        const opLoginModal = document.getElementById('operatorLoginModal');
-        const opLoginOpen = document.getElementById('btnOperatorLoginOpen');
-        const opLoginCancel = document.getElementById('btnOperatorLoginCancel');
-        const opLoginPlate = document.getElementById('opLoginPlate');
-        const opLoginForm = document.getElementById('operatorLoginForm');
-
-        function openOpLogin() {
-            if (!opLoginModal) return;
-            opLoginModal.classList.remove('hidden');
-            opLoginModal.classList.add('flex');
-            document.body.classList.add('overflow-hidden');
-            if (opLoginPlate) opLoginPlate.focus();
+        let operatorMode = false;
+        function applyOperatorMode(isOperator) {
+            operatorMode = isOperator;
+            if (loginType) loginType.value = isOperator ? 'operator' : 'staff';
+            if (plateField) plateField.classList.toggle('hidden', !isOperator);
+            if (plateInput) plateInput.required = isOperator;
+            if (btnOperatorMode) btnOperatorMode.textContent = isOperator ? 'Back to staff login' : 'Login as operator';
+            const submitBtn = document.getElementById('btnLoginSubmit');
+            if (submitBtn) submitBtn.textContent = isOperator ? 'Login as operator' : 'Login';
+            if (isOperator && plateInput) plateInput.focus();
         }
-        function closeOpLogin() {
-            if (!opLoginModal) return;
-            opLoginModal.classList.add('hidden');
-            opLoginModal.classList.remove('flex');
-            document.body.classList.remove('overflow-hidden');
-            if (opLoginForm) opLoginForm.reset();
-        }
-        if (opLoginOpen) opLoginOpen.addEventListener('click', openOpLogin);
-        if (opLoginCancel) opLoginCancel.addEventListener('click', closeOpLogin);
-        if (opLoginModal) {
-            opLoginModal.addEventListener('click', (e) => { if (e.target === opLoginModal) closeOpLogin(); });
-        }
-        if (opLoginForm) {
-            opLoginForm.addEventListener('submit', () => {
-                try {
-                    const remember = !!(rememberEl && rememberEl.checked);
-                    if (!remember) return;
-                    const opEmail = String((document.getElementById('opLoginEmail') && document.getElementById('opLoginEmail').value) || '').trim();
-                    const opPlate = String((document.getElementById('opLoginPlate') && document.getElementById('opLoginPlate').value) || '').trim();
-                    if (opEmail) localStorage.setItem('gsm_operator_email', opEmail);
-                    if (opPlate) localStorage.setItem('gsm_operator_plate', opPlate);
-                } catch (e) {}
-            });
-        }
+        if (btnOperatorMode) btnOperatorMode.addEventListener('click', () => applyOperatorMode(!operatorMode));
+        applyOperatorMode(false);
 
         const opRegModal = document.getElementById('operatorRegisterModal');
         const opRegOpen = document.getElementById('btnOperatorRegisterOpen');
         const opRegCancel = document.getElementById('btnOperatorRegisterCancel');
         const opRegForm = document.getElementById('operatorRegisterForm');
-        const operatorRecaptcha = document.getElementById('operatorRecaptcha');
-        let operatorRecaptchaWidgetId = null;
+        const opRecaptcha = document.getElementById('opRecaptcha');
+        let opRecaptchaWidgetId = null;
         function tryRenderOpRecaptcha() {
-            if (!operatorRecaptcha || !window.grecaptcha || operatorRecaptchaWidgetId !== null) return;
-            const siteKey = operatorRecaptcha.getAttribute('data-sitekey') || '';
+            if (!opRecaptcha || !window.grecaptcha || opRecaptchaWidgetId !== null) return;
+            const siteKey = opRecaptcha.getAttribute('data-sitekey') || '';
             if (!siteKey) return;
-            operatorRecaptchaWidgetId = window.grecaptcha.render(operatorRecaptcha, { sitekey: siteKey });
+            opRecaptchaWidgetId = window.grecaptcha.render(opRecaptcha, { sitekey: siteKey });
         }
 
         function openOpReg() {
@@ -876,7 +705,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             opRegModal.classList.remove('flex');
             document.body.classList.remove('overflow-hidden');
             if (opRegForm) opRegForm.reset();
-            if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId);
+            if (window.grecaptcha && opRecaptchaWidgetId !== null) window.grecaptcha.reset(opRecaptchaWidgetId);
         }
         if (opRegOpen) opRegOpen.addEventListener('click', openOpReg);
         if (opRegCancel) opRegCancel.addEventListener('click', closeOpReg);
@@ -912,10 +741,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!validateRegPassword(pwdEl, true)) { showNotification('Password does not meet requirements.', 'warning'); return; }
                 if (!validateConfirmPasswordFor('opRegPassword', 'opRegConfirmPassword', true, 'op-confirm-error')) { return; }
                 tryRenderOpRecaptcha();
-                const captchaConfigured = !!operatorRecaptcha;
-                const captchaResponse = (window.grecaptcha && operatorRecaptchaWidgetId !== null) ? window.grecaptcha.getResponse(operatorRecaptchaWidgetId) : '';
-                if (captchaConfigured && !window.grecaptcha) { showNotification('reCAPTCHA failed to load. Please check internet connection.', 'warning'); return; }
-                if (captchaConfigured && !captchaResponse) { showNotification('Please complete the reCAPTCHA.', 'warning'); return; }
+                const captchaRequired = !!opRecaptcha;
+                const captchaResponse = (window.grecaptcha && opRecaptchaWidgetId !== null) ? window.grecaptcha.getResponse(opRecaptchaWidgetId) : '';
+                if (captchaRequired && !captchaResponse) { showNotification('Please complete the reCAPTCHA.', 'warning'); return; }
                 payload.recaptcha_token = captchaResponse || '';
                 const submit = document.getElementById('btnOperatorRegisterSubmit');
                 if (submit) { submit.disabled = true; }
@@ -927,16 +755,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 .then(r => r.json())
                 .then(res => {
                     if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Operator registration failed', 'error'); return; }
-                    const otpRequired = !!(res.data && res.data.otp_required);
-                    if (otpRequired) {
-                        window.__otpContext = { email: (res.data.email || payload.email || ''), purpose: 'operator_register', user_type: 'operator' };
-                        showNotification(res.message || 'OTP sent. Please verify.', 'success');
-                        closeOpReg();
-                        openOtpModal(res.data && res.data.otp_expires_in ? parseInt(res.data.otp_expires_in, 10) : 180);
-                        return;
-                    }
                     showNotification(res.message || 'Operator registration successful', 'success');
+                    const redirect = res.data && res.data.redirect ? res.data.redirect : null;
                     closeOpReg();
+                    if (redirect) { window.location.href = redirect; }
                 })
                 .catch(() => { showNotification('Network error. Please try again.', 'error'); })
                 .finally(() => { if (submit) submit.disabled = false; });
@@ -947,14 +769,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (opFromCitizen) {
             opFromCitizen.addEventListener('click', () => {
                 if (typeof hideRegisterForm === 'function') hideRegisterForm();
-                openOpReg();
-            });
-        }
-
-        const opFromLogin = document.getElementById('openOperatorRegisterFromLogin');
-        if (opFromLogin) {
-            opFromLogin.addEventListener('click', () => {
-                closeOpLogin();
                 openOpReg();
             });
         }
@@ -1101,166 +915,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (e.target === privacyModal) hidePrivacy();
             });
         }
-
-        const otpForm = document.getElementById('otpForm');
-        const resend = document.getElementById('resendOtp');
-        const cancelOtp = document.getElementById('cancelOtp');
-        const otpModal = document.getElementById('otpModal');
-        if (cancelOtp) cancelOtp.addEventListener('click', closeOtpModal);
-        if (resend) resend.addEventListener('click', () => {
-            const ctx = window.__otpContext || {};
-            const email = String(ctx.email || '');
-            const purpose = String(ctx.purpose || 'register');
-            const userType = String(ctx.user_type || '');
-            if (!email) { showNotification('Missing email for OTP. Please register again.', 'error'); return; }
-            resend.disabled = true;
-            fetch(`${BASE_URL}/gsm_login/Login/otp_send.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, purpose, user_type: userType })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Failed to resend OTP', 'error'); resend.disabled = false; return; }
-                showNotification(res.message || 'A new OTP has been sent to your email.', 'info');
-                const expiresIn = res.data && res.data.expires_in ? parseInt(res.data.expires_in, 10) : 180;
-                startOtpTimer(expiresIn);
-            })
-            .catch(() => { resend.disabled = false; });
-        });
-        if (otpForm) otpForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const inputs = Array.from(document.querySelectorAll('#otpInputs .otp-input'));
-            const code = inputs.map(i => i.value).join('');
-            const error = document.getElementById('otpError');
-            if (!code || code.length !== 6) { error.textContent = 'Please enter the 6-digit OTP.'; error.classList.remove('hidden'); return; }
-            if (document.getElementById('submitOtp').disabled) { error.textContent = 'OTP expired. Please resend a new OTP.'; error.classList.remove('hidden'); return; }
-            const ctx = window.__otpContext || {};
-            const email = String(ctx.email || '');
-            const purpose = String(ctx.purpose || 'register');
-            const userType = String(ctx.user_type || '');
-            if (!email) { error.textContent = 'Missing email for OTP. Please register again.'; error.classList.remove('hidden'); return; }
-            error.classList.add('hidden');
-            const submitBtn = document.getElementById('submitOtp');
-            if (submitBtn) submitBtn.disabled = true;
-            fetch(`${BASE_URL}/gsm_login/Login/otp_verify.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, purpose, code, user_type: userType })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (!res || !res.ok) { error.textContent = (res && res.message) ? res.message : 'Invalid or expired OTP.'; error.classList.remove('hidden'); if (submitBtn) submitBtn.disabled = false; return; }
-                showNotification(res.message || 'OTP verified. You may login now.', 'success');
-                window.__otpContext = null;
-                closeOtpModal();
-            })
-            .catch(() => { if (submitBtn) submitBtn.disabled = false; });
-        });
-        if (otpModal) otpModal.addEventListener('click', (e) => { if (e.target === otpModal) closeOtpModal(); });
-
-        const openForgot = document.getElementById('openForgotPassword');
-        const fpModal = document.getElementById('forgotPasswordModal');
-        const fpClose = document.getElementById('fpClose');
-        const fpCancel = document.getElementById('fpCancel');
-        const fpSendOtp = document.getElementById('fpSendOtp');
-        const fpForm = document.getElementById('forgotPasswordForm');
-        const fpStep2 = document.getElementById('fpStep2');
-        const fpEmail = document.getElementById('fpEmail');
-        const fpTypeStaff = document.getElementById('fpTypeStaff');
-        const fpTypeOperator = document.getElementById('fpTypeOperator');
-        const fpNewPassword = document.getElementById('fpNewPassword');
-        const fpConfirmPassword = document.getElementById('fpConfirmPassword');
-        const fpConfirmError = document.getElementById('fpConfirmError');
-        const fpOtpInputs = fpModal ? Array.from(fpModal.querySelectorAll('#fpOtpInputs .otp-input')) : [];
-        let fpUserType = 'commuter';
-        function fpSetType(t) {
-            fpUserType = t === 'operator' ? 'operator' : 'commuter';
-            const active = 'bg-custom-secondary text-white border-custom-secondary';
-            const inactive = 'bg-white text-gray-800 border-gray-300';
-            if (fpTypeStaff) fpTypeStaff.className = `flex-1 px-3 py-2 rounded-lg border text-sm font-semibold ${fpUserType === 'commuter' ? active : inactive}`;
-            if (fpTypeOperator) fpTypeOperator.className = `flex-1 px-3 py-2 rounded-lg border text-sm font-semibold ${fpUserType === 'operator' ? active : inactive}`;
-        }
-        function fpOpen() {
-            if (!fpModal) return;
-            fpModal.classList.remove('hidden');
-            fpModal.classList.add('flex');
-            document.body.classList.add('overflow-hidden');
-            if (fpEmail) fpEmail.value = String((document.getElementById('email') && document.getElementById('email').value) || '').trim();
-            fpSetType('commuter');
-            if (fpStep2) fpStep2.classList.add('hidden');
-            if (fpConfirmError) fpConfirmError.classList.add('hidden');
-            fpOtpInputs.forEach(i => i.value = '');
-            if (fpNewPassword) fpNewPassword.value = '';
-            if (fpConfirmPassword) fpConfirmPassword.value = '';
-            if (fpNewPassword) updatePasswordChecklistFor('fpPwdChecklist', fpNewPassword.value || '');
-        }
-        function fpCloseModal() {
-            if (!fpModal) return;
-            fpModal.classList.add('hidden');
-            fpModal.classList.remove('flex');
-            document.body.classList.remove('overflow-hidden');
-        }
-        if (fpTypeStaff) fpTypeStaff.addEventListener('click', () => fpSetType('commuter'));
-        if (fpTypeOperator) fpTypeOperator.addEventListener('click', () => fpSetType('operator'));
-        if (openForgot) openForgot.addEventListener('click', fpOpen);
-        if (fpClose) fpClose.addEventListener('click', fpCloseModal);
-        if (fpCancel) fpCancel.addEventListener('click', fpCloseModal);
-        if (fpModal) fpModal.addEventListener('click', (e) => { if (e.target === fpModal) fpCloseModal(); });
-        if (fpOtpInputs.length) setupOtpInputs(fpOtpInputs);
-        if (fpNewPassword) {
-            fpNewPassword.addEventListener('input', function(){ updatePasswordChecklistFor('fpPwdChecklist', this.value || ''); });
-            fpNewPassword.addEventListener('blur', function(){ updatePasswordChecklistFor('fpPwdChecklist', this.value || ''); });
-        }
-        if (fpConfirmPassword) {
-            fpConfirmPassword.addEventListener('input', function(){
-                const ok = (this.value || '').trim() === ((fpNewPassword && fpNewPassword.value) ? fpNewPassword.value.trim() : '');
-                if (fpConfirmError) fpConfirmError.classList.toggle('hidden', ok);
-            });
-        }
-        if (fpSendOtp) fpSendOtp.addEventListener('click', () => {
-            const emailVal = fpEmail ? String(fpEmail.value || '').trim() : '';
-            if (!emailVal) { showNotification('Please enter your email.', 'warning'); return; }
-            fpSendOtp.disabled = true;
-            fpSendOtp.textContent = 'Sending...';
-            fetch(`${BASE_URL}/gsm_login/Login/password_reset.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'request', email: emailVal, user_type: fpUserType })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Failed to send OTP.', 'error'); return; }
-                showNotification(res.message || 'OTP sent. Please check your email.', 'success');
-                if (fpStep2) fpStep2.classList.remove('hidden');
-            })
-            .finally(() => { fpSendOtp.disabled = false; fpSendOtp.textContent = 'Send OTP'; });
-        });
-        if (fpForm) fpForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const emailVal = fpEmail ? String(fpEmail.value || '').trim() : '';
-            const code = fpOtpInputs.map(i => i.value).join('');
-            const np = fpNewPassword ? fpNewPassword.value : '';
-            const cp = fpConfirmPassword ? fpConfirmPassword.value : '';
-            if (!emailVal) { showNotification('Please enter your email.', 'warning'); return; }
-            if (!code || code.length !== 6) { showNotification('Please enter the 6-digit OTP.', 'warning'); return; }
-            if (!validateRegPassword(fpNewPassword, true)) { showNotification('Password does not meet requirements.', 'warning'); return; }
-            if (np.trim() !== cp.trim()) { if (fpConfirmError) fpConfirmError.classList.remove('hidden'); showNotification('Passwords do not match.', 'error'); return; }
-            const btn = document.getElementById('fpSubmit');
-            if (btn) showLoadingState(btn);
-            fetch(`${BASE_URL}/gsm_login/Login/password_reset.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'confirm', email: emailVal, user_type: fpUserType, code, new_password: np, confirm_password: cp })
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Reset failed.', 'error'); return; }
-                showNotification(res.message || 'Password updated.', 'success');
-                fpCloseModal();
-            })
-            .finally(() => { if (btn) { btn.innerHTML = 'Reset Password'; btn.disabled = false; } });
-        });
     }
 
     function updateDateTime() {
@@ -1390,7 +1044,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             container.classList.remove('hidden');
             mainCard.classList.add('opacity-40');
         }
-        tryRenderCitizenRecaptcha();
     }
 
     function hideRegisterForm() {
@@ -1400,20 +1053,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             container.classList.add('hidden');
             mainCard.classList.remove('opacity-40');
         }
-        if (window.grecaptcha && citizenRecaptchaWidgetId !== null) window.grecaptcha.reset(citizenRecaptchaWidgetId);
     }
 
     function handleRegisterSubmit(event) {
         event.preventDefault();
         if (!validateRegPassword(document.getElementById('regPassword'), true)) return;
         if (!validateConfirmPassword(true)) return;
-
-        tryRenderCitizenRecaptcha();
-        const captchaResponse = (window.grecaptcha && citizenRecaptchaWidgetId !== null) ? window.grecaptcha.getResponse(citizenRecaptchaWidgetId) : '';
-        if (RECAPTCHA_SITE_KEY && !window.grecaptcha) {
-            showNotification('reCAPTCHA failed to load. Please check internet connection.', 'warning');
-            return;
-        }
+        
+        const captchaResponse = window.grecaptcha ? window.grecaptcha.getResponse() : '';
         if (RECAPTCHA_SITE_KEY && !captchaResponse) {
             showNotification('Please complete the reCAPTCHA.', 'warning');
             return;
@@ -1442,18 +1089,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 showNotification((res && res.message) ? res.message : 'Registration failed', 'error');
                 return;
             }
-            const otpRequired = !!(res.data && res.data.otp_required);
-            if (otpRequired) {
-                window.__otpContext = { email: (res.data.email || payload.email || ''), purpose: 'register', user_type: 'staff' };
-                showNotification(res.message || 'OTP sent. Please verify.', 'success');
-                hideRegisterForm();
-                if (window.grecaptcha && citizenRecaptchaWidgetId !== null) window.grecaptcha.reset(citizenRecaptchaWidgetId);
-                openOtpModal(res.data && res.data.otp_expires_in ? parseInt(res.data.otp_expires_in, 10) : 180);
-                return;
-            }
             showNotification(res.message || 'Registration submitted!', 'success');
             hideRegisterForm();
-            if (window.grecaptcha && citizenRecaptchaWidgetId !== null) window.grecaptcha.reset(citizenRecaptchaWidgetId);
+            if (window.grecaptcha) window.grecaptcha.reset();
         })
         .catch(() => {
             showNotification('Network error. Please try again.', 'error');
@@ -1482,18 +1120,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const pwd = document.getElementById(pwdId);
         const confirm = document.getElementById(confirmId);
         if (!pwd || !confirm) return false;
-        const matches = (confirm.value || '').trim() === (pwd.value || '').trim();
+        const matches = (confirm.value || '') === (pwd.value || '');
         const wrapper = confirm.parentNode;
         const existing = wrapper.parentNode.querySelector('.' + errorClass);
         if (existing && existing.previousElementSibling !== wrapper) {
             existing.remove();
         }
         confirm.classList.remove('border-red-500', 'ring-red-500');
-        const msgExisting = wrapper.parentNode.querySelector('.' + errorClass);
-        if (matches) {
-            if (msgExisting) msgExisting.remove();
-            return true;
-        }
         if (!matches && showMessage) {
             confirm.classList.add('border-red-500', 'ring-red-500');
             let msg = wrapper.parentNode.querySelector('.' + errorClass);
@@ -1588,7 +1221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     }
 
-    function openOtpModal(expiresInSeconds = 180) {
+    function openOtpModal() {
         const modal = document.getElementById('otpModal');
         const resend = document.getElementById('resendOtp');
         const error = document.getElementById('otpError');
@@ -1598,7 +1231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.classList.add('overflow-hidden');
-        startOtpTimer(expiresInSeconds);
+        startOtpTimer(180);
         resend.disabled = true;
         submit.disabled = false;
         const inputs = Array.from(document.querySelectorAll('#otpInputs .otp-input'));

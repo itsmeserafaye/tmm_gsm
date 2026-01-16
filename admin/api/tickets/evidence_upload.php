@@ -1,10 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
 
 $ticket = trim($_POST['ticket_number'] ?? '');
 if ($ticket === '') { echo json_encode(['error' => 'Ticket number required']); exit; }

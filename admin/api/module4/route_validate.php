@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
 $route_id = trim($_GET['route_id'] ?? $_POST['route_id'] ?? '');
 if ($route_id === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'route_required']); exit; }
 $rs = $db->prepare("SELECT route_id, route_name, max_vehicle_limit, status FROM routes WHERE route_id=?");

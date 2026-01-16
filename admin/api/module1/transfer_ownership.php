@@ -1,9 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-header('Content-Type: application/json');
-require_permission('module1.vehicles.write');
 $plate = trim($_POST['plate_number'] ?? '');
 $newop = trim($_POST['new_operator_name'] ?? '');
 $deed = trim($_POST['deed_ref'] ?? '');
@@ -28,5 +25,6 @@ $stmt1->execute();
 $stmt2 = $db->prepare("INSERT INTO ownership_transfers(plate_number, new_operator_name, deed_ref) VALUES(?,?,?)");
 $stmt2->bind_param('sss', $plate, $newop, $deed);
 $stmt2->execute();
+header('Content-Type: application/json');
 echo json_encode(['ok'=>true, 'plate_number'=>$plate, 'new_operator_name'=>$newop]);
 ?>

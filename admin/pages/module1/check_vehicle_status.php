@@ -1,9 +1,5 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-if (php_sapi_name() !== 'cli') {
-  require_once __DIR__ . '/../../includes/auth.php';
-  require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
-}
 $db = db();
 $plate = $_GET['plate'] ?? '';
 if ($plate === '' && php_sapi_name() === 'cli') {

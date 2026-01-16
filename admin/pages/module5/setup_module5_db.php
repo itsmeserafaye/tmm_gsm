@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-if (php_sapi_name() !== 'cli') require_role(['SuperAdmin']);
 
 echo "Initializing Module 5 Database Tables...\n";
 

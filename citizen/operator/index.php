@@ -3,7 +3,6 @@ require_once __DIR__ . '/../../includes/operator_portal.php';
 $baseUrl = str_replace('\\', '/', (string)dirname(dirname(dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/citizen/operator/index.php')))));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 operator_portal_require_login($baseUrl . '/index.php');
-if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(random_bytes(32)); }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,6 +41,7 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
     </script>
     <!-- Tesseract.js for OCR -->
     <script src="js/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -65,7 +65,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex overflow-hidden">
-    <div id="toastContainer" class="fixed top-4 right-4 z-[80] space-y-2 pointer-events-none"></div>
 
     <!-- SIDEBAR -->
     <aside class="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col z-20 shadow-soft">
@@ -90,14 +89,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
                 My Fleet
             </button>
-
-            <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Active Plate</div>
-                <select id="plateSelect" class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
-                    <option>Loading...</option>
-                </select>
-                <div class="mt-2 text-[11px] text-slate-500">Used when submitting new applications.</div>
-            </div>
         </nav>
 
         <div class="p-4 border-t border-slate-100">
@@ -106,14 +97,10 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                     <img src="https://ui-avatars.com/api/?name=Operator+User&background=random" alt="Profile">
                 </div>
                 <div class="overflow-hidden">
-                    <p class="text-sm font-bold text-slate-800 truncate" id="sidebarName">Operator</p>
-                    <p class="text-xs text-slate-500 truncate" id="sidebarSub">View Profile</p>
+                    <p class="text-sm font-bold text-slate-800 truncate">Operator User</p>
+                    <p class="text-xs text-slate-500 truncate">View Profile</p>
                 </div>
             </div>
-            <a href="logout.php" class="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 hover:text-slate-800 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"></path></svg>
-                Logout
-            </a>
         </div>
     </aside>
 
@@ -228,7 +215,7 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                                     <div class="space-y-2">
                                         <label class="block text-sm font-semibold text-slate-700">Application Type</label>
                                         <div class="relative">
-                                            <select id="appTypeSelect" name="type" class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none" required>
+                                            <select name="type" class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none" required>
                                                 <option value="">Select Type...</option>
                                                 <option value="Franchise Endorsement">Franchise Endorsement</option>
                                                 <option value="Vehicle Inspection">Vehicle Inspection Request</option>
@@ -252,10 +239,10 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                                             <p class="text-xs text-blue-700 mt-1 mb-4">Upload your OR/CR or relevant permits. Our AI will verify readability instantly.</p>
                                             
                                             <div class="relative group">
-                                                <input name="document" type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept="image/*,application/pdf" onchange="checkDocument(this)">
+                                                <input type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept="image/*" onchange="checkDocument(this)">
                                                 <div class="border-2 border-dashed border-blue-200 rounded-xl p-6 text-center bg-white group-hover:border-blue-400 transition">
                                                     <p class="text-sm font-medium text-slate-600" id="docStatus">Click or drag file here to upload</p>
-                                                    <p class="text-xs text-slate-400 mt-1">Supports JPG, PNG, PDF</p>
+                                                    <p class="text-xs text-slate-400 mt-1">Supports JPG, PNG</p>
                                                 </div>
                                             </div>
 
@@ -282,33 +269,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                                     <button type="submit" class="bg-gradient-to-r from-primary to-primary-dark text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-orange-500/30 transform hover:-translate-y-0.5 transition-all duration-200">Submit Application</button>
                                 </div>
                             </form>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
-                        <div class="p-6 md:p-8">
-                            <div class="flex items-center justify-between mb-4">
-                                <div>
-                                    <h3 class="text-lg font-bold text-slate-900">Recent Submissions</h3>
-                                    <p class="text-xs text-slate-500">Your last 20 applications and their status.</p>
-                                </div>
-                                <button type="button" onclick="loadApplications()" class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
-                            </div>
-                            <div class="overflow-x-auto rounded-xl border border-slate-200">
-                                <table class="w-full text-left text-sm">
-                                    <thead class="bg-slate-50 border-b border-slate-200">
-                                        <tr>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Plate</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="appsTable" class="divide-y divide-slate-100">
-                                        <tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -409,7 +369,7 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contact Number</label>
-                            <input type="text" id="editContact" name="contact_info" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition" required>
+                            <input type="text" id="editContact" name="contact" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition" required>
                         </div>
                         
                         <div class="pt-4 border-t border-slate-100">
@@ -455,78 +415,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
     </div>
 
     <script>
-        const csrfToken = <?php echo json_encode((string)($_SESSION['operator_csrf'] ?? '')); ?>;
-
-        function toast(message, variant = 'info') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-            const el = document.createElement('div');
-            const bg = variant === 'success' ? 'bg-emerald-600' : (variant === 'error' ? 'bg-rose-600' : (variant === 'warning' ? 'bg-amber-600' : 'bg-slate-800'));
-            el.className = 'pointer-events-auto text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg border border-white/10 ' + bg;
-            el.textContent = message;
-            container.appendChild(el);
-            setTimeout(() => { el.classList.add('opacity-0'); el.classList.add('transition'); }, 2800);
-            setTimeout(() => { try { el.remove(); } catch (e) {} }, 3400);
-        }
-
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        }
-
-        async function apiGet(action) {
-            const res = await fetch('api.php?action=' + encodeURIComponent(action), { headers: { 'Accept': 'application/json' } });
-            return await res.json();
-        }
-
-        async function apiPost(formData) {
-            const res = await fetch('api.php', {
-                method: 'POST',
-                headers: { 'X-CSRF-Token': csrfToken },
-                body: formData
-            });
-            return await res.json();
-        }
-
-        async function initSession() {
-            const data = await apiGet('get_session');
-            if (!data || !data.ok) return;
-            const sel = document.getElementById('plateSelect');
-            const plates = Array.isArray(data.data.plates) ? data.data.plates : [];
-            const active = data.data.active_plate || '';
-            if (sel) {
-                sel.innerHTML = '';
-                if (!plates.length) {
-                    const opt = document.createElement('option');
-                    opt.textContent = 'No assigned plates';
-                    opt.value = '';
-                    sel.appendChild(opt);
-                } else {
-                    plates.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p;
-                        opt.textContent = p;
-                        if (p === active) opt.selected = true;
-                        sel.appendChild(opt);
-                    });
-                }
-                sel.addEventListener('change', async function () {
-                    const v = this.value || '';
-                    if (!v) return;
-                    const fd = new FormData();
-                    fd.append('action', 'set_active_plate');
-                    fd.append('plate_number', v);
-                    const r = await apiPost(fd);
-                    if (r && r.ok) {
-                        toast('Active plate set to ' + v, 'success');
-                        loadStats();
-                        loadApplications();
-                    } else {
-                        toast(r && r.error ? r.error : 'Failed to change plate', 'error');
-                    }
-                }, { once: true });
-            }
-        }
-
         // --- Navigation ---
         function showSection(id) {
             ['dashboard', 'applications', 'fleet'].forEach(s => {
@@ -539,7 +427,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             if (activeBtn) activeBtn.classList.add('active');
             
             if (id === 'dashboard') loadStats();
-            if (id === 'applications') loadApplications();
             if (id === 'fleet') loadFleet();
         }
 
@@ -555,7 +442,8 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
 
         // --- Data Loading ---
         async function loadStats() {
-            const data = await apiGet('get_dashboard_stats');
+            const res = await fetch('api.php?action=get_dashboard_stats');
+            const data = await res.json();
             if (data.ok) {
                 document.getElementById('statPending').innerText = data.data.pending_apps;
                 document.getElementById('statVehicles').innerText = data.data.active_vehicles;
@@ -563,59 +451,31 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             }
             
             // Load AI Insights
-            const dataAI = await apiGet('get_ai_insights');
+            const resAI = await fetch('api.php?action=get_ai_insights');
+            const dataAI = await resAI.json();
             if (dataAI.ok) {
                 const container = document.getElementById('aiInsightsContainer');
-                const items = Array.isArray(dataAI.data) ? dataAI.data : [];
-                if (!items.length) {
-                    container.innerHTML = '<p class="text-slate-400 text-sm">No insights available.</p>';
-                    return;
-                }
-                container.innerHTML = items.map(i => {
-                    const type = (i.type || 'low').toString().toLowerCase();
-                    const badge = type === 'high' ? 'bg-red-500/20 text-red-200' : (type === 'medium' ? 'bg-amber-500/20 text-amber-200' : 'bg-emerald-500/20 text-emerald-200');
-                    const rp = Array.isArray(i.route_plan) ? i.route_plan.slice(0, 2) : [];
-                    const rpHtml = rp.length ? ('<div class="mt-2 text-[11px] text-slate-300"><div class="font-bold text-slate-200 mb-1">Suggested by route</div>' + rp.map(r => '<div>' + escapeHtml((r.route_name || r.route_id || 'Route')) + ': +' + escapeHtml(r.suggested_extra_units || 0) + '</div>').join('') + '</div>') : '';
-                    return `
-                        <div class="bg-white/5 p-4 rounded-xl border border-white/10 hover:bg-white/10 transition cursor-default">
-                            <div class="flex justify-between items-start gap-3 mb-2">
-                                <h4 class="font-bold text-sm text-orange-100">${escapeHtml(i.title || '')}</h4>
-                                <span class="text-[10px] px-2 py-1 rounded-full font-bold ${badge}">${escapeHtml(type.toUpperCase())}</span>
-                            </div>
-                            <p class="text-xs text-slate-300 leading-relaxed">${escapeHtml(i.desc || '')}</p>
-                            ${rpHtml}
+                container.innerHTML = dataAI.data.map(i => `
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/10 hover:bg-white/10 transition cursor-default">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-sm text-orange-100">${i.title}</h4>
+                            <span class="text-[10px] px-2 py-1 rounded-full font-bold ${i.type === 'high' ? 'bg-red-500/20 text-red-200' : 'bg-green-500/20 text-green-200'}">${i.type.toUpperCase()}</span>
                         </div>
-                    `;
-                }).join('');
+                        <p class="text-xs text-slate-300 leading-relaxed">${i.desc}</p>
+                    </div>
+                `).join('');
             }
         }
 
         async function loadFleet() {
-            const data = await apiGet('get_fleet_status');
+            const res = await fetch('api.php?action=get_fleet_status');
+            const data = await res.json();
             if (data.ok) {
                 const tbody = document.getElementById('fleetTable');
                 if (data.data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">No vehicles found in your fleet.</td></tr>';
                     return;
                 }
-                window.quickRequestInspection = async function (plate) {
-                    const sel = document.getElementById('plateSelect');
-                    if (sel && plate) {
-                        sel.value = plate;
-                        const fd = new FormData();
-                        fd.append('action', 'set_active_plate');
-                        fd.append('plate_number', plate);
-                        const r = await apiPost(fd);
-                        if (!(r && r.ok)) {
-                            toast(r && r.error ? r.error : 'Failed to set active plate', 'error');
-                            return;
-                        }
-                    }
-                    const appType = document.getElementById('appTypeSelect');
-                    if (appType) appType.value = 'Vehicle Inspection';
-                    showSection('applications');
-                    toast('Inspection request form prepared for ' + plate, 'success');
-                };
                 tbody.innerHTML = data.data.map(v => `
                     <tr class="hover:bg-slate-50 group transition">
                         <td class="p-5 font-bold text-slate-700">${v.plate_number}</td>
@@ -627,60 +487,27 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                         <td class="p-5 text-slate-600 text-sm">${v.inspection_status || 'N/A'}</td>
                         <td class="p-5 text-slate-500 text-xs">${v.inspection_last_date || '-'}</td>
                         <td class="p-5">
-                            ${v.inspection_status && v.inspection_status === 'Passed'
-                                ? '<span class="text-xs font-bold text-emerald-600">Compliant</span>'
-                                : `<button type="button" onclick="quickRequestInspection('${v.plate_number}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">Request Inspection</button>`
-                            }
+                            <button class="text-slate-400 hover:text-primary transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+                            </button>
                         </td>
                     </tr>
                 `).join('');
             }
         }
 
-        async function loadApplications() {
-            const tbody = document.getElementById('appsTable');
-            if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
-            const data = await apiGet('get_applications');
-            if (!data || !data.ok) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Failed to load applications.</td></tr>';
-                return;
-            }
-            const rows = Array.isArray(data.data) ? data.data : [];
-            if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">No applications yet.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = rows.map(r => {
-                const status = (r.status || 'Pending').toString();
-                const badge = status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
-                const d = (r.created_at || '').toString().slice(0, 10);
-                return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="p-4 text-xs text-slate-500">${escapeHtml(d || '-')}</td>
-                        <td class="p-4 font-bold text-slate-700">${escapeHtml(r.plate_number || '')}</td>
-                        <td class="p-4 text-sm text-slate-600">${escapeHtml(r.type || '')}</td>
-                        <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badge}">${escapeHtml(status)}</span></td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
         // --- Profile Management ---
         let currentProfileData = {};
 
         async function fetchProfile() {
-            const data = await apiGet('get_profile');
+            const res = await fetch('api.php?action=get_profile');
+            const data = await res.json();
             if (data.ok) {
                 currentProfileData = data.data;
                 
                 // Populate Header
                 document.getElementById('profHeaderName').innerText = data.data.name || 'Unknown';
                 document.getElementById('profHeaderAssoc').innerText = data.data.association_name || 'Individual Operator';
-                const sidebarName = document.getElementById('sidebarName');
-                const sidebarSub = document.getElementById('sidebarSub');
-                if (sidebarName) sidebarName.textContent = data.data.name || 'Operator';
-                if (sidebarSub) sidebarSub.textContent = data.data.plate_number ? ('Active: ' + data.data.plate_number) : 'View Profile';
                 
                 // Populate View Mode
                 document.getElementById('viewName').innerText = data.data.name || '-';
@@ -717,7 +544,7 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             const confirmPass = document.getElementById('confirmPass').value;
 
             if (newPass && newPass !== confirmPass) {
-                toast('New passwords do not match.', 'error');
+                alert('New passwords do not match!');
                 return;
             }
             document.getElementById('passwordConfirmModal').classList.remove('hidden');
@@ -728,7 +555,7 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             const currentPass = document.getElementById('currentPassConfirm').value;
             
             if (!currentPass) {
-                toast('Please enter your current password.', 'warning');
+                alert('Please enter your current password.');
                 return;
             }
 
@@ -738,19 +565,23 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             formData.append('new_password', document.getElementById('newPass').value);
 
             try {
-                const data = await apiPost(formData);
+                const res = await fetch('api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
                 
                 if (data.ok) {
-                    toast('Profile updated successfully!', 'success');
+                    alert('Profile updated successfully!');
                     document.getElementById('passwordConfirmModal').classList.add('hidden');
                     closeProfileModal();
                     fetchProfile(); 
                 } else {
-                    toast(data.error || 'Update failed', 'error');
+                    alert('Error: ' + (data.error || 'Update failed'));
                 }
             } catch (err) {
                 console.error(err);
-                toast('An error occurred while updating profile.', 'error');
+                alert('An error occurred while updating profile.');
             }
         }
 
@@ -773,14 +604,6 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
                 statusMsg.innerText = '';
                 
                 try {
-                    if (file.type === 'application/pdf') {
-                        previewText.innerText = 'PDF uploaded. OCR preview is skipped in-browser.';
-                        statusBadge.innerText = 'UPLOADED';
-                        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
-                        statusMsg.className = 'mt-2 text-xs font-bold text-slate-600';
-                        statusMsg.innerText = 'PDF will be submitted as an attachment.';
-                        return;
-                    }
                     const worker = await Tesseract.createWorker('eng');
                     const ret = await worker.recognize(file);
                     const text = ret.data.text.trim();
@@ -817,29 +640,27 @@ if (empty($_SESSION['operator_csrf'])) { $_SESSION['operator_csrf'] = bin2hex(ra
             formData.append('action', 'submit_application');
             
             try {
-                const data = await apiPost(formData);
+                const res = await fetch('api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
                 if (data.ok) {
-                    toast('Application submitted! Reference: ' + data.ref, 'success');
+                    alert('Application Submitted! Reference: ' + data.ref);
                     e.target.reset();
                     document.getElementById('aiAnalysisResult').classList.add('hidden');
                     document.getElementById('docStatus').innerText = 'Click or drag file here to upload';
-                    loadStats();
-                    loadApplications();
+                    loadStats(); 
                 } else {
-                    toast(data.error || 'Submission failed', 'error');
+                    alert('Error: ' + data.error);
                 }
             } catch (err) {
-                toast('Submission failed.', 'error');
+                alert('Submission failed.');
             }
         }
 
         // Initial Load
-        (async function init() {
-            await initSession();
-            await fetchProfile();
-            loadStats();
-            loadApplications();
-        })();
+        loadStats();
     </script>
 </body>
 </html>

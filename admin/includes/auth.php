@@ -61,18 +61,7 @@ function current_user_permissions() {
   foreach ($perms as $p) {
     if (is_string($p) && $p !== '') $out[] = $p;
   }
-  $out = array_values(array_unique($out));
-  if (current_user_role() === 'ParkingStaff') {
-    $out = array_values(array_filter($out, function ($p) {
-      return !(is_string($p) && strpos($p, 'tickets.') === 0);
-    }));
-  }
-  if (current_user_role() === 'Viewer') {
-    $out = array_values(array_filter($out, function ($p) {
-      return !($p === 'reports.export');
-    }));
-  }
-  return $out;
+  return array_values(array_unique($out));
 }
 
 function has_permission(string $code) {
@@ -81,21 +70,14 @@ function has_permission(string $code) {
   $role = current_user_role();
   if ($role === 'SuperAdmin') return true;
   $fallback = [
-    'Admin' => ['dashboard.view','analytics.view','analytics.train','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
+    'Admin' => ['dashboard.view','analytics.view','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
     'Encoder' => ['dashboard.view','module1.vehicles.write','module1.routes.write','module1.coops.write','reports.export'],
     'Inspector' => ['dashboard.view','analytics.view','module4.inspections.manage','tickets.issue','reports.export'],
     'Treasurer' => ['dashboard.view','tickets.settle','reports.export'],
-    'ParkingStaff' => ['dashboard.view','parking.manage'],
-    'Viewer' => ['dashboard.view','analytics.view','module1.view','module2.view','module3.view','module4.view','module5.view'],
+    'ParkingStaff' => ['dashboard.view','parking.manage','tickets.issue'],
+    'Viewer' => ['dashboard.view','analytics.view','reports.export'],
   ];
   return in_array($code, $fallback[$role] ?? [], true);
-}
-
-function has_any_permission(array $codes) {
-  foreach ($codes as $c) {
-    if (is_string($c) && $c !== '' && has_permission($c)) return true;
-  }
-  return false;
 }
 
 function require_permission(string $code) {
@@ -108,38 +90,4 @@ function require_permission(string $code) {
   header('Content-Type: application/json');
   echo json_encode(['ok'=>false,'error'=>'forbidden','permission'=>$code,'role'=>current_user_role()]);
   exit;
-}
-
-function require_any_permission(array $codes) {
-  require_login();
-  if (has_any_permission($codes)) return;
-  if (defined('TMM_TEST')) {
-    throw new Exception('forbidden');
-  }
-  http_response_code(403);
-  header('Content-Type: application/json');
-  echo json_encode(['ok'=>false,'error'=>'forbidden','permissions'=>$codes,'role'=>current_user_role()]);
-  exit;
-}
-
-function require_permission_page(string $code, string $message = 'You do not have access to this page.') {
-  if (has_permission($code)) return true;
-  echo '<div class="mx-auto max-w-3xl px-4 py-10">';
-  echo '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">';
-  echo '<div class="text-lg font-black">Access Denied</div>';
-  echo '<div class="mt-1 text-sm font-bold">' . htmlspecialchars($message) . '</div>';
-  echo '</div>';
-  echo '</div>';
-  return false;
-}
-
-function require_any_permission_page(array $codes, string $message = 'You do not have access to this page.') {
-  if (has_any_permission($codes)) return true;
-  echo '<div class="mx-auto max-w-3xl px-4 py-10">';
-  echo '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">';
-  echo '<div class="text-lg font-black">Access Denied</div>';
-  echo '<div class="mt-1 text-sm font-bold">' . htmlspecialchars($message) . '</div>';
-  echo '</div>';
-  echo '</div>';
-  return false;
 }

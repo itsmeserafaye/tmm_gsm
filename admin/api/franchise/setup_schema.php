@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
-if (php_sapi_name() !== 'cli') require_role(['SuperAdmin']);
 
 // Add expiry_date to endorsement_records if not exists
 $check = $db->query("SHOW COLUMNS FROM endorsement_records LIKE 'expiry_date'");

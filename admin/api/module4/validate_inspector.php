@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
 $id = (int)($_POST['officer_id'] ?? 0);
 $badge = trim($_POST['badge_no'] ?? '');
 if ($id <= 0 && $badge === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_identifier']); exit; }
