@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 
 header('Content-Type: application/json');
+require_permission('module2.franchises.manage');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);

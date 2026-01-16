@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
 $db = db();
 $plate = trim($_GET['plate'] ?? '');
 $v = null;

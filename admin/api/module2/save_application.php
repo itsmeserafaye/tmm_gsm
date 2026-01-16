@@ -1,8 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/lptrp.php';
 $db = db();
 
 header('Content-Type: application/json');
+require_permission('module2.franchises.manage');
 ini_set('display_errors', '0');
 error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
 
@@ -45,6 +48,10 @@ if ($coop) {
 $route_res = $db->query("SELECT * FROM lptrp_routes WHERE id = $route_id");
 $route = $route_res ? $route_res->fetch_assoc() : null;
 if ($route) {
+    if (!tmm_lptrp_is_approved($route)) {
+        $lptrp_status = 'Failed';
+        $validation_notes[] = "Route is not LPTRP-approved.";
+    }
     $projected = $route['current_vehicle_count'] + $vehicle_count;
     if ($projected > $route['max_vehicle_capacity']) {
         $lptrp_status = 'Failed';

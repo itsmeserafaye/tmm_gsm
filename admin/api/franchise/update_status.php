@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('module2.franchises.manage');
 $id = (int)($_POST['application_id'] ?? 0);
 $status = trim($_POST['status'] ?? '');
 $permit = trim($_POST['permit_number'] ?? '');

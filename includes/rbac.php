@@ -20,6 +20,19 @@ function rbac_ensure_schema(mysqli $db) {
     INDEX idx_status (status)
   ) ENGINE=InnoDB");
 
+  $db->query("CREATE TABLE IF NOT EXISTS user_profiles (
+    user_id INT NOT NULL PRIMARY KEY,
+    birthdate DATE DEFAULT NULL,
+    mobile VARCHAR(32) DEFAULT NULL,
+    address_line VARCHAR(255) DEFAULT NULL,
+    house_number VARCHAR(64) DEFAULT NULL,
+    street VARCHAR(128) DEFAULT NULL,
+    barangay VARCHAR(128) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES rbac_users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
   $db->query("CREATE TABLE IF NOT EXISTS rbac_roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL UNIQUE,
@@ -64,6 +77,7 @@ function rbac_ensure_schema(mysqli $db) {
 
   rbac_seed_roles_permissions($db);
   rbac_seed_default_admin($db);
+  rbac_migrate_commuter_role($db);
 }
 
 function rbac_seed_roles_permissions(mysqli $db) {
@@ -75,6 +89,7 @@ function rbac_seed_roles_permissions(mysqli $db) {
     ['Treasurer', 'City Treasurer cashier / payment verification role'],
     ['ParkingStaff', 'Parking operations staff role'],
     ['Viewer', 'Read-only executive / monitoring role'],
+    ['Commuter', 'Citizen portal account (no admin access)'],
   ];
   foreach ($roles as $r) {
     $stmt = $db->prepare("INSERT IGNORE INTO rbac_roles(name, description) VALUES(?, ?)");
@@ -88,6 +103,12 @@ function rbac_seed_roles_permissions(mysqli $db) {
   $perms = [
     ['dashboard.view', 'View dashboards and overview screens'],
     ['analytics.view', 'View analytics and AI insights'],
+    ['analytics.train', 'Create/update demand observation logs for forecasting'],
+    ['module1.view', 'View Module 1 screens (read-only)'],
+    ['module2.view', 'View Module 2 screens (read-only)'],
+    ['module3.view', 'View Module 3 screens (read-only)'],
+    ['module4.view', 'View Module 4 screens (read-only)'],
+    ['module5.view', 'View Module 5 screens (read-only)'],
     ['module1.vehicles.write', 'Create and update vehicle records'],
     ['module1.routes.write', 'Create and update route records'],
     ['module1.coops.write', 'Create and update cooperative records'],
@@ -111,12 +132,12 @@ function rbac_seed_roles_permissions(mysqli $db) {
 
   $rolePerms = [
     'SuperAdmin' => array_map(function ($p) { return $p[0]; }, $perms),
-    'Admin' => ['dashboard.view','analytics.view','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
+    'Admin' => ['dashboard.view','analytics.view','analytics.train','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
     'Encoder' => ['dashboard.view','module1.vehicles.write','module1.routes.write','module1.coops.write','reports.export'],
     'Inspector' => ['dashboard.view','analytics.view','module4.inspections.manage','tickets.issue'],
     'Treasurer' => ['dashboard.view','tickets.settle','reports.export'],
-    'ParkingStaff' => ['dashboard.view','parking.manage','tickets.issue'],
-    'Viewer' => ['dashboard.view','analytics.view','reports.export'],
+    'ParkingStaff' => ['dashboard.view','parking.manage'],
+    'Viewer' => ['dashboard.view','analytics.view','module1.view','module2.view','module3.view','module4.view','module5.view'],
   ];
 
   foreach ($rolePerms as $roleName => $permCodes) {
@@ -131,6 +152,28 @@ function rbac_seed_roles_permissions(mysqli $db) {
         $stmt->execute();
         $stmt->close();
       }
+    }
+  }
+
+  $parkingRoleId = rbac_role_id($db, 'ParkingStaff');
+  $ticketsIssuePermId = rbac_permission_id($db, 'tickets.issue');
+  if ($parkingRoleId && $ticketsIssuePermId) {
+    $stmtDel = $db->prepare("DELETE FROM rbac_role_permissions WHERE role_id=? AND permission_id=?");
+    if ($stmtDel) {
+      $stmtDel->bind_param('ii', $parkingRoleId, $ticketsIssuePermId);
+      $stmtDel->execute();
+      $stmtDel->close();
+    }
+  }
+
+  $viewerRoleId = rbac_role_id($db, 'Viewer');
+  $reportsExportPermId = rbac_permission_id($db, 'reports.export');
+  if ($viewerRoleId && $reportsExportPermId) {
+    $stmtDel = $db->prepare("DELETE FROM rbac_role_permissions WHERE role_id=? AND permission_id=?");
+    if ($stmtDel) {
+      $stmtDel->bind_param('ii', $viewerRoleId, $reportsExportPermId);
+      $stmtDel->execute();
+      $stmtDel->close();
     }
   }
 }
@@ -234,11 +277,32 @@ function rbac_get_user_permissions(mysqli $db, int $userId) {
 }
 
 function rbac_primary_role(array $roles) {
-  $priority = ['SuperAdmin', 'Admin', 'Encoder', 'Inspector', 'Treasurer', 'ParkingStaff', 'Viewer'];
+  $priority = ['SuperAdmin', 'Admin', 'Encoder', 'Inspector', 'Treasurer', 'ParkingStaff', 'Viewer', 'Commuter'];
   foreach ($priority as $p) {
     if (in_array($p, $roles, true)) return $p;
   }
   return $roles[0] ?? 'Viewer';
+}
+
+function rbac_migrate_commuter_role(mysqli $db): void {
+  $commuterId = rbac_role_id($db, 'Commuter');
+  $viewerId = rbac_role_id($db, 'Viewer');
+  if (!$commuterId || !$viewerId) return;
+
+  $db->query("
+    INSERT IGNORE INTO rbac_user_roles(user_id, role_id)
+    SELECT ur.user_id, $commuterId
+    FROM rbac_user_roles ur
+    JOIN user_profiles p ON p.user_id=ur.user_id
+    WHERE ur.role_id = $viewerId
+  ");
+
+  $db->query("
+    DELETE urv
+    FROM rbac_user_roles urv
+    JOIN rbac_user_roles urc ON urc.user_id=urv.user_id AND urc.role_id=$commuterId
+    WHERE urv.role_id=$viewerId
+  ");
 }
 
 function rbac_write_login_audit(mysqli $db, ?int $userId, ?string $email, bool $ok) {

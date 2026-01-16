@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('module4.inspections.manage');
 $scheduleId = (int)($_POST['schedule_id'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
 $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : [];

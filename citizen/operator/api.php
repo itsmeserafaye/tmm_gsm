@@ -1,227 +1,365 @@
 <?php
-// Standalone DB connection to avoid legacy schema migration issues
-function get_db() {
-    static $conn;
-    if ($conn) return $conn;
-    $host = '127.0.0.1';
-    $user = 'root';
-    $pass = '';
-    $name = 'tmm';
-    $conn = @new mysqli($host, $user, $pass, $name);
-    if ($conn->connect_error) {
-        $conn = @new mysqli($host, $user, $pass);
-        if ($conn->connect_error) { die(json_encode(['ok'=>false, 'error'=>'DB Connection Error'])); }
-        $conn->query("CREATE DATABASE IF NOT EXISTS `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        $conn->select_db($name);
-    }
-    $conn->set_charset('utf8mb4');
-
-    // Auto-create tables if they don't exist
-    $conn->query("CREATE TABLE IF NOT EXISTS `operators` (
-        `id` INT AUTO_INCREMENT PRIMARY KEY,
-        `name` VARCHAR(100) NOT NULL,
-        `email` VARCHAR(100) UNIQUE NOT NULL,
-        `password` VARCHAR(255) NOT NULL,
-        `contact_info` VARCHAR(50),
-        `association_name` VARCHAR(100),
-        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS `franchise_applications` (
-        `id` INT AUTO_INCREMENT PRIMARY KEY,
-        `franchise_ref_number` VARCHAR(50) UNIQUE NOT NULL,
-        `operator_id` INT NOT NULL,
-        `type` VARCHAR(50) NOT NULL DEFAULT 'Franchise Endorsement',
-        `status` VARCHAR(20) DEFAULT 'Pending',
-        `notes` TEXT,
-        `documents` TEXT,
-        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
-
-    $conn->query("CREATE TABLE IF NOT EXISTS `vehicles` (
-        `id` INT AUTO_INCREMENT PRIMARY KEY,
-        `operator_name` VARCHAR(100),
-        `plate_number` VARCHAR(20) NOT NULL,
-        `status` VARCHAR(20) DEFAULT 'Active',
-        `inspection_status` VARCHAR(20) DEFAULT 'Valid',
-        `inspection_last_date` DATE,
-        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )");
-
-    // Seed default operator if not exists
-    $res = $conn->query("SELECT id FROM operators WHERE id = 1");
-    if ($res->num_rows == 0) {
-        $conn->query("INSERT INTO operators (id, name, email, password, contact_info, association_name) VALUES (1, 'Juan Dela Cruz', 'juan@example.com', '123456', '09123456789', 'Pasig Transport Coop')");
-    }
-
-    return $conn;
-}
+if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+require_once __DIR__ . '/../../admin/includes/db.php';
+require_once __DIR__ . '/../../includes/operator_portal.php';
 
 header('Content-Type: application/json');
 
-$db = get_db();
-$action = $_REQUEST['action'] ?? '';
+if (empty($_SESSION['operator_user_id'])) {
+  http_response_code(401);
+  echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+  exit;
+}
 
-// --- MOCK USER SESSION (Assume Operator ID 1) ---
-$operator_id = 1;
+if (empty($_SESSION['operator_csrf'])) {
+  $_SESSION['operator_csrf'] = bin2hex(random_bytes(32));
+}
+
+$db = db();
+$action = (string)($_REQUEST['action'] ?? '');
+$userId = (int)$_SESSION['operator_user_id'];
+$activePlate = strtoupper((string)($_SESSION['operator_plate'] ?? ''));
+
+function op_send(bool $ok, array $payload = [], int $code = 200): void {
+  http_response_code($code);
+  echo json_encode(array_merge(['ok' => $ok], $payload));
+  exit;
+}
+
+function op_require_csrf(): void {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') return;
+  $token = (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? ''));
+  $sess = (string)($_SESSION['operator_csrf'] ?? '');
+  if ($token === '' || $sess === '' || !hash_equals($sess, $token)) {
+    op_send(false, ['error' => 'Invalid request. Please refresh and try again.'], 403);
+  }
+}
+
+function op_user_plates(mysqli $db, int $userId): array {
+  $plates = [];
+  $stmt = $db->prepare("SELECT plate_number FROM operator_portal_user_plates WHERE user_id=?");
+  if (!$stmt) return $plates;
+  $stmt->bind_param('i', $userId);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  if ($res) {
+    while ($row = $res->fetch_assoc()) {
+      $plates[] = (string)$row['plate_number'];
+    }
+  }
+  $stmt->close();
+  return $plates;
+}
+
+if ($action === 'get_session') {
+  $plates = op_user_plates($db, $userId);
+  op_send(true, ['data' => [
+    'active_plate' => $activePlate,
+    'plates' => $plates,
+    'csrf_token' => (string)($_SESSION['operator_csrf'] ?? ''),
+  ]]);
+}
+
+if ($action === 'set_active_plate') {
+  op_require_csrf();
+  $plate = strtoupper(trim((string)($_POST['plate_number'] ?? '')));
+  if ($plate === '') op_send(false, ['error' => 'Missing plate number'], 400);
+  $plates = op_user_plates($db, $userId);
+  if (!in_array($plate, $plates, true)) op_send(false, ['error' => 'Plate is not assigned to this account.'], 403);
+  $_SESSION['operator_plate'] = $plate;
+  op_send(true, ['data' => ['active_plate' => $plate]]);
+}
 
 if ($action === 'get_dashboard_stats') {
-    // 1. Pending Apps
-    $resApps = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE operator_id = $operator_id AND status = 'Pending'");
-    $pendingApps = $resApps ? $resApps->fetch_assoc()['c'] : 0;
+  $plates = op_user_plates($db, $userId);
+  if (!$plates) op_send(true, ['data' => ['pending_apps' => 0, 'active_vehicles' => 0, 'compliance_alerts' => 0]]);
 
-    // 2. Active Vehicles
-    // Assuming vshiules table masing vehic_es ta(should ldeally u e operahor_id,ab t uoperaame (for now bshed onolxistalgly use o
-    // We need to fetch operator name firstperator_id, but using name for now based on existing schema)
-    // We need to fetch operator first
-    $resOp = $db->query("SELECT name FROM operators WHERE id = $operat");
-    $opName = $resOp && $resOp->num_rows > 0 ? $resOp->fetch_assoc()['name'] : 'Test Operator';
-    
-    $resVeh = $db->query("SELECT COUNT(*) as c FROM vehicles WHERE operator_name = '$opName' AND status = 'Active'");
-    $activeVehicles = $resVeh ? $resVeh->fetch_assoc()['c'] : 0;
+  $in = implode(',', array_fill(0, count($plates), '?'));
+  $types = str_repeat('s', count($plates));
 
-    // 3. Compliance Alerts (Expired Inspections)
-    $resAlerts = $db->query("SELECT COUNT(*) as c FROM vehicles WHERE operator_name = '$opName' AND (inspection_status = 'Expired' OR inspection_last_date < NOW())");
-    $complianceAlerts = $resAlerts ? $resAlerts->fetch_assoc()['c'] : 0;
-
-    echo json_encode(['ok' => true, 'data' => [
-        'pending_apps' => $pendingApps,
-        'active_vehicles' => $activeVehicles,
-        'compliance_alerts' => $complianceAlerts
-    ]]);
-    exit;
-}
-
-if ($action === 'submit_application') {
-    $type = $_POST['type'] ?? '';
-    $notes = $_POST['notes'] ?? '';
-    
-    if (!$type) {
-        echo json_encode(['ok' => false, 'error' => 'Application type required']);
-        exit;
-    }
-
-    $filePaths = [];
-    if (!empty($_FILES)) {
-        $targetDir = __DIR__ . '/uploads/';
-        if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
-
-        foreach ($_FILES as $key => $file) {
-            if ($file['error'] === UPLOAD_ERR_OK) {
-                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'app_' . time() . '_' . uniqid() . '.' . $ext;
-                if (move_uploaded_file($file['tmp_name'], $targetDir . $filename)) {
-                    $filePaths[] = 'uploads/' . $filename;
-                }
-            }
-        }
-    }
-
-    // Determine table based on type
-    $ref = 'APP-' . strtoupper(uniqid());
-    $docsJson = json_encode($filePaths);
-    
-    $stmt = $db->prepare("INSERT INTO franchise_applications (franchise_ref_number, operator_id, type, status, notes, documents) VALUES (?, ?, ?, 'Pending', ?, ?)");
-    $stmt->bind_param('sisss', $ref, $operator_id, $type, $notes, $docsJson);
+  $pending = 0;
+  $stmt = $db->prepare("SELECT COUNT(*) AS c FROM operator_portal_applications WHERE user_id=? AND status='Pending'");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
     $stmt->execute();
+    $res = $stmt->get_result();
+    $pending = (int)(($res && ($r = $res->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+    $stmt->close();
+  }
 
-    echo json_encode(['ok' => true, 'ref' => $ref]);
-    exit;
-}
+  $activeVehicles = 0;
+  $sql = "SELECT COUNT(*) AS c FROM vehicles WHERE plate_number IN ($in) AND status='Active'";
+  $stmt = $db->prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param($types, ...$plates);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $activeVehicles = (int)(($res && ($r = $res->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+    $stmt->close();
+  }
 
-if ($action === 'get_fleet_statufull_s') {
-    $resOp = $db->query("SELECT name FROM operators WHERE id = $operatfull_or_id");
-    $opName = $resOp && $resOp->num_rows > 0 ? $resOp->fetch_assoc()['name'] : 'Test Operator';
+  $alerts = 0;
+  $sql = "SELECT COUNT(*) AS c FROM vehicles WHERE plate_number IN ($in) AND (inspection_status IS NULL OR inspection_status <> 'Passed')";
+  $stmt = $db->prepare($sql);
+  if ($stmt) {
+    $stmt->bind_param($types, ...$plates);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $alerts = (int)(($res && ($r = $res->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+    $stmt->close();
+  }
 
-    $sql = "SELECT plate_number, status, inspection_status, inspection_last_date FROM vehicles WHERE operator_name = '$opName'";
-    $res = $db->query($sql);
-    $rows = [];
-    while ($row = $res->fetch_assoc()) {
-        $rows[] = $row;
-    }
-    echo json_encode(['ok' => true, 'data' => $rows]);
-    exit;
+  op_send(true, ['data' => ['pending_apps' => $pending, 'active_vehicles' => $activeVehicles, 'compliance_alerts' => $alerts]]);
 }
 
 if ($action === 'get_ai_insights') {
-    // Mocking Python Forecasting Service
-    $insights = [
-        [
-            'title' => 'High Demand Alert',
-            'desc' => 'Expected passenger surge at Central Terminal (5:00 PM - 7:00 PM).',
-            'type' => 'high'
-        ],
-        [
-            'title' => 'Route Capacity',
-            'desc' => 'Route R-12 is currently at 85% capacity. Consider dispatching 2 extra units.',
-            'type' => 'medium'
-        ]
+  $plates = op_user_plates($db, $userId);
+  $insights = [];
+
+  if ($plates) {
+    $in = implode(',', array_fill(0, count($plates), '?'));
+    $types = str_repeat('s', count($plates));
+
+    $bad = 0;
+    $stmt = $db->prepare("SELECT COUNT(*) AS c FROM vehicles WHERE plate_number IN ($in) AND (inspection_status IS NULL OR inspection_status <> 'Passed')");
+    if ($stmt) {
+      $stmt->bind_param($types, ...$plates);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      $bad = (int)(($res && ($r = $res->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+      $stmt->close();
+    }
+    if ($bad > 0) {
+      $insights[] = [
+        'title' => 'Compliance Alert',
+        'desc' => $bad . ' vehicle(s) have not passed inspection. Consider scheduling inspection to avoid restrictions.',
+        'type' => 'high',
+      ];
+    } else {
+      $insights[] = [
+        'title' => 'Compliance Status',
+        'desc' => 'All vehicles show Passed inspection status in the system.',
+        'type' => 'low',
+      ];
+    }
+
+    $terminals = [];
+    $stmtT = $db->prepare("SELECT DISTINCT terminal_name FROM terminal_assignments WHERE plate_number IN ($in) AND terminal_name IS NOT NULL AND terminal_name <> ''");
+    if ($stmtT) {
+      $stmtT->bind_param($types, ...$plates);
+      $stmtT->execute();
+      $resT = $stmtT->get_result();
+      while ($resT && ($row = $resT->fetch_assoc())) $terminals[] = (string)($row['terminal_name'] ?? '');
+      $stmtT->close();
+    }
+
+    if ($terminals) {
+      $insightsPayload = null;
+      try {
+        $savedGet = $_GET;
+        $_GET = ['area_type' => 'terminal', 'hours' => '24'];
+        ob_start();
+        include __DIR__ . '/../../admin/api/analytics/demand_insights.php';
+        $raw = ob_get_clean();
+        $_GET = $savedGet;
+        $insightsPayload = json_decode((string)$raw, true);
+      } catch (Throwable $e) {
+        $insightsPayload = null;
+      }
+
+      if (is_array($insightsPayload) && ($insightsPayload['ok'] ?? false) && !empty($insightsPayload['hotspots']) && is_array($insightsPayload['hotspots'])) {
+        foreach ($insightsPayload['hotspots'] as $h) {
+          if (!is_array($h)) continue;
+          $label = (string)($h['area_label'] ?? '');
+          if ($label === '' || !in_array($label, $terminals, true)) continue;
+          $sev = (string)($h['severity'] ?? 'medium');
+          $extra = $h['recommended_extra_units'] ?? null;
+          $drivers = $h['drivers'] ?? [];
+          $driversText = (is_array($drivers) && $drivers) ? (' Drivers: ' . implode(' • ', array_slice($drivers, 0, 2)) . '.') : '';
+          $extraText = (is_numeric($extra) && (int)$extra > 0) ? (' Suggested: +' . (int)$extra . ' units.') : '';
+          $insights[] = [
+            'title' => 'Demand Hotspot: ' . $label,
+            'desc' => 'Predicted spike at ' . (string)($h['peak_hour'] ?? '') . '. ' . $extraText . $driversText,
+            'type' => $sev === 'critical' || $sev === 'high' ? 'high' : 'medium',
+            'route_plan' => $h['route_plan'] ?? [],
+          ];
+        }
+      }
+    }
+  }
+
+  if (!$insights) {
+    $insights[] = [
+      'title' => 'AI Insights',
+      'desc' => 'No personalized insights are available yet. Add more operational logs to improve recommendations.',
+      'type' => 'low',
     ];
-    echo json_encode(['ok' => true, 'data' => $insights]);
-    exit;
+  }
+
+  op_send(true, ['data' => array_slice($insights, 0, 6)]);
+}
+
+if ($action === 'get_fleet_status') {
+  $plates = op_user_plates($db, $userId);
+  if (!$plates) op_send(true, ['data' => []]);
+  $in = implode(',', array_fill(0, count($plates), '?'));
+  $types = str_repeat('s', count($plates));
+
+  $sql = "SELECT plate_number, status, inspection_status, inspection_passed_at FROM vehicles WHERE plate_number IN ($in) ORDER BY plate_number ASC";
+  $stmt = $db->prepare($sql);
+  if (!$stmt) op_send(false, ['error' => 'Query failed'], 500);
+  $stmt->bind_param($types, ...$plates);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $rows = [];
+  if ($res) {
+    while ($row = $res->fetch_assoc()) {
+      $rows[] = [
+        'plate_number' => $row['plate_number'],
+        'status' => $row['status'] ?? 'Active',
+        'inspection_status' => $row['inspection_status'] ?? null,
+        'inspection_last_date' => $row['inspection_passed_at'] ? substr((string)$row['inspection_passed_at'], 0, 10) : null,
+      ];
+    }
+  }
+  $stmt->close();
+  op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'get_applications') {
+  $rows = [];
+  $stmt = $db->prepare("SELECT id, plate_number, type, status, notes, created_at FROM operator_portal_applications WHERE user_id=? ORDER BY created_at DESC LIMIT 20");
+  if (!$stmt) op_send(false, ['error' => 'Query failed'], 500);
+  $stmt->bind_param('i', $userId);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  while ($res && ($r = $res->fetch_assoc())) {
+    $rows[] = [
+      'id' => (int)($r['id'] ?? 0),
+      'plate_number' => (string)($r['plate_number'] ?? ''),
+      'type' => (string)($r['type'] ?? ''),
+      'status' => (string)($r['status'] ?? ''),
+      'notes' => (string)($r['notes'] ?? ''),
+      'created_at' => (string)($r['created_at'] ?? ''),
+    ];
+  }
+  $stmt->close();
+  op_send(true, ['data' => $rows]);
 }
 
 if ($action === 'get_profile') {
-    $res = $db->query("SELECT * FROM operators WHERE id = $operator_id");
-    if ($res && $row = $res->fetch_assoc()) {
-        // Ensure we don't send password back
-        echo json_encode(['ok' => true, 'data' => [
-            'name' => $row['full_name'],
-            'email' => $row['email'],
-            'contact_info' => $row['contact_info'],
-            'association_name' => $row['coop_name']
-        ]]);
-    } else {
-        // Return mock if no DB record found
-        echo json_encode(['ok' => true, 'data' => [
-            'name' => 'Juan Dela Cruz (Mock)',
-            'email' => 'juan@example.com',
-            'contact_info' => '09123456789',
-            'association_name' => 'Pasig Transport Coop'
-        ]]);
-    }
-    exit;
+  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name FROM operator_portal_users WHERE id=? LIMIT 1");
+  if (!$stmt) op_send(false, ['error' => 'Query failed'], 500);
+  $stmt->bind_param('i', $userId);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $row = $res ? $res->fetch_assoc() : null;
+  $stmt->close();
+  op_send(true, ['data' => [
+    'name' => $row['full_name'] ?? 'Operator',
+    'email' => $row['email'] ?? ($_SESSION['operator_email'] ?? ''),
+    'contact_info' => $row['contact_info'] ?? '',
+    'association_name' => $row['association_name'] ?? '',
+    'plate_number' => $activePlate,
+  ]]);
 }
 
 if ($action === 'update_profile') {
-    $name = $_POST['name'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $contact = $_POST['contact_info'] ?? '';
-    $current_pass = $_POST['current_password'] ?? '';
-    $new_pass = $_POST['new_password'] ?? '';
+  op_require_csrf();
+  $name = trim((string)($_POST['name'] ?? ''));
+  $email = strtolower(trim((string)($_POST['email'] ?? '')));
+  $contact = trim((string)($_POST['contact_info'] ?? ''));
+  $currentPass = (string)($_POST['current_password'] ?? '');
+  $newPass = (string)($_POST['new_password'] ?? '');
 
-    // Verify current password (MOCK: Accept any password for now, or '123456')
-    if (empty($current_pass)) {
-        echo json_encode(['ok' => false, 'error' => 'Current password is required to save changes.']);
-        exit;
-    }
+  $stmt = $db->prepare("SELECT email, password_hash FROM operator_portal_users WHERE id=? LIMIT 1");
+  if (!$stmt) op_send(false, ['error' => 'Update failed'], 500);
+  $stmt->bind_param('i', $userId);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $user = $res ? $res->fetch_assoc() : null;
+  $stmt->close();
+  if (!$user) op_send(false, ['error' => 'Update failed'], 500);
+  if ($currentPass === '' || !password_verify($currentPass, (string)($user['password_hash'] ?? ''))) {
+    op_send(false, ['error' => 'Current password is incorrect.'], 400);
+  }
 
-    // Prepare SQL updates (Use full_name and coop_name)
-    $updates = "full_name = ?, email = ?, contact_info = ?";
-    $types = "sss";
-    $params = [$name, $email, $contact];
+  $setPwd = false;
+  $pwdHash = '';
+  if ($newPass !== '') {
+    if (strlen($newPass) < 10) op_send(false, ['error' => 'New password must be at least 10 characters.'], 400);
+    $pwdHash = password_hash($newPass, PASSWORD_DEFAULT);
+    if ($pwdHash === false) op_send(false, ['error' => 'Failed to set password.'], 500);
+    $setPwd = true;
+  }
 
-    if (!empty($new_pass)) {
-        // In a real app, hash the password
-        $updates .= ", password = ?";
-        $types .= "s";
-        $params[] = password_hash($new_pass, PASSWORD_DEFAULT);
-    }
+  if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) op_send(false, ['error' => 'Invalid email.'], 400);
 
-    $params[] = $operator_id;
-    $types .= "i";
+  if ($setPwd) {
+    $stmt = $db->prepare("UPDATE operator_portal_users SET full_name=?, email=?, contact_info=?, password_hash=? WHERE id=?");
+    if (!$stmt) op_send(false, ['error' => 'Update failed'], 500);
+    $stmt->bind_param('ssssi', $name, $email, $contact, $pwdHash, $userId);
+  } else {
+    $stmt = $db->prepare("UPDATE operator_portal_users SET full_name=?, email=?, contact_info=? WHERE id=?");
+    if (!$stmt) op_send(false, ['error' => 'Update failed'], 500);
+    $stmt->bind_param('sssi', $name, $email, $contact, $userId);
+  }
 
-    $stmt = $db->prepare("UPDATE operators SET $updates WHERE id = ?");
-    $stmt->bind_param($types, ...$params);
-    
-    if ($stmt->execute()) {
-        echo json_encode(['ok' => true]);
-    } else {
-        // Fallback for mock environment if DB update fails (e.g. table doesn't exist)
-        echo json_encode(['ok' => true, 'mock_success' => true]);
-    }
-    exit;
+  try {
+    $ok = $stmt->execute();
+  } catch (mysqli_sql_exception $e) {
+    $stmt->close();
+    op_send(false, ['error' => 'Email is already in use.'], 409);
+  }
+  $stmt->close();
+  $_SESSION['operator_email'] = $email;
+  op_send(true, ['message' => 'Profile updated']);
 }
 
-echo json_encode(['ok' => false, 'error' => 'Invalid action']);
-?>
+if ($action === 'submit_application') {
+  op_require_csrf();
+  $type = trim((string)($_POST['type'] ?? ''));
+  $notes = trim((string)($_POST['notes'] ?? ''));
+  if ($type === '') op_send(false, ['error' => 'Application type required'], 400);
+
+  $plate = $activePlate;
+  if ($plate === '') op_send(false, ['error' => 'No active plate in session'], 400);
+  $plates = op_user_plates($db, $userId);
+  if (!in_array($plate, $plates, true)) op_send(false, ['error' => 'Active plate is not assigned to this account'], 403);
+
+  $filePaths = [];
+  if (!empty($_FILES)) {
+    $targetDir = __DIR__ . '/uploads/';
+    if (!is_dir($targetDir)) { @mkdir($targetDir, 0777, true); }
+    foreach ($_FILES as $file) {
+      if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+      if ((int)($file['size'] ?? 0) > (5 * 1024 * 1024)) continue;
+      $original = (string)($file['name'] ?? '');
+      $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+      $allowedExt = ['jpg','jpeg','png','pdf'];
+      if ($ext !== '' && !in_array($ext, $allowedExt, true)) continue;
+      $tmp = (string)($file['tmp_name'] ?? '');
+      if ($tmp === '' || !is_uploaded_file($tmp)) continue;
+      $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+      $mime = $finfo ? finfo_file($finfo, $tmp) : null;
+      if ($finfo) finfo_close($finfo);
+      $allowedMime = ['image/jpeg','image/png','application/pdf'];
+      if ($mime && !in_array($mime, $allowedMime, true)) continue;
+      $ext = pathinfo((string)($file['name'] ?? ''), PATHINFO_EXTENSION);
+      $filename = 'app_' . time() . '_' . bin2hex(random_bytes(4)) . ($ext !== '' ? ('.' . $ext) : '');
+      if (@move_uploaded_file((string)($file['tmp_name'] ?? ''), $targetDir . $filename)) {
+        $filePaths[] = 'uploads/' . $filename;
+      }
+    }
+  }
+
+  $docsJson = json_encode($filePaths);
+  $stmt = $db->prepare("INSERT INTO operator_portal_applications(user_id, plate_number, type, status, notes, documents) VALUES(?, ?, ?, 'Pending', ?, ?)");
+  if (!$stmt) op_send(false, ['error' => 'Submission failed'], 500);
+  $stmt->bind_param('issss', $userId, $plate, $type, $notes, $docsJson);
+  $stmt->execute();
+  $stmt->close();
+  op_send(true, ['ref' => 'OP-' . strtoupper(bin2hex(random_bytes(4)))]);
+}
+
+op_send(false, ['error' => 'Unknown action'], 400);

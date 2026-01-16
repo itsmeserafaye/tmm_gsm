@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('tickets.validate');
 
 $ticket = trim($_POST['ticket_number'] ?? '');
 $plate = strtoupper(trim($_POST['vehicle_plate'] ?? ''));
@@ -11,8 +13,9 @@ if ($ticket === '' && $plate === '') {
   exit;
 }
 
-$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR vehicle_plate = ? ORDER BY date_issued DESC LIMIT 1");
-$stmt->bind_param('ss', $ticket, $plate);
+$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR external_ticket_number = ? OR vehicle_plate = ? ORDER BY date_issued DESC LIMIT 1");
+$ticket2 = $ticket;
+$stmt->bind_param('sss', $ticket, $ticket2, $plate);
 $stmt->execute();
 $res = $stmt->get_result();
 

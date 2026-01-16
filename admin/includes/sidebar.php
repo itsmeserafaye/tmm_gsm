@@ -1,5 +1,31 @@
 <?php
 $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
+$tmm_nav_allowed = function (array $node): bool {
+  if (!empty($node['roles']) && is_array($node['roles'])) {
+    return in_array(current_user_role(), $node['roles'], true);
+  }
+  if (!empty($node['anyPermissions']) && is_array($node['anyPermissions'])) {
+    return has_any_permission($node['anyPermissions']);
+  }
+  return true;
+};
+
+$visibleSidebarItems = [];
+foreach ($sidebarItems as $item) {
+  $hasSubs = !empty($item['subItems']);
+  if ($hasSubs) {
+    $subs = [];
+    foreach ($item['subItems'] as $sub) {
+      if ($tmm_nav_allowed($sub)) $subs[] = $sub;
+    }
+    if (!$subs) continue;
+    $item['subItems'] = $subs;
+    $visibleSidebarItems[] = $item;
+  } else {
+    if (!$tmm_nav_allowed($item)) continue;
+    $visibleSidebarItems[] = $item;
+  }
+}
 ?>
 <div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col transition-transform duration-200">
   <div class="p-6">
@@ -13,7 +39,7 @@ $currentPath = isset($currentPath) ? $currentPath : '/dashboard';
   </div>
   <hr class="border-slate-200 dark:border-slate-700 mx-2">
   <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-    <?php foreach ($sidebarItems as $item): ?>
+    <?php foreach ($visibleSidebarItems as $item): ?>
       <?php
         $isActive = (isset($item['path']) && $item['path'] === $currentPath);
         $hasSubs = !empty($item['subItems']);

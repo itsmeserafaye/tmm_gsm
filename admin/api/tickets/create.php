@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+require_permission('tickets.issue');
 
 $violation = trim($_POST['violation_code'] ?? '');
 $plate = strtoupper(trim($_POST['vehicle_plate'] ?? ''));

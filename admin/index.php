@@ -12,6 +12,14 @@ $baseDir = __DIR__;
 require_once $baseDir . '/includes/auth.php';
 require_once $baseDir . '/includes/sidebar_items.php';
 
+if (php_sapi_name() !== 'cli') {
+  $role = current_user_role();
+  if ($role === 'Commuter') {
+    header('Location: ' . $rootUrl . '/citizen/commuter/index.php');
+    exit;
+  }
+}
+
 $page = isset($_GET['page']) ? trim($_GET['page'], '/') : 'dashboard';
 $page = preg_replace('/[^a-z0-9\/\-]/i', '', $page);
 $pagesRoot = $baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR;
@@ -21,6 +29,35 @@ if (!is_file($pageFile)) {
 }
 
 $currentPath = '/' . $page;
+$tmm_node_allowed = function (array $node): bool {
+  if (!empty($node['roles']) && is_array($node['roles'])) {
+    return in_array(current_user_role(), $node['roles'], true);
+  }
+  if (!empty($node['anyPermissions']) && is_array($node['anyPermissions'])) {
+    return has_any_permission($node['anyPermissions']);
+  }
+  return true;
+};
+
+$tmmDeniedMessage = null;
+foreach ($sidebarItems as $item) {
+  if (isset($item['path']) && $item['path'] === $currentPath) {
+    if (!$tmm_node_allowed($item)) $tmmDeniedMessage = 'You do not have access to this page.';
+    break;
+  }
+  if (!empty($item['subItems'])) {
+    foreach ($item['subItems'] as $sub) {
+      if ($sub['path'] === $currentPath) {
+        if (!$tmm_node_allowed($sub)) $tmmDeniedMessage = 'You do not have access to this page.';
+        break 2;
+      }
+    }
+  }
+}
+
+if ($tmmDeniedMessage !== null) {
+  $pageFile = $pagesRoot . 'forbidden.php';
+}
 $breadcrumb = ['Dashboard'];
 foreach ($sidebarItems as $item) {
   if (isset($item['path']) && $item['path'] === $currentPath) {

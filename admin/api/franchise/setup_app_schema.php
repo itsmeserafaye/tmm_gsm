@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
+if (php_sapi_name() !== 'cli') require_role(['SuperAdmin']);
 
 // 1. Add application_id to documents if missing
 $check = $db->query("SHOW COLUMNS FROM documents LIKE 'application_id'");

@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module4.view','module4.inspections.manage']);
 $db = db();
 $plateParam = trim($_GET['plate'] ?? '');
 $scheduleParam = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
@@ -18,6 +20,11 @@ $flashNotice = isset($_GET['notice']) ? trim($_GET['notice']) : '';
 $flashError = isset($_GET['error']) ? trim($_GET['error']) : '';
 
 // --- Action Handling ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !has_permission('module4.inspections.manage')) {
+  http_response_code(403);
+  echo 'forbidden';
+  exit;
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_doc_verification') {
   $scheduleIdPost = isset($_POST['schedule_id']) ? (int)$_POST['schedule_id'] : 0;
   $crVerifiedPost = !empty($_POST['cr_verified']) ? 1 : 0;

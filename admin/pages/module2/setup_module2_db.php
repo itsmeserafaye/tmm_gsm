@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/util.php';
 $db = db();
+if (php_sapi_name() !== 'cli') require_role(['SuperAdmin']);
 
 log_msg("Initializing Module 2 Database Tables...\n");
 
@@ -98,9 +100,10 @@ foreach ($columns_to_add_docs as $col => $def) {
     }
 }
 
+ $seedDemo = (string)($_GET['seed_demo'] ?? '') === '1';
 // Seed some LPTRP Data if empty
 $check_lptrp = $db->query("SELECT COUNT(*) as c FROM lptrp_routes");
-if ($check_lptrp && $check_lptrp->fetch_assoc()['c'] == 0) {
+if ($seedDemo && $check_lptrp && $check_lptrp->fetch_assoc()['c'] == 0) {
     $db->query("INSERT INTO lptrp_routes (route_code, route_name, start_point, end_point, max_vehicle_capacity, current_vehicle_count) VALUES 
     ('ROUTE-01', 'Downtown Loop', 'Central Terminal', 'Public Market', 50, 45),
     ('ROUTE-02', 'Uptown Express', 'Central Terminal', 'University Belt', 30, 10),
