@@ -9,21 +9,15 @@ $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
       </button>
       <div>
         <div class="hidden md:flex items-center space-x-1">
-          <h1 class="text-md font-bold dark:text-white">PUBLIC ASSETS & FACILITIES MANAGEMENT</h1>
+          <h1 class="text-md font-bold dark:text-white">TRANSPORT & MOBILITY MANAGEMENT</h1>
         </div>
         <div>
           <span class="text-xs text-slate-500 dark:text-slate-400 font-bold"><?php echo htmlspecialchars($crumbText); ?></span>
         </div>
       </div>
     </div>
-    <div class="flex-1 max-w-md mx-8">
-      <div class="relative">
-        <i data-lucide="search" class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
-        <input type="text" placeholder="Search..." class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-        <button class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
-          <i data-lucide="filter" class="w-5 h-5"></i>
-        </button>
-      </div>
+    <div class="flex-1 max-w-md mx-8 hidden">
+      <!-- Search bar removed -->
     </div>
     <div class="flex items-center space-x-1">
       <button class="relative rounded-xl p-2 text-slate-600 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer">

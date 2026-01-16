@@ -40,21 +40,21 @@ if ($resUnsettled && ($rowU = $resUnsettled->fetch_assoc()) && $rowU['total'] !=
   $unsettledFines = (float)$rowU['total'];
 }
 
-$resTopViolations = $db->query("SELECT violation_code, COUNT(*) AS cnt FROM tickets GROUP BY violation_code ORDER BY cnt DESC LIMIT 5");
+$resTopViolations = $db->query("SELECT COALESCE(NULLIF(sts_violation_code, ''), violation_code) AS violation_code, COUNT(*) AS cnt FROM tickets GROUP BY COALESCE(NULLIF(sts_violation_code, ''), violation_code) ORDER BY cnt DESC LIMIT 5");
 if ($resTopViolations) {
   while ($rowTV = $resTopViolations->fetch_assoc()) {
     $topViolations[] = $rowTV;
   }
 }
 
-$queue = $db->query("SELECT ticket_number, vehicle_plate, violation_code, status, fine_amount, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 5");
+$queue = $db->query("SELECT ticket_number, vehicle_plate, violation_code, sts_violation_code, is_sts_violation, status, fine_amount, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 5");
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-2 border-b border-slate-200 dark:border-slate-700 pb-6">
         <div>
-            <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Traffic Violation & Ticketing</h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Digital enforcement and citation management aligned with MMDA STS, with LGU workflows for issuance, payment, compliance, and reporting.</p>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Traffic Violation Monitoring (STS-Compliant)</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">STS-aligned local ticketing workflows for issuance, settlement, compliance, and reporting (not the official STS platform).</p>
         </div>
         <div class="flex gap-3">
             <a href="?page=module3/submodule1" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
@@ -142,7 +142,10 @@ $queue = $db->query("SELECT ticket_number, vehicle_plate, violation_code, status
                                         <div class="font-semibold text-slate-900 dark:text-white text-sm"><?php echo htmlspecialchars($row['ticket_number'] ?? ''); ?></div>
                                         <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             <?php echo htmlspecialchars($row['vehicle_plate'] ?? 'Unknown'); ?>
-                                            <?php if (!empty($row['violation_code'])): ?>
+                                            <?php if (!empty($row['is_sts_violation']) && !empty($row['sts_violation_code'])): ?>
+                                                <span class="text-slate-300">•</span>
+                                                <?php echo htmlspecialchars($row['sts_violation_code']); ?>
+                                            <?php elseif (!empty($row['violation_code'])): ?>
                                                 <span class="text-slate-300">•</span>
                                                 <?php echo htmlspecialchars($row['violation_code']); ?>
                                             <?php endif; ?>

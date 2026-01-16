@@ -11,8 +11,8 @@ if ($ticket === '' && $plate === '') {
   exit;
 }
 
-$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR vehicle_plate = ? ORDER BY date_issued DESC LIMIT 1");
-$stmt->bind_param('ss', $ticket, $plate);
+$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR sts_ticket_no = ? OR vehicle_plate = ? ORDER BY date_issued DESC LIMIT 1");
+$stmt->bind_param('sss', $ticket, $ticket, $plate);
 $stmt->execute();
 $res = $stmt->get_result();
 

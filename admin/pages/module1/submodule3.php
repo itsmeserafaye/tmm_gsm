@@ -323,6 +323,7 @@
 
       <!-- Routes Table -->
       <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+        <div class="overflow-x-auto">
         <table class="min-w-full text-sm text-left">
           <thead class="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">
             <tr>
@@ -372,6 +373,7 @@
             <?php endwhile; ?>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -444,10 +446,10 @@
           Current Assignments<?php echo $assignRouteIdRaw !== 'all' ? (' for ' . $assignRouteIdEsc) : ''; ?>
         </h3>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-slate-500 dark:text-slate-300">Route</span>
-          <select id="assignmentsRouteSelect" class="rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-300 whitespace-nowrap">Route</span>
+          <select id="assignmentsRouteSelect" class="w-full sm:w-auto rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900/50 px-3 py-2 text-sm font-semibold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
             <option value="all" <?php echo $assignRouteIdRaw === 'all' ? 'selected' : ''; ?>>All Routes</option>
             <?php if ($routesForAssignments): ?>
               <?php while ($ar = $routesForAssignments->fetch_assoc()): ?>
@@ -459,9 +461,9 @@
             <?php endif; ?>
           </select>
         </div>
-        <div class="relative">
+        <div class="relative w-full sm:w-auto">
           <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-          <input id="assignmentsFilterInput" type="text" placeholder="Filter vehicles..." class="pl-9 pr-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none w-64">
+          <input id="assignmentsFilterInput" type="text" placeholder="Filter vehicles..." class="w-full sm:w-64 pl-9 pr-4 py-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold text-slate-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Validation, Payment & Compliance</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Cross-validate ticket data, process payments, and monitor repeat offenders.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Validation & Settlement (STS-Aligned)</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Cross-validate ticket data, process payments, and monitor repeat offenders following STS standards.</p>
     </div>
     <div class="text-xs font-semibold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/30 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700">
       Data window: Last 30 days
@@ -226,8 +226,9 @@
                         data.items.slice(0, 5).forEach(item => {
                             const div = document.createElement('div');
                             div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
+                            const displayTicket = item.sts_ticket_no ? `${item.ticket_number} <span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded ml-1 font-mono">STS: ${item.sts_ticket_no}</span>` : item.ticket_number;
                             div.innerHTML = `
-                                <div class="font-bold text-slate-800 text-sm">${item.ticket_number}</div>
+                                <div class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${displayTicket}</div>
                                 <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}</div>
                             `;
                             div.addEventListener('click', () => {

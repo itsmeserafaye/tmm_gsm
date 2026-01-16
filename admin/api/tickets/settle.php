@@ -13,8 +13,8 @@ if ($ticket === '' || $amount <= 0) {
   exit;
 }
 
-$stmt = $db->prepare("SELECT ticket_id FROM tickets WHERE ticket_number = ?");
-$stmt->bind_param('s', $ticket);
+$stmt = $db->prepare("SELECT ticket_id FROM tickets WHERE ticket_number = ? OR sts_ticket_no = ? ORDER BY date_issued DESC LIMIT 1");
+$stmt->bind_param('ss', $ticket, $ticket);
 $stmt->execute();
 $res = $stmt->get_result();
 

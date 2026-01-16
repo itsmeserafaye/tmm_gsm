@@ -29,7 +29,7 @@ $sidebarItems = [
   ],
   [
     'id' => 'module3',
-    'label' => 'Traffic Violation & Ticketing',
+    'label' => 'Traffic Violation Monitoring (STS-Compliant)',
     'icon' => 'ticket',
     'subItems' => [
       ['id' => 'overview', 'label' => 'Overview', 'path' => '/module3/overview'],
