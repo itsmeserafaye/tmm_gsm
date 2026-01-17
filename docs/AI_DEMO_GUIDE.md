@@ -21,7 +21,7 @@ Your system solves the "Over/Under Deployment" problem by predicting passenger d
 Tell the panel: *"I will now simulate a dispatcher reporting a sudden crowd surge."*
 
 1.  Go to the **Data Inputs** form (Right side of dashboard).
-2.  **Select Area:** Choose "Terminal" -> "Central Integrated Terminal" (or your main terminal).
+2.  **Select Area:** Choose "Terminal" (or "Route") -> pick your main terminal/route.
 3.  **Select Hour:** Choose the *current hour* or the *next hour*.
 4.  **Enter Count:** Enter a high number (e.g., `150`) to simulate a surge.
 5.  **Click "Save Observation".**
@@ -43,6 +43,7 @@ Tell the panel: *"I will now simulate a dispatcher reporting a sudden crowd surg
 2.  Scroll to **"AI Insights"**.
     *   **Over-Demand Playbook:** Read one out: *"Deploy queue marshals"* or *"Stagger dispatch intervals"*.
     *   **Constraint Handling:** Emphasize this point: *"Since operators cannot switch routes, the AI suggests on-ground crowd management tactics instead of impossible route reassignments."*
+    *   **Traffic Impact:** If TomTom is configured, the AI also flags heavy congestion and nearby incidents that can slow dispatch/turnaround.
 
 ### Step E: Route Supply Snapshot
 1.  Look at the **Route Supply Snapshot** table.
@@ -57,6 +58,7 @@ If they ask "How does it work?":
 -   **External Factors:**
     -   **Weather:** Fetched via API. Heavy rain reduces predicted demand by 20% (configurable).
     -   **Events:** Holidays (fetched via Nager.Date API) treat the day like a Sunday (lower commuter demand).
+    -   **Traffic & Incidents:** TomTom traffic flow + incident feed helps explain delays that affect terminal turnaround and route headways.
 
 ## 4. Troubleshooting
 -   **"Why is the chart empty?"** -> Ensure you have selected a Terminal that has data.

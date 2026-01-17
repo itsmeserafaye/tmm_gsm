@@ -1,11 +1,8 @@
 <?php
 require_once __DIR__ . '/admin/includes/db.php';
-require_once __DIR__ . '/includes/rbac.php';
 require_once __DIR__ . '/includes/recaptcha.php';
-require_once __DIR__ . '/includes/operator_portal.php';
 
 $db = db();
-rbac_ensure_schema($db);
 
 $baseUrl = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
@@ -13,89 +10,26 @@ $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 $recaptchaCfg = recaptcha_config($db);
 $recaptchaSiteKey = (string)($recaptchaCfg['site_key'] ?? '');
 
-if (!isset($_SESSION['csrf_token'])) {
-  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-if (!empty($_SESSION['user_id'])) {
-  header('Location: ' . $baseUrl . '/admin/index.php');
+if (!empty($_SESSION['operator_user_id'])) {
+  header('Location: ' . $baseUrl . '/citizen/operator/index.php');
   exit;
 }
-
-$error = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $loginType = (string)($_POST['login_type'] ?? 'staff');
-  $token = $_POST['csrf_token'] ?? '';
-  if (!hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-    $error = 'Invalid request. Please try again.';
+if (!empty($_SESSION['user_id'])) {
+  $role = (string)($_SESSION['role'] ?? '');
+  if ($role === 'Commuter') {
+    header('Location: ' . $baseUrl . '/citizen/commuter/index.php');
   } else {
-    $email = strtolower(trim((string)($_POST['email'] ?? '')));
-    $password = (string)($_POST['password'] ?? '');
-
-    if ($loginType === 'operator') {
-      $plateNumber = strtoupper(trim((string)($_POST['plate_number'] ?? '')));
-      operator_portal_clear_session();
-      unset($_SESSION['user_id'], $_SESSION['email'], $_SESSION['name'], $_SESSION['role'], $_SESSION['roles'], $_SESSION['permissions']);
-      $res = operator_portal_login($db, $plateNumber, $email, $password);
-      if (!($res['ok'] ?? false)) {
-        $error = (string)($res['message'] ?? 'Invalid operator credentials.');
-      } else {
-        session_regenerate_id(true);
-        header('Location: ' . $baseUrl . '/citizen/operator/index.php');
-        exit;
-      }
-    } else {
-      if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '') {
-        $error = 'Please enter your email and password.';
-      } else {
-        $user = rbac_get_user_by_email($db, $email);
-        $ok = false;
-        if ($user && (($user['status'] ?? '') === 'Active') && password_verify($password, (string)($user['password_hash'] ?? ''))) {
-          $ok = true;
-          session_regenerate_id(true);
-          $userId = (int)$user['id'];
-          $roles = rbac_get_user_roles($db, $userId);
-          $perms = rbac_get_user_permissions($db, $userId);
-          $primaryRole = rbac_primary_role($roles);
-
-          operator_portal_clear_session();
-          $_SESSION['user_id'] = $userId;
-          $_SESSION['email'] = $user['email'];
-          $_SESSION['name'] = trim((string)($user['first_name'] ?? '') . ' ' . (string)($user['last_name'] ?? ''));
-          $_SESSION['role'] = $primaryRole;
-          $_SESSION['roles'] = $roles;
-          $_SESSION['permissions'] = $perms;
-
-          $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW() WHERE id=?");
-          if ($stmt) {
-            $stmt->bind_param('i', $userId);
-            $stmt->execute();
-            $stmt->close();
-          }
-          rbac_write_login_audit($db, $userId, $email, true);
-          if ($primaryRole === 'Commuter') {
-            header('Location: ' . $baseUrl . '/citizen/commuter/index.php');
-          } else {
-            header('Location: ' . $baseUrl . '/admin/index.php');
-          }
-          exit;
-        }
-        rbac_write_login_audit($db, $user ? (int)$user['id'] : null, $email !== '' ? $email : null, false);
-        if (!$ok) {
-          $error = 'Invalid email or password.';
-        }
-      }
-    }
+    header('Location: ' . $baseUrl . '/admin/index.php');
   }
+  exit;
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Government Services Management System - Login</title>
+  <title>GoServePH - Welcome</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -103,109 +37,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body class="bg-custom-bg min-h-screen flex flex-col">
-  <header class="py-2">
+  <header class="py-3">
     <div class="container mx-auto px-6">
       <div class="flex justify-between items-center">
         <div class="flex items-center space-x-4">
           <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg">
             <img src="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/GSM_logo.png" alt="GSM Logo" class="h-10 w-auto">
           </div>
-          <h1 class="text-3xl lg:text-4xl font-bold" style="font-weight: 700;">
-            <span class="brand-go">Go</span><span class="brand-serve">Serve</span><span class="brand-ph">PH</span>
-          </h1>
+          <div class="leading-tight">
+            <h1 class="text-xl lg:text-2xl font-bold" style="font-weight: 700;">
+              <span class="brand-go">Go</span><span class="brand-serve">Serve</span><span class="brand-ph">PH</span>
+            </h1>
+            <div class="text-xs text-slate-500">Abot-Kamay mo ang Serbisyong Publiko</div>
+          </div>
         </div>
-        <div class="text-right">
-          <div class="text-sm">
-            <div id="currentDateTime" class="font-semibold"></div>
+        <div class="flex items-center gap-8">
+          <nav class="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
+            <a href="#home" class="hover:text-custom-secondary">Home</a>
+            <a href="#systems" class="hover:text-custom-secondary">Systems</a>
+          </nav>
+          <div class="text-right">
+            <div class="text-sm">
+              <div id="currentDateTime" class="font-semibold"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </header>
 
-  <main class="container mx-auto px-6 pt-4 pb-12 flex-1">
-    <div class="grid lg:grid-cols-2 gap-12 items-center">
-      <div class="text-center lg:text-left mt-2">
-        <h2 class="text-4xl lg:text-5xl font-bold mb-4 animated-gradient ml-2 lg:ml-4">
-          Abot-Kamay mo ang Serbisyong Publiko!
-        </h2>
+  <main class="flex-1">
+    <section id="home" class="container mx-auto px-6 pt-6">
+      <div class="relative overflow-hidden rounded-2xl shadow-2xl">
+        <div class="absolute inset-0 bg-center bg-cover" style="background-image: url('<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/gsmbg.png');"></div>
+        <div class="absolute inset-0 bg-white/65"></div>
+        <div class="relative px-6 py-14 md:py-20">
+          <div class="flex flex-col items-center text-center">
+            <div class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-5">
+              <img src="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/GSM_logo.png" alt="GoServePH" class="h-16 md:h-20 w-auto">
+            </div>
+            <div class="text-5xl md:text-6xl font-extrabold tracking-tight">
+              <span class="brand-go">Go</span><span class="brand-serve">Serve</span><span class="brand-ph">PH</span>
+            </div>
+            <div class="mt-2 text-lg md:text-xl font-semibold text-slate-700">
+              Serbisyong Publiko, Abot-Kamay mo
+            </div>
+            <div class="mt-6">
+              <a href="#systems" class="inline-flex items-center gap-2 bg-custom-secondary text-white px-5 py-3 rounded-xl font-semibold btn-primary">
+                View systems
+                <i class="fas fa-arrow-down text-sm"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="systems" class="container mx-auto px-6 py-12">
+      <div class="text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">All Government Systems</h2>
+        <div class="mt-2 text-sm text-slate-600">Click any system to access its dedicated portal</div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-auto w-full glass-card glow-on-hover mt-8">
-        <?php if ($error !== ''): ?>
-          <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            <?php echo htmlspecialchars($error); ?>
+      <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <i class="fas fa-user-shield text-custom-secondary text-2xl"></i>
+            </div>
           </div>
-        <?php endif; ?>
-
-        <form id="loginForm" method="post" class="space-y-5 form-compact" autocomplete="on">
-          <input type="hidden" name="login_type" value="staff">
-          <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
-          <div>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="Enter e-mail address"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200"
-              required
-            >
+          <div class="mt-5 text-center">
+            <div class="text-lg font-bold text-slate-900">Staff Portal</div>
+            <div class="mt-1 text-sm text-slate-600">Administration and management access.</div>
+            <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff" class="mt-5 inline-flex items-center justify-center gap-2 text-custom-secondary font-semibold hover:underline">
+              Access System <i class="fas fa-arrow-right text-xs"></i>
+            </a>
           </div>
-          <div>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Enter password"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200"
-              required
-            >
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <i class="fas fa-bus text-custom-secondary text-2xl"></i>
+            </div>
           </div>
-
-          <div class="flex items-center justify-between text-sm">
-            <label class="inline-flex items-center gap-2 text-gray-700">
-              <input type="checkbox" id="rememberMe" class="h-4 w-4">
-              <span>Remember me</span>
-            </label>
-            <button type="button" id="openForgotPassword" class="text-custom-secondary hover:underline font-semibold">Forgot password?</button>
+          <div class="mt-5 text-center">
+            <div class="text-lg font-bold text-slate-900">Operator Portal</div>
+            <div class="mt-1 text-sm text-slate-600">PUV operator services. Plate number required.</div>
+            <div class="mt-5 flex items-center justify-center gap-4">
+              <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator" class="inline-flex items-center justify-center gap-2 text-custom-secondary font-semibold hover:underline">
+                Access System <i class="fas fa-arrow-right text-xs"></i>
+              </a>
+              <button type="button" id="btnOperatorRegisterOpen" class="text-custom-secondary font-semibold hover:underline">Register</button>
+            </div>
           </div>
-          <button
-            type="submit"
-            id="btnLoginSubmit"
-            class="w-full bg-custom-secondary text-white py-3 px-6 rounded-lg font-semibold btn-primary"
-            data-no-loading
-          >
-            Login
-          </button>
+        </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <button type="button" id="btnOperatorLoginOpen" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
-              Login as operator
-            </button>
-
-            <button type="button" id="btnOperatorRegisterOpen" class="w-full rounded-lg bg-white border border-gray-300 text-gray-700 py-3 text-sm font-semibold hover:bg-gray-50">
-              Register as operator
-            </button>
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
+          <div class="flex items-center justify-center">
+            <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <i class="fas fa-users text-custom-secondary text-2xl"></i>
+            </div>
           </div>
-
-          <div class="relative flex py-2 items-center">
-            <div class="flex-grow border-t border-gray-300"></div>
-            <span class="flex-shrink-0 mx-4 text-gray-400 text-sm">OR</span>
-            <div class="flex-grow border-t border-gray-300"></div>
+          <div class="mt-5 text-center">
+            <div class="text-lg font-bold text-slate-900">Commuter Portal</div>
+            <div class="mt-1 text-sm text-slate-600">Citizen services for commuters. No plate number required.</div>
+            <div class="mt-5 flex items-center justify-center gap-4">
+              <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=commuter" class="inline-flex items-center justify-center gap-2 text-custom-secondary font-semibold hover:underline">
+                Access System <i class="fas fa-arrow-right text-xs"></i>
+              </a>
+              <button type="button" id="showRegister" class="text-custom-secondary font-semibold hover:underline">Register</button>
+            </div>
           </div>
-
-          <button type="button" class="w-full bg-white text-gray-700 font-semibold py-3 px-6 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center transition-all duration-200 social-btn">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-3" alt="Google logo">
-            Continue with Google
-          </button>
-
-          <div class="text-center mt-4">
-            <span class="text-gray-600 text-sm">No account yet? </span>
-            <button type="button" id="showRegister" class="text-custom-secondary font-semibold text-sm hover:underline">Register here</button>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section class="container mx-auto px-6 pb-12">
+      <div class="relative overflow-hidden rounded-2xl shadow-xl">
+        <div class="absolute inset-0 bg-center bg-cover" style="background-image: url('<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/gsmbg.png');"></div>
+        <div class="absolute inset-0 bg-white/80"></div>
+        <div class="relative px-6 py-12">
+          <div class="text-center">
+            <div class="text-2xl md:text-3xl font-bold text-slate-900">Simple Access Process</div>
+          </div>
+          <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="text-center">
+              <div class="mx-auto w-12 h-12 rounded-full bg-custom-primary text-white flex items-center justify-center font-bold">1</div>
+              <div class="mt-3 font-semibold text-slate-900">Browse</div>
+              <div class="mt-1 text-sm text-slate-600">Find the service you need</div>
+            </div>
+            <div class="text-center">
+              <div class="mx-auto w-12 h-12 rounded-full bg-custom-secondary text-white flex items-center justify-center font-bold">2</div>
+              <div class="mt-3 font-semibold text-slate-900">Click</div>
+              <div class="mt-1 text-sm text-slate-600">Go directly to the system</div>
+            </div>
+            <div class="text-center">
+              <div class="mx-auto w-12 h-12 rounded-full bg-custom-accent text-white flex items-center justify-center font-bold">3</div>
+              <div class="mt-3 font-semibold text-slate-900">Use</div>
+              <div class="mt-1 text-sm text-slate-600">Access the specific service</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="bg-custom-primary text-white py-4 mt-8">
@@ -227,6 +202,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     </div>
   </footer>
+
+  <div class="fixed bottom-6 right-6 z-50">
+    <div class="bg-white border border-slate-200 shadow-lg rounded-lg p-1 flex items-center gap-1">
+      <button type="button" id="langEN" class="px-3 py-1.5 rounded-md text-xs font-bold bg-custom-primary text-white">EN</button>
+      <button type="button" id="langFIL" class="px-3 py-1.5 rounded-md text-xs font-bold text-slate-700 hover:bg-slate-100">FIL</button>
+    </div>
+  </div>
 
     <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
@@ -964,18 +946,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             button.addEventListener('click', handleSocialLogin);
         });
         
-        const emailInput = document.getElementById('email');
-        if (emailInput) {
-            emailInput.addEventListener('blur', validateEmail);
-            emailInput.addEventListener('input', clearEmailError);
-        }
-        
-        const passwordInput = document.getElementById('password');
-        if (passwordInput) {
-            passwordInput.addEventListener('blur', validatePassword);
-            passwordInput.addEventListener('input', clearPasswordError);
-        }
-        
         const showRegister = document.getElementById('showRegister');
         if (showRegister) {
             showRegister.addEventListener('click', showRegisterForm);
@@ -988,6 +958,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (registerForm) {
             registerForm.addEventListener('submit', handleRegisterSubmit);
         }
+
+        const langEN = document.getElementById('langEN');
+        const langFIL = document.getElementById('langFIL');
+        const applyLang = (lang) => {
+            try { localStorage.setItem('gsm_lang', lang); } catch (e) {}
+            if (langEN) langEN.className = 'px-3 py-1.5 rounded-md text-xs font-bold ' + (lang === 'EN' ? 'bg-custom-primary text-white' : 'text-slate-700 hover:bg-slate-100');
+            if (langFIL) langFIL.className = 'px-3 py-1.5 rounded-md text-xs font-bold ' + (lang === 'FIL' ? 'bg-custom-primary text-white' : 'text-slate-700 hover:bg-slate-100');
+        };
+        if (langEN) langEN.addEventListener('click', () => applyLang('EN'));
+        if (langFIL) langFIL.addEventListener('click', () => applyLang('FIL'));
+        try {
+            const saved = localStorage.getItem('gsm_lang');
+            applyLang(saved === 'FIL' ? 'FIL' : 'EN');
+        } catch (e) { applyLang('EN'); }
         
         // Registration Password Logic
         const regPassword = document.getElementById('regPassword');

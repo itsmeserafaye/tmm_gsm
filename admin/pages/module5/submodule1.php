@@ -19,6 +19,29 @@ require_any_permission(['module5.view','parking.manage']);
     $areaCapacityCol = $areaHasSlotCapacity ? 'slot_capacity' : 'max_slots';
 
     // --- Handle Actions ---
+    // 1. Self-Heal: Fix missing operator_ids in vehicles
+    $db->query("UPDATE vehicles v JOIN operators o ON v.operator_name = o.full_name SET v.operator_id = o.id WHERE v.operator_id IS NULL OR v.operator_id = 0");
+
+    // 2. Sync from Vehicles
+    $db->query("
+        INSERT IGNORE INTO terminal_area_operators (area_id, operator_id, assigned_at, status)
+        SELECT DISTINCT ta.id, v.operator_id, NOW(), 'Active'
+        FROM terminal_areas ta
+        JOIN vehicles v ON v.route_id = ta.route_name
+        WHERE v.operator_id > 0
+    ");
+
+    // 3. Sync from Franchise Applications (Endorsed)
+    // Syncs operators who have endorsed applications for the route
+    $db->query("
+        INSERT IGNORE INTO terminal_area_operators (area_id, operator_id, assigned_at, status)
+        SELECT DISTINCT ta.id, fa.operator_id, NOW(), 'Active'
+        FROM terminal_areas ta
+        JOIN routes r ON r.route_id = ta.route_name
+        JOIN franchise_applications fa ON FIND_IN_SET(r.id, fa.route_ids)
+        WHERE fa.status = 'Endorsed'
+    ");
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['action'])) {
             // ... (Keep existing PHP logic for Create/Update/Delete) ...

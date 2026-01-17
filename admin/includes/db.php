@@ -89,6 +89,13 @@ function db() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
+  if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
+    $conn->query("INSERT INTO routes(route_id, route_name, max_vehicle_limit, status) VALUES
+      ('R-12','Central Loop',50,'Active'),
+      ('R-08','East Corridor',30,'Active'),
+      ('R-05','North Spur',40,'Active')");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS app_settings (
     setting_key VARCHAR(64) PRIMARY KEY,
@@ -96,25 +103,14 @@ function db() {
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
   $conn->query("INSERT IGNORE INTO app_settings(setting_key, setting_value) VALUES
-    ('weather_lat','14.64953'),
-    ('weather_lon','120.96788'),
-    ('weather_label','Caloocan City, PH'),
-    ('traffic_provider','tomtom'),
-    ('tomtom_api_key',''),
-    ('traffic_bbox_km','5'),
-    ('traffic_cache_ttl','300'),
-    ('ai_traffic_congestion_threshold','0.25'),
-    ('ai_traffic_coeff','0.15'),
+    ('weather_lat','14.5995'),
+    ('weather_lon','120.9842'),
+    ('weather_label','Manila, PH'),
     ('events_country','PH'),
-    ('events_city','Caloocan City'),
+    ('events_city','Manila'),
     ('events_rss_url',''),
     ('recaptcha_site_key',''),
     ('recaptcha_secret_key','')");
-
-  $conn->query("UPDATE app_settings SET setting_value='14.64953' WHERE setting_key='weather_lat' AND setting_value='14.5995'");
-  $conn->query("UPDATE app_settings SET setting_value='120.96788' WHERE setting_key='weather_lon' AND setting_value='120.9842'");
-  $conn->query("UPDATE app_settings SET setting_value='Caloocan City, PH' WHERE setting_key='weather_label' AND setting_value='Manila, PH'");
-  $conn->query("UPDATE app_settings SET setting_value='Caloocan City' WHERE setting_key='events_city' AND setting_value='Manila'");
 
   $conn->query("CREATE TABLE IF NOT EXISTS external_data_cache (
     cache_key VARCHAR(190) PRIMARY KEY,
@@ -177,14 +173,7 @@ function db() {
     'validation_notes' => "TEXT",
     'lptrp_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'coop_status' => "VARCHAR(50) DEFAULT 'Pending'",
-    'assigned_officer_id' => "INT",
-    'permits_case_id' => "VARCHAR(64) DEFAULT NULL",
-    'permit_status' => "VARCHAR(32) DEFAULT NULL",
-    'permit_number' => "VARCHAR(64) DEFAULT NULL",
-    'permit_issued_date' => "DATE DEFAULT NULL",
-    'permit_expiry_date' => "DATE DEFAULT NULL",
-    'permit_remarks' => "TEXT DEFAULT NULL",
-    'permit_updated_at' => "DATETIME DEFAULT NULL"
+    'assigned_officer_id' => "INT"
   ];
   foreach ($faCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE '$col'");
@@ -206,26 +195,8 @@ function db() {
     application_id INT NOT NULL,
     issued_date DATE,
     permit_number VARCHAR(50),
-    permits_case_id VARCHAR(64) DEFAULT NULL,
-    expiry_date DATE DEFAULT NULL,
-    status VARCHAR(32) DEFAULT NULL,
-    remarks TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
-  $erCols = [
-    'permits_case_id' => "VARCHAR(64) DEFAULT NULL",
-    'expiry_date' => "DATE DEFAULT NULL",
-    'status' => "VARCHAR(32) DEFAULT NULL",
-    'remarks' => "TEXT DEFAULT NULL",
-    'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-  ];
-  foreach ($erCols as $col => $def) {
-    $check = $conn->query("SHOW COLUMNS FROM endorsement_records LIKE '$col'");
-    if ($check && $check->num_rows == 0) {
-      $conn->query("ALTER TABLE endorsement_records ADD COLUMN $col $def");
-    }
-  }
   $conn->query("CREATE TABLE IF NOT EXISTS operators (
     id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(128) UNIQUE,
@@ -329,8 +300,6 @@ function db() {
     ticket_number VARCHAR(32) UNIQUE,
     date_issued DATETIME DEFAULT CURRENT_TIMESTAMP,
     violation_code VARCHAR(32),
-    external_ticket_number VARCHAR(64) DEFAULT NULL,
-    sts_violation_code VARCHAR(64) DEFAULT NULL,
     vehicle_plate VARCHAR(32),
     franchise_id VARCHAR(64) DEFAULT NULL,
     coop_id INT DEFAULT NULL,
@@ -338,7 +307,6 @@ function db() {
     issued_by VARCHAR(128) DEFAULT NULL,
     issued_by_badge VARCHAR(64) DEFAULT NULL,
     officer_id INT DEFAULT NULL,
-    ticket_source VARCHAR(32) DEFAULT 'LOCAL_STS_COMPAT',
     status ENUM('Pending','Validated','Settled','Escalated') DEFAULT 'Pending',
     fine_amount DECIMAL(10,2) DEFAULT 0,
     due_date DATE DEFAULT NULL,
@@ -363,21 +331,6 @@ function db() {
     $conn->query("ALTER TABLE tickets ADD INDEX idx_officer_id (officer_id)");
     $conn->query("ALTER TABLE tickets ADD CONSTRAINT fk_tickets_officer FOREIGN KEY (officer_id) REFERENCES officers(officer_id)");
   }
-  $ticketCols = [
-    'external_ticket_number' => "VARCHAR(64) DEFAULT NULL",
-    'sts_violation_code' => "VARCHAR(64) DEFAULT NULL",
-    'ticket_source' => "VARCHAR(32) DEFAULT 'LOCAL_STS_COMPAT'"
-  ];
-  foreach ($ticketCols as $col => $def) {
-    $check = $conn->query("SHOW COLUMNS FROM tickets LIKE '$col'");
-    if ($check && $check->num_rows == 0) {
-      $conn->query("ALTER TABLE tickets ADD COLUMN $col $def");
-    }
-  }
-  $idxExt = $conn->query("SHOW INDEX FROM tickets WHERE Key_name='uniq_external_ticket_number'");
-  if (!$idxExt || $idxExt->num_rows == 0) {
-    $conn->query("ALTER TABLE tickets ADD UNIQUE KEY uniq_external_ticket_number (external_ticket_number)");
-  }
   $conn->query("CREATE TABLE IF NOT EXISTS evidence (
     evidence_id INT AUTO_INCREMENT PRIMARY KEY,
     ticket_id INT NOT NULL,
@@ -398,33 +351,6 @@ function db() {
     INDEX (ticket_id),
     FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
-  $prCols = [
-    'payment_channel' => "VARCHAR(32) DEFAULT NULL",
-    'external_payment_id' => "VARCHAR(64) DEFAULT NULL"
-  ];
-  foreach ($prCols as $col => $def) {
-    $check = $conn->query("SHOW COLUMNS FROM payment_records LIKE '$col'");
-    if ($check && $check->num_rows == 0) {
-      $conn->query("ALTER TABLE payment_records ADD COLUMN $col $def");
-    }
-  }
-
-  $hasParking = $conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='parking_transactions' LIMIT 1");
-  if ($hasParking && $hasParking->fetch_row()) {
-    $ptCols = [
-      'receipt_ref' => "VARCHAR(64) DEFAULT NULL",
-      'payment_channel' => "VARCHAR(32) DEFAULT NULL",
-      'external_payment_id' => "VARCHAR(64) DEFAULT NULL",
-      'paid_at' => "DATETIME DEFAULT NULL",
-      'exported_to_treasury' => "TINYINT(1) DEFAULT 0"
-    ];
-    foreach ($ptCols as $col => $def) {
-      $check = $conn->query("SHOW COLUMNS FROM parking_transactions LIKE '$col'");
-      if ($check && $check->num_rows == 0) {
-        $conn->query("ALTER TABLE parking_transactions ADD COLUMN $col $def");
-      }
-    }
-  }
   $conn->query("CREATE TABLE IF NOT EXISTS ticket_notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     target_module VARCHAR(32) NOT NULL,
@@ -533,13 +459,6 @@ function db() {
     UNIQUE KEY uniq_area_hour (area_type, area_ref, observed_at),
     INDEX idx_area_time (area_type, area_ref, observed_at)
   ) ENGINE=InnoDB");
-
-  $col = $conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='puv_demand_observations' AND COLUMN_NAME='area_type' LIMIT 1");
-  if ($col && ($r = $col->fetch_assoc())) {
-    $t = (string)($r['COLUMN_TYPE'] ?? '');
-    if ($t !== '' && strpos($t, "'route'") === false) {
-      $conn->query("ALTER TABLE puv_demand_observations MODIFY area_type ENUM('terminal','route','parking_area') NOT NULL");
-    }
-  }
+  $conn->query("ALTER TABLE puv_demand_observations MODIFY area_type ENUM('terminal','route','parking_area') NOT NULL");
   return $conn;
 }

@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('analytics.train');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   http_response_code(405);
@@ -16,6 +14,7 @@ $areaRef = trim((string)($_POST['area_ref'] ?? ''));
 $observedAt = trim((string)($_POST['observed_at'] ?? ''));
 $demandCount = (int)($_POST['demand_count'] ?? 0);
 
+$areaType = $areaType === 'parking_area' ? 'route' : $areaType;
 if (!in_array($areaType, ['terminal', 'route'], true)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_area_type']);
@@ -27,6 +26,30 @@ if ($areaRef === '' || $observedAt === '') {
   exit;
 }
 if ($demandCount < 0) $demandCount = 0;
+
+$areaOk = false;
+if ($areaType === 'terminal') {
+  $stmt = $db->prepare("SELECT 1 FROM terminals WHERE id=? LIMIT 1");
+  if ($stmt) {
+    $stmt->bind_param('s', $areaRef);
+    $stmt->execute();
+    $areaOk = (bool)$stmt->get_result()->fetch_row();
+    $stmt->close();
+  }
+} else {
+  $stmt = $db->prepare("SELECT 1 FROM routes WHERE route_id=? LIMIT 1");
+  if ($stmt) {
+    $stmt->bind_param('s', $areaRef);
+    $stmt->execute();
+    $areaOk = (bool)$stmt->get_result()->fetch_row();
+    $stmt->close();
+  }
+}
+if (!$areaOk) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'unknown_area_ref']);
+  exit;
+}
 
 $dt = date('Y-m-d H:00:00', strtotime($observedAt));
 $stmt = $db->prepare("INSERT INTO puv_demand_observations (area_type, area_ref, observed_at, demand_count, source)

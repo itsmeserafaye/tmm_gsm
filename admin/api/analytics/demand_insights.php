@@ -5,6 +5,7 @@ $db = db();
 header('Content-Type: application/json');
 
 $areaType = trim((string)($_GET['area_type'] ?? 'terminal'));
+$areaType = $areaType === 'parking_area' ? 'route' : $areaType;
 if (!in_array($areaType, ['terminal', 'route'], true)) $areaType = 'terminal';
 
 $hours = (int)($_GET['hours'] ?? 24);
@@ -28,11 +29,6 @@ if (!is_array($forecast) || !($forecast['ok'] ?? false)) {
 $spikes = $forecast['spikes'] ?? [];
 if (!is_array($spikes)) $spikes = [];
 
-$traffic = is_array($forecast['traffic'] ?? null) ? $forecast['traffic'] : [];
-$trafficCong = isset($traffic['congestion']) ? $traffic['congestion'] : null;
-$trafficIncidents = isset($traffic['incidents_count']) ? $traffic['incidents_count'] : null;
-$trafficMaxDelay = isset($traffic['max_delay']) ? $traffic['max_delay'] : null;
-
 $supplyByTerminalName = [];
 if ($areaType === 'terminal') {
   $res = $db->query("SELECT terminal_name, COUNT(*) AS c FROM terminal_assignments WHERE status IS NULL OR status='Authorized' GROUP BY terminal_name");
@@ -41,92 +37,104 @@ if ($areaType === 'terminal') {
   }
 }
 
-$supplyByRoute = [];
-if ($areaType === 'route') {
-  $res = $db->query("SELECT route_id, COUNT(*) AS c FROM terminal_assignments WHERE status IS NULL OR status='Authorized' GROUP BY route_id");
-  while ($res && ($r = $res->fetch_assoc())) {
-    $supplyByRoute[(string)$r['route_id']] = (int)($r['c'] ?? 0);
+function tmm_congestion_class(float $currentSpeed, float $freeFlowSpeed): string {
+  if ($freeFlowSpeed <= 0.0 || $currentSpeed <= 0.0) return 'unknown';
+  $ratio = $currentSpeed / $freeFlowSpeed;
+  if ($ratio >= 0.85) return 'free';
+  if ($ratio >= 0.65) return 'moderate';
+  if ($ratio >= 0.45) return 'heavy';
+  return 'severe';
+}
+
+function tmm_tomtom_flow_summary(?array $flow): ?array {
+  if (!is_array($flow)) return null;
+  $fsd = $flow['flowSegmentData'] ?? null;
+  if (!is_array($fsd)) return null;
+  $cur = isset($fsd['currentSpeed']) ? (float)$fsd['currentSpeed'] : null;
+  $free = isset($fsd['freeFlowSpeed']) ? (float)$fsd['freeFlowSpeed'] : null;
+  if (!is_float($cur) || !is_float($free)) return null;
+  $conf = isset($fsd['confidence']) ? (float)$fsd['confidence'] : null;
+  $class = tmm_congestion_class($cur, $free);
+  $congestionPct = ($free > 0.0) ? round(max(0.0, min(100.0, (1.0 - ($cur / $free)) * 100.0)), 1) : null;
+  return [
+    'current_speed_kph' => round($cur, 1),
+    'free_flow_speed_kph' => round($free, 1),
+    'congestion' => $class,
+    'congestion_pct' => $congestionPct,
+    'confidence' => is_float($conf) ? round($conf, 2) : null,
+  ];
+}
+
+function tmm_tomtom_incidents_summary(?array $incidents): ?array {
+  if (!is_array($incidents)) return null;
+  $list = $incidents['incidents'] ?? null;
+  if (!is_array($list)) return ['count' => 0, 'samples' => []];
+  $samples = [];
+  foreach ($list as $it) {
+    if (!is_array($it)) continue;
+    $p = $it['properties'] ?? null;
+    if (!is_array($p)) continue;
+    $desc = '';
+    $events = $p['events'] ?? null;
+    if (is_array($events) && !empty($events) && is_array($events[0] ?? null)) {
+      $desc = (string)($events[0]['description'] ?? '');
+    }
+    if ($desc === '') $desc = (string)($p['from'] ?? '');
+    if ($desc === '') $desc = (string)($p['to'] ?? '');
+    if ($desc === '') $desc = (string)($p['iconCategory'] ?? '');
+    $desc = trim($desc);
+    if ($desc !== '') $samples[] = $desc;
+    if (count($samples) >= 3) break;
   }
+  return ['count' => count($list), 'samples' => $samples];
 }
 
-function clamp_f(float $v, float $min, float $max): float {
-  if ($v < $min) return $min;
-  if ($v > $max) return $max;
-  return $v;
+function tmm_load_terminal_location(mysqli $db, string $terminalId): ?array {
+  if ($terminalId === '') return null;
+  $stmt = $db->prepare("SELECT name, city, address FROM terminals WHERE id=? LIMIT 1");
+  if (!$stmt) return null;
+  $stmt->bind_param('s', $terminalId);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  if (!is_array($row)) return null;
+  return [
+    'name' => (string)($row['name'] ?? ''),
+    'city' => (string)($row['city'] ?? ''),
+    'address' => (string)($row['address'] ?? ''),
+  ];
 }
 
-$rainProbThreshold = (float)tmm_setting($db, 'ai_rain_prob_threshold', '60');
-$rainProbThreshold = clamp_f($rainProbThreshold, 0, 100);
-$targetLoadPerUnit = (float)tmm_setting($db, 'ai_target_load_per_unit', '1.0');
-$targetLoadPerUnit = clamp_f($targetLoadPerUnit, 0.1, 100000);
-$trafficThreshold = (float)tmm_setting($db, 'ai_traffic_congestion_threshold', '0.25');
-$trafficThreshold = clamp_f($trafficThreshold, 0.0, 1.0);
-
-$areasByRef = [];
-if (isset($forecast['areas']) && is_array($forecast['areas'])) {
-  foreach ($forecast['areas'] as $a) {
-    if (!is_array($a)) continue;
-    $ref = (string)($a['area_ref'] ?? '');
-    if ($ref === '') continue;
-    $areasByRef[$ref] = $a;
-  }
+function tmm_load_route_endpoints(mysqli $db, string $routeId): ?array {
+  if ($routeId === '') return null;
+  $stmt = $db->prepare("SELECT route_name, origin, destination FROM routes WHERE route_id=? LIMIT 1");
+  if (!$stmt) return null;
+  $stmt->bind_param('s', $routeId);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  if (!is_array($row)) return null;
+  return [
+    'route_name' => (string)($row['route_name'] ?? ''),
+    'origin' => (string)($row['origin'] ?? ''),
+    'destination' => (string)($row['destination'] ?? ''),
+  ];
 }
 
-$hotspots = [];
+// Generate Alerts Analysis
 $alerts = [];
 foreach ($spikes as $s) {
   if (!is_array($s)) continue;
-  $label = (string)($s['area_label'] ?? '');
   $ref = (string)($s['area_ref'] ?? '');
+  $label = (string)($s['area_label'] ?? '');
   $pred = (int)($s['predicted_peak'] ?? 0);
   $baseline = (float)($s['baseline'] ?? 0);
   $peakHour = (string)($s['peak_hour'] ?? '');
-  $weather = is_array($s['weather'] ?? null) ? $s['weather'] : [];
-  $event = is_array($s['event'] ?? null) ? $s['event'] : null;
-
-  $areaMeta = $areasByRef[$ref] ?? null;
-  $trendFactor = is_array($areaMeta) ? (float)($areaMeta['trend_factor'] ?? 1.0) : 1.0;
-  $capacity = is_array($areaMeta) ? (int)($areaMeta['capacity'] ?? 0) : 0;
-  $multAtPeak = 1.0;
-  if (is_array($areaMeta) && isset($areaMeta['forecast']) && is_array($areaMeta['forecast'])) {
-    foreach ($areaMeta['forecast'] as $p) {
-      if (!is_array($p)) continue;
-      if ((string)($p['hour_label'] ?? '') === $peakHour) {
-        $multAtPeak = (float)($p['multiplier'] ?? 1.0);
-        break;
-      }
-    }
-  }
+  $weather = $s['weather'] ?? [];
 
   $supply = null;
   if ($areaType === 'terminal' && $label !== '') {
     $supply = $supplyByTerminalName[$label] ?? null;
-  }
-  if ($areaType === 'route' && $ref !== '') {
-    $supply = $supplyByRoute[$ref] ?? null;
-  }
-
-  $routesAtTerminal = [];
-  if ($areaType === 'terminal' && $label !== '') {
-    $stmtRoutes = $db->prepare("SELECT ta.route_id, COALESCE(r.route_name, ta.route_id) AS route_name, COUNT(*) AS units
-      FROM terminal_assignments ta
-      LEFT JOIN routes r ON r.route_id = ta.route_id
-      WHERE ta.terminal_name = ? AND (ta.status IS NULL OR ta.status = 'Authorized')
-      GROUP BY ta.route_id, route_name
-      ORDER BY units DESC, route_name ASC");
-    if ($stmtRoutes) {
-      $stmtRoutes->bind_param('s', $label);
-      $stmtRoutes->execute();
-      $resRoutes = $stmtRoutes->get_result();
-      while ($resRoutes && ($rr = $resRoutes->fetch_assoc())) {
-        $routesAtTerminal[] = [
-          'route_id' => (string)($rr['route_id'] ?? ''),
-          'route_name' => (string)($rr['route_name'] ?? ''),
-          'units' => (int)($rr['units'] ?? 0),
-        ];
-      }
-      $stmtRoutes->close();
-    }
   }
 
   $severity = 'medium';
@@ -136,103 +144,74 @@ foreach ($spikes as $s) {
   $baselinePerUnit = null;
   $predPerUnit = null;
   $loadStatus = 'unknown';
-  $recommendedExtraUnits = null;
-  $recommendedTotalUnits = null;
-  $routePlan = [];
-
   if (is_int($supply) && $supply > 0) {
     $baselinePerUnit = round($baseline / $supply, 3);
     $predPerUnit = round($pred / $supply, 3);
-    if (($baselinePerUnit ?? 0) > 0) {
-      $loadStatus = ($predPerUnit >= ($baselinePerUnit * 1.3)) ? 'potential_over_demand' : 'normal';
-    } else {
+    if ($baselinePerUnit <= 0) {
       $loadStatus = $predPerUnit > 0 ? 'potential_over_demand' : 'normal';
+    } else {
+      $loadStatus = ($predPerUnit >= ($baselinePerUnit * 1.3)) ? 'potential_over_demand' : 'normal';
     }
-
-    $target = $baselinePerUnit && $baselinePerUnit > 0 ? max(0.25, (float)$baselinePerUnit) : $targetLoadPerUnit;
-    $requiredUnits = (int)ceil($pred / max(0.01, $target));
-    $recommendedTotalUnits = max($supply, $requiredUnits);
-    $recommendedExtraUnits = max(0, $recommendedTotalUnits - $supply);
   }
 
-  if ($areaType === 'terminal' && is_int($recommendedExtraUnits) && $recommendedExtraUnits > 0 && $routesAtTerminal) {
-    $totalRouteUnits = 0;
-    foreach ($routesAtTerminal as $rt) $totalRouteUnits += (int)($rt['units'] ?? 0);
-    if ($totalRouteUnits <= 0) $totalRouteUnits = 1;
-
-    $remaining = $recommendedExtraUnits;
-    $alloc = [];
-    foreach ($routesAtTerminal as $rt) {
-      $rid = (string)($rt['route_id'] ?? '');
-      $u = (int)($rt['units'] ?? 0);
-      $n = (int)floor(($recommendedExtraUnits * $u) / $totalRouteUnits);
-      if ($n < 0) $n = 0;
-      $alloc[$rid] = $n;
-      $remaining -= $n;
-    }
-    if ($remaining > 0) {
-      usort($routesAtTerminal, function ($a, $b) {
-        return ((int)($b['units'] ?? 0)) <=> ((int)($a['units'] ?? 0));
-      });
-      $i = 0;
-      $len = count($routesAtTerminal);
-      while ($remaining > 0 && $len > 0) {
-        $rid = (string)($routesAtTerminal[$i % $len]['route_id'] ?? '');
-        $alloc[$rid] = ($alloc[$rid] ?? 0) + 1;
-        $remaining--;
-        $i++;
+  $constraint = 'Recommendations keep operators within their assigned routes.';
+  $traffic = null;
+  $trafficStatus = 'unavailable';
+  if (tmm_tomtom_api_key($db) !== '') {
+    if ($areaType === 'terminal') {
+      $tloc = tmm_load_terminal_location($db, $ref);
+      if (is_array($tloc)) {
+        $q = trim(($tloc['address'] ?? '') . ' ' . ($tloc['city'] ?? '') . ' Philippines');
+        $geo = tmm_tomtom_geocode($db, $q);
+        if (is_array($geo)) {
+          $flow = tmm_tomtom_traffic_flow($db, (float)$geo['lat'], (float)$geo['lon']);
+          $inc = tmm_tomtom_traffic_incidents($db, (float)$geo['lat'], (float)$geo['lon'], 2.5);
+          $traffic = [
+            'point' => ['lat' => (float)$geo['lat'], 'lon' => (float)$geo['lon'], 'label' => (string)($tloc['name'] ?? $label)],
+            'flow' => tmm_tomtom_flow_summary($flow),
+            'incidents' => tmm_tomtom_incidents_summary($inc),
+          ];
+          $trafficStatus = 'ok';
+        }
+      }
+    } else {
+      $route = tmm_load_route_endpoints($db, $ref);
+      if (is_array($route)) {
+        $oQ = trim(((string)($route['origin'] ?? '')) . ' Philippines');
+        $dQ = trim(((string)($route['destination'] ?? '')) . ' Philippines');
+        $oGeo = $oQ !== '' ? tmm_tomtom_geocode($db, $oQ) : null;
+        $dGeo = $dQ !== '' ? tmm_tomtom_geocode($db, $dQ) : null;
+        $traffic = [
+          'origin' => null,
+          'destination' => null,
+        ];
+        $okAny = false;
+        if (is_array($oGeo)) {
+          $oFlow = tmm_tomtom_traffic_flow($db, (float)$oGeo['lat'], (float)$oGeo['lon']);
+          $oInc = tmm_tomtom_traffic_incidents($db, (float)$oGeo['lat'], (float)$oGeo['lon'], 2.5);
+          $traffic['origin'] = [
+            'point' => ['lat' => (float)$oGeo['lat'], 'lon' => (float)$oGeo['lon'], 'label' => (string)($route['origin'] ?? 'Origin')],
+            'flow' => tmm_tomtom_flow_summary($oFlow),
+            'incidents' => tmm_tomtom_incidents_summary($oInc),
+          ];
+          $okAny = true;
+        }
+        if (is_array($dGeo)) {
+          $dFlow = tmm_tomtom_traffic_flow($db, (float)$dGeo['lat'], (float)$dGeo['lon']);
+          $dInc = tmm_tomtom_traffic_incidents($db, (float)$dGeo['lat'], (float)$dGeo['lon'], 2.5);
+          $traffic['destination'] = [
+            'point' => ['lat' => (float)$dGeo['lat'], 'lon' => (float)$dGeo['lon'], 'label' => (string)($route['destination'] ?? 'Destination')],
+            'flow' => tmm_tomtom_flow_summary($dFlow),
+            'incidents' => tmm_tomtom_incidents_summary($dInc),
+          ];
+          $okAny = true;
+        }
+        if ($okAny) $trafficStatus = 'ok';
       }
     }
-
-    foreach ($routesAtTerminal as $rt) {
-      $rid = (string)($rt['route_id'] ?? '');
-      $u = (int)($rt['units'] ?? 0);
-      $x = (int)($alloc[$rid] ?? 0);
-      if ($x <= 0) continue;
-      $routePlan[] = [
-        'route_id' => $rid,
-        'route_name' => (string)($rt['route_name'] ?? $rid),
-        'current_units' => $u,
-        'suggested_extra_units' => $x,
-        'suggested_total_units' => $u + $x,
-      ];
-    }
   }
-
-  $drivers = [];
-  if (is_numeric($weather['precip_prob'] ?? null)) {
-    $p = (float)$weather['precip_prob'];
-    if ($p >= $rainProbThreshold) $drivers[] = 'Rain probability ' . round($p) . '%';
-  }
-  if (is_array($event) && !empty($event['title'])) {
-    $drivers[] = (string)$event['title'];
-  }
-  if (abs($trendFactor - 1.0) >= 0.05) {
-    $drivers[] = 'Recent trend ' . (round(($trendFactor - 1.0) * 100)) . '%';
-  }
-  if (abs($multAtPeak - 1.0) >= 0.01) {
-    $drivers[] = 'Model multiplier x' . number_format($multAtPeak, 2);
-  }
-
-  $hotspots[] = [
-    'area_ref' => $ref,
-    'area_label' => $label,
-    'peak_hour' => $peakHour,
-    'predicted_peak' => $pred,
-    'baseline' => $baseline,
-    'severity' => $severity,
-    'capacity' => $capacity,
-    'supply_units' => $supply,
-    'load_status' => $loadStatus,
-    'recommended_extra_units' => $recommendedExtraUnits,
-    'recommended_total_units' => $recommendedTotalUnits,
-    'route_plan' => $routePlan,
-    'drivers' => $drivers,
-    'weather' => $weather,
-    'event' => $event,
-  ];
-
   $alerts[] = [
+    'area_ref' => $ref,
     'area_label' => $label,
     'peak_hour' => $peakHour,
     'predicted_peak' => $pred,
@@ -242,72 +221,11 @@ foreach ($spikes as $s) {
     'baseline_per_unit' => $baselinePerUnit,
     'predicted_per_unit' => $predPerUnit,
     'load_status' => $loadStatus,
-    'constraint' => 'Recommendations keep operators within their assigned routes.',
-    'weather' => $weather
+    'constraint' => $constraint,
+    'weather' => $weather,
+    'traffic_status' => $trafficStatus,
+    'traffic' => $traffic
   ];
-}
-
-usort($hotspots, function ($a, $b) {
-  $ap = (int)($a['predicted_peak'] ?? 0);
-  $bp = (int)($b['predicted_peak'] ?? 0);
-  if ($ap === $bp) return 0;
-  return ($ap > $bp) ? -1 : 1;
-});
-
-$actions = [];
-foreach ($hotspots as $h) {
-  if (!is_array($h)) continue;
-  $loc = (string)($h['area_label'] ?? '');
-  $time = (string)($h['peak_hour'] ?? '');
-  $sev = (string)($h['severity'] ?? 'medium');
-  $extra = $h['recommended_extra_units'];
-  if (is_int($extra) && $extra > 0) {
-    $actions[] = 'Deploy +' . $extra . ' units to ' . $loc . ' before ' . $time . '.';
-  } else {
-    if ($sev === 'critical') $actions[] = 'Activate reserve dispatch plan for ' . $loc . ' before ' . $time . '.';
-    elseif ($sev === 'high') $actions[] = 'Shorten headways at ' . $loc . ' before ' . $time . '.';
-    else $actions[] = 'Pre-position staff and manage bay loading at ' . $loc . ' around ' . $time . '.';
-  }
-  $drivers = $h['drivers'] ?? [];
-  if (is_array($drivers) && $drivers) {
-    $actions[] = 'Drivers: ' . implode(' • ', array_slice($drivers, 0, 3)) . '.';
-  }
-}
-
-if (is_numeric($trafficCong) && (float)$trafficCong >= $trafficThreshold) {
-  $pct = (int)round(((float)$trafficCong) * 100);
-  $actions[] = 'Traffic congestion is elevated (' . $pct . '%). Expect slower turnaround and queue buildup.';
-}
-if (is_numeric($trafficIncidents) && (int)$trafficIncidents > 0) {
-  $actions[] = 'Road incidents detected (' . (int)$trafficIncidents . '). Monitor diversions and adjust dispatch timing.';
-}
-$actions = array_values(array_unique($actions));
-
-$underutilized = [];
-if (isset($forecast['areas']) && is_array($forecast['areas'])) {
-  $spikeNames = [];
-  foreach ($hotspots as $h) {
-    if (is_array($h) && !empty($h['area_label'])) $spikeNames[(string)$h['area_label']] = true;
-  }
-  foreach ($forecast['areas'] as $a) {
-    if (!is_array($a)) continue;
-    $name = (string)($a['area_label'] ?? '');
-    if ($name === '' || isset($spikeNames[$name])) continue;
-    $peak = 0;
-    if (isset($a['forecast']) && is_array($a['forecast'])) {
-      foreach ($a['forecast'] as $p) {
-        if (!is_array($p)) continue;
-        $peak = max($peak, (int)($p['predicted'] ?? 0));
-      }
-    }
-    if ($peak <= 1) {
-      $underutilized[] = ['area_label' => $name, 'predicted_peak' => $peak];
-    }
-  }
-  usort($underutilized, function ($a, $b) {
-    return ((int)($a['predicted_peak'] ?? 0)) <=> ((int)($b['predicted_peak'] ?? 0));
-  });
-  $underutilized = array_slice($underutilized, 0, 5);
 }
 
 // --- Dynamic AI Insights Generation ---
@@ -331,18 +249,52 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
 
     // Severity-based recommendations
     if ($sev === 'critical') {
-      $msg = "CRITICAL: **{$loc}** forecast to exceed capacity by >100% at {$time}. Immediate dispatch of reserve units required.";
+      $msg = "CRITICAL: **{$loc}** forecast to exceed baseline demand by >100% at {$time}. Immediate dispatch of route-compliant reserve units required.";
       if ($rain) $msg .= " (High Rain Probability: Expect slower turnaround times).";
       $insights[] = $msg;
     } elseif ($sev === 'high') {
       $insights[] = "High Demand at **{$loc}** ({$time}). Shorten dispatch headways by 5-10 minutes to prevent queuing.";
     } else {
-      $insights[] = "Moderate surge expected at **{$loc}** around {$time}. Alert terminal staff to manage loading bays.";
+      if ($areaType === 'terminal') {
+        $insights[] = "Moderate surge expected at **{$loc}** around {$time}. Adjust bay staffing and loading flow.";
+      } else {
+        $insights[] = "Moderate surge expected on **{$loc}** around {$time}. Tighten dispatch cadence within the route.";
+      }
     }
 
     // Load-based recommendations
     if ($alert['load_status'] === 'potential_over_demand' && $alert['supply_units']) {
-      $insights[] = "Supply Gap: **{$loc}** has only {$alert['supply_units']} authorized units. Consider temporary cross-route authority if demand persists.";
+      $insights[] = "Supply Gap: **{$loc}** has only {$alert['supply_units']} authorized units. Activate route-compliant reserve units and request additional units for the same route if demand persists.";
+    }
+
+    $t = $alert['traffic'] ?? null;
+    if (($alert['traffic_status'] ?? '') === 'ok' && is_array($t)) {
+      $parts = [];
+      $points = [];
+      if ($areaType === 'terminal') {
+        $points[] = $t;
+      } else {
+        if (is_array($t['origin'] ?? null)) $points[] = $t['origin'];
+        if (is_array($t['destination'] ?? null)) $points[] = $t['destination'];
+      }
+      foreach ($points as $pt) {
+        $flow = $pt['flow'] ?? null;
+        $inc = $pt['incidents'] ?? null;
+        $label = (string)(($pt['point']['label'] ?? '') ?: 'Traffic Point');
+        if (is_array($flow) && in_array((string)($flow['congestion'] ?? ''), ['heavy', 'severe'], true)) {
+          $pct = $flow['congestion_pct'];
+          $parts[] = "{$label}: {$flow['congestion']} congestion" . (is_numeric($pct) ? " (~{$pct}% slower vs free-flow)" : "");
+        }
+        if (is_array($inc) && ((int)($inc['count'] ?? 0) > 0)) {
+          $c = (int)$inc['count'];
+          $samp = $inc['samples'] ?? [];
+          $tail = (is_array($samp) && !empty($samp)) ? (": " . implode('; ', array_slice($samp, 0, 2))) : '';
+          $parts[] = "{$label}: {$c} incident(s){$tail}";
+        }
+      }
+      if (!empty($parts)) {
+        $insights[] = "Traffic Impact: " . implode(' | ', $parts) . ".";
+      }
     }
   }
 
@@ -390,8 +342,8 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
     if (count($lowDemandAreas) > 3) $list .= " and " . (count($lowDemandAreas)-3) . " others";
     
     $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways to conserve fuel/energy.";
-    $insights[] = "Optimization: Reassign 1-2 units from low-demand zones to high-demand areas (if route regulations allow).";
-    $insights[] = "Maintenance Opportunity: Schedule vehicle inspections/repairs for units assigned to {$list}.";
+    $insights[] = "Optimization: Reduce dispatch frequency on these routes/terminals and prioritize service on the same assigned routes where demand is higher.";
+    $insights[] = "Maintenance Opportunity: Schedule inspections/repairs for units assigned to {$list}.";
   } else {
     $insights[] = "No significant under-utilization detected across the network.";
     $insights[] = "Standard rotation applies for all routes.";
@@ -415,14 +367,6 @@ echo json_encode([
   'area_type' => $areaType,
   'hours' => $hours,
   'readiness' => $readiness,
-  'traffic' => [
-    'congestion' => $trafficCong,
-    'incidents_count' => $trafficIncidents,
-    'max_delay' => $trafficMaxDelay,
-  ],
-  'hotspots' => $hotspots,
-  'actions' => array_slice($actions, 0, 8),
-  'underutilized' => $underutilized,
   'alerts' => $alerts,
   'playbook' => [
     'over_demand' => generate_over_demand_insights($alerts, $areaType),
