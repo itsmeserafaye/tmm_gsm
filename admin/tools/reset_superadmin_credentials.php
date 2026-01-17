@@ -140,6 +140,18 @@ function find_superadmin_user_id(mysqli $db, int $userId, string $email): int {
   return $row ? (int)$row['id'] : 0;
 }
 
+function find_user_id_by_email(mysqli $db, string $email): int {
+  $email = strtolower(trim($email));
+  if ($email === '') return 0;
+  $stmt = $db->prepare("SELECT id FROM rbac_users WHERE email=? LIMIT 1");
+  if (!$stmt) return 0;
+  $stmt->bind_param('s', $email);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  return $row ? (int)$row['id'] : 0;
+}
+
 if (isset($opts['ensure'])) {
   $roleId = rbac_role_id($db, 'SuperAdmin');
   if (!$roleId) {
@@ -150,38 +162,53 @@ if (isset($opts['ensure'])) {
   if ($existingId > 0) {
     $targetUserId = $existingId;
   } else {
-    $emailToCreate = $newEmail !== '' ? $newEmail : 'ict.admin@city.gov.ph';
-    $pwdToCreate = $password !== '' ? $password : gen_password();
-    $hash = password_hash($pwdToCreate, PASSWORD_DEFAULT);
-    if ($hash === false) out(['ok' => false, 'error' => 'hash_failed'], 3);
+    $emailToUse = $newEmail !== '' ? $newEmail : ($targetEmail !== '' ? $targetEmail : 'ict.admin@city.gov.ph');
+    $pwdToUse = $password !== '' ? $password : gen_password();
 
-    $first = 'ICTO';
-    $last = 'Administrator';
-    $dept = 'City ICT Office';
-    $pos = 'System Administrator';
-    $status = 'Active';
-    $stmt = $db->prepare("INSERT INTO rbac_users(email, password_hash, first_name, last_name, department, position_title, status) VALUES(?,?,?,?,?,?,?)");
-    if (!$stmt) out(['ok' => false, 'error' => 'db_prepare_failed'], 3);
-    $stmt->bind_param('sssssss', $emailToCreate, $hash, $first, $last, $dept, $pos, $status);
-    $ok = $stmt->execute();
-    $userId = (int)$stmt->insert_id;
-    $stmt->close();
-    if (!$ok || $userId <= 0) out(['ok' => false, 'error' => 'create_failed'], 3);
+    $existingUserId = find_user_id_by_email($db, $emailToUse);
+    if ($existingUserId > 0) {
+      $stmt2 = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
+      if ($stmt2) {
+        $stmt2->bind_param('ii', $existingUserId, $roleId);
+        $stmt2->execute();
+        $stmt2->close();
+      }
+      $targetUserId = $existingUserId;
+      $targetEmail = $emailToUse;
+      $newEmail = '';
+      $password = $pwdToUse;
+    } else {
+      $hash = password_hash($pwdToUse, PASSWORD_DEFAULT);
+      if ($hash === false) out(['ok' => false, 'error' => 'hash_failed'], 3);
 
-    $stmt2 = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
-    if ($stmt2) {
-      $stmt2->bind_param('ii', $userId, $roleId);
-      $stmt2->execute();
-      $stmt2->close();
+      $first = 'ICTO';
+      $last = 'Administrator';
+      $dept = 'City ICT Office';
+      $pos = 'System Administrator';
+      $status = 'Active';
+      $stmt = $db->prepare("INSERT INTO rbac_users(email, password_hash, first_name, last_name, department, position_title, status) VALUES(?,?,?,?,?,?,?)");
+      if (!$stmt) out(['ok' => false, 'error' => 'db_prepare_failed'], 3);
+      $stmt->bind_param('sssssss', $emailToUse, $hash, $first, $last, $dept, $pos, $status);
+      $ok = $stmt->execute();
+      $userId = (int)$stmt->insert_id;
+      $stmt->close();
+      if (!$ok || $userId <= 0) out(['ok' => false, 'error' => 'create_failed'], 3);
+
+      $stmt2 = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
+      if ($stmt2) {
+        $stmt2->bind_param('ii', $userId, $roleId);
+        $stmt2->execute();
+        $stmt2->close();
+      }
+
+      out([
+        'ok' => true,
+        'action' => 'created',
+        'user_id' => $userId,
+        'email' => $emailToUse,
+        'password' => $pwdToUse
+      ]);
     }
-
-    out([
-      'ok' => true,
-      'action' => 'created',
-      'user_id' => $userId,
-      'email' => $emailToCreate,
-      'password' => $pwdToCreate
-    ]);
   }
 }
 

@@ -288,15 +288,15 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
               </td>
               <td class="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
                 <div
-                  class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  class="flex items-center justify-end gap-2 opacity-100 transition-opacity">
                   <button title="View Details" data-plate="<?php echo htmlspecialchars($row['plate_number']); ?>"
                     class="p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                     <i data-lucide="eye" class="h-4 w-4"></i>
                   </button>
-                  <a title="Assign Route"
-                    href="?page=module1/submodule3&plate=<?php echo urlencode($row['plate_number']); ?>&route_id=<?php echo urlencode($row['route_id'] ?? ''); ?>"
+                  <a title="Apply for Franchise"
+                    href="?page=module2/submodule1&rep_name=<?php echo urlencode((string)($row['operator_name'] ?? '')); ?>"
                     class="p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                    <i data-lucide="map-pin" class="h-4 w-4"></i>
+                    <i data-lucide="file-plus" class="h-4 w-4"></i>
                   </a>
                   <button title="Transfer Ownership"
                     data-transfer-plate="<?php echo htmlspecialchars($row['plate_number']); ?>"

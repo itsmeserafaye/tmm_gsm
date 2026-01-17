@@ -98,7 +98,7 @@ foreach ($sidebarItems as $item) {
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="includes/unified.css">
 </head>
- <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200">
+ <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">
   <div class="flex h-screen overflow-hidden">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>

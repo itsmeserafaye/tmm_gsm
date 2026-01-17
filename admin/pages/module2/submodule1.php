@@ -16,6 +16,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   <?php
     require_once __DIR__ . '/../../includes/db.php';
     $db = db();
+    $prefillRepName = trim((string)($_GET['rep_name'] ?? ''));
 
     $hasCons = false;
     $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
@@ -119,7 +120,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Cooperative</label>
             <div class="relative">
-              <select name="coop_id" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
+              <select name="coop_id" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
                 <option value="">Select cooperative</option>
                 <?php foreach ($coops as $c): ?>
                   <?php
@@ -138,7 +139,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Representative Name</label>
-            <input name="rep_name" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. Juan Dela Cruz">
+            <input name="rep_name" value="<?php echo htmlspecialchars($prefillRepName); ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. Juan Dela Cruz">
           </div>
           
           <div>
@@ -162,7 +163,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Proposed LPTRP Route</label>
             <div class="relative">
-              <select name="route_id" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
+              <select name="route_id" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
                 <option value="">Select route</option>
                 <?php foreach ($routes as $r): ?>
                   <?php
@@ -279,7 +280,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Approval</label>
             <div class="relative">
-              <select name="status" class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none">
+              <select name="status" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
                 <option value="Approved">Approved</option>
                 <option value="Pending">Pending</option>
                 <option value="Suspended">Suspended</option>
@@ -401,7 +402,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
               <?php endforeach; ?>
             </datalist>
           </div>
-          <select name="status" class="px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
+          <select name="status" class="px-2 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
             <option value="">Status</option>
             <?php
               $statuses = ['Pending','Under Review','Endorsed','Rejected'];

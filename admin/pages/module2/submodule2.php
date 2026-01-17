@@ -355,6 +355,34 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   </div>
 </div>
 
+<div id="assignRouteModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+  <div class="absolute inset-0 bg-slate-900/60"></div>
+  <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+    <div class="p-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+          <i data-lucide="map-pin" class="w-4 h-4"></i>
+        </div>
+        <div class="font-bold text-slate-900 dark:text-white text-sm">Assign Route</div>
+      </div>
+      <button type="button" id="assignRouteClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-slate-600 dark:text-slate-300">Endorsement generated. Do you want to assign a route to this operator now?</p>
+      <div class="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+        <div class="text-xs text-slate-500 dark:text-slate-400">Vehicle Plate</div>
+        <div id="assignRoutePlate" class="text-sm font-bold text-slate-900 dark:text-white">-</div>
+      </div>
+      <div class="mt-5 flex items-center justify-end gap-2">
+        <button type="button" id="assignRouteNo" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-all text-sm">No</button>
+        <button type="button" id="assignRouteYes" class="px-4 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all text-sm">Yes, assign route</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   if (window.lucide) window.lucide.createIcons();
@@ -406,8 +434,48 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   var btn = document.getElementById('endorsementSubmit');
   var form = document.getElementById('endorsementForm');
   var statusEl = document.getElementById('endorsementStatus');
+  var assignModal = document.getElementById('assignRouteModal');
+  var assignPlate = document.getElementById('assignRoutePlate');
+  var assignYes = document.getElementById('assignRouteYes');
+  var assignNo = document.getElementById('assignRouteNo');
+  var assignClose = document.getElementById('assignRouteClose');
+  var lastAssign = { plate: '', route: '' };
   
   if (!btn || !form || !statusEl) return;
+
+  function openAssignModal(plate, routeCode) {
+    if (!assignModal || !assignPlate || !assignYes || !assignNo || !assignClose) return;
+    lastAssign.plate = String(plate || '').trim();
+    lastAssign.route = String(routeCode || '').trim();
+    assignPlate.textContent = lastAssign.plate !== '' ? lastAssign.plate : '-';
+    assignModal.classList.remove('hidden');
+    assignModal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function closeAssignModal() {
+    if (!assignModal) return;
+    assignModal.classList.add('hidden');
+    assignModal.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  if (assignNo) assignNo.addEventListener('click', function(){ closeAssignModal(); window.location.reload(); });
+  if (assignClose) assignClose.addEventListener('click', function(){ closeAssignModal(); window.location.reload(); });
+  if (assignModal) assignModal.addEventListener('click', function(e){ if (e.target === assignModal) { closeAssignModal(); window.location.reload(); }});
+  if (assignYes) assignYes.addEventListener('click', function(){
+    var plate = String(lastAssign.plate || '').trim();
+    if (plate === '') {
+      showToast('No plate found for this endorsed application.', 'error');
+      closeAssignModal();
+      setTimeout(function(){ window.location.reload(); }, 800);
+      return;
+    }
+    var url = '?page=module1/submodule3&plate=' + encodeURIComponent(plate);
+    if (lastAssign.route !== '') url += '&route_id=' + encodeURIComponent(lastAssign.route);
+    window.location.href = url;
+  });
   
   btn.addEventListener('click', function(){
     if (btn.disabled) return;
@@ -442,7 +510,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           showToast(msg, 'success');
           statusEl.textContent = msg;
           statusEl.className = 'mb-3 text-xs font-bold text-center text-emerald-600 block';
-          setTimeout(function(){ window.location.reload(); }, 1500);
+          openAssignModal(data.plate_number || '', data.route_code || '');
         } else {
           var errMsg = data && data.error ? data.error : 'Unable to issue endorsement.';
           showToast(errMsg, 'error');

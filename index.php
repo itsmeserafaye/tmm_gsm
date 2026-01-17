@@ -361,10 +361,6 @@ if (!empty($_SESSION['user_id'])) {
             <h3 class="text-xl font-semibold mb-2 text-center">Reset Password</h3>
             <p class="text-sm text-gray-600 mb-4 text-center">Enter your email. We will send a 6-digit OTP to reset your password.</p>
             <form id="forgotPasswordForm" class="space-y-4">
-                <div class="flex gap-2">
-                    <button type="button" id="fpTypeStaff" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold bg-white">Commuter</button>
-                    <button type="button" id="fpTypeOperator" class="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm font-semibold bg-white">Operator</button>
-                </div>
                 <div>
                     <label class="block text-sm mb-1">Email Address</label>
                     <input type="email" id="fpEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com" required>
@@ -452,7 +448,14 @@ if (!empty($_SESSION['user_id'])) {
                         </button>
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-2">
+                <div class="flex items-center justify-between text-xs text-gray-600 pt-1">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="rememberMe" class="mr-2">
+                        <span>Remember me</span>
+                    </label>
+                    <button type="button" id="openForgotPassword" class="text-custom-secondary hover:underline">Forgot password?</button>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3">
                     <button type="button" id="btnOperatorLoginCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
                     <button type="submit" id="btnOperatorLoginSubmit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg">Login</button>
                 </div>
@@ -1151,27 +1154,18 @@ if (!empty($_SESSION['user_id'])) {
         const fpForm = document.getElementById('forgotPasswordForm');
         const fpStep2 = document.getElementById('fpStep2');
         const fpEmail = document.getElementById('fpEmail');
-        const fpTypeStaff = document.getElementById('fpTypeStaff');
-        const fpTypeOperator = document.getElementById('fpTypeOperator');
         const fpNewPassword = document.getElementById('fpNewPassword');
         const fpConfirmPassword = document.getElementById('fpConfirmPassword');
         const fpConfirmError = document.getElementById('fpConfirmError');
         const fpOtpInputs = fpModal ? Array.from(fpModal.querySelectorAll('#fpOtpInputs .otp-input')) : [];
-        let fpUserType = 'commuter';
-        function fpSetType(t) {
-            fpUserType = t === 'operator' ? 'operator' : 'commuter';
-            const active = 'bg-custom-secondary text-white border-custom-secondary';
-            const inactive = 'bg-white text-gray-800 border-gray-300';
-            if (fpTypeStaff) fpTypeStaff.className = `flex-1 px-3 py-2 rounded-lg border text-sm font-semibold ${fpUserType === 'commuter' ? active : inactive}`;
-            if (fpTypeOperator) fpTypeOperator.className = `flex-1 px-3 py-2 rounded-lg border text-sm font-semibold ${fpUserType === 'operator' ? active : inactive}`;
-        }
+        let fpUserType = 'operator';
         function fpOpen() {
             if (!fpModal) return;
             fpModal.classList.remove('hidden');
             fpModal.classList.add('flex');
             document.body.classList.add('overflow-hidden');
             if (fpEmail) fpEmail.value = String((document.getElementById('email') && document.getElementById('email').value) || '').trim();
-            fpSetType('commuter');
+            fpUserType = 'operator';
             if (fpStep2) fpStep2.classList.add('hidden');
             if (fpConfirmError) fpConfirmError.classList.add('hidden');
             fpOtpInputs.forEach(i => i.value = '');
@@ -1185,8 +1179,6 @@ if (!empty($_SESSION['user_id'])) {
             fpModal.classList.remove('flex');
             document.body.classList.remove('overflow-hidden');
         }
-        if (fpTypeStaff) fpTypeStaff.addEventListener('click', () => fpSetType('commuter'));
-        if (fpTypeOperator) fpTypeOperator.addEventListener('click', () => fpSetType('operator'));
         if (openForgot) openForgot.addEventListener('click', fpOpen);
         if (fpClose) fpClose.addEventListener('click', fpCloseModal);
         if (fpCancel) fpCancel.addEventListener('click', fpCloseModal);

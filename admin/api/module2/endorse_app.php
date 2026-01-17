@@ -66,7 +66,39 @@ if ($okInsert) {
         }
     }
 
-    echo json_encode(['ok' => true, 'message' => 'Endorsement issued successfully', 'permit_no' => $permit_no]);
+    $plate = null;
+    if ($frRef !== '') {
+      $stmtP = $db->prepare("SELECT plate_number FROM vehicles WHERE franchise_id=? ORDER BY plate_number ASC LIMIT 1");
+      if ($stmtP) {
+        $stmtP->bind_param('s', $frRef);
+        $stmtP->execute();
+        $rowP = $stmtP->get_result()->fetch_assoc();
+        $stmtP->close();
+        if ($rowP && isset($rowP['plate_number'])) $plate = (string)$rowP['plate_number'];
+      }
+    }
+
+    $routeCode = null;
+    $routeId = trim((string)($app['route_ids'] ?? ''));
+    if ($routeId !== '') {
+      $stmtR = $db->prepare("SELECT route_code FROM lptrp_routes WHERE id=? LIMIT 1");
+      if ($stmtR) {
+        $stmtR->bind_param('s', $routeId);
+        $stmtR->execute();
+        $rowR = $stmtR->get_result()->fetch_assoc();
+        $stmtR->close();
+        if ($rowR && isset($rowR['route_code'])) $routeCode = (string)$rowR['route_code'];
+      }
+    }
+
+    echo json_encode([
+      'ok' => true,
+      'message' => 'Endorsement issued successfully',
+      'permit_no' => $permit_no,
+      'franchise_ref_number' => $frRef,
+      'plate_number' => $plate,
+      'route_code' => $routeCode,
+    ]);
 } else {
     echo json_encode(['ok' => false, 'error' => $db->error]);
 }
