@@ -77,10 +77,10 @@ require_any_permission(['module3.view','analytics.view','reports.export']);
       </div>
       <?php if (has_permission('reports.export')): ?>
         <div class="flex gap-2">
-           <a href="/tmm/admin/api/tickets/export_csv.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
+           <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_csv.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> CSV
            </a>
-           <a href="/tmm/admin/api/tickets/export_pdf.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
+           <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_pdf.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
              <i data-lucide="file-text" class="w-4 h-4"></i> PDF
            </a>
         </div>

@@ -373,7 +373,7 @@ if ($resUpcoming) {
                                 </div>
                                 <?php if ($orDoc): ?>
                                     <div class="text-xs text-slate-500 mb-3">Uploaded: <?php echo htmlspecialchars(substr((string)($orDoc['uploaded_at'] ?? ''), 0, 16), ENT_QUOTES); ?></div>
-                                    <a href="<?php echo '/tmm/admin/uploads/' . rawurlencode($orDoc['file_path']); ?>" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
+                                    <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($orDoc['file_path']); ?>" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
                                         <i data-lucide="eye" class="w-3 h-3"></i> View File
                                     </a>
                                 <?php else: ?>
@@ -395,7 +395,7 @@ if ($resUpcoming) {
                                 </div>
                                 <?php if ($crDoc): ?>
                                     <div class="text-xs text-slate-500 mb-3">Uploaded: <?php echo htmlspecialchars(substr((string)($crDoc['uploaded_at'] ?? ''), 0, 16), ENT_QUOTES); ?></div>
-                                    <a href="<?php echo '/tmm/admin/uploads/' . rawurlencode($crDoc['file_path']); ?>" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
+                                    <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($crDoc['file_path']); ?>" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
                                         <i data-lucide="eye" class="w-3 h-3"></i> View File
                                     </a>
                                 <?php else: ?>
@@ -807,7 +807,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setInspectorStatus('Checking status...', '');
         var formData = new FormData();
         formData.set('officer_id', String(id));
-        fetch('/tmm/admin/api/module4/validate_inspector.php', { method: 'POST', body: formData })
+        fetch((window.TMM_ROOT_URL || '') + '/admin/api/module4/validate_inspector.php', { method: 'POST', body: formData })
             .then(res => res.json())
             .then(data => {
                 if (data && data.ok && data.active) {
@@ -879,7 +879,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Vehicle Logic
     function fetchPlateSuggestions(q) {
         if ((q || '').trim().length < 2) return Promise.resolve([]);
-        return fetch('/tmm/admin/api/module1/list_vehicles.php?q=' + encodeURIComponent(q))
+        return fetch((window.TMM_ROOT_URL || '') + '/admin/api/module1/list_vehicles.php?q=' + encodeURIComponent(q))
             .then(res => res.json())
             .then(data => (data && data.ok && Array.isArray(data.data)) ? data.data.slice(0, 5) : [])
             .catch(() => []);
@@ -961,7 +961,7 @@ document.addEventListener('DOMContentLoaded', function () {
             docUploadButton.disabled = true;
             docUploadButton.classList.add('opacity-50', 'cursor-not-allowed');
 
-            fetch('/tmm/admin/api/module1/upload_docs.php', { method: 'POST', body: new FormData(docUploadForm) })
+            fetch((window.TMM_ROOT_URL || '') + '/admin/api/module1/upload_docs.php', { method: 'POST', body: new FormData(docUploadForm) })
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.ok) {

@@ -377,7 +377,7 @@ $terminalsForSelect = array_map(function ($t) { return (string)($t['name'] ?? ''
                         </h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Inspection results filtered by period and context.</p>
                     </div>
-                    <a href="/tmm/admin/api/module4/export_compliance_report.php?<?php echo safe_qs(['rep_q' => $repQ, 'rep_period' => $repPeriod, 'rep_status' => $repStatus, 'rep_coop' => $repCoop, 'rep_route' => $repRoute, 'rep_terminal' => $repTerminal]); ?>" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors border border-slate-200 dark:border-slate-600">
+                    <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module4/export_compliance_report.php?<?php echo safe_qs(['rep_q' => $repQ, 'rep_period' => $repPeriod, 'rep_status' => $repStatus, 'rep_coop' => $repCoop, 'rep_route' => $repRoute, 'rep_terminal' => $repTerminal]); ?>" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors border border-slate-200 dark:border-slate-600">
                         <i data-lucide="download" class="w-4 h-4"></i> Export CSV
                     </a>
                 </div>

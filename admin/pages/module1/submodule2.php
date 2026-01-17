@@ -428,7 +428,7 @@
 
   <div id="operatorFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="operatorFormModalPanel">
-      <form id="saveOperatorForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/save_operator.php">
+      <form id="saveOperatorForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_operator.php">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
           <h3 class="text-lg font-black text-slate-800 dark:text-white">Add New Operator</h3>
           <button type="button" onclick="closeOperatorFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
@@ -468,7 +468,7 @@
 
   <div id="coopFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="coopFormModalPanel">
-      <form id="saveCoopForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/save_coop.php">
+      <form id="saveCoopForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_coop.php">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
           <h3 class="text-lg font-black text-slate-800 dark:text-white">Register Cooperative</h3>
           <button type="button" onclick="closeCoopFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
@@ -527,7 +527,7 @@
 
   <div id="vehicleLinkFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="vehicleLinkFormModalPanel">
-      <form id="linkVehicleForm" class="space-y-0" method="POST" action="/tmm/admin/api/module1/link_vehicle_operator.php">
+      <form id="linkVehicleForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
           <h3 class="text-lg font-black text-slate-800 dark:text-white">Link Vehicle</h3>
           <button type="button" onclick="closeVehicleLinkFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">

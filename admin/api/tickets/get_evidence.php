@@ -5,6 +5,12 @@ $db = db();
 header('Content-Type: application/json');
 require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
 
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
+
 $ticket = trim($_GET['ticket'] ?? '');
 if ($ticket === '') {
   echo json_encode(['ok' => false, 'error' => 'Ticket number required']);
@@ -44,9 +50,9 @@ if ($resE) {
     $url = '';
     if ($path !== '') {
       if (strpos($path, 'uploads/') === 0) {
-        $url = '/tmm/admin/' . ltrim($path, '/');
+        $url = $rootUrl . '/admin/' . ltrim($path, '/');
       } else {
-        $url = '/tmm/admin/uploads/' . ltrim($path, '/');
+        $url = $rootUrl . '/admin/uploads/' . ltrim($path, '/');
       }
     }
     $row['url'] = $url;

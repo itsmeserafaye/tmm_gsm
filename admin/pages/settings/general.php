@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const formData = new FormData(form);
-            const res = await fetch('/tmm/admin/api/settings/update.php', {
+            const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/update.php', {
                 method: 'POST',
                 body: formData
             });

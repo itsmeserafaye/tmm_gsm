@@ -393,7 +393,7 @@ if ($resPick) {
                                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                     <?php foreach ($photoRows as $p): 
                                         $path = (string)($p['file_path'] ?? '');
-                                        $url = $path !== '' ? ('/tmm/admin/uploads/' . ltrim($path, '/')) : '';
+                                        $url = $path !== '' ? (($rootUrl ?? '') . '/admin/uploads/' . ltrim($path, '/')) : '';
                                     ?>
                                         <a href="<?php echo htmlspecialchars($url, ENT_QUOTES); ?>" target="_blank" class="block group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
                                             <img src="<?php echo htmlspecialchars($url, ENT_QUOTES); ?>" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Evidence">
@@ -591,7 +591,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var fd = new FormData(checklistForm);
         if (statusSelect) fd.set('overall_status', statusSelect.value);
         
-        fetch('/tmm/admin/api/module4/submit_checklist.php', { method: 'POST', body: fd })
+        fetch((window.TMM_ROOT_URL || '') + '/admin/api/module4/submit_checklist.php', { method: 'POST', body: fd })
             .then(res => res.json())
             .then(data => {
                 if (data && data.ok) onSuccess(data);
@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 fd.set('schedule_id', scheduleInput.value);
                 fd.set('approved_name', approverNameInput.value);
                 
-                fetch('/tmm/admin/api/module4/generate_certificate.php', { method: 'POST', body: fd })
+                fetch((window.TMM_ROOT_URL || '') + '/admin/api/module4/generate_certificate.php', { method: 'POST', body: fd })
                     .then(res => res.json())
                     .then(data => {
                         if (data && data.ok) {
@@ -662,7 +662,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Ensure checklist exists first
             submitChecklist(() => {
-                fetch('/tmm/admin/api/module4/upload_inspection_photos.php', { method: 'POST', body: new FormData(photoForm) })
+                fetch((window.TMM_ROOT_URL || '') + '/admin/api/module4/upload_inspection_photos.php', { method: 'POST', body: new FormData(photoForm) })
                     .then(res => res.json())
                     .then(data => {
                         if (data && data.ok) {

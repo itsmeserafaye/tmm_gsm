@@ -356,7 +356,7 @@ const fetchData = async () => {
     tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div><span>Updating...</span></div></td></tr>`;
     
     try {
-        const url = `/tmm/admin/api/module5/parking_recent.php?kind=${currentTab}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&range=${encodeURIComponent(range)}`;
+        const url = `${(window.TMM_ROOT_URL || '')}/admin/api/module5/parking_recent.php?kind=${currentTab}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&range=${encodeURIComponent(range)}`;
         const res = await fetch(url);
         const data = await res.json();
         

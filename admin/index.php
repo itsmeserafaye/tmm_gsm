@@ -97,6 +97,10 @@ foreach ($sidebarItems as $item) {
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="includes/unified.css">
+  <script>
+    window.TMM_ROOT_URL = <?php echo json_encode($rootUrl, JSON_UNESCAPED_SLASHES); ?>;
+    window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
+  </script>
 </head>
  <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">
   <div class="flex h-screen overflow-hidden">

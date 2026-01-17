@@ -1,15 +1,22 @@
 <?php
+require_once __DIR__ . '/../../includes/env.php';
+tmm_load_env(__DIR__ . '/../../.env');
+
 function db() {
   static $conn;
   if ($conn) return $conn;
-  $host = '127.0.0.1';
-  $user = 'root';
-  $pass = '';
-  $name = 'tmm';
-  $conn = @new mysqli($host, $user, $pass);
+
+  $host = trim((string)getenv('TMM_DB_HOST'));
+  $user = trim((string)getenv('TMM_DB_USER'));
+  $pass = (string)getenv('TMM_DB_PASS');
+  $name = trim((string)getenv('TMM_DB_NAME'));
+
+  if ($host === '') $host = 'localhost';
+  if ($user === '') $user = 'tmm_tmmgosergfvx';
+  if ($name === '') $name = 'tmm_tmm';
+
+  $conn = @new mysqli($host, $user, $pass, $name);
   if ($conn->connect_error) { die('DB connect error'); }
-  $conn->query("CREATE DATABASE IF NOT EXISTS `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-  $conn->select_db($name);
   $conn->set_charset('utf8mb4');
   $conn->query("CREATE TABLE IF NOT EXISTS vehicles (
     id INT AUTO_INCREMENT PRIMARY KEY,

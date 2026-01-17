@@ -348,7 +348,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
           </div>
 
           <form id="createVehicleForm" class="p-6 sm:p-8 space-y-6" novalidate method="POST"
-            action="/tmm/admin/api/module1/create_vehicle.php">
+            action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/create_vehicle.php">
             <div>
               <label
                 class="block text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Plate
@@ -475,7 +475,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
             </button>
           </div>
 
-          <form id="uploadDocsForm" class="p-8 space-y-6" method="POST" action="/tmm/admin/api/module1/upload_docs.php"
+          <form id="uploadDocsForm" class="p-8 space-y-6" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/upload_docs.php"
             enctype="multipart/form-data">
             <div>
               <label
@@ -555,7 +555,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
           </div>
 
           <form id="transferModalForm" class="p-6 sm:p-8 space-y-6" method="POST"
-            action="/tmm/admin/api/module1/transfer_ownership.php">
+            action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/transfer_ownership.php">
             <input type="hidden" name="plate_number" id="transferPlateInput">
 
             <div
@@ -776,7 +776,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         function fetchPlates(query) {
           if (controller) controller.abort();
           controller = new AbortController();
-          const url = '/tmm/admin/api/module1/list_vehicles.php?q=' + encodeURIComponent(query || '');
+          const url = (window.TMM_ROOT_URL || '') + '/admin/api/module1/list_vehicles.php?q=' + encodeURIComponent(query || '');
           fetch(url, { signal: controller.signal })
             .then(r => r.json())
             .then(data => {
@@ -822,7 +822,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
           if (p === '') { deedInput.value = ''; return; }
           if (controller) controller.abort();
           controller = new AbortController();
-          const url = '/tmm/admin/api/module1/list_documents.php?plate=' + encodeURIComponent(p) + '&type=deed';
+          const url = (window.TMM_ROOT_URL || '') + '/admin/api/module1/list_documents.php?plate=' + encodeURIComponent(p) + '&type=deed';
           fetch(url, { signal: controller.signal })
             .then(r => r.json())
             .then(data => {

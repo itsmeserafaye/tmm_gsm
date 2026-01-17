@@ -655,7 +655,7 @@ function showFileName(input) {
       if (lptrpBtn.disabled) return;
       var fd = new FormData(lptrpForm);
       lptrpBtn.disabled = true;
-      fetch('/tmm/admin/api/module2/save_lptrp_route.php', { method: 'POST', body: fd })
+      fetch((window.TMM_ROOT_URL || '') + '/admin/api/module2/save_lptrp_route.php', { method: 'POST', body: fd })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data && data.ok) {

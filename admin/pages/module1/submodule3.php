@@ -100,7 +100,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         </div>
       <?php endif; ?>
 
-      <form id="assignRouteForm" class="grid grid-cols-1 md:grid-cols-12 gap-4" method="POST" action="/tmm/admin/api/module1/assign_route.php">
+      <form id="assignRouteForm" class="grid grid-cols-1 md:grid-cols-12 gap-4" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/assign_route.php">
         <div class="md:col-span-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
           <input name="plate_number" value="<?php echo htmlspecialchars($platePrefill, ENT_QUOTES); ?>" 
@@ -303,7 +303,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
             Open Module 2 LPTRP
           </a>
-          <form id="importLptrpForm" class="flex items-center gap-2" method="POST" action="/tmm/admin/api/routes/import_lptrp.php" enctype="multipart/form-data">
+          <form id="importLptrpForm" class="flex items-center gap-2" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/routes/import_lptrp.php" enctype="multipart/form-data">
             <input type="file" name="file" accept=".csv" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-2 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-50">
             <button type="submit" id="btnImportLptrp" class="px-4 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all text-sm whitespace-nowrap">Import CSV</button>
           </form>
@@ -464,7 +464,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                 <button title="View Details" data-plate="<?php echo htmlspecialchars($a['plate_number']); ?>" class="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
                   <i data-lucide="eye" class="w-4 h-4"></i>
                 </button>
-                <form method="POST" action="/tmm/admin/api/module1/assign_route.php" class="inline-flex">
+                <form method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/assign_route.php" class="inline-flex">
                    <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($a['plate_number']); ?>">
                    <input type="hidden" name="route_id" value="<?php echo htmlspecialchars($a['route_id']); ?>">
                    <input type="hidden" name="terminal_name" value="<?php echo htmlspecialchars($a['terminal_name']); ?>">

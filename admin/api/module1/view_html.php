@@ -4,6 +4,11 @@ $types = [];
 if (is_file(__DIR__ . '/../../includes/vehicle_types.php')) { require_once __DIR__ . '/../../includes/vehicle_types.php'; $types = vehicle_types(); }
 $db = db();
 $plate = trim($_GET['plate'] ?? '');
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 $stmt = $db->prepare("SELECT v.plate_number, v.vehicle_type, v.operator_name, v.coop_name, v.franchise_id, v.route_id, v.status, v.created_at, fa.status AS franchise_status FROM vehicles v LEFT JOIN franchise_applications fa ON v.franchise_id = fa.franchise_ref_number WHERE v.plate_number=?");
 $stmt->bind_param('s', $plate);
 $stmt->execute();
@@ -149,7 +154,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         </div>
                     <?php endif; ?>
 
-                    <form id="formAssign" class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end" method="POST" action="/tmm/admin/api/module1/assign_route.php">
+                    <form id="formAssign" class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/assign_route.php">
                         <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                         <div class="sm:col-span-3">
                             <label class="<?php echo $labelClass; ?>">Route ID</label>
@@ -215,7 +220,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
                     <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Link Operator / Cooperative</label>
-                        <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="/tmm/admin/api/module1/link_vehicle_operator.php">
+                        <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <div>
                                 <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name" value="<?php echo htmlspecialchars($v['operator_name'] ?? ''); ?>">
@@ -277,7 +282,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <div class="text-[10px] text-slate-400"><?php echo date('M d, Y', strtotime($d['uploaded_at'])); ?></div>
                                 </div>
                             </div>
-                            <a href="/tmm/admin/<?php echo htmlspecialchars($d['file_path']); ?>" target="_blank" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all" title="View Document">
+                            <a href="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/<?php echo htmlspecialchars($d['file_path']); ?>" target="_blank" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all" title="View Document">
                                 <i data-lucide="external-link" class="w-4 h-4"></i>
                             </a>
                         </div>
@@ -286,7 +291,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
                 <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <h4 class="text-xs font-bold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">Upload New Documents</h4>
-                    <form id="formUpload" class="space-y-3" method="POST" action="/tmm/admin/api/module1/upload_docs.php">
+                    <form id="formUpload" class="space-y-3" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/upload_docs.php">
                         <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                         
                         <div class="grid grid-cols-3 gap-2">
