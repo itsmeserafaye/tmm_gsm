@@ -20,6 +20,15 @@ $lon = (float)tmm_setting($db, 'weather_lon', '120.9842');
 $weatherLabel = tmm_setting($db, 'weather_label', 'Manila, PH');
 $eventsCountry = strtoupper(trim(tmm_setting($db, 'events_country', 'PH')));
 if ($eventsCountry === '') $eventsCountry = 'PH';
+$eventsRssUrl = trim((string)tmm_setting($db, 'events_rss_url', ''));
+
+$aiWeatherWeight = (float)tmm_setting($db, 'ai_weather_weight', '0.12');
+$aiEventWeight = (float)tmm_setting($db, 'ai_event_weight', '0.10');
+$aiTrafficWeight = (float)tmm_setting($db, 'ai_traffic_weight', '1.00');
+if (!is_finite($aiWeatherWeight)) $aiWeatherWeight = 0.12;
+if (!is_finite($aiEventWeight)) $aiEventWeight = 0.10;
+if (!is_finite($aiTrafficWeight)) $aiTrafficWeight = 1.00;
+$aiTrafficWeight = max(0.0, min(2.0, $aiTrafficWeight));
 
 function hour_key_from_dt(string $dt): string {
   $ts = strtotime($dt);
@@ -174,6 +183,131 @@ function tmm_get_holidays_map(mysqli $db, string $country, int $year, int $daysA
   }
   return $map;
 }
+
+$weather = tmm_get_weather_hourly($db, $lat, $lon);
+$holidayMap = tmm_get_holidays_map($db, $eventsCountry, (int)date('Y'), $hoursAhead > 48 ? 7 : 3);
+
+function tmm_get_events_map(mysqli $db, array $holidayMap, string $rssUrl, int $daysAhead): array {
+  $map = [];
+  foreach ($holidayMap as $d => $title) {
+    $map[$d] = ['type' => 'holiday', 'title' => (string)$title, 'source' => 'nager'];
+  }
+  if ($rssUrl === '') return $map;
+
+  $today = date('Y-m-d');
+  $end = date('Y-m-d', strtotime('+' . $daysAhead . ' days'));
+  $rssKey = 'events:rss:' . sha1($rssUrl);
+  $rssCached = tmm_cache_get($db, $rssKey);
+  $rssItems = null;
+  if (is_array($rssCached)) {
+    $rssItems = $rssCached;
+  } else {
+    $raw = @file_get_contents($rssUrl);
+    if (is_string($raw) && $raw !== '') {
+      $xml = @simplexml_load_string($raw);
+      if ($xml) {
+        $items = [];
+        if (isset($xml->channel->item)) {
+          foreach ($xml->channel->item as $it) {
+            $title = trim((string)$it->title);
+            $pub = trim((string)$it->pubDate);
+            $link = trim((string)$it->link);
+            $dt = $pub ? date('Y-m-d', strtotime($pub)) : '';
+            if ($dt !== '') $items[] = ['date' => $dt, 'title' => $title, 'link' => $link];
+          }
+        } elseif (isset($xml->entry)) {
+          foreach ($xml->entry as $it) {
+            $title = trim((string)$it->title);
+            $updated = trim((string)$it->updated);
+            $dt = $updated ? date('Y-m-d', strtotime($updated)) : '';
+            $link = '';
+            if (isset($it->link)) {
+              foreach ($it->link as $lnk) {
+                $href = (string)$lnk['href'];
+                if ($href) { $link = $href; break; }
+              }
+            }
+            if ($dt !== '') $items[] = ['date' => $dt, 'title' => $title, 'link' => $link];
+          }
+        }
+        $rssItems = $items;
+        tmm_cache_set($db, $rssKey, $rssItems, 30 * 60);
+      }
+    }
+  }
+  if (is_array($rssItems)) {
+    foreach ($rssItems as $it) {
+      $d = (string)($it['date'] ?? '');
+      if ($d === '' || $d < $today || $d > $end) continue;
+      if (!isset($map[$d]) || ($map[$d]['type'] ?? '') !== 'holiday') {
+        $map[$d] = [
+          'type' => 'event',
+          'title' => (string)($it['title'] ?? 'Event'),
+          'source' => 'rss',
+          'link' => (string)($it['link'] ?? ''),
+        ];
+      }
+    }
+  }
+  return $map;
+}
+
+function tmm_weather_lookup(array $weather, int $ts): array {
+  $out = ['temp_c' => null, 'precip_mm' => null, 'precip_prob' => null, 'weathercode' => null];
+  if (!isset($weather['hourly']) || !is_array($weather['hourly'])) return $out;
+  $h = $weather['hourly'];
+  $times = $h['time'] ?? null;
+  if (!is_array($times)) return $out;
+  $target = date('Y-m-d\\TH:00', $ts);
+  $idx = array_search($target, $times, true);
+  if ($idx === false) return $out;
+  foreach (['temperature_2m' => 'temp_c', 'precipitation' => 'precip_mm', 'precipitation_probability' => 'precip_prob', 'weathercode' => 'weathercode'] as $src => $dst) {
+    $arr = $h[$src] ?? null;
+    if (is_array($arr) && array_key_exists($idx, $arr)) $out[$dst] = $arr[$idx];
+  }
+  return $out;
+}
+
+function tmm_compute_weather_factor(array $w, int $hourOfDay, float $weight): array {
+  $prob = isset($w['precip_prob']) && $w['precip_prob'] !== null ? (float)$w['precip_prob'] : null;
+  $mm = isset($w['precip_mm']) && $w['precip_mm'] !== null ? (float)$w['precip_mm'] : 0.0;
+  $temp = isset($w['temp_c']) && $w['temp_c'] !== null ? (float)$w['temp_c'] : null;
+  $severity = 0.0;
+  if ($prob !== null) $severity = max($severity, max(0.0, min(1.0, $prob / 100.0)));
+  if ($mm > 0.0) $severity = max($severity, max(0.0, min(1.0, $mm / 6.0)));
+  $tempSeverity = 0.0;
+  if ($temp !== null) {
+    if ($temp >= 36) $tempSeverity = min(1.0, ($temp - 36) / 6);
+    elseif ($temp <= 20) $tempSeverity = min(1.0, (20 - $temp) / 8);
+  }
+
+  $commuteBoost = ($hourOfDay >= 6 && $hourOfDay <= 9) || ($hourOfDay >= 16 && $hourOfDay <= 19);
+  $scale = $commuteBoost ? 1.0 : 0.7;
+  $impact = ($severity * 0.85 + $tempSeverity * 0.15) * $scale;
+  $factor = 1.0 + ($weight * $impact);
+  $factor = max(0.70, min(1.35, $factor));
+  return ['factor' => round($factor, 3), 'severity' => round($severity, 3), 'temp_severity' => round($tempSeverity, 3)];
+}
+
+function tmm_compute_event_factor(?array $evt, int $hourOfDay, float $weight): array {
+  if (!$evt || !is_array($evt) || empty($evt['type'])) return ['factor' => 1.0, 'score' => 0.0];
+  $type = (string)($evt['type'] ?? '');
+  $score = 0.0;
+  if ($type === 'holiday') {
+    if (($hourOfDay >= 10 && $hourOfDay <= 16)) $score = 1.0;
+    elseif (($hourOfDay >= 6 && $hourOfDay <= 9) || ($hourOfDay >= 16 && $hourOfDay <= 19)) $score = -0.4;
+    else $score = 0.35;
+  } else {
+    if ($hourOfDay >= 16 && $hourOfDay <= 22) $score = 0.9;
+    elseif ($hourOfDay >= 11 && $hourOfDay <= 15) $score = 0.4;
+    else $score = 0.2;
+  }
+  $factor = 1.0 + ($weight * $score);
+  $factor = max(0.70, min(1.40, $factor));
+  return ['factor' => round($factor, 3), 'score' => round($score, 3)];
+}
+
+$eventsMap = tmm_get_events_map($db, $holidayMap, $eventsRssUrl, $hoursAhead > 48 ? 7 : 3);
 
 $areas = [];
 $areaLists = ['terminal' => [], 'route' => []];
@@ -378,6 +512,7 @@ foreach ($areas as $a) {
           $impact = 0.0;
           if (is_numeric($congestionPct)) $impact += ((float)$congestionPct / 100.0) * 0.20;
           $impact += min(0.10, $incCount * 0.01);
+          $impact *= $aiTrafficWeight;
           $trafficFactorBase = 1.0 + min(0.25, max(0.0, $impact));
           $traffic = [
             'point' => ['lat' => (float)$geo['lat'], 'lon' => (float)$geo['lon']],
@@ -435,6 +570,7 @@ foreach ($areas as $a) {
         $impact = 0.0;
         if (is_numeric($avgCong)) $impact += ((float)$avgCong / 100.0) * 0.20;
         $impact += min(0.10, $incTotal * 0.01);
+        $impact *= $aiTrafficWeight;
         $trafficFactorBase = 1.0 + min(0.25, max(0.0, $impact));
         $traffic = [
           'points' => $trafficPoints,
@@ -448,14 +584,29 @@ foreach ($areas as $a) {
   }
 
   foreach ($pred as $i => &$pp) {
-    $h = $i + 1;
-    $factor = 1.0;
+    $hAhead = $i + 1;
+    $trafficFactor = 1.0;
     if ($trafficFactorBase > 1.0) {
-      if ($h <= 6) $factor = $trafficFactorBase;
-      elseif ($h <= 12) $factor = 1.0 + (($trafficFactorBase - 1.0) * 0.5);
+      if ($hAhead <= 6) $trafficFactor = $trafficFactorBase;
+      elseif ($hAhead <= 12) $trafficFactor = 1.0 + (($trafficFactorBase - 1.0) * 0.5);
     }
-    $pp['traffic_factor'] = round($factor, 3);
-    $pp['predicted_adjusted'] = (int)max(0, round(((int)($pp['predicted'] ?? 0)) * $factor));
+    $ts = (int)($pp['ts'] ?? 0);
+    $hourOfDay = $ts > 0 ? (int)date('G', $ts) : 0;
+    $date = $ts > 0 ? date('Y-m-d', $ts) : '';
+    $w = $ts > 0 ? tmm_weather_lookup($weather, $ts) : ['temp_c' => null, 'precip_mm' => null, 'precip_prob' => null, 'weathercode' => null];
+    $evt = ($date !== '' && isset($eventsMap[$date])) ? $eventsMap[$date] : null;
+    $wf = tmm_compute_weather_factor($w, $hourOfDay, $aiWeatherWeight);
+    $ef = tmm_compute_event_factor($evt, $hourOfDay, $aiEventWeight);
+    $combined = $trafficFactor * (float)($wf['factor'] ?? 1.0) * (float)($ef['factor'] ?? 1.0);
+    $combined = max(0.50, min(2.00, $combined));
+
+    $pp['traffic_factor'] = round($trafficFactor, 3);
+    $pp['weather'] = $w;
+    $pp['event'] = $evt;
+    $pp['weather_factor'] = round((float)($wf['factor'] ?? 1.0), 3);
+    $pp['event_factor'] = round((float)($ef['factor'] ?? 1.0), 3);
+    $pp['combined_factor'] = round((float)$combined, 3);
+    $pp['predicted_adjusted'] = (int)max(0, round(((int)($pp['predicted'] ?? 0)) * $combined));
   }
   unset($pp);
   $forecastItems[] = [
@@ -505,56 +656,6 @@ $points = (int)($eval['points'] ?? 0);
 $accuracyTarget = 80.0;
 $accuracyOk = ($points >= 40) && ($accuracy >= $accuracyTarget);
 
-$weather = tmm_get_weather_hourly($db, $lat, $lon);
-$holidayMap = tmm_get_holidays_map($db, $eventsCountry, (int)date('Y'), $hoursAhead > 48 ? 7 : 3);
-
-function tmm_weather_lookup(array $weather, int $ts): array {
-  $out = ['temp_c' => null, 'precip_mm' => null, 'precip_prob' => null, 'weathercode' => null];
-  if (!isset($weather['hourly']) || !is_array($weather['hourly'])) return $out;
-  $h = $weather['hourly'];
-  $times = $h['time'] ?? null;
-  if (!is_array($times)) return $out;
-  $target = date('Y-m-d\\TH:00', $ts);
-  $idx = array_search($target, $times, true);
-  if ($idx === false) return $out;
-  foreach (['temperature_2m' => 'temp_c', 'precipitation' => 'precip_mm', 'precipitation_probability' => 'precip_prob', 'weathercode' => 'weathercode'] as $src => $dst) {
-    $arr = $h[$src] ?? null;
-    if (is_array($arr) && array_key_exists($idx, $arr)) $out[$dst] = $arr[$idx];
-  }
-  return $out;
-}
-
-foreach ($forecastItems as &$it) {
-  if (!isset($it['forecast']) || !is_array($it['forecast'])) continue;
-  foreach ($it['forecast'] as &$p) {
-    $ts = (int)($p['ts'] ?? 0);
-    if ($ts <= 0) continue;
-    $date = date('Y-m-d', $ts);
-    $w = tmm_weather_lookup($weather, $ts);
-    $p['weather'] = $w;
-    if (isset($holidayMap[$date])) {
-      $p['event'] = ['type' => 'holiday', 'title' => $holidayMap[$date]];
-    } else {
-      $p['event'] = null;
-    }
-  }
-}
-unset($it); unset($p);
-
-foreach ($spikes as &$s) {
-  $ph = (string)($s['peak_hour'] ?? '');
-  $ts = strtotime($ph);
-  if ($ts) {
-    $date = date('Y-m-d', $ts);
-    $s['event'] = isset($holidayMap[$date]) ? ['type' => 'holiday', 'title' => $holidayMap[$date]] : null;
-    $s['weather'] = tmm_weather_lookup($weather, $ts);
-  } else {
-    $s['event'] = null;
-    $s['weather'] = ['temp_c' => null, 'precip_mm' => null, 'precip_prob' => null, 'weathercode' => null];
-  }
-}
-unset($s);
-
 $dataSource = $useObservations ? 'puv_demand_observations' : ($areaType === 'route' ? 'terminal_assignments_and_vehicles' : 'parking_transactions_and_violations');
 
 echo json_encode([
@@ -567,7 +668,12 @@ echo json_encode([
   'data_points' => $points,
   'data_source' => $dataSource,
   'weather' => ['label' => $weatherLabel, 'lat' => $lat, 'lon' => $lon, 'current' => $weather['current_weather'] ?? null],
-  'events' => ['country' => $eventsCountry],
+  'events' => ['country' => $eventsCountry, 'rss' => $eventsRssUrl !== '' ? true : false],
+  'model' => [
+    'ai_weather_weight' => $aiWeatherWeight,
+    'ai_event_weight' => $aiEventWeight,
+    'ai_traffic_weight' => $aiTrafficWeight,
+  ],
   'spikes' => $spikes,
   'areas' => $forecastItems,
   'area_lists' => $areaLists,

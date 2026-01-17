@@ -144,6 +144,40 @@ function get_setting($key, $default = '') {
             </div>
         </div>
 
+        <!-- AI Forecast Tuning -->
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+                <div class="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
+                    <i data-lucide="sliders" class="w-5 h-5 text-violet-600 dark:text-violet-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 dark:text-white">AI Forecast Tuning</h2>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Weather • Events • Traffic impact weights</p>
+                </div>
+            </div>
+
+            <div class="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Weather Weight</label>
+                    <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_weather_weight" value="<?php echo htmlspecialchars(get_setting('ai_weather_weight', '0.12')); ?>"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">Positive increases demand during bad weather; negative decreases it.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Events Weight</label>
+                    <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_event_weight" value="<?php echo htmlspecialchars(get_setting('ai_event_weight', '0.10')); ?>"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">Applies to holidays and RSS events within the forecast window.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Traffic Weight</label>
+                    <input type="number" step="0.01" min="0.00" max="2.00" name="ai_traffic_weight" value="<?php echo htmlspecialchars(get_setting('ai_traffic_weight', '1.00')); ?>"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">Scales traffic congestion impact from TomTom (0 disables).</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Action Bar -->
         <div class="sticky bottom-4 z-50">
             <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">

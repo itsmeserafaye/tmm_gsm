@@ -22,6 +22,11 @@ $allowed = [
   'events_country',
   'events_city',
   'events_rss_url',
+
+  // AI / Analytics weights
+  'ai_weather_weight',
+  'ai_event_weight',
+  'ai_traffic_weight',
   
   // Security
   'password_min_length',

@@ -125,14 +125,26 @@ $totalRevenue = $db->query("SELECT SUM(amount) AS s FROM parking_transactions")-
           </div>
           <div id="forecastChart" class="relative z-10 grid grid-cols-12 gap-2 items-end h-full"></div>
         </div>
-        <div id="forecastChartLegend" class="mt-4 text-xs font-medium text-slate-500 flex items-center justify-center gap-6">
+        <div id="forecastChartLegend" class="mt-4 text-xs font-medium text-slate-500 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-sm bg-blue-600"></span> 
-            <span>Normal Demand</span>
+            <span class="w-3 h-3 rounded-sm bg-blue-600"></span>
+            <span>Baseline</span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-sm bg-cyan-600"></span> 
-            <span>Rain Impact</span>
+            <span class="w-3 h-3 rounded-sm bg-amber-600"></span>
+            <span>Traffic Impact</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-sm bg-cyan-600"></span>
+            <span>Weather Impact</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-sm bg-violet-600"></span>
+            <span>Event Impact</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-sm bg-rose-600"></span>
+            <span>Multiple Impacts</span>
           </div>
         </div>
       </div>
@@ -231,6 +243,32 @@ $totalRevenue = $db->query("SELECT SUM(amount) AS s FROM parking_transactions")-
           </button>
           <div id="demand-log-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
         </form>
+
+        <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-2 mb-4">
+            <i data-lucide="sliders" class="w-4 h-4 text-violet-500"></i>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Forecast Weights</h3>
+          </div>
+          <form id="forecast-weights-form" class="space-y-3">
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Weather</label>
+              <input id="wWeather" name="ai_weather_weight" type="number" step="0.01" min="-0.50" max="0.50" class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Events</label>
+              <input id="wEvent" name="ai_event_weight" type="number" step="0.01" min="-0.50" max="0.50" class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+            </div>
+            <div class="grid grid-cols-3 gap-2 items-center">
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Traffic</label>
+              <input id="wTraffic" name="ai_traffic_weight" type="number" step="0.01" min="0.00" max="2.00" class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+              <i data-lucide="save" class="w-4 h-4"></i>
+              Save Weights
+            </button>
+            <div id="forecast-weights-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
+          </form>
+        </div>
 
         <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <div class="flex items-center gap-2 mb-4">
@@ -396,12 +434,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var trafficNowHint = document.getElementById('trafficNowHint');
   var insightsOver = document.getElementById('insightsOver');
   var insightsUnder = document.getElementById('insightsUnder');
+  var weightsForm = document.getElementById('forecast-weights-form');
+  var wWeather = document.getElementById('wWeather');
+  var wEvent = document.getElementById('wEvent');
+  var wTraffic = document.getElementById('wTraffic');
+  var weightsResult = document.getElementById('forecast-weights-result');
   var currentType = 'terminal';
   var areas = { terminal: [], route: [] };
   var lastSpikes = [];
   var insightsByLabel = {};
   var bestTerminalLabel = '';
   var bestAreaRef = '';
+  var lastModel = null;
 
   function setActive(type) {
     currentType = type;
@@ -439,17 +483,27 @@ document.addEventListener('DOMContentLoaded', function () {
       var rain = (p.weather && p.weather.precip_mm) ? Number(p.weather.precip_mm) : 0;
       var prob = (p.weather && p.weather.precip_prob !== null && p.weather.precip_prob !== undefined) ? Number(p.weather.precip_prob) : null;
       var evt = (p.event && p.event.title) ? p.event.title : '';
+      var tf = (p && p.traffic_factor != null) ? Number(p.traffic_factor) : 1.0;
+      var wf = (p && p.weather_factor != null) ? Number(p.weather_factor) : 1.0;
+      var ef = (p && p.event_factor != null) ? Number(p.event_factor) : 1.0;
+      var activeImpacts = 0;
+      if (tf > 1.02) activeImpacts++;
+      if (wf > 1.02 || (prob !== null && prob >= 60)) activeImpacts++;
+      if (ef > 1.02) activeImpacts++;
       
-      // Rain: Cyan
-      if (prob !== null && prob >= 60) {
-        bgClass = 'bg-cyan-600';
-      }
+      if (activeImpacts >= 2) bgClass = 'bg-rose-600';
+      else if (ef > 1.02) bgClass = 'bg-violet-600';
+      else if (tf > 1.02) bgClass = 'bg-amber-600';
+      else if (wf > 1.02 || (prob !== null && prob >= 60)) bgClass = 'bg-cyan-600';
 
       bar.className = 'w-full rounded-sm hover:opacity-90 transition-all cursor-help ' + bgClass;
       bar.style.height = h + '%';
       
       var parts = [p.hour_label, 'Predicted: ' + v];
-      if (p && p.traffic_factor != null && p.traffic_factor !== 1 && p.traffic_factor !== 1.0) parts.push('Traffic factor: x' + p.traffic_factor);
+      if (p && p.traffic_factor != null && p.traffic_factor !== 1 && p.traffic_factor !== 1.0) parts.push('Traffic: x' + p.traffic_factor);
+      if (p && p.weather_factor != null && p.weather_factor !== 1 && p.weather_factor !== 1.0) parts.push('Weather: x' + p.weather_factor);
+      if (p && p.event_factor != null && p.event_factor !== 1 && p.event_factor !== 1.0) parts.push('Event: x' + p.event_factor);
+      if (p && p.combined_factor != null && p.combined_factor !== 1 && p.combined_factor !== 1.0) parts.push('Combined: x' + p.combined_factor);
       if (prob !== null) parts.push('Rain Prob: ' + prob + '%');
       if (rain) parts.push('Rain: ' + rain + 'mm');
       if (evt) parts.push('Event: ' + evt);
@@ -717,6 +771,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!data || !data.ok) throw new Error('bad');
         setAccuracyUI(data);
         setWeatherNowUI(data.weather || null);
+        lastModel = data.model || null;
+        if (wWeather && lastModel && lastModel.ai_weather_weight !== undefined) wWeather.value = lastModel.ai_weather_weight;
+        if (wEvent && lastModel && lastModel.ai_event_weight !== undefined) wEvent.value = lastModel.ai_event_weight;
+        if (wTraffic && lastModel && lastModel.ai_traffic_weight !== undefined) wTraffic.value = lastModel.ai_traffic_weight;
         var best = null;
         if (data.areas && data.areas.length) {
           data.areas.forEach(function (a) {
@@ -746,6 +804,43 @@ document.addEventListener('DOMContentLoaded', function () {
       .catch(function () {
         if (accuracyEl) accuracyEl.textContent = '—';
       });
+  }
+
+  if (weightsForm) {
+    weightsForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!wWeather || !wEvent || !wTraffic) return;
+      if (weightsResult) {
+        weightsResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-slate-500';
+        weightsResult.textContent = 'Saving...';
+      }
+      var fd = new FormData();
+      fd.append('ai_weather_weight', String(wWeather.value || '0'));
+      fd.append('ai_event_weight', String(wEvent.value || '0'));
+      fd.append('ai_traffic_weight', String(wTraffic.value || '1'));
+      fetch('/tmm/admin/api/settings/update.php', { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.ok) {
+            if (weightsResult) {
+              weightsResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-emerald-600';
+              weightsResult.textContent = 'Saved';
+            }
+            load();
+          } else {
+            if (weightsResult) {
+              weightsResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-rose-600';
+              weightsResult.textContent = 'Failed to save';
+            }
+          }
+        })
+        .catch(function () {
+          if (weightsResult) {
+            weightsResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-rose-600';
+            weightsResult.textContent = 'Failed to save';
+          }
+        });
+    });
   }
 
   if (btnT) btnT.addEventListener('click', function () { setActive('terminal'); load(); });
