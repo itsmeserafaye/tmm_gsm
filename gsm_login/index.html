@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoServePH - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./Login/styles.css?v=20260117_5">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body class="bg-custom-bg min-h-screen flex flex-col">
+    <header class="py-4">
+        <div class="container mx-auto px-6">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg">
+                        <img src="./Login/images/GSM_logo.png" alt="GSM Logo" class="h-10 w-auto">
+                    </div>
+                    <h1 class="text-3xl lg:text-4xl font-bold" style="font-weight: 700;">
+                        <span class="brand-go">Go</span><span class="brand-serve">Serve</span><span class="brand-ph">PH</span>
+                    </h1>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm">
+                        <div id="currentDateTime" class="font-semibold"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 flex-1">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="text-center lg:text-left">
+                <h2 class="text-4xl lg:text-5xl font-bold mb-4 animated-gradient">
+                    Login to your portal
+                </h2>
+                <p class="text-gray-600 text-lg mb-6">
+                    Use your account credentials to access Staff/Commuter or Operator services.
+                </p>
+                <a href="../index.php" class="inline-flex items-center gap-2 text-custom-secondary font-semibold hover:underline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to landing page
+                </a>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-auto w-full glass-card glow-on-hover">
+                <form id="loginForm" class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-gray-700">Email Address</label>
+                        <div class="relative">
+                            <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="email" id="email" name="email" class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your email" required>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-gray-700">Password</label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" id="password" name="password" class="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your password" required>
+                            <button type="button" id="togglePassword" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="rememberMe" class="mr-2">
+                            <span class="text-gray-600">Remember me</span>
+                        </label>
+                        <button type="button" id="openForgotPassword" class="text-custom-secondary hover:underline">
+                            Forgot password?
+                        </button>
+                    </div>
+
+                    <div id="operatorPlateWrap" class="space-y-2 hidden">
+                        <label class="text-sm font-semibold text-gray-700">Plate Number (Operator)</label>
+                        <div class="relative">
+                            <i class="fas fa-car absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="plate_number" name="plate_number" class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter plate number">
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
+
+                        <div id="loginAlert" class="hidden rounded-lg border px-4 py-3 text-sm font-semibold"></div>
+
+                        <button type="submit" class="w-full bg-custom-secondary text-white py-3 px-6 rounded-lg font-semibold btn-primary transition-all duration-200 flex items-center justify-center space-x-2">
+                            <span>Login</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <div id="forgotPasswordModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 class="text-xl font-semibold mb-2 text-center">Reset Password</h3>
+            <p class="text-sm text-gray-600 mb-4 text-center">Enter your email. We will send a 6-digit OTP to reset your password.</p>
+            <form id="forgotPasswordForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Email Address</label>
+                    <input type="email" id="fpEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com" required>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" id="fpSendOtp" class="px-4 py-2 rounded-lg bg-custom-secondary text-white font-semibold">Send OTP</button>
+                </div>
+
+                <div id="fpStep2" class="hidden space-y-4 pt-2 border-t">
+                    <div>
+                        <label class="block text-sm mb-2 text-center">Enter OTP</label>
+                        <div class="flex justify-center space-x-2" id="fpOtpInputs">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 1">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+                            <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">New Password</label>
+                        <div class="relative">
+                            <input type="password" id="fpNewPassword" minlength="10" class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" required>
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="fpNewPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <ul id="fpPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
+                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
+                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
+                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
+                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
+                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Confirm New Password</label>
+                        <div class="relative">
+                            <input type="password" id="fpConfirmPassword" minlength="10" class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" required>
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="fpConfirmPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="fpConfirmError" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <button type="button" id="fpCancel" class="px-4 py-2 rounded-lg bg-red-500 text-white">Cancel</button>
+                        <button type="submit" id="fpSubmit" class="px-4 py-2 rounded-lg bg-custom-secondary text-white">Reset Password</button>
+                    </div>
+                </div>
+            </form>
+            <div class="flex justify-end pt-3">
+                <button type="button" id="fpClose" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="otpModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h3 class="text-xl font-semibold mb-2 text-center">Two-Factor Verification</h3>
+            <p class="text-sm text-gray-600 mb-2 text-center">Please check your registered email for your OTP. You have <span id="otpTimer" class="font-semibold text-custom-secondary">03:00</span> to enter it.</p>
+            <p id="otpTrustNote" class="text-xs text-gray-500 mb-4 text-center hidden"></p>
+            <form id="otpForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-2 text-center">Enter OTP</label>
+                    <div class="flex justify-center space-x-2" id="otpInputs">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 1">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 2">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 3">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 4">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 5">
+                        <input type="text" class="otp-input" inputmode="numeric" maxlength="1" aria-label="Digit 6">
+                    </div>
+                </div>
+                <div id="otpError" class="text-red-500 text-sm hidden">Invalid or expired OTP.</div>
+                <div class="flex justify-between items-center">
+                    <button type="button" id="cancelOtp" class="px-4 py-2 rounded-lg bg-red-500 text-white">Cancel</button>
+                    <div class="space-x-2">
+                        <button type="button" id="resendOtp" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800" disabled>Resend OTP</button>
+                        <button type="submit" id="submitOtp" class="px-4 py-2 rounded-lg bg-custom-secondary text-white">Verify</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./Login/script.js?v=20260117_5"></script>
+</body>
+</html>
