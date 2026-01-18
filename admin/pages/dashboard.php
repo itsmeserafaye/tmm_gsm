@@ -209,6 +209,50 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         <div id="forecastChartLegend"
           class="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
         </div>
+        <div id="chartAnalysis"
+          class="mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700 leading-relaxed">
+          Select data to view analysis.
+        </div>
+      </div>
+
+      <!-- AI Insights Section (Moved & Restyled) -->
+      <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+              <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white">AI Insights</h2>
+              <div class="flex items-center gap-2">
+                <span class="flex w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-xs text-slate-500 font-medium">Live Analysis</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Peak Demand Insight -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex items-start justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Peak Demand Forecast</h3>
+              <span
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Upcoming</span>
+            </div>
+            <ul id="insightsOver" class="text-sm text-slate-600 dark:text-slate-400 space-y-2"></ul>
+          </div>
+
+          <!-- Optimization Insight -->
+          <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex items-start justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Optimization Ops</h3>
+              <span
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Actionable</span>
+            </div>
+            <ul id="insightsUnder" class="text-sm text-slate-600 dark:text-slate-400 space-y-2"></ul>
+          </div>
+        </div>
       </div>
 
       <!-- Alerts Section -->
@@ -351,64 +395,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         </div>
       </div>
 
-      <!-- AI Insights Section (Glassmorphism) -->
-      <div class="relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl">
-        <!-- Ambient Background Glow -->
-        <div class="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none">
-        </div>
-        <div class="absolute -bottom-20 -left-20 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl pointer-events-none">
-        </div>
 
-        <div class="relative p-6 backdrop-blur-sm">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-              <div class="relative">
-                <div class="absolute inset-0 bg-blue-400 animate-ping rounded-full opacity-20"></div>
-                <div class="relative p-2 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 text-white shadow-lg">
-                  <i data-lucide="sparkles" class="w-5 h-5"></i>
-                </div>
-              </div>
-              <div>
-                <h2 class="text-lg font-bold text-white">AI Insights</h2>
-                <div class="flex items-center gap-2">
-                  <span class="flex w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
-                  <span class="text-xs text-slate-400 font-medium">Live Analysis</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <!-- Dynamic Insight Card 1 -->
-            <div
-              class="group relative overflow-hidden rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
-              <div class="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-blue-400 to-indigo-500"></div>
-              <div class="p-4 pl-5">
-                <div class="flex items-start justify-between mb-2">
-                  <h3 class="text-sm font-semibold text-blue-200">Peak Demand Forecast</h3>
-                  <span
-                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">Upcoming</span>
-                </div>
-                <ul id="insightsOver" class="text-sm text-slate-300 space-y-2"></ul>
-              </div>
-            </div>
-
-            <!-- Dynamic Insight Card 2 -->
-            <div
-              class="group relative overflow-hidden rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-300">
-              <div class="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-emerald-400 to-teal-500"></div>
-              <div class="p-4 pl-5">
-                <div class="flex items-start justify-between mb-2">
-                  <h3 class="text-sm font-semibold text-emerald-200">Optimization Ops</h3>
-                  <span
-                    class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Actionable</span>
-                </div>
-                <ul id="insightsUnder" class="text-sm text-slate-300 space-y-2"></ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- End main content wrapper -->
@@ -417,7 +404,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', function () {
       var btnT = document.getElementById('btnAreaTerminal');
       var btnP = document.getElementById('btnAreaParking');
       var accuracyEl = document.getElementById('forecastAccuracy');
@@ -735,8 +722,39 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         }
 
         forecastChartInstance = new ApexCharts(document.querySelector("#forecastChart"), options);
-        forecastChartInstance.render();
+      forecastChartInstance.render();
+
+      // Update Chart Summary
+      var analysisEl = document.getElementById('chartAnalysis');
+      if (analysisEl && points && points.length > 0) {
+        var peakVal = 0;
+        var peakTime = '';
+        var totalPred = 0;
+        var totalBase = 0;
+        
+        points.slice(0, 24).forEach(function(p) {
+            var val = (p.predicted_adjusted != null) ? p.predicted_adjusted : p.predicted;
+            if (val > peakVal) {
+                peakVal = val;
+                peakTime = p.hour_label;
+            }
+            totalPred += val;
+            totalBase += (p.baseline != null) ? p.baseline : val;
+        });
+
+        var diffPercent = totalBase > 0 ? ((totalPred - totalBase) / totalBase) * 100 : 0;
+        var trendStr = diffPercent > 2 ? 'higher than average' : (diffPercent < -2 ? 'lower than average' : 'consistent with baseline');
+        var trendColor = diffPercent > 2 ? 'text-rose-600' : (diffPercent < -2 ? 'text-emerald-600' : 'text-blue-600');
+
+        analysisEl.innerHTML = `
+            Forecast indicates a peak demand of <span class="font-bold text-slate-900 dark:text-white">${Math.round(peakVal)} passengers</span> 
+            at <span class="font-bold text-slate-900 dark:text-white">${peakTime}</span>. 
+            Overall demand is trending <span class="font-bold ${trendColor}">${trendStr}</span> (${diffPercent > 0 ? '+' : ''}${diffPercent.toFixed(1)}%).
+        `;
+      } else if (analysisEl) {
+        analysisEl.innerHTML = 'Insufficient data for analysis.';
       }
+    }
 
       function renderSpikes(spikes) {
         if (!spikesEl) return;
