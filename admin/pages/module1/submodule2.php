@@ -256,6 +256,13 @@
         </div>
         Cooperative Status
       </h3>
+      <a href="?page=module2/submodule1&open=coop" class="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.99] transition-all">
+        <i data-lucide="user-plus" class="w-4 h-4"></i>
+        <span>Register Cooperative</span>
+      </a>
+      <div class="mb-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        Consolidation is updated in Franchise Management after LGU verification. Status flow: Not Consolidated → In Progress → Consolidated.
+      </div>
       <?php
         $hasConsCol = false;
         $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
@@ -457,7 +464,7 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LGU Approval #</label>
-                <input name="lgu_approval_number" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Required">
+                <input name="lgu_approval_number" maxlength="20" inputmode="text" autocomplete="off" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="e.g. CAL-COOP-2026-001">
               </div>
             </div>
             <div>
@@ -922,11 +929,38 @@
         if (address.length < 5) return 'Address should look like a real street address.';
         var chair = form.elements['chairperson_name'].value;
         if (!validatePersonName(chair)) return 'Chairperson name should be a realistic human name.';
-        var lgu = (form.elements['lgu_approval_number'].value || '').trim();
+        var lgu = (form.elements['lgu_approval_number'].value || '').trim().toUpperCase();
         if (!lgu) return 'LGU approval number is required for transport cooperatives.';
-        if (!/^LGU-[0-9]{4}-[0-9]{5}$/.test(lgu)) return 'LGU approval number must look like LGU-2024-00001.';
+        if (!/^[A-Z]{2,6}-COOP-[0-9]{4}-[0-9]{3}$/.test(lgu)) return 'LGU approval number must look like CAL-COOP-2026-001.';
         return null;
       }
+
+      (function () {
+        var form = document.getElementById('saveCoopForm');
+        if (!form) return;
+        var input = form.querySelector('input[name="lgu_approval_number"]');
+        if (!input) return;
+        function formatLguApproval(v) {
+          var raw = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          var prefixMatch = raw.match(/^[A-Z]{0,6}/);
+          var prefix = prefixMatch ? prefixMatch[0] : '';
+          var rest = raw.slice(prefix.length);
+          if (rest.startsWith('COOP')) rest = rest.slice(4);
+          var digits = rest.replace(/[^0-9]/g, '').slice(0, 7);
+          var year = digits.slice(0, 4);
+          var seq = digits.slice(4, 7);
+          if (!prefix) return '';
+          if (raw.length <= prefix.length) return prefix;
+          var out = prefix + '-COOP-';
+          if (year) out += year;
+          if (digits.length > 4) out += '-' + seq;
+          return out;
+        }
+        input.addEventListener('input', function () {
+          var next = formatLguApproval(input.value);
+          if (input.value !== next) input.value = next;
+        });
+      })();
 
       function validateVehicleLinkForm(form) {
         var plate = (form.elements['plate_number'].value || '').trim().toUpperCase();
@@ -967,8 +1001,8 @@
             return 'Chairperson name should be a realistic human name.';
           case 'LGU approval number is required for transport cooperatives':
             return 'LGU approval number is required for transport cooperatives.';
-          case 'LGU approval number should be alphanumeric (with - or /)':
-            return 'LGU approval number should be alphanumeric; dashes (-) and slashes (/) allowed.';
+          case 'LGU approval number must match format like CAL-COOP-2026-001':
+            return 'LGU approval number must look like CAL-COOP-2026-001.';
           case 'LGU approval number is already used by another cooperative':
             return 'LGU approval number is already linked to another cooperative.';
           default:

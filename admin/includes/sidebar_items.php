@@ -30,7 +30,7 @@ $sidebarItems = [
   ],
   [
     'id' => 'module3',
-    'label' => 'Traffic Violation Monitoring (STS-Compliant)',
+    'label' => 'Traffic Violation Monitoring',
     'icon' => 'ticket',
     'subItems' => [
       ['id' => 'overview', 'label' => 'Overview', 'path' => '/module3/overview', 'anyPermissions' => ['module3.view','tickets.issue','tickets.validate','tickets.settle']],

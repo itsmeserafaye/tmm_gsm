@@ -342,7 +342,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LGU Approval #</label>
-                <input name="lgu_approval_number" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Required">
+                <input name="lgu_approval_number" maxlength="20" inputmode="text" autocomplete="off" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="e.g. CAL-COOP-2026-001">
               </div>
             </div>
             <div>
@@ -354,6 +354,9 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                   <option value="Consolidated">Consolidated</option>
                 </select>
                 <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+              </div>
+              <div class="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                Not Consolidated → In Progress → Consolidated. Set to Consolidated only after LGU verification and required documents are complete.
               </div>
             </div>
           </div>
@@ -515,16 +518,23 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-1 flex flex-col h-full">
-      <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
-        <i data-lucide="users" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
-        <h2 class="font-bold text-slate-900 dark:text-white text-sm">Operator & Cooperative</h2>
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-teal-200/60 dark:border-teal-900/40 ring-1 ring-teal-100/80 dark:ring-teal-900/30 overflow-hidden lg:col-span-1 flex flex-col h-full">
+      <div class="p-4 border-b border-teal-200/60 dark:border-teal-900/40 bg-teal-50/70 dark:bg-teal-900/20 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="h-8 w-8 rounded-lg bg-white/80 dark:bg-slate-800 flex items-center justify-center text-teal-700 dark:text-teal-300 ring-1 ring-teal-100 dark:ring-teal-900/30">
+            <i data-lucide="users" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 class="font-black text-slate-900 dark:text-white text-sm leading-tight">Operator & Cooperative</h2>
+            <div class="text-[11px] font-semibold text-teal-700/80 dark:text-teal-300/80">Quick actions</div>
+          </div>
+        </div>
       </div>
       <div class="p-4 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="group relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
-            <input id="opViewName" list="opNameList" class="w-full pl-10 pr-3 py-2.5 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search operator...">
+            <input id="opViewName" list="opNameList" class="w-full pl-10 pr-3 py-3 text-sm font-bold border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 dark:text-white focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search operator...">
             <datalist id="opNameList">
               <?php foreach ($opNames as $name): ?>
                 <option value="<?php echo htmlspecialchars($name); ?>"></option>
@@ -533,7 +543,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           </div>
           <div class="group relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
-            <input id="coopViewName" list="coopNameList" class="w-full pl-10 pr-3 py-2.5 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search cooperative...">
+            <input id="coopViewName" list="coopNameList" class="w-full pl-10 pr-3 py-3 text-sm font-bold border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 dark:text-white focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search cooperative...">
           </div>
         </div>
         <datalist id="coopNameList">
@@ -542,22 +552,22 @@ require_any_permission(['module2.view','module2.franchises.manage']);
             <option value="<?php echo htmlspecialchars($cn); ?>"></option>
           <?php endforeach; ?>
         </datalist>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" id="btnOpenOperatorModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button type="button" id="btnOpenOperatorModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all shadow-sm shadow-blue-600/20 active:scale-[0.99]">
             <i data-lucide="user-plus" class="w-4 h-4"></i>
             <span>Add Operator</span>
           </button>
-          <button type="button" id="btnOpenCoopModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+          <button type="button" id="btnOpenCoopModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-sm shadow-emerald-600/20 active:scale-[0.99]">
             <i data-lucide="building-2" class="w-4 h-4"></i>
             <span>Register Coop</span>
           </button>
-          <button type="button" id="btnOpenVehicleLinkModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+          <button type="button" id="btnOpenVehicleLinkModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-black transition-all active:scale-[0.99]">
             <i data-lucide="link-2" class="w-4 h-4"></i>
             <span>Link Vehicle</span>
           </button>
         </div>
-        <div class="text-[11px] text-slate-400 font-medium">
-          Search to view details. Use actions to add operator, register cooperative, or link a vehicle.
+        <div class="rounded-lg bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+          Tip: type a name above to open details, then click “Use in form”.
         </div>
       </div>
     </div>
@@ -901,6 +911,38 @@ function showFileName(input) {
 })();
 
 (function () {
+  function formatLguApproval(v) {
+    var raw = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    var prefixMatch = raw.match(/^[A-Z]{0,6}/);
+    var prefix = prefixMatch ? prefixMatch[0] : '';
+    var rest = raw.slice(prefix.length);
+    if (rest.startsWith('COOP')) rest = rest.slice(4);
+    var digits = rest.replace(/[^0-9]/g, '').slice(0, 7);
+    var year = digits.slice(0, 4);
+    var seq = digits.slice(4, 7);
+    if (!prefix) return '';
+    if (raw.length <= prefix.length) return prefix;
+    var out = prefix + '-COOP-';
+    if (year) out += year;
+    if (digits.length > 4) out += '-' + seq;
+    return out;
+  }
+
+  function attach(formId) {
+    var form = document.getElementById(formId);
+    if (!form) return;
+    var input = form.querySelector('input[name="lgu_approval_number"]');
+    if (!input) return;
+    input.addEventListener('input', function () {
+      var next = formatLguApproval(input.value);
+      if (input.value !== next) input.value = next;
+    });
+  }
+
+  attach('saveCoopForm');
+})();
+
+(function () {
   function openModal(modalId, panelId) {
     var modal = document.getElementById(modalId);
     var panel = document.getElementById(panelId);
@@ -964,6 +1006,14 @@ function showFileName(input) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (btn && btn.disabled) return;
+      if (formId === 'saveCoopForm') {
+        var lgu = '';
+        try { lgu = ((form.elements['lgu_approval_number'] && form.elements['lgu_approval_number'].value) || '').trim().toUpperCase(); } catch (e) { lgu = ''; }
+        if (!/^[A-Z]{2,6}-COOP-[0-9]{4}-[0-9]{3}$/.test(lgu)) {
+          if (window.showToast) window.showToast('LGU approval number must look like CAL-COOP-2026-001.', 'error');
+          return;
+        }
+      }
       var fd = new FormData(form);
       if (btn) btn.disabled = true;
       fetch(form.action, { method: 'POST', body: fd })
@@ -1102,6 +1152,16 @@ function showFileName(input) {
   bindBackdropClose('operatorFormModal', window.closeOperatorFormModal);
   bindBackdropClose('coopFormModal', window.closeCoopFormModal);
   bindBackdropClose('vehicleLinkFormModal', window.closeVehicleLinkFormModal);
+
+  (function () {
+    try {
+      var params = new URLSearchParams(window.location.search || '');
+      var open = (params.get('open') || '').toLowerCase();
+      if (open === 'coop') window.openCoopFormModal();
+      if (open === 'operator') window.openOperatorFormModal();
+      if (open === 'link') window.openVehicleLinkFormModal();
+    } catch (e) {}
+  })();
 })();
 
 </script>

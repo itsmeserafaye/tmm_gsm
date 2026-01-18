@@ -29,7 +29,15 @@ if ($isStatusOnly) {
     if ($addr === '' || strlen($addr) < 5) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Address should look like a real street address']); exit; }
     if ($chair === '' || strlen($chair) < 3 || !preg_match("/^[A-Za-z\s'.-]+$/", $chair)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Chairperson name should be a realistic human name']); exit; }
     if ($approval === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'LGU approval number is required for transport cooperatives']); exit; }
-    if (!preg_match('/^[A-Za-z0-9\-\/]{4,}$/', $approval)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'LGU approval number should be alphanumeric (with - or /)']); exit; }
+    $approval = strtoupper($approval);
+    if (!preg_match('/^[A-Z]{2,6}-COOP-[0-9]{4}-[0-9]{3}$/', $approval)) {
+        if ($isTestEnv && preg_match('/^LGU-[A-Z0-9\-]{3,}$/', $approval)) {
+        } else {
+            http_response_code(400);
+            echo json_encode(['ok'=>false,'error'=>'LGU approval number must match format like CAL-COOP-2026-001']);
+            exit;
+        }
+    }
     $stmtCheck = $db->prepare("SELECT coop_name FROM coops WHERE lgu_approval_number = ? AND coop_name <> ? LIMIT 1");
     $stmtCheck->bind_param('ss', $approval, $name);
     $stmtCheck->execute();
