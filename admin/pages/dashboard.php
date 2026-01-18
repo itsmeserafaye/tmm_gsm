@@ -412,16 +412,20 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         var wf = (p && p.weather_factor != null) ? Number(p.weather_factor) : 1.0;
         var ef = (p && p.event_factor != null) ? Number(p.event_factor) : 1.0;
 
+        var isTraffic = Math.abs(tf - 1.0) > 0.02;
+        var isWeather = Math.abs(wf - 1.0) > 0.02 || prob >= 60;
+        var isEvent = Math.abs(ef - 1.0) > 0.02;
+
         var activeImpacts = 0;
-        if (tf > 1.02) activeImpacts++;
-        if (wf > 1.02 || prob >= 60) activeImpacts++;
-        if (ef > 1.02) activeImpacts++;
+        if (isTraffic) activeImpacts++;
+        if (isWeather) activeImpacts++;
+        if (isEvent) activeImpacts++;
 
         var color = '#3b82f6'; // blue-500
         if (activeImpacts >= 2) color = '#f43f5e'; // rose-500
-        else if (ef > 1.02) color = '#8b5cf6'; // violet-500
-        else if (tf > 1.02) color = '#f59e0b'; // amber-500
-        else if (wf > 1.02 || prob >= 60) color = '#06b6d4'; // cyan-500
+        else if (isEvent) color = '#8b5cf6'; // violet-500
+        else if (isTraffic) color = '#f59e0b'; // amber-500
+        else if (isWeather) color = '#06b6d4'; // cyan-500
 
         // Format time label
         var label = '';
@@ -581,9 +585,9 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
             var diffClass = diff >= 0 ? 'text-emerald-600' : 'text-rose-600';
 
             var factors = [];
-            if (details.traffic > 1.02) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-amber-600">Traffic</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.traffic.toFixed(2)}</span></div>`);
-            if (details.weather > 1.02 || details.prob >= 60) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-cyan-600">Weather</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.weather.toFixed(2)}</span></div>`);
-            if (details.event > 1.02) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-violet-600">Event</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.event.toFixed(2)}</span></div>`);
+            if (Math.abs(details.traffic - 1.0) > 0.02) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-amber-600">Traffic</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.traffic.toFixed(2)}</span></div>`);
+            if (Math.abs(details.weather - 1.0) > 0.02 || details.prob >= 60) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-cyan-600">Weather</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.weather.toFixed(2)}</span></div>`);
+            if (Math.abs(details.event - 1.0) > 0.02) factors.push(`<div class="flex items-center justify-between text-[10px] gap-2"><span class="font-medium text-violet-600">Event</span><span class="font-bold text-slate-700 dark:text-slate-300">x${details.event.toFixed(2)}</span></div>`);
             if (details.evt) factors.push(`<div class="mt-1 pt-1 border-t border-slate-100 dark:border-slate-700 text-[10px] text-slate-500 italic truncate max-w-[150px]">${details.evt}</div>`);
 
             return `
