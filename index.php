@@ -70,10 +70,7 @@ if (!empty($_SESSION['user_id'])) {
     <main class="flex-1">
         <section id="home" class="container mx-auto px-6 pt-6">
             <div class="relative overflow-hidden rounded-2xl shadow-2xl">
-                <div class="absolute inset-0 bg-center bg-cover"
-                    style="background-image: url('<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/gsmbg.png');">
-                </div>
-                <div class="absolute inset-0 bg-white/65"></div>
+
                 <div class="relative px-6 py-14 md:py-20">
                     <div class="flex flex-col items-center text-center">
                         <div
@@ -167,10 +164,7 @@ if (!empty($_SESSION['user_id'])) {
 
         <section class="container mx-auto px-6 pb-12">
             <div class="relative overflow-hidden rounded-2xl shadow-xl">
-                <div class="absolute inset-0 bg-center bg-cover"
-                    style="background-image: url('<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/images/gsmbg.png');">
-                </div>
-                <div class="absolute inset-0 bg-white/80"></div>
+
                 <div class="relative px-6 py-12">
                     <div class="text-center">
                         <div class="text-2xl md:text-3xl font-bold text-slate-900">Simple Access Process</div>
@@ -386,7 +380,8 @@ if (!empty($_SESSION['user_id'])) {
         <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
             <h3 class="text-xl font-semibold mb-2 text-center">Two-Factor Verification</h3>
             <p class="text-sm text-gray-600 mb-4 text-center">Please check your registered email for your OTP. You have
-                <span id="otpTimer" class="font-semibold text-custom-secondary">03:00</span> to enter it.</p>
+                <span id="otpTimer" class="font-semibold text-custom-secondary">03:00</span> to enter it.
+            </p>
             <form id="otpForm" class="space-y-4">
                 <div>
                     <label class="block text-sm mb-2 text-center">Enter OTP</label>
@@ -978,7 +973,7 @@ if (!empty($_SESSION['user_id'])) {
     </div>
 
     <script>
-        const BASE_URL = <?php echo json_encode($baseUrl); ?>;
+             const BASE_URL = <?php echo json_encode($baseUrl); ?>;
         const RECAPTCHA_SITE_KEY = <?php echo json_encode($recaptchaSiteKey); ?>;
         let citizenRecaptchaWidgetId = null;
 
