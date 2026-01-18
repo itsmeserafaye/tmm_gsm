@@ -25,7 +25,7 @@ $expiring = $db->query("SELECT er.endorsement_id, er.permit_number, er.expiry_da
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Handles LGU-level franchise endorsement workflows, permit issuance, validations, and monitoring aligned with LPTRP policies.</p>
         </div>
         <div class="flex gap-3">
-            <a href="?page=module1/submodule2" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+            <a href="?page=module2/submodule1" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
                 <i data-lucide="file-plus" class="w-4 h-4"></i>
                 New Application
             </a>
@@ -68,7 +68,7 @@ $expiring = $db->query("SELECT er.endorsement_id, er.permit_number, er.expiry_da
                         <h2 class="text-base font-bold text-slate-900 dark:text-white">Recent Applications</h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">Latest submissions needing review</p>
                     </div>
-                    <a href="?page=module1/submodule2" class="text-sm font-semibold text-blue-700 hover:text-blue-800">View All</a>
+                    <a href="?page=module2/submodule1" class="text-sm font-semibold text-blue-700 hover:text-blue-800">View All</a>
                 </div>
                 <div class="divide-y divide-slate-200 dark:divide-slate-700">
                     <?php if ($queue && $queue->num_rows > 0): ?>
@@ -102,7 +102,7 @@ $expiring = $db->query("SELECT er.endorsement_id, er.permit_number, er.expiry_da
                                     <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $badgeClass; ?>">
                                         <?php echo htmlspecialchars($status); ?>
                                     </span>
-                                    <a href="?page=module1/submodule2&q=<?php echo urlencode($row['franchise_ref_number']); ?>" class="p-2 rounded-md text-slate-400 hover:text-blue-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                                    <a href="?page=module2/submodule1&q=<?php echo urlencode($row['franchise_ref_number']); ?>" class="p-2 rounded-md text-slate-400 hover:text-blue-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
                                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                                     </a>
                                 </div>

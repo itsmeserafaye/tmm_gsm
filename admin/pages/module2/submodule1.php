@@ -459,7 +459,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                     $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
                   }
                   $routeLabel = $routeCode !== '' ? ($routeCode . ($desc !== '' ? (' • ' . $desc) : '')) : (string)($row['route_ids'] ?? '');
-                  $openHref = $ref !== '' ? '?page=module1/submodule2&q=' . urlencode($ref) : '';
+                  $openHref = $ref !== '' ? '?page=module2/submodule2&q=' . urlencode($ref) : '';
                 ?>
                 <tr class="hover:bg-slate-50/50 transition-colors">
                   <td class="py-3 px-4 align-top">

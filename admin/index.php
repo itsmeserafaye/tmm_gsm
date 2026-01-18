@@ -80,7 +80,7 @@ foreach ($sidebarItems as $item) {
   <meta charset="UTF-8">
   <title>TMM</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/jpeg" href="includes/logo.jpg">
+  <link rel="icon" type="image/png" href="includes/GSM_logo.png">
   <script>
     (function () {
       try {

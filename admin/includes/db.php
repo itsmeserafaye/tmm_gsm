@@ -358,6 +358,58 @@ function db() {
     INDEX (ticket_id),
     FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $colPay = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='payment_records'");
+  $havePayChannel = false;
+  $haveExternalPaymentId = false;
+  if ($colPay) {
+    while ($c = $colPay->fetch_assoc()) {
+      $cn = $c['COLUMN_NAME'] ?? '';
+      if ($cn === 'payment_channel') $havePayChannel = true;
+      if ($cn === 'external_payment_id') $haveExternalPaymentId = true;
+    }
+  }
+  if (!$havePayChannel) { $conn->query("ALTER TABLE payment_records ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL"); }
+  if (!$haveExternalPaymentId) { $conn->query("ALTER TABLE payment_records ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL"); }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS treasury_payment_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ref VARCHAR(64) UNIQUE,
+    kind VARCHAR(32) NOT NULL,
+    transaction_id VARCHAR(64) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    purpose VARCHAR(255) DEFAULT '',
+    status VARCHAR(32) DEFAULT 'pending',
+    receipt_ref VARCHAR(64) DEFAULT NULL,
+    payment_channel VARCHAR(64) DEFAULT NULL,
+    external_payment_id VARCHAR(128) DEFAULT NULL,
+    external_url VARCHAR(255) DEFAULT NULL,
+    callback_payload MEDIUMTEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX (kind),
+    INDEX (transaction_id),
+    INDEX (status)
+  ) ENGINE=InnoDB");
+
+  $tblParking = $conn->query("SELECT COUNT(*) AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_transactions'");
+  $hasParkingTx = $tblParking && ((int)($tblParking->fetch_assoc()['c'] ?? 0) > 0);
+  if ($hasParkingTx) {
+    $colPark = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_transactions'");
+    $parkCols = [];
+    if ($colPark) {
+      while ($c = $colPark->fetch_assoc()) {
+        $parkCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      }
+    }
+    if (!isset($parkCols['receipt_ref'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN receipt_ref VARCHAR(64) DEFAULT NULL"); }
+    if (!isset($parkCols['payment_channel'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL"); }
+    if (!isset($parkCols['external_payment_id'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL"); }
+    if (!isset($parkCols['paid_at'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN paid_at DATETIME DEFAULT NULL"); }
+    if (!isset($parkCols['duration_hours'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN duration_hours INT DEFAULT NULL"); }
+    if (!isset($parkCols['payment_method'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_method VARCHAR(64) DEFAULT NULL"); }
+    if (!isset($parkCols['reference_no'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN reference_no VARCHAR(64) DEFAULT NULL"); }
+    if (!isset($parkCols['exported_to_treasury'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0"); }
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS ticket_notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     target_module VARCHAR(32) NOT NULL,

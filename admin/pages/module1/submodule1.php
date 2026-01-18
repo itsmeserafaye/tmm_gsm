@@ -209,7 +209,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                     <span class="text-[10px] uppercase text-slate-400 font-black tracking-wider min-w-[24px]">ID</span>
                     <?php if (!empty($row['franchise_id'])): ?>
                       <a class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
-                        href="?page=module1/submodule2&q=<?php echo urlencode((string) $row['franchise_id']); ?>">
+                        href="?page=module2/submodule2&q=<?php echo urlencode((string) $row['franchise_id']); ?>">
                         <?php echo htmlspecialchars((string) $row['franchise_id'], ENT_QUOTES); ?>
                       </a>
                     <?php else: ?>

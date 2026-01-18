@@ -38,3 +38,27 @@ function get_route_capacity($db, $route_id) {
     $cnt = (int)($stmtC->get_result()->fetch_assoc()['c'] ?? 0);
     return ['limit' => $lim, 'count' => $cnt];
 }
+
+function tmm_root_url_from_script(): string {
+    $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if ($scriptName === '') return '';
+    $pos = strpos($scriptName, '/admin/');
+    if ($pos !== false) {
+        $root = substr($scriptName, 0, $pos);
+        return $root === '/' ? '' : rtrim($root, '/');
+    }
+    $dir = str_replace('\\', '/', (string)dirname($scriptName));
+    $dir = $dir === '/' ? '' : rtrim($dir, '/');
+    return $dir;
+}
+
+function tmm_public_base_url(): string {
+    $https = (string)($_SERVER['HTTPS'] ?? '');
+    $isHttps = ($https !== '' && strtolower($https) !== 'off') || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
+    $scheme = $isHttps ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? ''));
+    $host = trim($host);
+    if ($host === '') return '';
+    $root = tmm_root_url_from_script();
+    return $scheme . '://' . $host . $root;
+}

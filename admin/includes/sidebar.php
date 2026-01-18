@@ -26,11 +26,21 @@ foreach ($sidebarItems as $item) {
     $visibleSidebarItems[] = $item;
   }
 }
+
+$displayName = trim((string)($_SESSION['name'] ?? ''));
+$parts = preg_split('/\s+/', $displayName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+$initials = '';
+if (count($parts) >= 2) {
+  $initials = mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
+} elseif (count($parts) === 1) {
+  $initials = mb_strtoupper(mb_substr($parts[0], 0, 2));
+}
+if ($initials === '') $initials = 'AU';
 ?>
 <div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col transition-transform duration-200">
   <div class="p-6">
     <a href="?page=dashboard" class="flex items-center space-x-3">
-      <img src="includes/logo.jpg" alt="TMM" class="w-10 h-10 rounded-xl object-cover">
+      <img src="includes/GSM_logo.png" alt="TMM" class="w-10 h-10 rounded-xl object-cover">
       <div>
         <h1 class="sidebar-label text-xl font-bold dark:text-white">TMM</h1>
         <p class="sidebar-label text-xs text-slate-500">Admin Dashboard</p>
@@ -91,7 +101,9 @@ foreach ($sidebarItems as $item) {
   <div class="p-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <img src="includes/user.png" alt="User" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50">
+        <div class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-600 bg-emerald-600 text-white flex items-center justify-center font-black text-sm tracking-wide">
+          <?php echo htmlspecialchars($initials); ?>
+        </div>
         <div class="sidebar-label">
           <div class="text-sm font-bold text-slate-800 dark:text-white truncate max-w-[120px]" title="<?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin User'); ?>">
             <?php echo htmlspecialchars($_SESSION['name'] ?? 'Admin User'); ?>

@@ -21,7 +21,7 @@
         <i data-lucide="file-text" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
       </div>
         <?php
-          $resT = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE operator_name <> 'TEST_E2E_OP'");
+          $resT = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE COALESCE(operator_name,'') <> 'TEST_E2E_OP'");
           $total = $resT->fetch_assoc()['c'] ?? 0;
         ?>
         <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $total; ?></h3>
@@ -33,7 +33,7 @@
         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
       </div>
         <?php
-          $resE = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE status='Endorsed' AND operator_name <> 'TEST_E2E_OP'");
+          $resE = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE status='Endorsed' AND COALESCE(operator_name,'') <> 'TEST_E2E_OP'");
           $endorsed = $resE->fetch_assoc()['c'] ?? 0;
         ?>
         <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $endorsed; ?></h3>
@@ -45,7 +45,7 @@
         <i data-lucide="clock" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
       </div>
         <?php
-          $resP = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE (status='Pending' OR status='Under Review') AND operator_name <> 'TEST_E2E_OP'");
+          $resP = $db->query("SELECT COUNT(*) as c FROM franchise_applications WHERE (status='Pending' OR status='Under Review') AND COALESCE(operator_name,'') <> 'TEST_E2E_OP'");
           $pending = $resP->fetch_assoc()['c'] ?? 0;
         ?>
         <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $pending; ?></h3>
@@ -63,10 +63,10 @@
           <h2 class="text-lg font-black text-slate-800 dark:text-white">Franchise Applications</h2>
         </div>
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto justify-end">
-          <button type="button" onclick="openFranchiseFormModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-md shadow-sm transition-all active:scale-[0.98]">
+          <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold rounded-md shadow-sm transition-all active:scale-[0.98]">
             <i data-lucide="file-plus" class="w-4 h-4"></i>
             <span>New Application</span>
-          </button>
+          </a>
           <form id="franchiseFilterForm" class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto" method="GET">
             <input type="hidden" name="page" value="module1/submodule2">
             <div class="relative flex-1 sm:w-64 group">
@@ -74,7 +74,7 @@
               <input name="q" list="franchiseSearchList" value="<?php echo htmlspecialchars($_GET['q']??''); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search Ref or Operator...">
               <?php
                 $searchOptions = [];
-                $resSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications WHERE operator_name <> 'TEST_E2E_OP' ORDER BY submitted_at DESC LIMIT 100");
+                $resSearch = $db->query("SELECT DISTINCT franchise_ref_number, operator_name FROM franchise_applications WHERE COALESCE(operator_name,'') <> 'TEST_E2E_OP' ORDER BY submitted_at DESC LIMIT 100");
                 if ($resSearch) {
                   while ($r = $resSearch->fetch_assoc()) {
                     $ref = trim((string)($r['franchise_ref_number'] ?? ''));
@@ -126,7 +126,7 @@
                     LEFT JOIN operators o ON fa.operator_id = o.id 
                     LEFT JOIN coops c ON fa.coop_id = c.id";
             $conds = []; $params = []; $types = '';
-            $conds[] = "fa.operator_name <> ?";
+            $conds[] = "COALESCE(fa.operator_name,'') <> ?";
             $params[] = 'TEST_E2E_OP';
             $types .= 's';
             if ($q !== '') { $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ?)"; $params[]="%$q%"; $params[]="%$q%"; $types.='ss'; }
@@ -881,16 +881,7 @@
       });
 
       window.openFranchiseFormModal = function() {
-        if (!franchiseModal) return;
-        if (franchiseForm) franchiseForm.reset();
-        franchiseModal.classList.remove('hidden');
-        setTimeout(function() {
-          franchiseModal.classList.remove('opacity-0');
-          if (franchiseModalPanel) {
-            franchiseModalPanel.classList.remove('scale-95');
-            franchiseModalPanel.classList.add('scale-100');
-          }
-        }, 10);
+        window.location.href = '?page=module2/submodule1';
       };
 
       window.closeFranchiseFormModal = function() {
