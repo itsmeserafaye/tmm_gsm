@@ -273,10 +273,15 @@
           }
         }
         $coopNames = [];
-        $resCoop = $db->query("SELECT DISTINCT coop_name FROM coops ORDER BY coop_name ASC LIMIT 200");
+        $hasCons = false;
+        $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
+        if ($chkCons && $chkCons->num_rows > 0) $hasCons = true;
+        $resCoop = $db->query("SELECT coop_name, " . ($hasCons ? "consolidation_status" : "'' AS consolidation_status") . " FROM coops ORDER BY coop_name ASC LIMIT 200");
         if ($resCoop) {
           while ($r = $resCoop->fetch_assoc()) {
-            if (!empty($r['coop_name'])) $coopNames[] = $r['coop_name'];
+            $cn = trim((string)($r['coop_name'] ?? ''));
+            if ($cn === '') continue;
+            $coopNames[] = ['name' => $cn, 'status' => trim((string)($r['consolidation_status'] ?? ''))];
           }
         }
         $plateMap = [];
@@ -316,21 +321,14 @@
               placeholder="Search cooperative..."
             >
             <datalist id="coopNameList">
-              <?php foreach ($coopNames as $name): ?>
-                <option value="<?php echo htmlspecialchars($name); ?>"></option>
+              <?php foreach ($coopNames as $row): ?>
+                <?php $label = $row['name'] . (($row['status'] ?? '') !== '' ? (' (' . $row['status'] . ')') : ''); ?>
+                <option value="<?php echo htmlspecialchars($row['name']); ?>"><?php echo htmlspecialchars($label); ?></option>
               <?php endforeach; ?>
             </datalist>
           </div>
         </div>
         <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
-          <button type="button" onclick="openOperatorFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
-            <i data-lucide="user-plus" class="w-4 h-4"></i>
-            <span>Add Operator</span>
-          </button>
-          <button type="button" onclick="openCoopFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
-            <i data-lucide="users" class="w-4 h-4"></i>
-            <span>Register Coop</span>
-          </button>
           <button type="button" onclick="openVehicleLinkFormModal()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
             <i data-lucide="link-2" class="w-4 h-4"></i>
             <span>Link Vehicle</span>

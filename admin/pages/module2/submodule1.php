@@ -15,8 +15,11 @@ require_any_permission(['module2.view','module2.franchises.manage']);
 
   <?php
     require_once __DIR__ . '/../../includes/db.php';
+    require_once __DIR__ . '/../../includes/lptrp.php';
     $db = db();
     $prefillRepName = trim((string)($_GET['rep_name'] ?? ''));
+
+    tmm_sync_lptrp_from_routes($db);
 
     $hasCons = false;
     $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
@@ -125,10 +128,6 @@ require_any_permission(['module2.view','module2.franchises.manage']);
                 <?php foreach ($coops as $c): ?>
                   <?php
                     $label = $c['coop_name'] ?? 'Coop';
-                    $status = $c['consolidation_status'] ?? '';
-                    if ($status !== '') {
-                      $label .= " ({$status})";
-                    }
                   ?>
                   <option value="<?php echo (int)$c['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
                 <?php endforeach; ?>
@@ -144,7 +143,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">LTFRB Franchise Ref</label>
-            <input name="franchise_ref" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 2024-00123">
+            <input id="ltfrbFranchiseRef" name="franchise_ref" maxlength="10" inputmode="numeric" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 2024-00123">
           </div>
         </div>
 
@@ -243,6 +242,123 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           <button type="button" id="module2SubmitBtn" class="w-full md:w-auto px-6 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
             <span>Create Application</span>
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
+      <i data-lucide="users" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
+      <h2 class="font-bold text-slate-900 dark:text-white text-sm">Operator & Cooperative</h2>
+    </div>
+    <div class="p-6 flex flex-col sm:flex-row gap-3">
+      <button type="button" id="btnOpenOperatorModal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
+        <i data-lucide="user-plus" class="w-4 h-4"></i>
+        <span>Add Operator</span>
+      </button>
+      <button type="button" id="btnOpenCoopModal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
+        <i data-lucide="building-2" class="w-4 h-4"></i>
+        <span>Register Coop</span>
+      </button>
+    </div>
+    <datalist id="coopNameList">
+      <?php foreach ($coops as $c): ?>
+        <option value="<?php echo htmlspecialchars((string)($c['coop_name'] ?? '')); ?>"></option>
+      <?php endforeach; ?>
+    </datalist>
+  </div>
+
+  <div id="operatorFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="operatorFormModalPanel">
+      <form id="saveOperatorForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_operator.php">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Add New Operator</h3>
+          <button type="button" onclick="closeOperatorFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Full Name</label>
+              <input name="full_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Full Name" required>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Contact Info</label>
+                <input name="contact_info" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Phone / Email" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Cooperative</label>
+                <input name="coop_name" list="coopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeOperatorFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="btnSaveOperator" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
+            <span>Save Operator</span>
+            <i data-lucide="save" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="coopFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="coopFormModalPanel">
+      <form id="saveCoopForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_coop.php">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Register Cooperative</h3>
+          <button type="button" onclick="closeCoopFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop Name</label>
+              <input name="coop_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Cooperative Name" required>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Address</label>
+              <input name="address" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Official Address" required>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Chairperson</label>
+                <input name="chairperson_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LGU Approval #</label>
+                <input name="lgu_approval_number" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Required">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Consolidation</label>
+              <div class="relative">
+                <select name="consolidation_status" class="w-full pl-4 pr-10 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none appearance-none cursor-pointer">
+                  <option value="Not Consolidated">Not Consolidated</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Consolidated">Consolidated</option>
+                </select>
+                <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeCoopFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="btnSaveCoop" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
+            <span>Save Cooperative</span>
+            <i data-lucide="save" class="w-4 h-4"></i>
           </button>
         </div>
       </form>
@@ -691,6 +807,119 @@ function showFileName(input) {
       form.submit();
     });
   }
+})();
+
+(function () {
+  var input = document.getElementById('ltfrbFranchiseRef');
+  if (!input) return;
+  function formatLtfrb(v) {
+    var digits = String(v || '').replace(/\D/g, '').slice(0, 9);
+    if (digits.length <= 4) return digits;
+    return digits.slice(0, 4) + '-' + digits.slice(4);
+  }
+  input.addEventListener('input', function () {
+    var next = formatLtfrb(input.value);
+    if (input.value !== next) input.value = next;
+  });
+})();
+
+(function () {
+  function openModal(modalId, panelId) {
+    var modal = document.getElementById(modalId);
+    var panel = document.getElementById(panelId);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    setTimeout(function () {
+      modal.classList.remove('opacity-0');
+      if (panel) {
+        panel.classList.remove('scale-95');
+        panel.classList.add('scale-100');
+      }
+    }, 10);
+  }
+
+  function closeModal(modalId, panelId) {
+    var modal = document.getElementById(modalId);
+    var panel = document.getElementById(panelId);
+    if (!modal) return;
+    modal.classList.add('opacity-0');
+    if (panel) {
+      panel.classList.remove('scale-100');
+      panel.classList.add('scale-95');
+    }
+    setTimeout(function () {
+      modal.classList.add('hidden');
+    }, 200);
+  }
+
+  window.openOperatorFormModal = function () { openModal('operatorFormModal', 'operatorFormModalPanel'); };
+  window.closeOperatorFormModal = function () { closeModal('operatorFormModal', 'operatorFormModalPanel'); };
+  window.openCoopFormModal = function () { openModal('coopFormModal', 'coopFormModalPanel'); };
+  window.closeCoopFormModal = function () { closeModal('coopFormModal', 'coopFormModalPanel'); };
+
+  var btnOp = document.getElementById('btnOpenOperatorModal');
+  if (btnOp) btnOp.addEventListener('click', function () {
+    var form = document.getElementById('saveOperatorForm');
+    if (form) form.reset();
+    window.openOperatorFormModal();
+  });
+
+  var btnCoop = document.getElementById('btnOpenCoopModal');
+  if (btnCoop) btnCoop.addEventListener('click', function () {
+    var form = document.getElementById('saveCoopForm');
+    if (form) form.reset();
+    window.openCoopFormModal();
+  });
+
+  function bindAjaxForm(formId, submitBtnId, onSuccessClose) {
+    var form = document.getElementById(formId);
+    var btn = document.getElementById(submitBtnId);
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (btn && btn.disabled) return;
+      var fd = new FormData(form);
+      if (btn) btn.disabled = true;
+      fetch(form.action, { method: 'POST', body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.ok) {
+            if (window.showToast) window.showToast('Saved successfully', 'success');
+            if (typeof onSuccessClose === 'function') onSuccessClose();
+            setTimeout(function () { window.location.reload(); }, 600);
+          } else {
+            if (window.showToast) window.showToast((data && data.error) ? data.error : 'Failed to save', 'error');
+          }
+        })
+        .catch(function (err) {
+          if (window.showToast) window.showToast('Error: ' + err.message, 'error');
+        })
+        .finally(function () {
+          if (btn) btn.disabled = false;
+        });
+    });
+  }
+
+  bindAjaxForm('saveOperatorForm', 'btnSaveOperator', window.closeOperatorFormModal);
+  bindAjaxForm('saveCoopForm', 'btnSaveCoop', window.closeCoopFormModal);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    var opModal = document.getElementById('operatorFormModal');
+    var coopModal = document.getElementById('coopFormModal');
+    if (opModal && !opModal.classList.contains('hidden')) { window.closeOperatorFormModal(); return; }
+    if (coopModal && !coopModal.classList.contains('hidden')) { window.closeCoopFormModal(); return; }
+  });
+
+  function bindBackdropClose(modalId, closeFn) {
+    var modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeFn();
+    });
+  }
+  bindBackdropClose('operatorFormModal', window.closeOperatorFormModal);
+  bindBackdropClose('coopFormModal', window.closeCoopFormModal);
 })();
 
 </script>

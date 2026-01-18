@@ -174,11 +174,9 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
           }
           $routeIdEsc = htmlspecialchars($routeIdRaw, ENT_QUOTES);
 
-          if ($hasLptrp) {
-            $routesForOverview = $db->query("SELECT r.route_id, r.route_name FROM routes r JOIN lptrp_routes lr ON lr.route_code=r.route_id ORDER BY r.route_id");
-          } else {
-            $routesForOverview = $db->query("SELECT route_id, route_name FROM routes ORDER BY route_id");
-          }
+          $routesForOverview = $db->query("SELECT r.route_id, r.route_name
+                                          FROM routes r
+                                          ORDER BY CASE WHEN r.route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(r.route_id,3) AS UNSIGNED) ELSE 99999999 END, r.route_id");
         ?>
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-300">Route</span>

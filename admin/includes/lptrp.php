@@ -98,3 +98,54 @@ function tmm_sync_routes_from_lptrp(mysqli $db, ?string $routeCode = null): bool
   return (bool)$db->query($sql);
 }
 
+function tmm_sync_lptrp_from_routes(mysqli $db, ?string $routeId = null): bool {
+  $hasRouteName = tmm_table_has_column($db, 'lptrp_routes', 'route_name');
+  $hasDesc = tmm_table_has_column($db, 'lptrp_routes', 'description');
+  $hasStart = tmm_table_has_column($db, 'lptrp_routes', 'start_point');
+  $hasEnd = tmm_table_has_column($db, 'lptrp_routes', 'end_point');
+  $hasMax = tmm_table_has_column($db, 'lptrp_routes', 'max_vehicle_capacity');
+  $hasCurr = tmm_table_has_column($db, 'lptrp_routes', 'current_vehicle_count');
+  $hasApproval = tmm_table_has_column($db, 'lptrp_routes', 'approval_status');
+  $hasStatus = tmm_table_has_column($db, 'lptrp_routes', 'status');
+
+  if (!$hasRouteName && !$hasDesc && !$hasStart && !$hasEnd && !$hasMax && !$hasCurr && !$hasApproval && !$hasStatus) {
+    $check = $db->query("SHOW TABLES LIKE 'lptrp_routes'");
+    if (!$check || $check->num_rows === 0) return false;
+  }
+
+  $routesHasOrigin = tmm_table_has_column($db, 'routes', 'origin');
+  $routesHasDest = tmm_table_has_column($db, 'routes', 'destination');
+  $routesHasMax = tmm_table_has_column($db, 'routes', 'max_vehicle_limit');
+  $routesHasStatus = tmm_table_has_column($db, 'routes', 'status');
+
+  $cols = ['route_code'];
+  $selects = ["r.route_id"];
+  if ($hasRouteName) { $cols[] = 'route_name'; $selects[] = "r.route_name"; }
+  if ($hasDesc) { $cols[] = 'description'; $selects[] = "r.route_name"; }
+  if ($hasStart) { $cols[] = 'start_point'; $selects[] = $routesHasOrigin ? "COALESCE(r.origin,'')" : "''"; }
+  if ($hasEnd) { $cols[] = 'end_point'; $selects[] = $routesHasDest ? "COALESCE(r.destination,'')" : "''"; }
+  if ($hasMax) { $cols[] = 'max_vehicle_capacity'; $selects[] = $routesHasMax ? "COALESCE(r.max_vehicle_limit,0)" : "0"; }
+  if ($hasCurr) { $cols[] = 'current_vehicle_count'; $selects[] = "0"; }
+  if ($hasApproval) {
+    $cols[] = 'approval_status';
+    $selects[] = $routesHasStatus ? "CASE WHEN LOWER(TRIM(COALESCE(r.status,''))) IN ('', 'active', 'approved') THEN 'Approved' ELSE 'Pending' END" : "'Approved'";
+  }
+  if ($hasStatus) {
+    $cols[] = 'status';
+    $selects[] = $routesHasStatus ? "COALESCE(r.status,'Approved')" : "'Approved'";
+  }
+
+  $where = " WHERE r.route_id <> ''";
+  if ($routeId !== null && trim($routeId) !== '') {
+    $where .= " AND r.route_id = '" . $db->real_escape_string(trim($routeId)) . "'";
+  }
+
+  $sql = "INSERT INTO lptrp_routes (" . implode(',', $cols) . ")
+          SELECT " . implode(',', $selects) . "
+          FROM routes r
+          $where
+          AND NOT EXISTS (SELECT 1 FROM lptrp_routes lr WHERE lr.route_code = r.route_id)";
+
+  return (bool)$db->query($sql);
+}
+
