@@ -1,8 +1,15 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 $name = trim($_GET['name'] ?? '');
 header('Content-Type: text/html; charset=utf-8');
+require_login();
+if (!has_any_permission(['module1.view','module1.vehicles.write','module1.coops.write','module2.view','module2.franchises.manage'])) {
+  http_response_code(403);
+  echo '<div class="text-sm">Forbidden.</div>';
+  exit;
+}
 if ($name === '') { echo '<div class="text-sm">Enter cooperative name.</div>'; exit; }
 $stmt = $db->prepare("SELECT coop_name, address, chairperson_name, lgu_approval_number, created_at FROM coops WHERE coop_name=?");
 $stmt->bind_param('s', $name);

@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
-$routeCode = trim((string)($_POST['route_code'] ?? ''));
+$routeCode = strtoupper(trim((string)($_POST['route_code'] ?? '')));
 $routeName = trim((string)($_POST['route_name'] ?? ''));
 $description = trim((string)($_POST['description'] ?? ($_POST['route_description'] ?? '')));
 $descValue = $description !== '' ? $description : $routeName;
@@ -32,9 +32,9 @@ $endPoint = trim((string)($_POST['end_point'] ?? ''));
 $maxCap = (int)($_POST['max_vehicle_capacity'] ?? 0);
 $approval = trim((string)($_POST['approval_status'] ?? ($_POST['status'] ?? 'Approved')));
 if ($maxCap < 0) $maxCap = 0;
-if ($routeCode === '' || strlen($routeCode) < 3) {
+if ($routeCode === '' || !preg_match('/^R_[0-9]{3,}$/', $routeCode)) {
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'missing_route_code']);
+  echo json_encode(['ok' => false, 'error' => 'invalid_route_code']);
   exit;
 }
 if ($approval === '') $approval = 'Approved';

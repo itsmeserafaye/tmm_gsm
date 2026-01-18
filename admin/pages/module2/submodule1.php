@@ -15,11 +15,8 @@ require_any_permission(['module2.view','module2.franchises.manage']);
 
   <?php
     require_once __DIR__ . '/../../includes/db.php';
-    require_once __DIR__ . '/../../includes/lptrp.php';
     $db = db();
     $prefillRepName = trim((string)($_GET['rep_name'] ?? ''));
-
-    tmm_sync_lptrp_from_routes($db);
 
     $hasCons = false;
     $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
@@ -41,7 +38,10 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     }
     $descSel = $hasDescCol ? "description" : ($hasRouteNameCol ? "route_name" : "''");
     $statusSel = $hasApprovalCol ? "approval_status" : ($hasStatusCol ? "status" : "''");
-    $routesRes = $db->query("SELECT id, route_code, $descSel AS route_desc, start_point, end_point, max_vehicle_capacity, current_vehicle_count, $statusSel AS route_status FROM lptrp_routes ORDER BY route_code");
+    $routesRes = $db->query("SELECT id, route_code, $descSel AS route_desc, start_point, end_point, max_vehicle_capacity, current_vehicle_count, $statusSel AS route_status
+                             FROM lptrp_routes
+                             WHERE route_code REGEXP '^R_[0-9]+$'
+                             ORDER BY CAST(SUBSTRING(route_code,3) AS UNSIGNED), route_code");
 
     $coops = [];
     if ($coopsRes) {
@@ -54,6 +54,34 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     if ($routesRes) {
       while ($row = $routesRes->fetch_assoc()) {
         $routes[] = $row;
+      }
+    }
+
+    $opNames = [];
+    $resOp = $db->query("
+      SELECT name FROM (
+        SELECT DISTINCT full_name AS name FROM operators
+        UNION
+        SELECT DISTINCT operator_name AS name FROM vehicles WHERE operator_name <> ''
+      ) AS names
+      ORDER BY name ASC
+      LIMIT 300
+    ");
+    if ($resOp) {
+      while ($r = $resOp->fetch_assoc()) {
+        if (!empty($r['name'])) $opNames[] = $r['name'];
+      }
+    }
+
+    $plateMap = [];
+    $resPlates = $db->query("SELECT plate_number, operator_name FROM vehicles WHERE plate_number <> '' ORDER BY plate_number ASC LIMIT 200");
+    if ($resPlates) {
+      while ($r = $resPlates->fetch_assoc()) {
+        $plate = strtoupper(trim($r['plate_number'] ?? ''));
+        if ($plate === '') continue;
+        if (!isset($plateMap[$plate])) {
+          $plateMap[$plate] = trim((string)($r['operator_name'] ?? ''));
+        }
       }
     }
 
@@ -248,28 +276,6 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     </div>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
-      <i data-lucide="users" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
-      <h2 class="font-bold text-slate-900 dark:text-white text-sm">Operator & Cooperative</h2>
-    </div>
-    <div class="p-6 flex flex-col sm:flex-row gap-3">
-      <button type="button" id="btnOpenOperatorModal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
-        <i data-lucide="user-plus" class="w-4 h-4"></i>
-        <span>Add Operator</span>
-      </button>
-      <button type="button" id="btnOpenCoopModal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-sm font-bold rounded-lg transition-all">
-        <i data-lucide="building-2" class="w-4 h-4"></i>
-        <span>Register Coop</span>
-      </button>
-    </div>
-    <datalist id="coopNameList">
-      <?php foreach ($coops as $c): ?>
-        <option value="<?php echo htmlspecialchars((string)($c['coop_name'] ?? '')); ?>"></option>
-      <?php endforeach; ?>
-    </datalist>
-  </div>
-
   <div id="operatorFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
     <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="operatorFormModalPanel">
       <form id="saveOperatorForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_operator.php">
@@ -365,6 +371,64 @@ require_any_permission(['module2.view','module2.franchises.manage']);
     </div>
   </div>
 
+  <div id="vehicleLinkFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="vehicleLinkFormModalPanel">
+      <form id="linkVehicleForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <h3 class="text-lg font-black text-slate-800 dark:text-white">Link Vehicle</h3>
+          <button type="button" onclick="closeVehicleLinkFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div class="grid grid-cols-1 gap-5">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Plate Number</label>
+              <input name="plate_number" list="plateList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="ABC-1234" required>
+              <datalist id="plateList">
+                <?php foreach ($plateMap as $plate => $opName): ?>
+                  <option value="<?php echo htmlspecialchars($plate); ?>" data-operator="<?php echo htmlspecialchars($opName); ?>"></option>
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Operator</label>
+                <input name="operator_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop</label>
+                <input name="coop_name" list="coopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
+          <button type="button" onclick="closeVehicleLinkFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </button>
+          <button type="submit" id="btnLinkVehicle" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
+            <span>Link to Vehicle</span>
+            <i data-lucide="link" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="entityModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 transform transition-all overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div class="text-lg font-black text-slate-800 dark:text-white">Details</div>
+          <button id="entityModalClose" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
+        </div>
+        <div id="entityModalBody" class="p-0 max-h-[70vh] overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
     <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
       <i data-lucide="map" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
@@ -374,7 +438,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
       <form id="module2LptrpForm" class="space-y-3 lg:col-span-1">
         <div>
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Code</label>
-          <input name="route_code" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. ROUTE-01">
+          <input name="route_code" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. R_001">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Name</label>
@@ -441,7 +505,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
               <?php endforeach; ?>
             <?php else: ?>
               <tr>
-                <td colspan="4" class="py-6 text-center text-slate-400 text-sm">No LPTRP routes yet. Add your Caloocan routes here.</td>
+                <td colspan="4" class="py-6 text-center text-slate-400 text-sm">No routes yet. Add your routes here.</td>
               </tr>
             <?php endif; ?>
           </tbody>
@@ -451,37 +515,50 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Cooperative Directory -->
     <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-1 flex flex-col h-full">
       <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
         <i data-lucide="users" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
-        <h2 class="font-bold text-slate-900 dark:text-white text-sm">Cooperative Status</h2>
+        <h2 class="font-bold text-slate-900 dark:text-white text-sm">Operator & Cooperative</h2>
       </div>
-      <div class="overflow-y-auto max-h-[400px] p-2">
-        <?php if (!empty($coops)): ?>
-          <div class="space-y-2">
-            <?php foreach ($coops as $c): ?>
-              <?php $currentStatus = $c['consolidation_status'] ?? 'Not Consolidated'; ?>
-              <div class="p-3 rounded-xl border border-slate-100 bg-white hover:border-emerald-100 hover:shadow-sm transition-all group">
-                <div class="flex items-start justify-between mb-2">
-                  <div class="font-medium text-sm text-slate-800"><?php echo htmlspecialchars($c['coop_name'] ?? ''); ?></div>
-                  <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide
-                    <?php
-                      if ($currentStatus === 'Consolidated') echo 'bg-emerald-50 text-emerald-600 border border-emerald-100';
-                      elseif ($currentStatus === 'In Progress') echo 'bg-amber-50 text-amber-600 border border-amber-100';
-                      else echo 'bg-slate-50 text-slate-500 border border-slate-100';
-                    ?>
-                  ">
-                    <?php echo htmlspecialchars($currentStatus); ?>
-                  </span>
-                </div>
-                
-              </div>
-            <?php endforeach; ?>
+      <div class="p-4 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="group relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
+            <input id="opViewName" list="opNameList" class="w-full pl-10 pr-3 py-2.5 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search operator...">
+            <datalist id="opNameList">
+              <?php foreach ($opNames as $name): ?>
+                <option value="<?php echo htmlspecialchars($name); ?>"></option>
+              <?php endforeach; ?>
+            </datalist>
           </div>
-        <?php else: ?>
-          <div class="text-center py-8 text-slate-400 text-xs">No cooperatives found.</div>
-        <?php endif; ?>
+          <div class="group relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
+            <input id="coopViewName" list="coopNameList" class="w-full pl-10 pr-3 py-2.5 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search cooperative...">
+          </div>
+        </div>
+        <datalist id="coopNameList">
+          <?php foreach ($coops as $c): ?>
+            <?php $cn = trim((string)($c['coop_name'] ?? '')); if ($cn === '') continue; ?>
+            <option value="<?php echo htmlspecialchars($cn); ?>"></option>
+          <?php endforeach; ?>
+        </datalist>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" id="btnOpenOperatorModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Add Operator</span>
+          </button>
+          <button type="button" id="btnOpenCoopModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+            <i data-lucide="building-2" class="w-4 h-4"></i>
+            <span>Register Coop</span>
+          </button>
+          <button type="button" id="btnOpenVehicleLinkModal" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all">
+            <i data-lucide="link-2" class="w-4 h-4"></i>
+            <span>Link Vehicle</span>
+          </button>
+        </div>
+        <div class="text-[11px] text-slate-400 font-medium">
+          Search to view details. Use actions to add operator, register cooperative, or link a vehicle.
+        </div>
       </div>
     </div>
 
@@ -856,6 +933,8 @@ function showFileName(input) {
   window.closeOperatorFormModal = function () { closeModal('operatorFormModal', 'operatorFormModalPanel'); };
   window.openCoopFormModal = function () { openModal('coopFormModal', 'coopFormModalPanel'); };
   window.closeCoopFormModal = function () { closeModal('coopFormModal', 'coopFormModalPanel'); };
+  window.openVehicleLinkFormModal = function () { openModal('vehicleLinkFormModal', 'vehicleLinkFormModalPanel'); };
+  window.closeVehicleLinkFormModal = function () { closeModal('vehicleLinkFormModal', 'vehicleLinkFormModalPanel'); };
 
   var btnOp = document.getElementById('btnOpenOperatorModal');
   if (btnOp) btnOp.addEventListener('click', function () {
@@ -869,6 +948,13 @@ function showFileName(input) {
     var form = document.getElementById('saveCoopForm');
     if (form) form.reset();
     window.openCoopFormModal();
+  });
+
+  var btnLink = document.getElementById('btnOpenVehicleLinkModal');
+  if (btnLink) btnLink.addEventListener('click', function () {
+    var form = document.getElementById('linkVehicleForm');
+    if (form) form.reset();
+    window.openVehicleLinkFormModal();
   });
 
   function bindAjaxForm(formId, submitBtnId, onSuccessClose) {
@@ -902,13 +988,108 @@ function showFileName(input) {
 
   bindAjaxForm('saveOperatorForm', 'btnSaveOperator', window.closeOperatorFormModal);
   bindAjaxForm('saveCoopForm', 'btnSaveCoop', window.closeCoopFormModal);
+  bindAjaxForm('linkVehicleForm', 'btnLinkVehicle', window.closeVehicleLinkFormModal);
+
+  (function () {
+    var modal = document.getElementById('entityModal');
+    var body = document.getElementById('entityModalBody');
+    var closeBtn = document.getElementById('entityModalClose');
+    function openEntity(html) {
+      if (!modal || !body) return;
+      body.innerHTML = html;
+      modal.classList.remove('hidden');
+      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+    }
+    function closeEntity() {
+      if (!modal || !body) return;
+      modal.classList.add('hidden');
+      body.innerHTML = '';
+    }
+    if (closeBtn) closeBtn.addEventListener('click', closeEntity);
+    if (modal) modal.addEventListener('click', function (e) {
+      if (e.target === modal || (e.target && e.target.classList && e.target.classList.contains('backdrop-blur-sm'))) closeEntity();
+    });
+
+    function attachEntityAutoView(inputId, urlBase) {
+      var input = document.getElementById(inputId);
+      if (!input) return;
+      var timeout = null;
+      input.addEventListener('input', function () {
+        var name = (input.value || '').trim();
+        if (!name) return;
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(function () {
+          fetch(urlBase + encodeURIComponent(name))
+            .then(function (r) { return r.text(); })
+            .then(openEntity);
+        }, 300);
+      });
+    }
+
+    attachEntityAutoView('opViewName', 'api/module1/operator_html.php?name=');
+    attachEntityAutoView('coopViewName', 'api/module1/coop_html.php?name=');
+
+    window.__useOperatorInForm = function (fullName, contactInfo, coopName) {
+      var form = document.getElementById('saveOperatorForm');
+      if (!form) return;
+      var nameInput = form.elements['full_name'];
+      var contactInput = form.elements['contact_info'];
+      var coopInput = form.elements['coop_name'];
+      if (nameInput && fullName) nameInput.value = fullName;
+      if (contactInput) contactInput.value = contactInfo || '';
+      if (coopInput) coopInput.value = coopName || '';
+      window.openOperatorFormModal();
+      closeEntity();
+    };
+
+    window.__useCoopInForm = function (coopName, address, chairperson, lguApproval) {
+      var form = document.getElementById('saveCoopForm');
+      if (!form) return;
+      var nameInput = form.elements['coop_name'];
+      var addressInput = form.elements['address'];
+      var chairInput = form.elements['chairperson_name'];
+      var lguInput = form.elements['lgu_approval_number'];
+      if (nameInput && coopName) nameInput.value = coopName;
+      if (addressInput) addressInput.value = address || '';
+      if (chairInput) chairInput.value = chairperson || '';
+      if (lguInput) lguInput.value = lguApproval || '';
+      window.openCoopFormModal();
+      closeEntity();
+    };
+  })();
+
+  (function () {
+    var plateInput = document.querySelector('#linkVehicleForm input[name="plate_number"]');
+    var operatorInput = document.querySelector('#linkVehicleForm input[name="operator_name"]');
+    var plateList = document.getElementById('plateList');
+    if (!plateInput || !operatorInput || !plateList) return;
+    function applyOperator() {
+      var value = (plateInput.value || '').toUpperCase();
+      if (!value) return;
+      var options = plateList.options;
+      for (var i = 0; i < options.length; i++) {
+        var opt = options[i];
+        if ((opt.value || '').toUpperCase() === value) {
+          var op = opt.getAttribute('data-operator') || '';
+          if (op && !operatorInput.value) operatorInput.value = op;
+          break;
+        }
+      }
+    }
+    plateInput.addEventListener('change', applyOperator);
+    plateInput.addEventListener('input', applyOperator);
+  })();
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' && e.key !== 'Esc') return;
     var opModal = document.getElementById('operatorFormModal');
     var coopModal = document.getElementById('coopFormModal');
+    var vehicleModal = document.getElementById('vehicleLinkFormModal');
+    var entityModal = document.getElementById('entityModal');
     if (opModal && !opModal.classList.contains('hidden')) { window.closeOperatorFormModal(); return; }
     if (coopModal && !coopModal.classList.contains('hidden')) { window.closeCoopFormModal(); return; }
+    if (vehicleModal && !vehicleModal.classList.contains('hidden')) { window.closeVehicleLinkFormModal(); return; }
+    if (entityModal && !entityModal.classList.contains('hidden')) { entityModal.classList.add('hidden'); return; }
   });
 
   function bindBackdropClose(modalId, closeFn) {
@@ -920,6 +1101,7 @@ function showFileName(input) {
   }
   bindBackdropClose('operatorFormModal', window.closeOperatorFormModal);
   bindBackdropClose('coopFormModal', window.closeCoopFormModal);
+  bindBackdropClose('vehicleLinkFormModal', window.closeVehicleLinkFormModal);
 })();
 
 </script>

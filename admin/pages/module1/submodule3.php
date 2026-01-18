@@ -176,7 +176,8 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
 
           $routesForOverview = $db->query("SELECT r.route_id, r.route_name
                                           FROM routes r
-                                          ORDER BY CASE WHEN r.route_id REGEXP '^R_[0-9]+$' THEN CAST(SUBSTRING(r.route_id,3) AS UNSIGNED) ELSE 99999999 END, r.route_id");
+                                          WHERE r.route_id REGEXP '^R_[0-9]+$'
+                                          ORDER BY CAST(SUBSTRING(r.route_id,3) AS UNSIGNED), r.route_id");
         ?>
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-300">Route</span>

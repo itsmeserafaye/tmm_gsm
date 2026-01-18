@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module1.vehicles.write');
+require_any_permission(['module1.vehicles.write','module2.franchises.manage']);
 $plate = strtoupper(trim($_POST['plate_number'] ?? ''));
 $operator = trim($_POST['operator_name'] ?? '');
 $coop = trim($_POST['coop_name'] ?? '');
