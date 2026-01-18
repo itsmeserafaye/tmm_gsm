@@ -31,6 +31,8 @@ if (!empty($_SESSION['user_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoServePH - Welcome</title>
+    <link rel="icon" type="image/png"
+        href="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -69,7 +71,7 @@ if (!empty($_SESSION['user_id'])) {
 
     <main class="flex-1">
         <section id="home" class="container mx-auto px-6 pt-6">
-            <div class="relative overflow-hidden rounded-2xl shadow-2xl">
+            <div class="relative overflow-hidden rounded-2xl shadow-2xl bg-gradient-to-br from-slate-50 to-indigo-50">
 
                 <div class="relative px-6 py-14 md:py-20">
                     <div class="flex flex-col items-center text-center">
@@ -163,7 +165,7 @@ if (!empty($_SESSION['user_id'])) {
         </section>
 
         <section class="container mx-auto px-6 pb-12">
-            <div class="relative overflow-hidden rounded-2xl shadow-xl">
+            <div class="relative overflow-hidden rounded-2xl shadow-xl bg-gradient-to-br from-slate-50 to-slate-100">
 
                 <div class="relative px-6 py-12">
                     <div class="text-center">
@@ -973,7 +975,7 @@ if (!empty($_SESSION['user_id'])) {
     </div>
 
     <script>
-             const BASE_URL = <?php echo json_encode($baseUrl); ?>;
+                 const BASE_URL = <?php echo json_encode($baseUrl); ?>;
         const RECAPTCHA_SITE_KEY = <?php echo json_encode($recaptchaSiteKey); ?>;
         let citizenRecaptchaWidgetId = null;
 
