@@ -121,6 +121,7 @@
           <?php
             $q = trim($_GET['q'] ?? '');
             $st = trim($_GET['status'] ?? '');
+            $highlightRef = trim((string)($_GET['highlight_ref'] ?? ''));
             $sql = "SELECT fa.*, o.full_name as operator, c.coop_name 
                     FROM franchise_applications fa 
                     LEFT JOIN operators o ON fa.operator_id = o.id 
@@ -145,8 +146,9 @@
                 'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                 default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
               };
+              $isHighlight = $highlightRef !== '' && $highlightRef === (string)($row['franchise_ref_number'] ?? '');
           ?>
-          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" data-ref-row="<?php echo htmlspecialchars((string)($row['franchise_ref_number'] ?? ''), ENT_QUOTES); ?>">
             <td class="py-4 px-6 font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($row['franchise_ref_number']); ?></td>
             <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">
               <?php if (!empty($row['operator'])): ?>
@@ -200,6 +202,24 @@
                 >
                   <i data-lucide="eye" class="w-4 h-4"></i>
                 </button>
+                <?php if (($row['status'] ?? '') === 'Endorsed'): ?>
+                  <a
+                    href="?page=module1/submodule3&fr_ref=<?php echo urlencode((string)($row['franchise_ref_number'] ?? '')); ?>"
+                    class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center"
+                    title="Assign Route"
+                  >
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                  </a>
+                <?php else: ?>
+                  <button
+                    type="button"
+                    class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                    title="Assign Route (Endorsed only)"
+                    disabled
+                  >
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                  </button>
+                <?php endif; ?>
                 <a
                   href="?page=module1/submodule1&fr_ref=<?php echo urlencode($row['franchise_ref_number']); ?>&op=<?php echo urlencode($row['operator'] ?? ''); ?>"
                   class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all inline-flex items-center justify-center"
@@ -229,11 +249,34 @@
       <div class="flex flex-col md:flex-row gap-3 mb-6 items-stretch md:items-center">
         <div class="relative flex-1 group">
           <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+          <?php
+            $lookupRefs = [];
+            $orderCol = 'application_id';
+            $chkSubmitted = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'submitted_at'");
+            if ($chkSubmitted && $chkSubmitted->num_rows > 0) $orderCol = 'submitted_at';
+            else {
+              $chkCreated = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'created_at'");
+              if ($chkCreated && $chkCreated->num_rows > 0) $orderCol = 'created_at';
+            }
+            $resLookupRefs = $db->query("SELECT DISTINCT franchise_ref_number FROM franchise_applications WHERE franchise_ref_number <> '' ORDER BY $orderCol DESC LIMIT 50");
+            if ($resLookupRefs) {
+              while ($r = $resLookupRefs->fetch_assoc()) {
+                $ref = trim((string)($r['franchise_ref_number'] ?? ''));
+                if ($ref !== '') $lookupRefs[] = $ref;
+              }
+            }
+          ?>
           <input
             id="franchiseLookup"
+            list="franchiseLookupList"
             class="w-full pl-10 pr-4 py-3 text-sm font-semibold border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-900/50 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case"
             placeholder="Enter Franchise Ref # (e.g. 2024-00123)"
           >
+          <datalist id="franchiseLookupList">
+            <?php foreach ($lookupRefs as $ref): ?>
+              <option value="<?php echo htmlspecialchars($ref); ?>"></option>
+            <?php endforeach; ?>
+          </datalist>
         </div>
         <button
             id="franchiseLookupBtn"
@@ -256,10 +299,12 @@
         </div>
         Cooperative Status
       </h3>
-      <a href="?page=module2/submodule1&open=coop" class="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.99] transition-all">
-        <i data-lucide="user-plus" class="w-4 h-4"></i>
-        <span>Register Cooperative</span>
-      </a>
+      <div class="mb-5 flex">
+        <a href="?page=module2/submodule1&open=coop" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.99] transition-all">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Register Cooperative</span>
+        </a>
+      </div>
       <div class="mb-4 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
         Consolidation is updated in Franchise Management after LGU verification. Status flow: Not Consolidated → In Progress → Consolidated.
       </div>
@@ -1164,6 +1209,18 @@
           }
         }
         plateInput.addEventListener('change', applyOperator);
+      })();
+
+      (function() {
+        var ref = <?php echo json_encode(trim((string)($_GET['highlight_ref'] ?? ''))); ?>;
+        if (!ref) return;
+        var rows = document.querySelectorAll('[data-ref-row]');
+        for (var i = 0; i < rows.length; i++) {
+          if ((rows[i].getAttribute('data-ref-row') || '') === ref) {
+            try { rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { rows[i].scrollIntoView(); }
+            break;
+          }
+        }
       })();
 
     })();

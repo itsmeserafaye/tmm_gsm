@@ -38,9 +38,42 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
     }
 
     $platePrefill = trim((string)($_GET['plate'] ?? ''));
+    $frRefPrefill = trim((string)($_GET['fr_ref'] ?? ''));
     $routePrefill = trim((string)($_GET['route_id'] ?? ''));
     $currentVehicle = null;
     $currentAssignment = null;
+
+    if ($platePrefill === '' && $frRefPrefill !== '') {
+      $stmtP = $db->prepare("SELECT plate_number FROM vehicles WHERE franchise_id=? AND plate_number <> '' ORDER BY plate_number ASC LIMIT 1");
+      if ($stmtP) {
+        $stmtP->bind_param('s', $frRefPrefill);
+        $stmtP->execute();
+        $rowP = $stmtP->get_result()->fetch_assoc();
+        $stmtP->close();
+        if ($rowP && isset($rowP['plate_number'])) $platePrefill = (string)$rowP['plate_number'];
+      }
+    }
+
+    $recentEndorsedPlates = [];
+    $orderCol = 'application_id';
+    $chkSubmitted = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'submitted_at'");
+    if ($chkSubmitted && $chkSubmitted->num_rows > 0) $orderCol = 'submitted_at';
+    else {
+      $chkCreated = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'created_at'");
+      if ($chkCreated && $chkCreated->num_rows > 0) $orderCol = 'created_at';
+    }
+    $resPlates = $db->query("SELECT DISTINCT v.plate_number
+                             FROM franchise_applications fa
+                             JOIN vehicles v ON v.franchise_id = fa.franchise_ref_number
+                             WHERE fa.status='Endorsed' AND v.plate_number <> ''
+                             ORDER BY fa.$orderCol DESC, v.plate_number ASC
+                             LIMIT 40");
+    if ($resPlates) {
+      while ($r = $resPlates->fetch_assoc()) {
+        $p = strtoupper(trim((string)($r['plate_number'] ?? '')));
+        if ($p !== '') $recentEndorsedPlates[] = $p;
+      }
+    }
     
     if ($platePrefill !== '') {
       $stmtV = $db->prepare("SELECT plate_number, route_id, vehicle_type, operator_name, status, inspection_status, franchise_id FROM vehicles WHERE plate_number=? LIMIT 1");
@@ -103,9 +136,9 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
       <form id="assignRouteForm" class="grid grid-cols-1 md:grid-cols-12 gap-4" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/assign_route.php">
         <div class="md:col-span-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
-          <input name="plate_number" value="<?php echo htmlspecialchars($platePrefill, ENT_QUOTES); ?>" 
+          <input name="plate_number" list="recent-endorsed-plates" value="<?php echo htmlspecialchars($platePrefill, ENT_QUOTES); ?>" 
                  class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase font-semibold text-sm text-slate-900 dark:text-white" 
-                 placeholder="ABC-1234" required>
+                 placeholder="<?php echo htmlspecialchars($platePrefill !== '' ? 'ABC-1234' : (!empty($recentEndorsedPlates) ? ('Try: ' . $recentEndorsedPlates[0]) : 'ABC-1234'), ENT_QUOTES); ?>" required>
         </div>
         
         <div class="md:col-span-3">
@@ -503,12 +536,17 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
     <?php endwhile; ?>
   <?php endif; ?>
 </datalist>
+<datalist id="recent-endorsed-plates">
+  <?php foreach ($recentEndorsedPlates as $p): ?>
+    <option value="<?php echo htmlspecialchars($p, ENT_QUOTES); ?>"></option>
+  <?php endforeach; ?>
+</datalist>
 
 <!-- Vehicle Detail Modal -->
 <div id="vehicleModalS3" class="fixed inset-0 z-[60] hidden">
   <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity opacity-0" id="vehicleModalS3Backdrop"></div>
   <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[90vh]" id="vehicleModalS3Content">
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[90vh]" id="vehicleModalS3Content">
       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <h3 class="text-lg font-bold text-slate-800">Vehicle Details</h3>
         <button id="vehicleModalS3Close" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">

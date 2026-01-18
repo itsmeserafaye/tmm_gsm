@@ -465,15 +465,7 @@ require_any_permission(['module2.view','module2.franchises.manage']);
   if (assignClose) assignClose.addEventListener('click', function(){ closeAssignModal(); window.location.reload(); });
   if (assignModal) assignModal.addEventListener('click', function(e){ if (e.target === assignModal) { closeAssignModal(); window.location.reload(); }});
   if (assignYes) assignYes.addEventListener('click', function(){
-    var plate = String(lastAssign.plate || '').trim();
-    if (plate === '') {
-      showToast('No plate found for this endorsed application.', 'error');
-      closeAssignModal();
-      setTimeout(function(){ window.location.reload(); }, 800);
-      return;
-    }
-    var url = '?page=module1/submodule3&plate=' + encodeURIComponent(plate);
-    if (lastAssign.route !== '') url += '&route_id=' + encodeURIComponent(lastAssign.route);
+    var url = '?page=module1/submodule2';
     window.location.href = url;
   });
   
@@ -510,7 +502,9 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           showToast(msg, 'success');
           statusEl.textContent = msg;
           statusEl.className = 'mb-3 text-xs font-bold text-center text-emerald-600 block';
-          openAssignModal(data.plate_number || '', data.route_code || '');
+          var url = '?page=module1/submodule2';
+          if (data.franchise_ref_number) url += '&highlight_ref=' + encodeURIComponent(data.franchise_ref_number);
+          window.location.href = url;
         } else {
           var errMsg = data && data.error ? data.error : 'Unable to issue endorsement.';
           showToast(errMsg, 'error');
