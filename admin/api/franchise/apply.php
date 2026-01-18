@@ -101,7 +101,14 @@ $stmtApp = $db->prepare("INSERT INTO franchise_applications (franchise_ref_numbe
 $stmtApp->bind_param('siiis', $ref, $operatorId, $coopId, $count, $status);
 
 if ($stmtApp->execute()) {
-    echo json_encode(['ok' => true, 'id' => $db->insert_id, 'message' => 'Application submitted successfully']);
+    $newId = (int)$db->insert_id;
+    echo json_encode([
+        'ok' => true,
+        'id' => $newId,
+        'tracking_number' => $newId > 0 ? ('APP-' . $newId) : '',
+        'franchise_ref_number' => $ref,
+        'message' => 'Application submitted successfully'
+    ]);
 } else {
     echo json_encode(['ok' => false, 'error' => 'Failed to save application: ' . $db->error]);
 }

@@ -220,13 +220,28 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
                     <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Link Operator / Cooperative</label>
+                        <?php
+                          $coopSuggestions = [];
+                          $resCoops = $db->query("SELECT coop_name FROM coops WHERE coop_name <> '' ORDER BY coop_name ASC LIMIT 200");
+                          if ($resCoops) {
+                            while ($r = $resCoops->fetch_assoc()) {
+                              $cn = trim((string)($r['coop_name'] ?? ''));
+                              if ($cn !== '') $coopSuggestions[] = $cn;
+                            }
+                          }
+                        ?>
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <div>
                                 <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name" value="<?php echo htmlspecialchars($v['operator_name'] ?? ''); ?>">
                             </div>
                             <div>
-                                <input name="coop_name" class="<?php echo $inputClass; ?>" placeholder="Cooperative Name" value="<?php echo htmlspecialchars($v['coop_name'] ?? ''); ?>">
+                                <input name="coop_name" list="vehicleCoopNameList" class="<?php echo $inputClass; ?>" placeholder="Cooperative Name" value="<?php echo htmlspecialchars($v['coop_name'] ?? ''); ?>">
+                                <datalist id="vehicleCoopNameList">
+                                  <?php foreach ($coopSuggestions as $cn): ?>
+                                    <option value="<?php echo htmlspecialchars($cn, ENT_QUOTES); ?>"></option>
+                                  <?php endforeach; ?>
+                                </datalist>
                             </div>
                             <div>
                                 <button class="<?php echo $btnClass; ?> w-full">Link Entity</button>

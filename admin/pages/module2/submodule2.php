@@ -502,8 +502,9 @@ require_any_permission(['module2.view','module2.franchises.manage']);
           showToast(msg, 'success');
           statusEl.textContent = msg;
           statusEl.className = 'mb-3 text-xs font-bold text-center text-emerald-600 block';
-          var url = '?page=module1/submodule2';
-          if (data.franchise_ref_number) url += '&highlight_ref=' + encodeURIComponent(data.franchise_ref_number);
+          var url = '?page=module4/submodule1';
+          if (data.plate_number) url += '&plate=' + encodeURIComponent(data.plate_number);
+          else if (data.franchise_ref_number) url += '&fr_ref=' + encodeURIComponent(data.franchise_ref_number);
           window.location.href = url;
         } else {
           var errMsg = data && data.error ? data.error : 'Unable to issue endorsement.';

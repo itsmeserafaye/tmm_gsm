@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_any_permission(['module4.view','module4.inspections.manage']);
 $db = db();
 $plateParam = trim($_GET['plate'] ?? '');
+$frRefParam = trim($_GET['fr_ref'] ?? '');
 $scheduleParam = isset($_GET['schedule_id']) ? (int)$_GET['schedule_id'] : 0;
 $prefillTypeParam = trim($_GET['prefill_type'] ?? '');
 $prefillType = '';
@@ -18,6 +19,17 @@ $scheduleMessage = '';
 $scheduleError = '';
 $flashNotice = isset($_GET['notice']) ? trim($_GET['notice']) : '';
 $flashError = isset($_GET['error']) ? trim($_GET['error']) : '';
+
+if ($plateParam === '' && $frRefParam !== '') {
+  $stmtPlate = $db->prepare("SELECT plate_number FROM vehicles WHERE franchise_id=? AND plate_number <> '' ORDER BY plate_number ASC LIMIT 1");
+  if ($stmtPlate) {
+    $stmtPlate->bind_param('s', $frRefParam);
+    $stmtPlate->execute();
+    $rowP = $stmtPlate->get_result()->fetch_assoc();
+    $stmtPlate->close();
+    if ($rowP && isset($rowP['plate_number'])) $plateParam = (string)$rowP['plate_number'];
+  }
+}
 
 // --- Action Handling ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !has_permission('module4.inspections.manage')) {
@@ -173,6 +185,30 @@ if ($resLoc) {
     if ($val !== '') {
       $recentLocations[] = $val;
     }
+  }
+}
+$recentEndorsedPlates = [];
+$orderCol = 'application_id';
+$chkSubmitted = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'submitted_at'");
+if ($chkSubmitted && $chkSubmitted->num_rows > 0) $orderCol = 'submitted_at';
+else {
+  $chkCreated = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'created_at'");
+  if ($chkCreated && $chkCreated->num_rows > 0) $orderCol = 'created_at';
+}
+$resEndPlates = $db->query("SELECT DISTINCT v.plate_number, v.operator_name
+                            FROM franchise_applications fa
+                            JOIN vehicles v ON v.franchise_id = fa.franchise_ref_number
+                            WHERE fa.status='Endorsed' AND v.plate_number <> ''
+                            ORDER BY fa.$orderCol DESC, v.plate_number ASC
+                            LIMIT 25");
+if ($resEndPlates) {
+  while ($r = $resEndPlates->fetch_assoc()) {
+    $p = strtoupper(trim((string)($r['plate_number'] ?? '')));
+    if ($p === '') continue;
+    $recentEndorsedPlates[] = [
+      'plate_number' => $p,
+      'operator_name' => (string)($r['operator_name'] ?? ''),
+    ];
   }
 }
 $selectedSchedule = null;
@@ -727,6 +763,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
     }, $inspectors), JSON_UNESCAPED_SLASHES); ?>;
     var recentLocations = <?php echo json_encode($recentLocations, JSON_UNESCAPED_SLASHES); ?>;
+    var recentEndorsedPlates = <?php echo json_encode($recentEndorsedPlates, JSON_UNESCAPED_SLASHES); ?>;
 
     // Elements
     var inspectorStatus = document.getElementById('inspector-status');
@@ -885,12 +922,32 @@ document.addEventListener('DOMContentLoaded', function () {
             .catch(() => []);
     }
 
-    function setupPlateInput(inputEl, boxEl) {
+    function setupPlateInput(inputEl, boxEl, fallbackItems) {
         if (!inputEl || !boxEl) return;
         var timer = null;
+
+        function showFallback() {
+            if (!fallbackItems || !fallbackItems.length) { clearBox(boxEl); return; }
+            var nodes = fallbackItems.slice(0, 6).map(it => {
+                return createSuggestionItem(
+                    it.plate_number,
+                    (it.operator_name || '') ? (it.operator_name + ' • recently endorsed') : 'Recently endorsed',
+                    function() {
+                        inputEl.value = it.plate_number || '';
+                        clearBox(boxEl);
+                    }
+                );
+            });
+            renderBox(boxEl, nodes);
+        }
+
         inputEl.addEventListener('input', function () {
             if (timer) clearTimeout(timer);
             timer = setTimeout(function () {
+                if ((inputEl.value || '').trim().length < 2) {
+                    showFallback();
+                    return;
+                }
                 fetchPlateSuggestions(inputEl.value).then(items => {
                     if (!items.length) {
                         clearBox(boxEl);
@@ -911,11 +968,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }, 200);
         });
+        inputEl.addEventListener('focus', function () {
+            if ((inputEl.value || '').trim().length < 2) showFallback();
+        });
         inputEl.addEventListener('blur', () => setTimeout(() => clearBox(boxEl), 200));
     }
 
-    setupPlateInput(lookupPlateInput, lookupPlateSuggestions);
-    setupPlateInput(schedulePlateInput, schedulePlateSuggestions);
+    setupPlateInput(lookupPlateInput, lookupPlateSuggestions, null);
+    setupPlateInput(schedulePlateInput, schedulePlateSuggestions, recentEndorsedPlates || []);
 
     // Location Logic
     function setupLocationInput(inputEl, boxEl) {

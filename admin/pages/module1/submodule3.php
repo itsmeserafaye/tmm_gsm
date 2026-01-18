@@ -546,7 +546,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
 <div id="vehicleModalS3" class="fixed inset-0 z-[60] hidden">
   <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity opacity-0" id="vehicleModalS3Backdrop"></div>
   <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[90vh]" id="vehicleModalS3Content">
+    <div class="w-full max-w-5xl bg-white rounded-2xl shadow-2xl transform scale-95 opacity-0 transition-all duration-300 flex flex-col max-h-[90vh]" id="vehicleModalS3Content">
       <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <h3 class="text-lg font-bold text-slate-800">Vehicle Details</h3>
         <button id="vehicleModalS3Close" class="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">

@@ -62,8 +62,7 @@ require_any_permission(['module3.view','analytics.view','reports.export']);
       $officer_breakdown = $db->query("SELECT violation_code, COUNT(*) AS cnt FROM tickets WHERE officer_id=".$officer_id." GROUP BY violation_code ORDER BY cnt DESC LIMIT 5");
     }
 
-    // Notifications
-    $notif_rows = $db->query("SELECT tn.*, o.name AS officer_name, o.badge_no FROM ticket_notifications tn LEFT JOIN officers o ON tn.filter_officer_id = o.officer_id ORDER BY tn.created_at DESC LIMIT 10");
+    
   ?>
 
   <!-- Filter & Actions Card -->
@@ -211,43 +210,6 @@ require_any_permission(['module3.view','analytics.view','reports.export']);
   </div>
 </div>
 
-<!-- Integration/Notification Triggers -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-    <h3 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2 text-sm">
-      <i data-lucide="bell-ring" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i> System Notifications
-    </h3>
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Trigger manual sync/notifications to external modules.</p>
-    <div class="flex flex-col sm:flex-row gap-3">
-      <button onclick="notifyTarget('inspection')" class="px-4 py-2 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-        Notify Inspection
-      </button>
-      <button onclick="notifyTarget('parking')" class="px-4 py-2 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-        Notify Parking
-      </button>
-    </div>
-    <div id="integration-result" class="mt-3 text-xs text-slate-500 dark:text-slate-400 h-4"></div>
-  </div>
-
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-    <h3 class="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2 text-sm">
-      <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> Notification Log
-    </h3>
-    <div class="space-y-2 max-h-[100px] overflow-y-auto">
-      <?php if ($notif_rows && $notif_rows->num_rows > 0): ?>
-        <?php while($n = $notif_rows->fetch_assoc()): ?>
-          <div class="flex items-center justify-between text-xs p-2 rounded-md bg-slate-50 dark:bg-slate-700/30">
-            <span class="text-slate-700 dark:text-slate-200 font-semibold"><?php echo ucfirst($n['target_module']); ?> Sync</span>
-            <span class="text-slate-400"><?php echo date('M d H:i', strtotime($n['created_at'])); ?></span>
-          </div>
-        <?php endwhile; ?>
-      <?php else: ?>
-        <div class="text-xs text-slate-400 italic">No recent logs.</div>
-      <?php endif; ?>
-    </div>
-  </div>
-</div>
-
 <!-- Evidence Modal -->
 <div id="evidenceModal" class="fixed inset-0 z-[60] hidden">
   <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity opacity-0" id="evidenceModalBackdrop"></div>
@@ -272,42 +234,6 @@ require_any_permission(['module3.view','analytics.view','reports.export']);
 <script>
 (function(){
   if (window.lucide) window.lucide.createIcons();
-
-  window.notifyTarget = function(target) {
-    const resEl = document.getElementById('integration-result');
-    resEl.textContent = 'Sending notification...';
-    resEl.className = 'mt-3 text-xs text-slate-500 h-4';
-    
-    // Get current filters
-    const params = new URLSearchParams(window.location.search);
-    const fd = new FormData();
-    fd.append('action', 'notify_' + target);
-    fd.append('period', params.get('period') || '');
-    fd.append('status', params.get('status') || '');
-    fd.append('officer_id', params.get('officer_id') || '');
-    fd.append('q', params.get('q') || '');
-
-    fetch(window.location.href, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: fd
-    })
-    .then(r => r.json())
-    .then(d => {
-        if(d.ok) {
-            resEl.textContent = `Success: ${d.count} tickets synced to ${target}.`;
-            resEl.className = 'mt-3 text-xs text-emerald-600 font-medium h-4';
-            setTimeout(() => window.location.reload(), 2000);
-        } else {
-            resEl.textContent = d.error || 'Sync failed.';
-            resEl.className = 'mt-3 text-xs text-rose-600 font-medium h-4';
-        }
-    })
-    .catch(() => {
-        resEl.textContent = 'Network error.';
-        resEl.className = 'mt-3 text-xs text-rose-600 font-medium h-4';
-    });
-  };
 
   // Evidence Modal Logic
   const modal = document.getElementById('evidenceModal');

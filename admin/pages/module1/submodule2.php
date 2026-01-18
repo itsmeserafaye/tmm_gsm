@@ -1081,11 +1081,21 @@
             
             if (data.ok) {
               showToast(successMsg);
+              var redirectAfter = null;
+              if (formId === 'franchiseApplyForm') {
+                var ref = '';
+                try { ref = ((data && data.franchise_ref_number) ? data.franchise_ref_number : (form.elements['franchise_ref'] ? form.elements['franchise_ref'].value : '')).toString().trim(); } catch (e) { ref = ''; }
+                if (ref) redirectAfter = '?page=module2/submodule2&q=' + encodeURIComponent(ref);
+              }
               form.reset();
               if (typeof onSuccess === 'function') {
                 onSuccess();
               }
-              setTimeout(() => location.reload(), 1000);
+              if (redirectAfter) {
+                setTimeout(function(){ window.location.href = redirectAfter; }, 500);
+              } else {
+                setTimeout(() => location.reload(), 1000);
+              }
             } else {
               var errMsg = (data && data.error) ? data.error : 'Operation failed';
               if (formId === 'saveCoopForm') {
