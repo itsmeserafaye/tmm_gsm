@@ -1,8 +1,11 @@
 <?php
-$baseUrl = str_replace('\\', '/', (string)dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/admin/index.php')));
+ob_start();
+$baseUrl = str_replace('\\', '/', (string) dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/admin/index.php')));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 $rootUrl = preg_replace('#/admin$#', '', $baseUrl);
-if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) {
+  @session_start();
+}
 if (php_sapi_name() !== 'cli' && empty($_SESSION['user_id'])) {
   header('Location: ' . $rootUrl . '/index.php');
   exit;
@@ -42,13 +45,15 @@ $tmm_node_allowed = function (array $node): bool {
 $tmmDeniedMessage = null;
 foreach ($sidebarItems as $item) {
   if (isset($item['path']) && $item['path'] === $currentPath) {
-    if (!$tmm_node_allowed($item)) $tmmDeniedMessage = 'You do not have access to this page.';
+    if (!$tmm_node_allowed($item))
+      $tmmDeniedMessage = 'You do not have access to this page.';
     break;
   }
   if (!empty($item['subItems'])) {
     foreach ($item['subItems'] as $sub) {
       if ($sub['path'] === $currentPath) {
-        if (!$tmm_node_allowed($sub)) $tmmDeniedMessage = 'You do not have access to this page.';
+        if (!$tmm_node_allowed($sub))
+          $tmmDeniedMessage = 'You do not have access to this page.';
         break 2;
       }
     }
@@ -76,6 +81,7 @@ foreach ($sidebarItems as $item) {
 ?>
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>TMM</title>
@@ -90,7 +96,7 @@ foreach ($sidebarItems as $item) {
         document.documentElement.classList.toggle('dark', useDark);
         document.body && document.body.classList.toggle('dark', useDark);
         document.documentElement.setAttribute('data-theme', useDark ? 'dark' : 'light');
-      } catch (e) {}
+      } catch (e) { }
     })();
   </script>
   <!-- Tailwind config removed - using CDN version -->
@@ -102,16 +108,17 @@ foreach ($sidebarItems as $item) {
     window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
   </script>
 </head>
- <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">
+
+<body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">
   <div class="flex h-screen overflow-hidden">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>
     <div class="flex-1 flex flex-col">
       <?php include $baseDir . '/includes/header.php'; ?>
       <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-        <?php 
+        <?php
         try {
-          include $pageFile; 
+          include $pageFile;
         } catch (Throwable $e) {
           echo '<div class="p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">';
           echo '<h2 class="text-lg font-bold mb-2 flex items-center gap-2"><i data-lucide="alert-triangle" class="w-5 h-5"></i> Application Error</h2>';
@@ -143,9 +150,9 @@ foreach ($sidebarItems as $item) {
       localStorage.setItem('theme', next);
       var btnText = document.getElementById('themeState');
       if (btnText) btnText.textContent = next;
-      try { window.dispatchEvent(new CustomEvent('themechange', { detail: next })); } catch(e) {}
-      try { if (window.tailwind) { /* ensure repaint */ } } catch(e) {}
-      setTimeout(function(){ location.reload(); }, 0);
+      try { window.dispatchEvent(new CustomEvent('themechange', { detail: next })); } catch (e) { }
+      try { if (window.tailwind) { /* ensure repaint */ } } catch (e) { }
+      setTimeout(function () { location.reload(); }, 0);
     }
     function initSidebar() {
       var sidebar = document.getElementById('sidebar');
@@ -204,7 +211,7 @@ foreach ($sidebarItems as $item) {
           var target = document.getElementById(this.getAttribute('data-nav-toggle'));
           if (!target) return;
           var expanded = target.getAttribute('data-expanded') === 'true';
-          
+
           // Toggle chevron rotation
           var chevron = this.querySelector('.sidebar-chevron');
           if (chevron) {
@@ -239,4 +246,5 @@ foreach ($sidebarItems as $item) {
     window.addEventListener('resize', function () { initSidebar() });
   </script>
 </body>
+
 </html>
