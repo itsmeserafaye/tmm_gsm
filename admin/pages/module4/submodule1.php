@@ -131,9 +131,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sched
       $stmtIns->bind_param('sssssssissii', $platePost, $scheduledAtPost, $locationPost, $inspectionTypePost, $requestedByPost, $contactPersonPost, $contactNumberPost, $inspectorIdDbPost, $inspectorLabelPost, $statusNew, $crVerifiedPost, $orVerifiedPost);
       if ($stmtIns->execute()) {
         $scheduleIdNew = $stmtIns->insert_id;
-        $scheduleMessage = 'Inspection request logged for ' . htmlspecialchars($platePost, ENT_QUOTES) . ' at ' . htmlspecialchars($scheduledAtPost, ENT_QUOTES) . '.';
-        $plateParam = $platePost;
-        $scheduleParam = (int)$scheduleIdNew;
+        $notice = 'Inspection request logged for ' . $platePost . '.';
+        header('Location: ?page=module4/submodule1&schedule_id=' . (int)$scheduleIdNew . '&plate=' . urlencode($platePost) . '&notice=' . urlencode($notice));
+        exit;
       } else {
         $scheduleError = 'Failed to schedule inspection.';
       }
@@ -187,7 +187,7 @@ if ($resLoc) {
     }
   }
 }
-$recentEndorsedPlates = [];
+$needsInspectionPlates = [];
 $orderCol = 'application_id';
 $chkSubmitted = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'submitted_at'");
 if ($chkSubmitted && $chkSubmitted->num_rows > 0) $orderCol = 'submitted_at';
@@ -195,17 +195,24 @@ else {
   $chkCreated = $db->query("SHOW COLUMNS FROM franchise_applications LIKE 'created_at'");
   if ($chkCreated && $chkCreated->num_rows > 0) $orderCol = 'created_at';
 }
-$resEndPlates = $db->query("SELECT DISTINCT v.plate_number, v.operator_name
-                            FROM franchise_applications fa
-                            JOIN vehicles v ON v.franchise_id = fa.franchise_ref_number
-                            WHERE fa.status='Endorsed' AND v.plate_number <> ''
-                            ORDER BY fa.$orderCol DESC, v.plate_number ASC
-                            LIMIT 25");
-if ($resEndPlates) {
-  while ($r = $resEndPlates->fetch_assoc()) {
+$resNeedPlates = $db->query("SELECT DISTINCT v.plate_number, v.operator_name
+                             FROM franchise_applications fa
+                             JOIN vehicles v ON v.franchise_id = fa.franchise_ref_number
+                             WHERE fa.status='Endorsed'
+                               AND v.plate_number <> ''
+                               AND (v.inspection_status IS NULL OR v.inspection_status='' OR UPPER(v.inspection_status) <> 'PASSED')
+                               AND NOT EXISTS (
+                                 SELECT 1 FROM inspection_schedules s
+                                 WHERE s.plate_number = v.plate_number
+                                   AND s.status IN ('Pending Verification','Pending Assignment','Scheduled')
+                               )
+                             ORDER BY fa.$orderCol DESC, v.plate_number ASC
+                             LIMIT 25");
+if ($resNeedPlates) {
+  while ($r = $resNeedPlates->fetch_assoc()) {
     $p = strtoupper(trim((string)($r['plate_number'] ?? '')));
     if ($p === '') continue;
-    $recentEndorsedPlates[] = [
+    $needsInspectionPlates[] = [
       'plate_number' => $p,
       'operator_name' => (string)($r['operator_name'] ?? ''),
     ];
@@ -363,7 +370,7 @@ if ($resUpcoming) {
                     <form method="GET" class="flex gap-3 mb-6">
                         <input type="hidden" name="page" value="module4/submodule1">
                         <div class="relative flex-1 group">
-                            <input id="lookup-plate" name="plate" value="<?php echo htmlspecialchars($plateParam, ENT_QUOTES); ?>" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-4 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 placeholder:text-slate-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-semibold text-sm uppercase" placeholder="Search Plate (e.g. ABC1234)">
+                            <input id="lookup-plate" name="plate" value="<?php echo htmlspecialchars($plateParam, ENT_QUOTES); ?>" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-4 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 placeholder:text-slate-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-semibold text-sm uppercase" placeholder="<?php echo htmlspecialchars($plateParam !== '' ? 'Search Plate (e.g. ABC1234)' : (!empty($needsInspectionPlates) ? ('Try: ' . $needsInspectionPlates[0]['plate_number']) : 'Search Plate (e.g. ABC1234)'), ENT_QUOTES); ?>">
                             <div id="lookup-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl text-xs max-h-48 overflow-y-auto hidden"></div>
                         </div>
                         <button type="submit" class="rounded-md bg-blue-700 hover:bg-blue-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors active:scale-[0.98]">
@@ -545,7 +552,7 @@ if ($resUpcoming) {
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300 mb-2">Plate Number</label>
                                 <div class="relative">
-                                    <input id="schedule-plate" name="plate_number" value="<?php echo htmlspecialchars($plateParam, ENT_QUOTES); ?>" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-4 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="ABC1234">
+                                    <input id="schedule-plate" name="plate_number" value="<?php echo htmlspecialchars($plateParam, ENT_QUOTES); ?>" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-4 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="<?php echo htmlspecialchars($plateParam !== '' ? 'ABC1234' : (!empty($needsInspectionPlates) ? ('Try: ' . $needsInspectionPlates[0]['plate_number']) : 'ABC1234'), ENT_QUOTES); ?>">
                                     <div id="schedule-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl text-xs max-h-48 overflow-y-auto hidden"></div>
                                 </div>
                             </div>
@@ -763,7 +770,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
     }, $inspectors), JSON_UNESCAPED_SLASHES); ?>;
     var recentLocations = <?php echo json_encode($recentLocations, JSON_UNESCAPED_SLASHES); ?>;
-    var recentEndorsedPlates = <?php echo json_encode($recentEndorsedPlates, JSON_UNESCAPED_SLASHES); ?>;
+    var recentEndorsedPlates = <?php echo json_encode($needsInspectionPlates, JSON_UNESCAPED_SLASHES); ?>;
 
     // Elements
     var inspectorStatus = document.getElementById('inspector-status');
@@ -931,7 +938,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var nodes = fallbackItems.slice(0, 6).map(it => {
                 return createSuggestionItem(
                     it.plate_number,
-                    (it.operator_name || '') ? (it.operator_name + ' • recently endorsed') : 'Recently endorsed',
+                    (it.operator_name || '') ? (it.operator_name + ' • needs inspection') : 'Needs inspection',
                     function() {
                         inputEl.value = it.plate_number || '';
                         clearBox(boxEl);
@@ -974,7 +981,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputEl.addEventListener('blur', () => setTimeout(() => clearBox(boxEl), 200));
     }
 
-    setupPlateInput(lookupPlateInput, lookupPlateSuggestions, null);
+    setupPlateInput(lookupPlateInput, lookupPlateSuggestions, recentEndorsedPlates || []);
     setupPlateInput(schedulePlateInput, schedulePlateSuggestions, recentEndorsedPlates || []);
 
     // Location Logic

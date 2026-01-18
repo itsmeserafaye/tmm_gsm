@@ -236,7 +236,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
           $cap = (int)($routeRow['max_vehicle_limit'] ?? 50);
           $routeName = $routeRow ? $routeRow['route_name'] : $routeIdRaw;
           
-          $stmt = $db->prepare("SELECT COUNT(*) AS c FROM terminal_assignments WHERE route_id=? AND status='Authorized'");
+          $stmt = $db->prepare("SELECT COUNT(*) AS c FROM terminal_assignments WHERE route_id=? AND status IN ('Authorized','Pending')");
           $stmt->bind_param('s', $routeIdRaw);
           $stmt->execute();
           $cnt = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
@@ -289,7 +289,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
       <div class="p-4 flex-1 overflow-y-auto max-h-[300px]">
         <ul class="space-y-2">
           <?php
-            $stmt2 = $db->prepare("SELECT terminal_name, COUNT(*) AS c FROM terminal_assignments WHERE route_id=? AND status='Authorized' GROUP BY terminal_name");
+            $stmt2 = $db->prepare("SELECT terminal_name, COUNT(*) AS c FROM terminal_assignments WHERE route_id=? AND status IN ('Authorized','Pending') GROUP BY terminal_name");
             $stmt2->bind_param('s', $routeIdRaw);
             $stmt2->execute();
             $res2 = $stmt2->get_result();
@@ -496,7 +496,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                 <button title="View Details" data-plate="<?php echo htmlspecialchars($a['plate_number']); ?>" class="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
                   <i data-lucide="eye" class="w-4 h-4"></i>
                 </button>
-                <form method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/assign_route.php" class="inline-flex">
+                <form method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/assign_route.php" class="inline-flex" data-toggle-assignment="1">
                    <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($a['plate_number']); ?>">
                    <input type="hidden" name="route_id" value="<?php echo htmlspecialchars($a['route_id']); ?>">
                    <input type="hidden" name="terminal_name" value="<?php echo htmlspecialchars($a['terminal_name']); ?>">
@@ -782,6 +782,43 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
                 showToast('Failed to load vehicle details', 'error');
                 this.innerHTML = originalIcon;
                 if(window.lucide) window.lucide.createIcons();
+            });
+        });
+      });
+
+      document.querySelectorAll('form[data-toggle-assignment="1"]').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var fd = new FormData(form);
+          var btn = form.querySelector('button');
+          var original = btn ? btn.innerHTML : '';
+          if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
+            if (window.lucide) window.lucide.createIcons();
+          }
+          fetch(form.action, { method: 'POST', body: fd })
+            .then(r => r.json())
+            .then(function (data) {
+              if (data && data.ok) {
+                showToast('Assignment status updated.', 'success');
+                setTimeout(function(){ window.location.reload(); }, 600);
+              } else {
+                var msg = (data && data.error) ? String(data.error) : 'Unable to update assignment.';
+                if (msg === 'inspection_not_passed') msg = 'Cannot assign/toggle: inspection not passed.';
+                if (msg === 'franchise_invalid') msg = 'Cannot assign/toggle: franchise is not endorsed.';
+                showToast(msg, 'error');
+              }
+            })
+            .catch(function () {
+              showToast('Network error while updating assignment.', 'error');
+            })
+            .finally(function () {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = original;
+                if (window.lucide) window.lucide.createIcons();
+              }
             });
         });
       });
