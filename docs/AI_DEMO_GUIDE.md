@@ -15,7 +15,7 @@ Your system solves the "Over/Under Deployment" problem by predicting passenger d
 1.  Point to the **"Forecast Readiness"** widget.
 2.  **Scenario:** Initially, it might say "Training" if there is not enough data.
 3.  **Action:** Explain that the system needs at least 3-4 days of data to establish a baseline pattern.
-    *   *Note: I have already pre-seeded the system with 7 days of data, so it should currently show "Ready" with a high accuracy score.*
+    *   *Note: I have already pre-seeded the system with realistic multi-day observations using `php seed_ai_demo_data.php`, so it should currently show "Ready" with a high accuracy score.*
 
 ### Step B: The "Data Inputs" Form (Live Demo)
 Tell the panel: *"I will now simulate a dispatcher reporting a sudden crowd surge."*

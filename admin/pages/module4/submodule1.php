@@ -882,7 +882,11 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="font-bold text-slate-800 dark:text-white">${primary}</div>
             ${secondary ? `<div class="text-[10px] font-medium text-slate-500 mt-0.5">${secondary}</div>` : ''}
         `;
-        div.addEventListener('click', onClick);
+        div.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClick();
+        });
         return div;
     }
 
