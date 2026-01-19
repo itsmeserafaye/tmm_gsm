@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/lptrp.php';
 
 header('Content-Type: application/json');
 
@@ -13,50 +12,59 @@ try {
     $db = db();
     require_permission('module1.routes.write');
 
-    $route_id = strtoupper(trim($_POST['route_id'] ?? ''));
-    $distanceProvided = array_key_exists('distance_km', $_POST);
-    $fareProvided = array_key_exists('fare', $_POST);
-    $distance = $distanceProvided ? floatval($_POST['distance_km'] ?? 0) : null;
-    $fare = $fareProvided ? floatval($_POST['fare'] ?? 0) : null;
+    $routeCode = strtoupper(trim((string)($_POST['route_code'] ?? ($_POST['route_id'] ?? ''))));
+    $routeName = trim((string)($_POST['route_name'] ?? ''));
+    $origin = trim((string)($_POST['origin'] ?? ''));
+    $destination = trim((string)($_POST['destination'] ?? ''));
+    $structure = trim((string)($_POST['structure'] ?? ''));
+    $distanceKm = isset($_POST['distance_km']) ? (float)$_POST['distance_km'] : null;
+    $authorizedUnits = isset($_POST['authorized_units']) ? (int)$_POST['authorized_units'] : null;
+    $status = trim((string)($_POST['status'] ?? 'Active'));
 
-    if (empty($route_id)) {
-        throw new Exception('Route ID is required');
+    if ($routeCode === '' || strlen($routeCode) < 2) {
+        throw new Exception('invalid_route_code');
     }
+    if ($routeName === '') $routeName = $routeCode;
 
-    $lptrp = tmm_get_lptrp_route($db, $route_id);
-    if (!$lptrp || !tmm_lptrp_is_approved($lptrp)) {
-        throw new Exception('Route is not LPTRP-approved');
+    $allowedStruct = ['Loop','Point-to-Point'];
+    $structOk = false;
+    foreach ($allowedStruct as $s) {
+        if (strcasecmp($structure, $s) === 0) { $structure = $s; $structOk = true; break; }
     }
+    if (!$structOk) $structure = null;
 
-    if (!tmm_sync_routes_from_lptrp($db, $route_id)) {
-        throw new Exception('Failed to sync route from LPTRP masterlist');
+    $statusAllowed = ['Active','Inactive'];
+    $stOk = false;
+    foreach ($statusAllowed as $s) {
+        if (strcasecmp($status, $s) === 0) { $status = $s; $stOk = true; break; }
     }
+    if (!$stOk) $status = 'Active';
 
-    $sets = [];
-    $types = '';
-    $params = [];
-    if ($distanceProvided && tmm_table_has_column($db, 'routes', 'distance_km')) {
-        $sets[] = 'distance_km=?';
-        $types .= 'd';
-        $params[] = $distance;
-    }
-    if ($fareProvided && tmm_table_has_column($db, 'routes', 'fare')) {
-        $sets[] = 'fare=?';
-        $types .= 'd';
-        $params[] = $fare;
-    }
-    if ($sets) {
-        $types .= 's';
-        $params[] = $route_id;
-        $stmt = $db->prepare("UPDATE routes SET " . implode(',', $sets) . " WHERE route_id=?");
-        if ($stmt) {
-            $stmt->bind_param($types, ...$params);
-            $stmt->execute();
-            $stmt->close();
-        }
-    }
+    $maxLimit = $authorizedUnits !== null && $authorizedUnits > 0 ? $authorizedUnits : null;
+    if ($maxLimit === null) $maxLimit = 50;
 
-    echo json_encode(['ok' => true, 'message' => 'Route synced successfully', 'route_id' => $route_id]);
+    $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, origin, destination, structure, distance_km, authorized_units, max_vehicle_limit, status)
+                          VALUES(?,?,?,?,?,?,?,?,?,?)
+                          ON DUPLICATE KEY UPDATE
+                            route_code=VALUES(route_code),
+                            route_name=VALUES(route_name),
+                            origin=VALUES(origin),
+                            destination=VALUES(destination),
+                            structure=VALUES(structure),
+                            distance_km=VALUES(distance_km),
+                            authorized_units=VALUES(authorized_units),
+                            max_vehicle_limit=VALUES(max_vehicle_limit),
+                            status=VALUES(status)");
+    if (!$stmt) {
+        throw new Exception('db_prepare_failed');
+    }
+    $distanceBind = $distanceKm;
+    $authorizedBind = $authorizedUnits;
+    $stmt->bind_param('ssssssdiis', $routeCode, $routeCode, $routeName, $origin, $destination, $structure, $distanceBind, $authorizedBind, $maxLimit, $status);
+    $ok = $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(['ok' => $ok, 'route_code' => $routeCode, 'route_id' => $routeCode]);
 
 } catch (Exception $e) {
     http_response_code(400);

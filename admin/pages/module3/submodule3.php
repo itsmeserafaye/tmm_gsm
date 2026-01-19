@@ -1,12 +1,18 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module3.view','analytics.view']);
+require_any_permission(['module3.analytics','analytics.view','reports.export']);
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 ?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Analytics, Reporting & Integration</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Comprehensive violation reports, officer performance metrics, and external system hooks.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Analytics & Reports</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Review tickets, export reports, and inspect evidence for audit and monitoring.</p>
     </div>
   </div>
 
@@ -27,7 +33,7 @@ require_any_permission(['module3.view','analytics.view']);
     $sql = "SELECT t.ticket_number, t.violation_code, t.vehicle_plate, t.status, t.fine_amount, t.date_issued, t.issued_by, t.issued_by_badge, o.name AS officer_name, o.badge_no AS officer_badge FROM tickets t LEFT JOIN officers o ON t.officer_id = o.officer_id";
     $conds = [];
     
-    if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escalated'])) { 
+    if ($status !== '' && in_array($status, ['Unpaid','Pending','Validated','Settled','Escalated'])) { 
         $conds[] = "t.status='".$db->real_escape_string($status)."'"; 
     }
     if ($period === '30d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 30 DAY)"; }
@@ -47,6 +53,12 @@ require_any_permission(['module3.view','analytics.view']);
     
     $items = $db->query($sql);
 
+    $where = $conds ? (" WHERE " . implode(" AND ", $conds)) : "";
+    $kpiTotal = (int)($db->query("SELECT COUNT(*) AS c FROM tickets t" . $where)->fetch_assoc()['c'] ?? 0);
+    $kpiSettled = (int)($db->query("SELECT COUNT(*) AS c FROM tickets t" . ($where ? $where . " AND " : " WHERE ") . "t.status='Settled'")->fetch_assoc()['c'] ?? 0);
+    $kpiUnpaid = (int)($db->query("SELECT COUNT(*) AS c FROM tickets t" . ($where ? $where . " AND " : " WHERE ") . "t.status<>'Settled'")->fetch_assoc()['c'] ?? 0);
+    $kpiFines = (float)($db->query("SELECT COALESCE(SUM(t.fine_amount),0) AS s FROM tickets t" . $where)->fetch_assoc()['s'] ?? 0);
+
     // Officers List for Filter
     $officers = $db->query("SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 AND name <> '' AND badge_no <> '' ORDER BY name");
     
@@ -64,6 +76,25 @@ require_any_permission(['module3.view','analytics.view']);
 
     
   ?>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tickets (Filtered)</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($kpiTotal); ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Settled</div>
+      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($kpiSettled); ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Unpaid</div>
+      <div class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"><?php echo number_format($kpiUnpaid); ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Fines</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">₱<?php echo number_format($kpiFines, 2); ?></div>
+    </div>
+  </div>
 
   <!-- Filter & Actions Card -->
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">

@@ -1,7 +1,10 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 $routeId = trim($_GET['route_id'] ?? '');
+header('Content-Type: application/json');
+require_any_permission(['module1.view','module1.routes.write','module4.view','module5.view']);
 
 if (!$routeId) {
     echo json_encode(['ok'=>false, 'error'=>'Missing route_id']);
@@ -35,7 +38,6 @@ while ($row = $resT->fetch_assoc()) {
     $terminals[] = $row;
 }
 
-header('Content-Type: application/json');
 echo json_encode([
     'ok' => true,
     'route' => [

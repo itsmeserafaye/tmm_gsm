@@ -3,13 +3,14 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
 $db = db();
+require_any_permission(['module2.view','module2.franchises.manage']);
 $q = trim($_GET['q'] ?? '');
 $status = trim($_GET['status'] ?? '');
 $limit = (int)($_GET['page_size'] ?? 50);
 $page = (int)($_GET['page'] ?? 1);
 $offset = ($page - 1) * $limit;
 
-$sql = "SELECT fa.*, o.full_name as operator, c.coop_name 
+$sql = "SELECT fa.*, COALESCE(NULLIF(o.name,''), o.full_name) as operator, c.coop_name 
         FROM franchise_applications fa 
         LEFT JOIN operators o ON fa.operator_id = o.id 
         LEFT JOIN coops c ON fa.coop_id = c.id";
@@ -19,9 +20,10 @@ $params = [];
 $types = '';
 
 if ($q !== '') {
-    $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ? OR c.coop_name LIKE ?)";
+    $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ? OR o.name LIKE ? OR c.coop_name LIKE ?)";
     $params[] = "%$q%"; $params[] = "%$q%"; $params[] = "%$q%";
-    $types .= 'sss';
+    $params[] = "%$q%";
+    $types .= 'ssss';
 }
 if ($status !== '' && $status !== 'Status') {
     $conds[] = "fa.status = ?";

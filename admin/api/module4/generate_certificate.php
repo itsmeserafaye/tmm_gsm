@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
+require_permission('module4.certify');
 $tmm_norm_plate = function (string $plate): string {
     $p = strtoupper(trim($plate));
     $p = preg_replace('/[^A-Z0-9]/', '', $p);

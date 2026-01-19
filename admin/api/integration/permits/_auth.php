@@ -12,7 +12,7 @@ function tmm_integration_authorize(): void {
     if (hash_equals($expected, $provided)) $ok = true;
   }
   if (!$ok && function_exists('has_permission')) {
-    $ok = has_permission('module2.franchises.manage') || has_permission('module2.view');
+    $ok = has_permission('module2.read') || has_permission('module2.endorse') || has_permission('module2.approve');
   }
   if (!$ok) {
     http_response_code(401);

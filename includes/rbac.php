@@ -78,17 +78,20 @@ function rbac_ensure_schema(mysqli $db) {
   rbac_seed_roles_permissions($db);
   rbac_seed_default_admin($db);
   rbac_migrate_commuter_role($db);
+  rbac_ensure_compat_views($db);
 }
 
 function rbac_seed_roles_permissions(mysqli $db) {
   $roles = [
     ['SuperAdmin', 'City ICTO super administrator'],
-    ['Admin', 'Transport Management Office administrator'],
-    ['Encoder', 'Frontline encoder for vehicles, routes, records'],
-    ['Inspector', 'Field inspector / traffic enforcer role'],
-    ['Treasurer', 'City Treasurer cashier / payment verification role'],
-    ['ParkingStaff', 'Parking operations staff role'],
-    ['Viewer', 'Read-only executive / monitoring role'],
+    ['Admin / Transport Officer', 'Full access to modules (except user management)'],
+    ['Franchise Officer', 'Handles franchise application & endorsement'],
+    ['Encoder', 'Data entry only (Module 1 write, Module 2 apply)'],
+    ['Inspector', 'Handles inspection scheduling & execution'],
+    ['Traffic Enforcer', 'Issues tickets (traffic enforcement)'],
+    ['Treasurer / Cashier', 'Payment & settlement (Module 3 + parking fees)'],
+    ['Terminal Manager', 'Handles terminals & parking operations'],
+    ['Viewer', 'Read-only (module read access)'],
     ['Commuter', 'Citizen portal account (no admin access)'],
   ];
   foreach ($roles as $r) {
@@ -101,25 +104,54 @@ function rbac_seed_roles_permissions(mysqli $db) {
   }
 
   $perms = [
-    ['dashboard.view', 'View dashboards and overview screens'],
-    ['analytics.view', 'View analytics and AI insights'],
-    ['analytics.train', 'Create/update demand observation logs for forecasting'],
-    ['module1.view', 'View Module 1 screens (read-only)'],
-    ['module2.view', 'View Module 2 screens (read-only)'],
-    ['module3.view', 'View Module 3 screens (read-only)'],
-    ['module4.view', 'View Module 4 screens (read-only)'],
-    ['module5.view', 'View Module 5 screens (read-only)'],
-    ['module1.vehicles.write', 'Create and update vehicle records'],
-    ['module1.routes.write', 'Create and update route records'],
-    ['module1.coops.write', 'Create and update cooperative records'],
-    ['module2.franchises.manage', 'Process franchise applications and endorsements'],
-    ['module4.inspections.manage', 'Schedule and record inspections'],
-    ['tickets.issue', 'Issue traffic/parking citations'],
-    ['tickets.validate', 'Validate and escalate citations'],
-    ['tickets.settle', 'Record payments and settle citations'],
-    ['parking.manage', 'Manage parking areas, permits, and payments'],
+    ['dashboard.view', 'View dashboards'],
+    ['analytics.view', 'View analytics'],
+    ['analytics.train', 'Create/update demand observation logs'],
     ['reports.export', 'Export reports'],
     ['settings.manage', 'Manage system settings'],
+    ['users.manage', 'Manage RBAC users and roles'],
+
+    ['module1.read', 'Module 1 read access'],
+    ['module1.write', 'Module 1 write access'],
+    ['module1.delete', 'Module 1 delete access'],
+    ['module1.link_vehicle', 'Link vehicle to operator'],
+    ['module1.route_manage', 'Manage routes and terminals'],
+
+    ['module2.read', 'Module 2 read access'],
+    ['module2.apply', 'Submit franchise applications'],
+    ['module2.endorse', 'Endorse franchise applications'],
+    ['module2.approve', 'Approve franchise applications'],
+    ['module2.history', 'View franchise history and audit'],
+
+    ['module3.read', 'Module 3 read access'],
+    ['module3.issue', 'Issue tickets'],
+    ['module3.settle', 'Settle ticket payments'],
+    ['module3.analytics', 'Module 3 analytics'],
+
+    ['module4.read', 'Module 4 read access'],
+    ['module4.schedule', 'Schedule inspections'],
+    ['module4.inspect', 'Conduct inspections'],
+    ['module4.certify', 'Certify inspections'],
+
+    ['module5.read', 'Module 5 read access'],
+    ['module5.manage_terminal', 'Manage terminals and parking'],
+    ['module5.assign_vehicle', 'Assign vehicles to terminals'],
+    ['module5.parking_fees', 'Record parking fees'],
+
+    ['module1.view', 'Legacy: View Module 1 screens'],
+    ['module2.view', 'Legacy: View Module 2 screens'],
+    ['module3.view', 'Legacy: View Module 3 screens'],
+    ['module4.view', 'Legacy: View Module 4 screens'],
+    ['module5.view', 'Legacy: View Module 5 screens'],
+    ['module1.vehicles.write', 'Legacy: Create/update vehicle records'],
+    ['module1.routes.write', 'Legacy: Create/update route records'],
+    ['module1.coops.write', 'Legacy: Create/update cooperative records'],
+    ['module2.franchises.manage', 'Legacy: Process franchise applications'],
+    ['module4.inspections.manage', 'Legacy: Manage inspections'],
+    ['tickets.issue', 'Legacy: Issue citations'],
+    ['tickets.validate', 'Legacy: Validate citations'],
+    ['tickets.settle', 'Legacy: Settle citations'],
+    ['parking.manage', 'Legacy: Manage parking'],
   ];
   foreach ($perms as $p) {
     $stmt = $db->prepare("INSERT IGNORE INTO rbac_permissions(code, description) VALUES(?, ?)");
@@ -132,12 +164,49 @@ function rbac_seed_roles_permissions(mysqli $db) {
 
   $rolePerms = [
     'SuperAdmin' => array_map(function ($p) { return $p[0]; }, $perms),
-    'Admin' => ['dashboard.view','analytics.view','analytics.train','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
-    'Encoder' => ['dashboard.view','module1.vehicles.write','module1.routes.write','module1.coops.write','reports.export'],
-    'Inspector' => ['dashboard.view','analytics.view','module4.inspections.manage','tickets.issue'],
-    'Treasurer' => ['dashboard.view','tickets.settle','reports.export'],
-    'ParkingStaff' => ['dashboard.view','parking.manage'],
-    'Viewer' => ['dashboard.view','analytics.view','module1.view','module2.view','module3.view','module4.view','module5.view'],
+    'Admin / Transport Officer' => [
+      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
+      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
+      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
+      'module3.read','module3.issue','module3.settle','module3.analytics',
+      'module4.read','module4.schedule','module4.inspect','module4.certify',
+      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
+    ],
+    'Franchise Officer' => [
+      'dashboard.view','reports.export',
+      'module1.read',
+      'module2.read','module2.apply','module2.endorse','module2.history'
+    ],
+    'Encoder' => [
+      'dashboard.view',
+      'module1.read','module1.write','module1.link_vehicle',
+      'module2.read','module2.apply',
+    ],
+    'Inspector' => [
+      'dashboard.view',
+      'module1.read',
+      'module4.read','module4.schedule','module4.inspect','module4.certify',
+    ],
+    'Traffic Enforcer' => [
+      'dashboard.view',
+      'module1.read',
+      'module3.read','module3.issue',
+    ],
+    'Treasurer / Cashier' => [
+      'dashboard.view',
+      'module1.read',
+      'module3.read','module3.settle',
+      'module5.read','module5.parking_fees',
+    ],
+    'Terminal Manager' => [
+      'dashboard.view',
+      'module1.read',
+      'module5.read','module5.manage_terminal','module5.assign_vehicle',
+    ],
+    'Viewer' => [
+      'dashboard.view',
+      'module1.read','module2.read','module3.read','module4.read','module5.read'
+    ],
   ];
 
   foreach ($rolePerms as $roleName => $permCodes) {
@@ -155,7 +224,7 @@ function rbac_seed_roles_permissions(mysqli $db) {
     }
   }
 
-  $parkingRoleId = rbac_role_id($db, 'ParkingStaff');
+  $parkingRoleId = rbac_role_id($db, 'Terminal Manager');
   $ticketsIssuePermId = rbac_permission_id($db, 'tickets.issue');
   if ($parkingRoleId && $ticketsIssuePermId) {
     $stmtDel = $db->prepare("DELETE FROM rbac_role_permissions WHERE role_id=? AND permission_id=?");
@@ -176,6 +245,43 @@ function rbac_seed_roles_permissions(mysqli $db) {
       $stmtDel->close();
     }
   }
+
+  $legacyRoleMap = [
+    'Admin' => 'Admin / Transport Officer',
+    'Treasurer' => 'Treasurer / Cashier',
+    'ParkingStaff' => 'Terminal Manager',
+  ];
+  foreach ($legacyRoleMap as $legacy => $target) {
+    $legacyId = rbac_role_id($db, $legacy);
+    if (!$legacyId) continue;
+    foreach ($rolePerms[$target] ?? [] as $code) {
+      $permId = rbac_permission_id($db, $code);
+      if (!$permId) continue;
+      $stmt = $db->prepare("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id) VALUES(?, ?)");
+      if ($stmt) {
+        $stmt->bind_param('ii', $legacyId, $permId);
+        $stmt->execute();
+        $stmt->close();
+      }
+    }
+  }
+}
+
+function rbac_ensure_compat_views(mysqli $db): void {
+  $schema = $db->real_escape_string((string)$db->query("SELECT DATABASE() AS d")->fetch_assoc()['d']);
+  $check = function (string $name) use ($db, $schema): bool {
+    $n = $db->real_escape_string($name);
+    $res = $db->query("SELECT TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA='$schema' AND TABLE_NAME='$n' LIMIT 1");
+    return (bool)($res && $res->fetch_row());
+  };
+  $createView = function (string $name, string $sql) use ($db, $check): void {
+    if ($check($name)) return;
+    $db->query("CREATE VIEW `$name` AS $sql");
+  };
+  $createView('roles', "SELECT id AS role_id, name AS role_name, description FROM rbac_roles");
+  $createView('permissions', "SELECT id AS permission_id, code AS permission_key, description FROM rbac_permissions");
+  $createView('role_permissions', "SELECT rp.role_id, rp.permission_id FROM rbac_role_permissions rp");
+  $createView('users', "SELECT id AS user_id, email AS username, password_hash, status FROM rbac_users");
 }
 
 function rbac_seed_default_admin(mysqli $db) {

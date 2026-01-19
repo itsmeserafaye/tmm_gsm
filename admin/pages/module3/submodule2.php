@@ -1,12 +1,12 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module3.view','tickets.validate','tickets.settle']);
+require_any_permission(['module3.settle','module3.read']);
 ?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Validation, Payment & Compliance (STS-Compliant)</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Validate tickets, record OR payments, and monitor repeat offenders (tracks STS paper tickets via reference numbers).</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Payment</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Search by ticket or plate, input OR number, and mark tickets as paid (Settled).</p>
     </div>
     <div class="text-xs font-semibold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/30 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700">
       Data window: Last 30 days
@@ -30,71 +30,47 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
     $escalations = $db->query("SELECT COUNT(*) AS c FROM tickets WHERE date_issued >= '$start30' AND status='Escalated'")->fetch_assoc()['c'] ?? 0;
 
     // Recent Lists
-    $recentValidated = [];
-    $resVal = $db->query("SELECT ticket_number, external_ticket_number, vehicle_plate, status, date_issued FROM tickets WHERE status='Validated' ORDER BY date_issued DESC LIMIT 8");
-    if($resVal) while($r = $resVal->fetch_assoc()) $recentValidated[] = $r;
-
     $recentPayments = [];
-    $resPay = $db->query("SELECT t.ticket_number, t.external_ticket_number, t.vehicle_plate, t.status, p.amount_paid, p.date_paid, p.receipt_ref FROM payment_records p JOIN tickets t ON p.ticket_id = t.ticket_id ORDER BY p.date_paid DESC LIMIT 8");
+    $resPay = $db->query("SELECT t.ticket_number, t.external_ticket_number, t.vehicle_plate, t.status, p.amount_paid, p.paid_at, p.or_no FROM ticket_payments p JOIN tickets t ON p.ticket_id = t.ticket_id ORDER BY p.paid_at DESC LIMIT 8");
     if($resPay) while($p = $resPay->fetch_assoc()) $recentPayments[] = $p;
   ?>
 
   <!-- Main Action Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     
-    <!-- Validate Ticket Card -->
+    <!-- Ticket Lookup Card -->
     <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-3">
         <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
           <i data-lucide="search-check" class="w-5 h-5"></i>
         </div>
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">Validate Ticket</h2>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Ticket Lookup</h2>
       </div>
       
       <div class="p-6 flex-1">
-        <form id="ticket-validate-form" class="space-y-4">
+        <form id="ticket-validate-form" class="space-y-4" novalidate>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="relative">
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
-              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="TCK-2026-XXXX or STS-XXXX">
+              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., TCK-2026-000123 or STS-2026-000123">
               <div id="val-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-              <input id="val-vehicle-plate" name="vehicle_plate" value="<?php echo htmlspecialchars($prefillPlate); ?>" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="ABC-1234">
+              <input id="val-vehicle-plate" name="vehicle_plate" value="<?php echo htmlspecialchars($prefillPlate); ?>" minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
             </div>
           </div>
           
           <button type="submit" id="btnValidate" class="w-full py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
             <i data-lucide="scan-line" class="w-4 h-4"></i>
-            <span>Validate Record</span>
+            <span>Load Ticket</span>
           </button>
           
           <div id="ticket-validate-result" class="hidden p-3 rounded-md bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 text-xs text-center"></div>
         </form>
 
         <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Recent Validations</h3>
-          <div class="space-y-2 max-h-[200px] overflow-y-auto">
-            <?php if(empty($recentValidated)): ?>
-              <div class="text-xs text-slate-400 text-center py-4">No recent validations.</div>
-            <?php else: ?>
-              <?php foreach($recentValidated as $v): ?>
-                <div class="flex items-center justify-between p-3 rounded-md bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onclick="document.getElementById('val-ticket-number').value='<?php echo $v['ticket_number']; ?>'; document.getElementById('val-vehicle-plate').value='<?php echo $v['vehicle_plate']; ?>';">
-                  <div>
-                    <div class="font-semibold text-slate-900 dark:text-white text-sm"><?php echo htmlspecialchars($v['ticket_number']); ?></div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400">
-                      <?php echo htmlspecialchars($v['vehicle_plate']); ?>
-                      <?php if (!empty($v['external_ticket_number'])): ?>
-                        <span class="font-semibold">• STS:</span> <?php echo htmlspecialchars($v['external_ticket_number']); ?>
-                      <?php endif; ?>
-                    </div>
-                  </div>
-                  <span class="text-[10px] font-bold px-2 py-1 rounded bg-blue-100 text-blue-700">Validated</span>
-                </div>
-              <?php endforeach; ?>
-            <?php endif; ?>
-          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">Lookup helps auto-fill the payment form; validation is handled by the system when plate/operator is found.</div>
         </div>
       </div>
     </div>
@@ -110,10 +86,10 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
       
       <div class="p-6 flex-1">
         <?php if (has_permission('tickets.settle')): ?>
-        <form id="ticket-payment-form" class="space-y-4">
+        <form id="ticket-payment-form" class="space-y-4" novalidate>
           <div class="relative">
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
-            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Search Ticket or STS #...">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket Number</label>
+            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., TCK-2026-000123 or STS-2026-000123">
             <div id="pay-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             <div id="pay-ticket-context" class="mt-1 text-xs text-emerald-600 font-medium h-4"></div>
           </div>
@@ -121,11 +97,11 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Amount (₱)</label>
-              <input id="pay-amount" name="amount_paid" type="number" step="0.01" min="0" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="0.00">
+              <input id="pay-amount" name="amount_paid" type="number" step="0.01" min="0.01" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., 500.00">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Receipt Ref</label>
-              <input id="pay-receipt" name="receipt_ref" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="OR Number">
+              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">OR No</label>
+              <input id="pay-receipt" name="or_no" required minlength="3" maxlength="40" pattern="^[A-Za-z0-9\\-\\/]{3,40}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., OR-2026-000123">
             </div>
           </div>
           
@@ -156,7 +132,7 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
                   <div>
                     <div class="font-semibold text-slate-900 dark:text-white text-sm"><?php echo htmlspecialchars($p['ticket_number']); ?></div>
                     <div class="text-[10px] text-slate-500">
-                      OR: <?php echo htmlspecialchars($p['receipt_ref'] ?: 'N/A'); ?>
+                      OR: <?php echo htmlspecialchars($p['or_no'] ?: 'N/A'); ?>
                       <?php if (!empty($p['external_ticket_number'])): ?>
                         • STS: <?php echo htmlspecialchars($p['external_ticket_number']); ?>
                       <?php endif; ?>
@@ -164,7 +140,7 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
                   </div>
                   <div class="text-right">
                     <div class="font-bold text-emerald-600 text-sm">₱<?php echo number_format($p['amount_paid'], 2); ?></div>
-                    <div class="text-[10px] text-slate-400"><?php echo date('M d', strtotime($p['date_paid'])); ?></div>
+                    <div class="text-[10px] text-slate-400"><?php echo date('M d', strtotime($p['paid_at'])); ?></div>
                   </div>
                 </div>
               <?php endforeach; ?>
@@ -318,9 +294,10 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
     if (!receiptInput || !amtInput) return;
 
     if (state && state.paid) {
-      if (state.receipt_ref) {
-        receiptInput.value = state.receipt_ref;
-        receiptInput.placeholder = state.receipt_ref;
+      const orNo = state.or_no || state.receipt_ref || '';
+      if (orNo) {
+        receiptInput.value = orNo;
+        receiptInput.placeholder = orNo;
       }
       if (state.amount_paid && (!amtInput.value || Number(amtInput.value) <= 0)) {
         amtInput.value = state.amount_paid;
@@ -334,7 +311,7 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
       if (ctx) {
         const paidAt = state.date_paid ? ` • Paid: ${state.date_paid}` : '';
         const channel = state.payment_channel ? ` • ${state.payment_channel}` : '';
-        ctx.textContent = `Treasury Confirmed • OR: ${state.receipt_ref || 'N/A'}${channel}${paidAt}`;
+        ctx.textContent = `Treasury Confirmed • OR: ${(orNo || 'N/A')}${channel}${paidAt}`;
         ctx.className = 'mt-1 text-xs text-emerald-600 font-semibold h-4';
       }
     } else {
@@ -360,15 +337,16 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
         .then(d => {
           if (!d || !d.ok || !d.ticket) return;
           const t = d.ticket;
-          if (t.is_paid && t.receipt_ref) {
+          if (t.is_paid && (t.receipt_ref || t.or_no)) {
             setPaymentUiState({
               paid: true,
-              receipt_ref: t.receipt_ref,
+              receipt_ref: t.receipt_ref || '',
+              or_no: t.or_no || '',
               amount_paid: t.amount_paid || t.fine_amount,
               date_paid: t.date_paid || '',
               payment_channel: t.payment_channel || ''
             });
-            showToast('Treasury payment confirmed. OR: ' + t.receipt_ref, 'success');
+            showToast('Treasury payment confirmed. OR: ' + (t.or_no || t.receipt_ref), 'success');
             clearInterval(pollTimer);
             pollTimer = null;
           }
@@ -397,6 +375,7 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
           setPaymentUiState({
             paid: !!t.is_paid,
             receipt_ref: t.receipt_ref || '',
+            or_no: t.or_no || '',
             amount_paid: t.amount_paid || 0,
             date_paid: t.date_paid || '',
             payment_channel: t.payment_channel || ''

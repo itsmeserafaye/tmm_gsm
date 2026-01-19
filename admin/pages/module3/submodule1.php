@@ -1,30 +1,80 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module3.view','tickets.issue']);
+require_any_permission(['module3.issue','module3.read']);
+
+require_once __DIR__ . '/../../includes/db.php';
+$db = db();
+
+$unpaid = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Unpaid'")->fetch_assoc()['c'] ?? 0);
+$settled = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Settled'")->fetch_assoc()['c'] ?? 0);
+$escalated = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Escalated'")->fetch_assoc()['c'] ?? 0);
+$finesToday = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status='Settled' AND DATE(date_issued)=CURDATE()")->fetch_assoc()['total'] ?? 0);
+$finesThisMonth = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status='Settled' AND YEAR(date_issued)=YEAR(CURDATE()) AND MONTH(date_issued)=MONTH(CURDATE())")->fetch_assoc()['total'] ?? 0);
+$outstandingFines = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status<>'Settled'")->fetch_assoc()['total'] ?? 0);
+
+$tickets = [];
+$res = $db->query("SELECT ticket_number, external_ticket_number, ticket_source, violation_code, vehicle_plate, issued_by, status, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 20");
+if ($res) {
+  while ($row = $res->fetch_assoc()) {
+    $tickets[] = $row;
+  }
+}
 ?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Traffic Violation Monitoring (STS-Compliant)</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">STS-compatible local ticketing flow (not the official STS), with evidence logging and ticket lifecycle tracking.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Issue Ticket</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Enter the plate number (auto-fetch vehicle/operator), capture driver name, violation type, location, and upload evidence.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-amber-400 transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Unpaid Tickets</div>
+        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($unpaid); ?></div>
+      <div class="mt-1 text-xs text-slate-500">Awaiting settlement</div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-400 transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Settled Tickets</div>
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($settled); ?></div>
+      <div class="mt-1 text-xs text-slate-500">Paid and closed</div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-rose-400 transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Escalated Cases</div>
+        <i data-lucide="trending-up" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($escalated); ?></div>
+      <div class="mt-1 text-xs text-slate-500">Action required</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Collected Today</div>
+      <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">₱<?php echo number_format($finesToday, 2); ?></div>
+      <div class="text-xs text-slate-500 mt-1">Settled tickets issued today</div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Collected This Month</div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white">₱<?php echo number_format($finesThisMonth, 2); ?></div>
+      <div class="text-xs text-slate-500 mt-1">All settled tickets this month</div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Outstanding Fines</div>
+      <div class="text-2xl font-bold text-rose-600 dark:text-rose-400">₱<?php echo number_format($outstandingFines, 2); ?></div>
+      <div class="text-xs text-slate-500 mt-1">Tickets not yet settled</div>
     </div>
   </div>
 
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
-
-  <?php
-    require_once __DIR__ . '/../../includes/db.php';
-    $db = db();
-    
-    $tickets = [];
-    $res = $db->query("SELECT ticket_number, external_ticket_number, ticket_source, violation_code, vehicle_plate, issued_by, status, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 20");
-    if ($res) {
-      while ($row = $res->fetch_assoc()) {
-        $tickets[] = $row;
-      }
-    }
-  ?>
 
   <!-- Create Ticket Form -->
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -39,7 +89,7 @@ require_any_permission(['module3.view','tickets.issue']);
     </div>
     
     <div class="p-6">
-      <form id="create-ticket-form" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data">
+      <form id="create-ticket-form" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
         <!-- Violation & Vehicle Info -->
         <div class="md:col-span-4 space-y-4">
           <div>
@@ -56,12 +106,12 @@ require_any_permission(['module3.view','tickets.issue']);
 
           <div id="external-ticket-wrap" class="hidden">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">STS Ticket Number</label>
-            <input id="external-ticket-number" name="external_ticket_number" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g. STS-2026-000123">
+            <input id="external-ticket-number" name="external_ticket_number" minlength="3" maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., STS-2026-000123">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Code</label>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Type</label>
             <div class="relative">
-              <select id="violation-select" name="violation_code" required class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+              <select id="violation-select" name="violation_type" required class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
                 <option value="">Select Violation</option>
               </select>
               <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
@@ -72,13 +122,13 @@ require_any_permission(['module3.view','tickets.issue']);
           
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-            <input id="ticket-plate-input" name="plate_number" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g. ABC-1234">
+            <input id="ticket-plate-input" name="plate_no" required minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
             <div id="ticket-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Driver / Operator</label>
-            <input id="ticket-driver-input" name="driver_name" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="Driver Name">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Driver Name</label>
+            <input id="ticket-driver-input" name="driver_name" maxlength="120" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Juan Dela Cruz">
           </div>
         </div>
 
@@ -88,18 +138,18 @@ require_any_permission(['module3.view','tickets.issue']);
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Location</label>
             <div class="relative">
               <i data-lucide="map-pin" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-              <input name="location" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="Street / Area">
+              <input name="location" required maxlength="180" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Main St. corner 2nd Ave, Barangay, City">
             </div>
           </div>
           
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date & Time</label>
-            <input type="datetime-local" name="issued_at" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
+            <input id="issued-at" type="datetime-local" name="issued_at" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
           </div>
 
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issuing Officer (Opt)</label>
-            <input name="officer_name" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="Officer Name">
+            <input name="officer_name" maxlength="120" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Officer Admin">
           </div>
         </div>
 
@@ -123,7 +173,7 @@ require_any_permission(['module3.view','tickets.issue']);
           
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Notes</label>
-            <textarea name="notes" rows="2" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none text-sm font-semibold text-slate-900 dark:text-white" placeholder="Additional details..."></textarea>
+            <textarea name="notes" rows="2" maxlength="300" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., No helmet; obstructing traffic; with passenger."></textarea>
           </div>
         </div>
 
@@ -255,6 +305,14 @@ require_any_permission(['module3.view','tickets.issue']);
   var ticketSourceSel = document.getElementById('ticket-source');
   var externalWrap = document.getElementById('external-ticket-wrap');
   var externalInput = document.getElementById('external-ticket-number');
+  var issuedAt = document.getElementById('issued-at');
+
+  function normalizePlate(value) {
+    var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
+    if (v.indexOf('-') >= 0) return v;
+    if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
+    return v;
+  }
 
   function syncTicketSourceUI() {
     if (!ticketSourceSel || !externalWrap || !externalInput) return;
@@ -266,6 +324,12 @@ require_any_permission(['module3.view','tickets.issue']);
   if (ticketSourceSel) {
     ticketSourceSel.addEventListener('change', syncTicketSourceUI);
     syncTicketSourceUI();
+  }
+
+  if (issuedAt && !issuedAt.value) {
+    var d = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    issuedAt.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   // Load Violation Types
@@ -308,6 +372,7 @@ require_any_permission(['module3.view','tickets.issue']);
 
   if (plateInput) {
     plateInput.addEventListener('input', function() {
+      this.value = normalizePlate(this.value);
       var q = this.value.trim();
       if (plateDebounceId) clearTimeout(plateDebounceId);
       if (q.length < 2) { clearSuggestions(); return; }

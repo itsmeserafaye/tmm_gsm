@@ -159,6 +159,15 @@ if ($kind === 'ticket') {
     }
   }
 
+  if ($receipt !== '') {
+    $stmtTP = $db->prepare("INSERT INTO ticket_payments(ticket_id, or_no, amount_paid, paid_at) VALUES(?,?,?,?)");
+    if ($stmtTP) {
+      $stmtTP->bind_param('isds', $ticketId, $receipt, $amountPaid, $paidAt);
+      $stmtTP->execute();
+      $stmtTP->close();
+    }
+  }
+
   $stmtUp = $db->prepare("UPDATE tickets SET status='Settled', payment_ref=? WHERE ticket_id=?");
   if ($stmtUp) {
     $stmtUp->bind_param('si', $receipt, $ticketId);
@@ -190,13 +199,20 @@ if ($kind === 'parking') {
     echo json_encode(['ok' => false, 'error' => 'invalid_parking_transaction_id']);
     exit;
   }
-  $stmt = $db->prepare("UPDATE parking_transactions SET status='Paid', receipt_ref=?, payment_channel=?, external_payment_id=?, paid_at=? WHERE id=?");
+  $stmt = $db->prepare("UPDATE parking_transactions
+                        SET status='Paid',
+                            receipt_ref=?,
+                            reference_no=IF(reference_no IS NULL OR reference_no='', ?, reference_no),
+                            payment_channel=?,
+                            external_payment_id=?,
+                            paid_at=?
+                        WHERE id=?");
   if (!$stmt) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
   }
-  $stmt->bind_param('ssssi', $receipt, $channel, $externalPaymentId, $paidAt, $id);
+  $stmt->bind_param('sssssi', $receipt, $receipt, $channel, $externalPaymentId, $paidAt, $id);
   $stmt->execute();
   $stmt->close();
   echo json_encode(['ok' => true, 'kind' => 'parking', 'transaction_id' => $transactionId]);

@@ -17,10 +17,16 @@ $plate = strtoupper(trim((string)($_POST['vehicle_plate'] ?? '')));
 $amount = (float)($_POST['amount'] ?? 0);
 $durationHours = (int)($_POST['duration_hours'] ?? 0);
 $chargeType = trim((string)($_POST['charge_type'] ?? 'Usage Fee'));
+$paymentMethod = trim((string)($_POST['payment_method'] ?? ''));
 
 if ($plate === '' || $amount <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_fields']);
+  exit;
+}
+if (strcasecmp($paymentMethod, 'GCash') !== 0) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'treasury_only_allowed_for_gcash']);
   exit;
 }
 
@@ -48,6 +54,7 @@ $cols[] = 'terminal_id'; $placeholders[] = '?'; $types .= 'i'; $params[] = $term
 $cols[] = 'amount'; $placeholders[] = '?'; $types .= 'd'; $params[] = $amount;
 $cols[] = 'transaction_type'; $placeholders[] = '?'; $types .= 's'; $params[] = $chargeType !== '' ? $chargeType : 'Usage Fee';
 $cols[] = 'vehicle_plate'; $placeholders[] = '?'; $types .= 's'; $params[] = $plate;
+$cols[] = 'payment_method'; $placeholders[] = '?'; $types .= 's'; $params[] = 'GCash';
 $cols[] = 'status'; $placeholders[] = "'Pending Payment'";
 
 $hasDuration = (($db->query("SHOW COLUMNS FROM parking_transactions LIKE 'duration_hours'")->num_rows ?? 0) > 0);
@@ -75,4 +82,3 @@ if (!$ok || $newId <= 0) {
 }
 
 echo json_encode(['ok' => true, 'transaction_id' => $newId]);
-

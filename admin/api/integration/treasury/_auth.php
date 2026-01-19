@@ -12,7 +12,7 @@ function tmm_treasury_integration_authorize(): void {
     if (hash_equals($expected, $provided)) $ok = true;
   }
   if (!$ok && function_exists('has_permission')) {
-    $ok = has_permission('tickets.settle') || has_permission('parking.manage');
+    $ok = has_permission('module3.settle') || has_permission('module5.parking_fees') || has_permission('module5.manage_terminal');
   }
   if (!$ok) {
     http_response_code(401);

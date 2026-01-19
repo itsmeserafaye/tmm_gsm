@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
+require_permission('module4.inspect');
 $tmm_norm_plate = function (string $plate): string {
   $p = strtoupper(trim($plate));
   $p = preg_replace('/[^A-Z0-9]/', '', $p);
@@ -31,7 +31,7 @@ if ($scheduleId <= 0 || !$items) {
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
   exit;
 }
-$sch = $db->prepare("SELECT schedule_id, status, plate_number FROM inspection_schedules WHERE schedule_id=?");
+$sch = $db->prepare("SELECT schedule_id, status, plate_number, vehicle_id FROM inspection_schedules WHERE schedule_id=?");
 if (!$sch) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
@@ -54,13 +54,26 @@ if ($scheduleStatus !== '' && !in_array($scheduleStatus, $allowedScheduleStatuse
 }
 $plate = trim((string)($srow['plate_number'] ?? ''));
 $vehPlate = $plate !== '' ? $tmm_resolve_plate($db, $plate) : '';
+$vehicleId = (int)($srow['vehicle_id'] ?? 0);
+if ($vehicleId <= 0 && $vehPlate !== '') {
+  $stmtVid = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
+  if ($stmtVid) {
+    $stmtVid->bind_param('s', $vehPlate);
+    $stmtVid->execute();
+    $vr = $stmtVid->get_result()->fetch_assoc();
+    $stmtVid->close();
+    $vehicleId = (int)($vr['id'] ?? 0);
+  }
+}
 
-function normalize_item_status($raw) {
-  $v = strtoupper(trim((string)$raw));
-  if ($v === 'PASS' || $v === 'PASSED') return 'Pass';
-  if ($v === 'FAIL' || $v === 'FAILED') return 'Fail';
-  if ($v === 'NA' || $v === 'N/A') return 'NA';
-  return '';
+if (!function_exists('normalize_item_status')) {
+  function normalize_item_status($raw) {
+    $v = strtoupper(trim((string)$raw));
+    if ($v === 'PASS' || $v === 'PASSED') return 'Pass';
+    if ($v === 'FAIL' || $v === 'FAILED') return 'Fail';
+    if ($v === 'NA' || $v === 'N/A') return 'NA';
+    return '';
+  }
 }
 
 $allowed = ['Passed', 'Failed', 'Pending', 'For Reinspection'];
@@ -188,7 +201,7 @@ if ($itemStmt) {
 
   if ($vehPlate !== '') {
     $vehInspection = $overall;
-    $vehOperationalStatus = 'Suspended';
+    $vehOperationalStatus = null;
     $franchiseId = '';
     $stmtV = $db->prepare("SELECT franchise_id FROM vehicles WHERE plate_number=? LIMIT 1");
     if ($stmtV) {
@@ -208,32 +221,75 @@ if ($itemStmt) {
           $stmtF->execute();
           $fr = $stmtF->get_result()->fetch_assoc();
           $stmtF->close();
-          $frOk = ($fr && (($fr['status'] ?? '') === 'Endorsed'));
+          $frOk = ($fr && (($fr['status'] ?? '') === 'Approved'));
         }
       }
-      $vehOperationalStatus = $frOk ? 'Active' : 'Suspended';
+      $regOk = false;
+      if ($vehicleId > 0) {
+        $stmtR = $db->prepare("SELECT registration_status, orcr_no, orcr_date FROM vehicle_registrations WHERE vehicle_id=? LIMIT 1");
+        if ($stmtR) {
+          $stmtR->bind_param('i', $vehicleId);
+          $stmtR->execute();
+          $rr = $stmtR->get_result()->fetch_assoc();
+          $stmtR->close();
+          $regOk = ($rr && (($rr['registration_status'] ?? '') === 'Registered') && trim((string)($rr['orcr_no'] ?? '')) !== '' && !empty($rr['orcr_date']));
+        }
+      }
+      $vehOperationalStatus = ($frOk && $regOk) ? 'Active' : null;
     } else {
-      $vehOperationalStatus = 'Suspended';
+      $vehOperationalStatus = 'Inactive';
     }
 
     $hasPassedAt = false;
     $chkCol = $db->query("SHOW COLUMNS FROM vehicles LIKE 'inspection_passed_at'");
     if ($chkCol && $chkCol->num_rows > 0) $hasPassedAt = true;
 
-    if ($hasPassedAt) {
-      $passedAt = ($vehInspection === 'Passed') ? date('Y-m-d H:i:s') : null;
-      $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=?, inspection_passed_at=? WHERE plate_number=?");
-      if ($upVeh) {
-        $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $vehPlate);
-        $upVeh->execute();
-        $upVeh->close();
+    $passedAt = ($vehInspection === 'Passed') ? date('Y-m-d H:i:s') : null;
+    if ($vehOperationalStatus !== null) {
+      if ($hasPassedAt) {
+        $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=?, inspection_passed_at=? WHERE plate_number=?");
+        if ($upVeh) {
+          $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $vehPlate);
+          $upVeh->execute();
+          $upVeh->close();
+        }
+      } else {
+        $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=? WHERE plate_number=?");
+        if ($upVeh) {
+          $upVeh->bind_param('sss', $vehInspection, $vehOperationalStatus, $vehPlate);
+          $upVeh->execute();
+          $upVeh->close();
+        }
       }
     } else {
-      $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=? WHERE plate_number=?");
-      if ($upVeh) {
-        $upVeh->bind_param('sss', $vehInspection, $vehOperationalStatus, $vehPlate);
-        $upVeh->execute();
-        $upVeh->close();
+      if ($hasPassedAt) {
+        $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, inspection_passed_at=? WHERE plate_number=?");
+        if ($upVeh) {
+          $upVeh->bind_param('sss', $vehInspection, $passedAt, $vehPlate);
+          $upVeh->execute();
+          $upVeh->close();
+        }
+      } else {
+        $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=? WHERE plate_number=?");
+        if ($upVeh) {
+          $upVeh->bind_param('ss', $vehInspection, $vehPlate);
+          $upVeh->execute();
+          $upVeh->close();
+        }
+      }
+    }
+  }
+
+  if ($vehicleId > 0) {
+    $insRes = ($overall === 'Passed') ? 'Passed' : (($overall === 'Failed') ? 'Failed' : '');
+    if ($insRes !== '') {
+      $stmtIns = $db->prepare("INSERT INTO inspections (vehicle_id, schedule_id, result, remarks, inspected_at)
+                               VALUES (?, ?, ?, ?, NOW())
+                               ON DUPLICATE KEY UPDATE result=VALUES(result), remarks=VALUES(remarks), inspected_at=NOW()");
+      if ($stmtIns) {
+        $stmtIns->bind_param('iiss', $vehicleId, $scheduleId, $insRes, $remarks);
+        $stmtIns->execute();
+        $stmtIns->close();
       }
     }
   }

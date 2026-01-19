@@ -3,9 +3,11 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('module4.inspections.manage');
-$plate = trim($_POST['plate_number'] ?? '');
-$scheduledAt = trim($_POST['scheduled_at'] ?? '');
+require_permission('module4.schedule');
+$vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+$plate = trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
+$scheduledAt = trim((string)($_POST['scheduled_at'] ?? ($_POST['schedule_date'] ?? '')));
+$scheduleDate = trim((string)($_POST['schedule_date'] ?? $scheduledAt));
 $location = trim($_POST['location'] ?? '');
 $inspectorId = isset($_POST['inspector_id']) ? (int)$_POST['inspector_id'] : 0;
 $inspectorLabel = trim($_POST['inspector_label'] ?? '');
@@ -15,10 +17,34 @@ $contactPerson = trim($_POST['contact_person'] ?? '');
 $contactNumber = trim($_POST['contact_number'] ?? '');
 $crVerified = !empty($_POST['cr_verified']) ? 1 : 0;
 $orVerified = !empty($_POST['or_verified']) ? 1 : 0;
-if ($plate === '' || $scheduledAt === '' || $location === '') {
+if (($vehicleId <= 0 && $plate === '') || $scheduledAt === '' || $location === '') {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
   exit;
+}
+$plateDb = $plate;
+if ($vehicleId > 0) {
+  $stmtV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
+  if (!$stmtV) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
+    exit;
+  }
+  $stmtV->bind_param('i', $vehicleId);
+  $stmtV->execute();
+  $veh = $stmtV->get_result()->fetch_assoc();
+  $stmtV->close();
+  if (!$veh) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'vehicle_not_found']);
+    exit;
+  }
+  $plateDb = (string)($veh['plate_number'] ?? '');
+  if ($plateDb === '') {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'vehicle_missing_plate']);
+    exit;
+  }
 }
 $allowedTypes = ['Annual','Reinspection','Compliance','Special'];
 if (!in_array($inspectionType, $allowedTypes, true)) {
@@ -46,14 +72,15 @@ if (!$hasVerifiedDocs) {
 } else {
   $status = 'Scheduled';
 }
-$stmt = $db->prepare("INSERT INTO inspection_schedules (plate_number, scheduled_at, location, inspection_type, requested_by, contact_person, contact_number, inspector_id, inspector_label, status, cr_verified, or_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt = $db->prepare("INSERT INTO inspection_schedules (plate_number, vehicle_id, scheduled_at, schedule_date, location, inspection_type, requested_by, contact_person, contact_number, inspector_id, inspector_label, status, cr_verified, or_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
 $inspectorIdDb = $inspectorId > 0 ? $inspectorId : null;
-$stmt->bind_param('sssssssissii', $plate, $scheduledAt, $location, $inspectionType, $requestedBy, $contactPerson, $contactNumber, $inspectorIdDb, $inspectorLabel, $status, $crVerified, $orVerified);
+$vehIdDb = $vehicleId > 0 ? $vehicleId : null;
+$stmt->bind_param('sisssssssissii', $plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType, $requestedBy, $contactPerson, $contactNumber, $inspectorIdDb, $inspectorLabel, $status, $crVerified, $orVerified);
 $ok = $stmt->execute();
 if (!$ok) {
   http_response_code(500);

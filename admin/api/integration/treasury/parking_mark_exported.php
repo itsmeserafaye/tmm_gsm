@@ -29,7 +29,7 @@ if (count($ids) === 0) {
 
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 $types = str_repeat('i', count($ids));
-$sql = "UPDATE parking_transactions SET exported_to_treasury=1 WHERE id IN ($placeholders)";
+$sql = "UPDATE parking_payments SET exported_to_treasury=1, exported_at=NOW() WHERE payment_id IN ($placeholders)";
 $stmt = $db->prepare($sql);
 if (!$stmt) {
   http_response_code(500);

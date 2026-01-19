@@ -3,11 +3,11 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('tickets.settle');
+require_permission('module3.settle');
 
-$ticket = trim($_POST['ticket_number'] ?? '');
+$ticket = trim((string)($_POST['ticket_number'] ?? ''));
 $amount = (float)($_POST['amount_paid'] ?? 0);
-$receipt = trim($_POST['receipt_ref'] ?? '');
+$receipt = trim((string)($_POST['receipt_ref'] ?? ($_POST['or_no'] ?? '')));
 $verified = 1;
 $channel = trim((string)($_POST['payment_channel'] ?? ''));
 $externalPaymentId = trim((string)($_POST['external_payment_id'] ?? ''));
@@ -46,6 +46,12 @@ if ($row = $res->fetch_assoc()) {
     $stmtP->bind_param('idsi', $tid, $amount, $receipt, $verified);
   }
   if ($stmtP->execute()) {
+    $stmtTP = $db->prepare("INSERT INTO ticket_payments (ticket_id, or_no, amount_paid, paid_at) VALUES (?, ?, ?, ?)");
+    if ($stmtTP) {
+      $stmtTP->bind_param('isds', $tid, $receipt, $amount, $paidAt);
+      $stmtTP->execute();
+      $stmtTP->close();
+    }
     $db->query("UPDATE tickets SET status='Settled', payment_ref='" . $db->real_escape_string($receipt) . "' WHERE ticket_id = $tid");
     echo json_encode(['ok' => true, 'ticket_id' => $tid, 'status' => 'Settled']);
   } else {

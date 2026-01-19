@@ -27,9 +27,9 @@ try {
 
     // Try to find operator_id from operators table if it exists
     $operator_id = null;
-    $stmt = $db->prepare("SELECT id FROM operators WHERE full_name = ? LIMIT 1");
+    $stmt = $db->prepare("SELECT id FROM operators WHERE full_name = ? OR name = ? LIMIT 1");
     if ($stmt) {
-        $stmt->bind_param('s', $operator_name);
+        $stmt->bind_param('ss', $operator_name, $operator_name);
         $stmt->execute();
         $res = $stmt->get_result();
         if ($row = $res->fetch_assoc()) {

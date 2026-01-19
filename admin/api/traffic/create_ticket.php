@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 
 header('Content-Type: application/json');
-require_permission('tickets.issue');
+require_permission('module3.issue');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // 1. Get Input
-$violation_code = $db->real_escape_string($_POST['violation_code'] ?? '');
-$plate_number = $db->real_escape_string($_POST['plate_number'] ?? '');
+$violation_code = $db->real_escape_string((string)($_POST['violation_code'] ?? ($_POST['violation_type'] ?? '')));
+$plate_number = $db->real_escape_string((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
 $driver_name = $db->real_escape_string($_POST['driver_name'] ?? '');
 $location = $db->real_escape_string($_POST['location'] ?? '');
 $notes = $db->real_escape_string($_POST['notes'] ?? '');
@@ -51,7 +51,8 @@ if (!$violation_code || !$plate_number) {
 // 2. Validate against PUV/Franchise Database
 $franchise_id = null;
 $coop_id = null;
-$status = 'Pending'; // Default to Pending (requires manual validation)
+$operator_id = null;
+$status = 'Unpaid';
 
 // Check Vehicle
 $veh_check = $db->query("SELECT * FROM vehicles WHERE plate_number = '$plate_number' LIMIT 1");
@@ -59,6 +60,7 @@ if ($veh_check && $veh_check->num_rows > 0) {
     $veh = $veh_check->fetch_assoc();
     $franchise_id = $veh['franchise_id'];
     $coop_name = $veh['coop_name'];
+    $operator_id = isset($veh['operator_id']) ? (int)$veh['operator_id'] : null;
     
     // Check Coop ID
     if ($coop_name) {
@@ -68,8 +70,8 @@ if ($veh_check && $veh_check->num_rows > 0) {
         }
     }
     
-    // If found in PUV DB, auto-validate
-    $status = 'Validated';
+    // If found in PUV DB, keep as Unpaid (doc-aligned)
+    $status = 'Unpaid';
 }
 
 // 3. Get Fine Amount
@@ -83,12 +85,8 @@ if ($v_res && $v_res->num_rows > 0) {
 }
 if (!$sts_violation_code || trim((string)$sts_violation_code) === '') $sts_violation_code = $violation_code;
 
-// 4. Generate Ticket Number
-$year = date('Y');
-$month = date('m');
-$count_res = $db->query("SELECT COUNT(*) as c FROM tickets WHERE YEAR(date_issued) = $year");
-$count = $count_res->fetch_assoc()['c'] + 1;
-$ticket_number = sprintf("TCK-%s-%s-%04d", $year, $month, $count);
+// 4. Generate Ticket Number (assigned after insert to avoid collisions)
+$ticket_number = null;
 
 // 5. Check Escalation Rule (Repeat Offenders)
 if ($franchise_id) {
@@ -115,11 +113,16 @@ $extSql = $external_ticket_number !== '' ? "'" . $db->real_escape_string($extern
 $srcSql = $db->real_escape_string($ticket_source);
 $stsSql = $db->real_escape_string((string)$sts_violation_code);
 
-$sql = "INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, external_ticket_number, ticket_source, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status) 
-        VALUES ('$ticket_number', '$violation_code', '$stsSql', $extSql, '$srcSql', '$plate_number', " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status')";
+$opSql = $operator_id !== null ? (string)((int)$operator_id) : "NULL";
+$sql = "INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, external_ticket_number, ticket_source, vehicle_plate, operator_id, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status) 
+        VALUES (NULL, '$violation_code', '$stsSql', $extSql, '$srcSql', '$plate_number', $opSql, " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status')";
 
 if ($db->query($sql)) {
-    $ticket_id = $db->insert_id;
+    $ticket_id = (int)$db->insert_id;
+    $year = date('Y');
+    $month = date('m');
+    $ticket_number = sprintf("TCK-%s-%s-%06d", $year, $month, $ticket_id);
+    $db->query("UPDATE tickets SET ticket_number='" . $db->real_escape_string($ticket_number) . "' WHERE ticket_id=" . (int)$ticket_id);
     
     // 7. Handle File Uploads
     $uploadDir = __DIR__ . '/../../uploads/evidence/';
@@ -162,6 +165,16 @@ if ($db->query($sql)) {
             $uploaded_files[] = $name;
         }
     }
+
+    if (!empty($uploaded_files)) {
+        $first = 'uploads/evidence/' . $uploaded_files[0];
+        $stmtEP = $db->prepare("UPDATE tickets SET evidence_path=? WHERE ticket_id=?");
+        if ($stmtEP) {
+            $stmtEP->bind_param('si', $first, $ticket_id);
+            $stmtEP->execute();
+            $stmtEP->close();
+        }
+    }
     
     echo json_encode([
         'ok' => true, 
@@ -169,7 +182,8 @@ if ($db->query($sql)) {
         'ticket_number' => $ticket_number,
         'external_ticket_number' => $external_ticket_number,
         'ticket_source' => $ticket_source,
-        'fine' => $fine
+        'fine' => $fine,
+        'status' => $status
     ]);
 } else {
     echo json_encode(['ok' => false, 'error' => $db->error]);

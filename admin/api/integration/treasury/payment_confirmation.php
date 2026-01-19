@@ -84,6 +84,13 @@ if (!$ok) {
   exit;
 }
 
+$stmtTP = $db->prepare("INSERT INTO ticket_payments(ticket_id, or_no, amount_paid, paid_at) VALUES(?,?,?,?)");
+if ($stmtTP) {
+  $stmtTP->bind_param('isds', $ticketId, $receipt, $amountPaid, $paidAt);
+  $stmtTP->execute();
+  $stmtTP->close();
+}
+
 $stmtUp = $db->prepare("UPDATE tickets SET status='Settled', payment_ref=? WHERE ticket_id=?");
 if ($stmtUp) {
   $stmtUp->bind_param('si', $receipt, $ticketId);

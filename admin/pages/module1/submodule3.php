@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']);
+require_any_permission(['module1.read','module1.write','module1.route_manage']);
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 ?>
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <!-- Header -->
@@ -10,6 +16,15 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
         Assign vehicles to LPTRP-approved routes and manage terminal capacities.
       </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <?php if (has_permission('reports.export')): ?>
+        <a href="<?php echo htmlspecialchars((string)($rootUrl ?? '')); ?>/admin/api/module1/export_assignments_csv.php"
+          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Export Assignments CSV
+        </a>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -137,6 +152,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         <div class="md:col-span-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
           <input name="plate_number" list="recent-endorsed-plates" value="<?php echo htmlspecialchars($platePrefill, ENT_QUOTES); ?>" 
+                 minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters"
                  class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase font-semibold text-sm text-slate-900 dark:text-white" 
                  placeholder="<?php echo htmlspecialchars($platePrefill !== '' ? 'ABC-1234' : (!empty($recentEndorsedPlates) ? ('Try: ' . $recentEndorsedPlates[0]) : 'ABC-1234'), ENT_QUOTES); ?>" required>
         </div>
@@ -144,13 +160,14 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         <div class="md:col-span-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route ID</label>
           <input name="route_id" list="route-list" value="<?php echo htmlspecialchars($routePrefill, ENT_QUOTES); ?>" 
+                 minlength="2" maxlength="30" pattern="^[A-Za-z0-9_\\-]{2,30}$" autocapitalize="characters"
                  class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase font-semibold text-sm text-slate-900 dark:text-white" 
-                 placeholder="Search Route..." required>
+                 placeholder="e.g., R_001" required>
         </div>
         
         <div class="md:col-span-3">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Terminal</label>
-          <select name="terminal_name" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+          <select name="terminal_name" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
             <option value="">Select Terminal</option>
             <?php if ($terminalsForSelect): ?>
               <?php foreach ($terminalsForSelect as $tn): ?>
@@ -168,7 +185,7 @@ require_any_permission(['module1.view','module1.vehicles.write','module1.routes.
         
         <div class="md:col-span-2">
           <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
-          <select name="status" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
+          <select name="status" required class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
             <option>Authorized</option>
             <option>Pending</option>
           </select>

@@ -2,24 +2,23 @@
 if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
 function normalize_role($role) {
   if (!is_string($role)) {
-    return 'Admin';
+    return 'Admin / Transport Officer';
   }
   $r = trim($role);
   if ($r === '') {
-    return 'Admin';
+    return 'Admin / Transport Officer';
   }
   $map = [
+    'Admin' => 'Admin / Transport Officer',
+    'Transport Officer' => 'Admin / Transport Officer',
     'LGU Encoder' => 'Encoder',
-    'Encoder' => 'Encoder',
-    'Franchise Officer' => 'Admin',
-    'Franchise/Permitting Officer' => 'Admin',
+    'Franchise/Permitting Officer' => 'Franchise Officer',
     'City Inspector' => 'Inspector',
     'City Transport Inspector' => 'Inspector',
-    'Traffic Enforcer' => 'Inspector',
-    'Terminal Officer' => 'Admin',
-    'Terminal Supervisor' => 'Admin',
-    'Parking Staff' => 'Admin',
-    'Parking Attendant' => 'Admin'
+    'Parking Staff' => 'Terminal Manager',
+    'Parking Attendant' => 'Terminal Manager',
+    'Treasurer' => 'Treasurer / Cashier',
+    'Cashier' => 'Treasurer / Cashier',
   ];
   return $map[$r] ?? $r;
 }
@@ -62,7 +61,7 @@ function current_user_permissions() {
     if (is_string($p) && $p !== '') $out[] = $p;
   }
   $out = array_values(array_unique($out));
-  if (current_user_role() === 'ParkingStaff') {
+  if (current_user_role() === 'Terminal Manager' || current_user_role() === 'ParkingStaff') {
     $out = array_values(array_filter($out, function ($p) {
       return !(is_string($p) && strpos($p, 'tickets.') === 0);
     }));
@@ -75,20 +74,98 @@ function current_user_permissions() {
   return $out;
 }
 
+function tmm_permission_aliases(): array {
+  return [
+    'module1.read' => ['module1.view'],
+    'module1.write' => ['module1.vehicles.write','module1.routes.write','module1.coops.write'],
+    'module1.delete' => [],
+    'module1.link_vehicle' => ['module1.vehicles.write'],
+    'module1.route_manage' => ['module1.routes.write'],
+
+    'module2.read' => ['module2.view'],
+    'module2.apply' => ['module2.franchises.manage'],
+    'module2.endorse' => ['module2.franchises.manage'],
+    'module2.approve' => ['module2.franchises.manage'],
+    'module2.history' => ['module2.franchises.manage'],
+
+    'module3.read' => ['module3.view'],
+    'module3.issue' => ['tickets.issue','tickets.validate'],
+    'module3.settle' => ['tickets.settle'],
+    'module3.analytics' => ['analytics.view','reports.export'],
+
+    'module4.read' => ['module4.view'],
+    'module4.schedule' => ['module4.inspections.manage'],
+    'module4.inspect' => ['module4.inspections.manage'],
+    'module4.certify' => ['module4.inspections.manage'],
+
+    'module5.read' => ['module5.view'],
+    'module5.manage_terminal' => ['parking.manage'],
+    'module5.assign_vehicle' => ['parking.manage'],
+    'module5.parking_fees' => ['parking.manage','tickets.settle'],
+
+    'module1.view' => ['module1.read'],
+    'module1.vehicles.write' => ['module1.write'],
+    'module1.routes.write' => ['module1.write','module1.route_manage'],
+    'module1.coops.write' => ['module1.write'],
+
+    'module2.view' => ['module2.read'],
+    'module2.franchises.manage' => ['module2.apply','module2.endorse','module2.approve','module2.history'],
+
+    'module3.view' => ['module3.read'],
+    'tickets.issue' => ['module3.issue'],
+    'tickets.validate' => ['module3.issue'],
+    'tickets.settle' => ['module3.settle'],
+
+    'module4.view' => ['module4.read'],
+    'module4.inspections.manage' => ['module4.schedule','module4.inspect','module4.certify'],
+
+    'module5.view' => ['module5.read'],
+    'parking.manage' => ['module5.manage_terminal','module5.assign_vehicle','module5.parking_fees'],
+  ];
+}
+
 function has_permission(string $code) {
   $perms = current_user_permissions();
   if (in_array($code, $perms, true)) return true;
+  $aliases = tmm_permission_aliases();
+  foreach ($aliases[$code] ?? [] as $alt) {
+    if (is_string($alt) && $alt !== '' && in_array($alt, $perms, true)) return true;
+  }
   $role = current_user_role();
   if ($role === 'SuperAdmin') return true;
   $fallback = [
-    'Admin' => ['dashboard.view','analytics.view','analytics.train','module1.vehicles.write','module1.routes.write','module1.coops.write','module2.franchises.manage','module4.inspections.manage','tickets.validate','parking.manage','reports.export','settings.manage'],
-    'Encoder' => ['dashboard.view','module1.vehicles.write','module1.routes.write','module1.coops.write','reports.export'],
-    'Inspector' => ['dashboard.view','analytics.view','module4.inspections.manage','tickets.issue','reports.export'],
-    'Treasurer' => ['dashboard.view','tickets.settle','reports.export'],
-    'ParkingStaff' => ['dashboard.view','parking.manage'],
-    'Viewer' => ['dashboard.view','analytics.view','module1.view','module2.view','module3.view','module4.view','module5.view'],
+    'Admin / Transport Officer' => [
+      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
+      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
+      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
+      'module3.read','module3.issue','module3.settle','module3.analytics',
+      'module4.read','module4.schedule','module4.inspect','module4.certify',
+      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
+    ],
+    'Franchise Officer' => ['dashboard.view','module1.read','module2.read','module2.apply','module2.endorse','module2.history','reports.export'],
+    'Encoder' => ['dashboard.view','module1.read','module1.write','module1.link_vehicle','module2.read','module2.apply'],
+    'Inspector' => ['dashboard.view','module1.read','module4.read','module4.schedule','module4.inspect','module4.certify'],
+    'Traffic Enforcer' => ['dashboard.view','module1.read','module3.read','module3.issue'],
+    'Treasurer / Cashier' => ['dashboard.view','module1.read','module3.read','module3.settle','module5.read','module5.parking_fees'],
+    'Terminal Manager' => ['dashboard.view','module1.read','module5.read','module5.manage_terminal','module5.assign_vehicle'],
+    'Viewer' => ['dashboard.view','module1.read','module2.read','module3.read','module4.read','module5.read'],
+
+    'Admin' => [
+      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
+      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
+      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
+      'module3.read','module3.issue','module3.settle','module3.analytics',
+      'module4.read','module4.schedule','module4.inspect','module4.certify',
+      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
+    ],
+    'ParkingStaff' => ['dashboard.view','module1.read','module5.read','module5.manage_terminal','module5.assign_vehicle'],
+    'Treasurer' => ['dashboard.view','module1.read','module3.read','module3.settle','module5.read','module5.parking_fees'],
   ];
-  return in_array($code, $fallback[$role] ?? [], true);
+  if (in_array($code, $fallback[$role] ?? [], true)) return true;
+  foreach ($aliases[$code] ?? [] as $alt) {
+    if (in_array($alt, $fallback[$role] ?? [], true)) return true;
+  }
+  return false;
 }
 
 function has_any_permission(array $codes) {

@@ -3,13 +3,12 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['module1.vehicles.write','module2.franchises.manage']);
+require_permission('module1.vehicles.write');
 $plate = strtoupper(trim($_POST['plate_number'] ?? ''));
-$operator = trim($_POST['operator_name'] ?? '');
-$coop = trim($_POST['coop_name'] ?? '');
-if ($plate === '' || $operator === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_fields']); exit; }
-if (!preg_match('/^[A-Z]{3}-?[0-9]{3,4}$/', $plate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_plate_format']); exit; }
-if (strlen($operator) < 3 || !preg_match("/^[A-Za-z\s'.-]+$/", $operator)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_operator_name']); exit; }
+$operatorId = isset($_POST['operator_id']) ? (int)$_POST['operator_id'] : 0;
+$operatorName = trim((string)($_POST['operator_name'] ?? ($_POST['full_name'] ?? '')));
+if ($plate === '' || ($operatorId <= 0 && $operatorName === '')) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_fields']); exit; }
+if (!preg_match('/^[A-Z0-9-]{4,16}$/', $plate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_plate']); exit; }
 
 // Ensure vehicle exists
 $stmtV = $db->prepare("SELECT plate_number FROM vehicles WHERE plate_number=?");
@@ -22,41 +21,36 @@ if (!$exists) {
     exit;
 }
 
-// If coop provided, enforce LGU approval rule
-$coopId = null;
-if ($coop !== '') {
-    $stmtC = $db->prepare("SELECT id, lgu_approval_number FROM coops WHERE coop_name=?");
-    $stmtC->bind_param('s', $coop);
-    $stmtC->execute();
-    $rowC = $stmtC->get_result()->fetch_assoc();
-    if (!$rowC) {
-        http_response_code(400);
-        echo json_encode(['ok'=>false,'error'=>'coop_not_found']);
-        exit;
+$resolvedName = $operatorName;
+$resolvedId = $operatorId;
+if ($resolvedId > 0) {
+    $stmtO = $db->prepare("SELECT id, name, full_name FROM operators WHERE id=? LIMIT 1");
+    if ($stmtO) {
+        $stmtO->bind_param('i', $resolvedId);
+        $stmtO->execute();
+        $rowO = $stmtO->get_result()->fetch_assoc();
+        $stmtO->close();
+        if (!$rowO) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'operator_not_found']); exit; }
+        $resolvedName = trim((string)($rowO['name'] ?? ''));
+        if ($resolvedName === '') $resolvedName = trim((string)($rowO['full_name'] ?? ''));
     }
-    if (trim((string)$rowC['lgu_approval_number']) === '') {
-        http_response_code(400);
-        echo json_encode(['ok'=>false,'error'=>'coop_without_lgu_approval']);
-        exit;
-    }
-    $coopId = (int)$rowC['id'];
-}
-
-// If operator already exists, check coop consistency when both provided
-if ($coopId !== null) {
-    $stmtO = $db->prepare("SELECT coop_id FROM operators WHERE full_name=? LIMIT 1");
-    $stmtO->bind_param('s', $operator);
-    $stmtO->execute();
-    $rowO = $stmtO->get_result()->fetch_assoc();
-    if ($rowO && (int)$rowO['coop_id'] !== 0 && (int)$rowO['coop_id'] !== $coopId) {
-        http_response_code(400);
-        echo json_encode(['ok'=>false,'error'=>'operator_not_member_of_coop']);
-        exit;
+} else {
+    $stmtO = $db->prepare("SELECT id, name, full_name FROM operators WHERE full_name=? LIMIT 1");
+    if ($stmtO) {
+        $stmtO->bind_param('s', $resolvedName);
+        $stmtO->execute();
+        $rowO = $stmtO->get_result()->fetch_assoc();
+        $stmtO->close();
+        if ($rowO && isset($rowO['id'])) $resolvedId = (int)$rowO['id'];
+        $nm = trim((string)($rowO['name'] ?? ''));
+        if ($nm !== '') $resolvedName = $nm;
     }
 }
 
-$stmt = $db->prepare("UPDATE vehicles SET operator_name=?, coop_name=? WHERE plate_number=?");
-$stmt->bind_param('sss', $operator, $coop, $plate);
+$resolvedIdBind = $resolvedId > 0 ? $resolvedId : null;
+$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, status='Linked' WHERE plate_number=?");
+if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
+$stmt->bind_param('iss', $resolvedIdBind, $resolvedName, $plate);
 $ok = $stmt->execute();
-echo json_encode(['ok'=>$ok, 'plate_number'=>$plate]);
+echo json_encode(['ok'=>$ok, 'plate_number'=>$plate, 'operator_id'=>$resolvedId, 'operator_name'=>$resolvedName, 'vehicle_status'=>'Linked']);
 ?> 

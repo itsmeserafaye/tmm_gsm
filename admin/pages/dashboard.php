@@ -36,6 +36,31 @@ $revenueTodayVsAvg = $revenue7DayAvg ? (($parkingPaymentsToday - $revenue7DayAvg
 
 $unpaidRate = $totalViolations ? ($unpaidFines / $totalViolations * 100) : 0;
 $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
+
+function tmm_table_exists(mysqli $db, string $name): bool {
+  $nameEsc = $db->real_escape_string($name);
+  $res = $db->query("SHOW TABLES LIKE '$nameEsc'");
+  return (bool)($res && $res->num_rows > 0);
+}
+
+$terminalOccupancyPct = null;
+$slotTotals = ['total' => 0, 'occupied' => 0];
+if (tmm_table_exists($db, 'parking_slots')) {
+  $r = $db->query("SELECT COUNT(*) AS total, SUM(CASE WHEN status='Occupied' THEN 1 ELSE 0 END) AS occupied FROM parking_slots");
+  if ($r && ($row = $r->fetch_assoc())) {
+    $slotTotals['total'] = (int)($row['total'] ?? 0);
+    $slotTotals['occupied'] = (int)($row['occupied'] ?? 0);
+    $terminalOccupancyPct = $slotTotals['total'] > 0 ? ($slotTotals['occupied'] / $slotTotals['total'] * 100.0) : null;
+  }
+}
+
+$violations7d = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE date_issued >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetch_assoc()['c'] ?? 0);
+$violations7dAvg = $violations7d / 7.0;
+$hotspots = [];
+if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'")->num_rows ?? 0) > 0) {
+  $resH = $db->query("SELECT location, COUNT(*) AS c FROM tickets WHERE date_issued >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND location IS NOT NULL AND location<>'' GROUP BY location ORDER BY c DESC LIMIT 3");
+  if ($resH) while ($r = $resH->fetch_assoc()) $hotspots[] = ['location' => (string)$r['location'], 'count' => (int)$r['c']];
+}
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100">
@@ -46,8 +71,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
         Transport & Mobility Intelligence
       </h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Predictive analytics for PUV demand forecasting and
-        deployment.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Operational system + analytics-ready platform (trend-based forecasting).</p>
     </div>
     <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
       <button id="btnAreaTerminal"
@@ -132,15 +156,43 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
     </div>
   </div>
 
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Violation Frequency (7-day avg)</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($violations7dAvg, 1); ?>/day</div>
+      <div class="mt-1 text-xs text-slate-500">Based on recorded tickets</div>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Terminal Occupancy</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+        <?php echo $terminalOccupancyPct === null ? '—' : number_format($terminalOccupancyPct, 1) . '%'; ?>
+      </div>
+      <div class="mt-1 text-xs text-slate-500"><?php echo $slotTotals['total'] > 0 ? (number_format($slotTotals['occupied']) . ' / ' . number_format($slotTotals['total']) . ' slots occupied') : 'No slot data found'; ?></div>
+    </div>
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Enforcement Hotspots (7 days)</div>
+      <div class="mt-2 text-sm text-slate-700 dark:text-slate-200 space-y-1">
+        <?php if (!$hotspots) { ?>
+          <div class="text-xs text-slate-500 italic">No hotspot data yet</div>
+        <?php } else { foreach ($hotspots as $h) { ?>
+          <div class="flex items-center justify-between gap-3">
+            <div class="truncate"><?php echo htmlspecialchars($h['location']); ?></div>
+            <div class="shrink-0 text-xs font-bold text-slate-500"><?php echo (int)$h['count']; ?></div>
+          </div>
+        <?php } } ?>
+      </div>
+    </div>
+  </div>
+
   <!-- Context Widgets -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
     <!-- Forecast Readiness -->
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center gap-3 mb-3">
         <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+          <i data-lucide="line-chart" class="w-4 h-4"></i>
         </div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Forecast Readiness</div>
+        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Analytics Readiness</div>
       </div>
       <div id="readinessValue" class="text-2xl font-bold text-slate-900 dark:text-white">—</div>
       <div id="readinessHint" class="text-xs text-slate-500 mt-1"></div>
@@ -191,15 +243,33 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
           <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
-              PUV Demand Forecast
+              Demand Forecast
             </h2>
-            <div class="text-sm text-slate-500 mt-1">AI-Projected demand for the next 24 hours</div>
+            <div class="text-sm text-slate-500 mt-1">Trend-based projection for the next 24 hours</div>
           </div>
           <div
             class="text-right px-4 py-2 rounded-md bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
             <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Model Accuracy</div>
             <div id="forecastAccuracy" class="text-xl font-bold text-emerald-600">—</div>
             <div id="forecastAccuracyHint" class="text-[10px] text-slate-400"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Peak Operating Hour</div>
+            <div id="peakHourValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
+            <div id="peakHourHint" class="mt-1 text-xs text-slate-500"></div>
+          </div>
+          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Peak Demand (Next 24h)</div>
+            <div id="peakDemandValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
+            <div id="peakDemandHint" class="mt-1 text-xs text-slate-500"></div>
+          </div>
+          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Suggested PUV Units</div>
+            <div id="requiredUnitsValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
+            <div id="requiredUnitsHint" class="mt-1 text-xs text-slate-500"></div>
           </div>
         </div>
 
@@ -215,7 +285,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         </div>
       </div>
 
-      <!-- AI Insights Section (Moved & Restyled) -->
+      <!-- Analytics Insights Section -->
       <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
@@ -223,10 +293,10 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
               <i data-lucide="sparkles" class="w-5 h-5"></i>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-slate-900 dark:text-white">AI Insights</h2>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white">Predictive Analytics Insights</h2>
               <div class="flex items-center gap-2">
                 <span class="flex w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span class="text-xs text-slate-500 font-medium">Live Analysis</span>
+                <span class="text-xs text-slate-500 font-medium">Operational Signals</span>
               </div>
             </div>
           </div>
@@ -236,7 +306,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
           <!-- Peak Demand Insight -->
           <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
             <div class="flex items-start justify-between mb-3">
-              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Peak Demand Forecast</h3>
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">High-demand Signals</h3>
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Upcoming</span>
             </div>
@@ -246,7 +316,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
           <!-- Optimization Insight -->
           <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
             <div class="flex items-start justify-between mb-3">
-              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Optimization Ops</h3>
+              <h3 class="text-sm font-bold text-slate-700 dark:text-slate-200">Operational Recommendations</h3>
               <span
                 class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Actionable</span>
             </div>
@@ -307,13 +377,13 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
       </div>
     </div>
 
-    <!-- Right Column: Data Inputs & AI Insights -->
+      <!-- Right Column: Data Inputs -->
     <div class="space-y-6">
       <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-5">
           <div>
             <h2 class="text-base font-bold text-slate-900 dark:text-white">Data Inputs</h2>
-            <div class="text-xs text-slate-500">Train the AI with real-time logs</div>
+            <div class="text-xs text-slate-500">Record demand observations (trend-based forecasting)</div>
           </div>
           <a href="?page=module5/submodule3"
             class="p-2 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
@@ -367,7 +437,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
         <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <div class="flex items-center gap-2 mb-4">
             <i data-lucide="sliders" class="w-4 h-4 text-violet-500"></i>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Forecast Weights</h3>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Adjustment Factors</h3>
           </div>
           <form id="forecast-weights-form" class="space-y-3">
             <div class="grid grid-cols-3 gap-2 items-center">
@@ -431,6 +501,12 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
       var trafficNowHint = document.getElementById('trafficNowHint');
       var insightsOver = document.getElementById('insightsOver');
       var insightsUnder = document.getElementById('insightsUnder');
+      var peakHourValue = document.getElementById('peakHourValue');
+      var peakHourHint = document.getElementById('peakHourHint');
+      var peakDemandValue = document.getElementById('peakDemandValue');
+      var peakDemandHint = document.getElementById('peakDemandHint');
+      var requiredUnitsValue = document.getElementById('requiredUnitsValue');
+      var requiredUnitsHint = document.getElementById('requiredUnitsHint');
       var weightsForm = document.getElementById('forecast-weights-form');
       var wWeather = document.getElementById('wWeather');
       var wEvent = document.getElementById('wEvent');
@@ -807,7 +883,7 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
           if (accuracyHint) accuracyHint.textContent = 'TARGET MET (≥' + target + '%)';
         } else {
           accuracyEl.className = 'text-xl font-bold text-amber-600';
-          if (accuracyHint) accuracyHint.textContent = 'TRAINING...';
+          if (accuracyHint) accuracyHint.textContent = 'CALIBRATING...';
         }
       }
 
@@ -819,9 +895,37 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
           return;
         }
         var ok = !!readiness.ok;
-        readinessValue.textContent = ok ? 'Ready' : 'Training';
+        readinessValue.textContent = ok ? 'Ready' : 'Collecting';
         readinessValue.className = ok ? 'text-2xl font-bold text-emerald-600' : 'text-2xl font-bold text-amber-600 animate-pulse';
-        readinessHint.textContent = ok ? 'AI Model Active' : 'Gathering Data...';
+        readinessHint.textContent = ok ? 'Analytics layer active' : 'Awaiting more logs...';
+      }
+
+      function updateForecastHighlights(area, points) {
+        if (!peakHourValue || !peakDemandValue || !requiredUnitsValue) return;
+        if (!points || !points.length) {
+          peakHourValue.textContent = '—';
+          peakDemandValue.textContent = '—';
+          requiredUnitsValue.textContent = '—';
+          if (peakHourHint) peakHourHint.textContent = '';
+          if (peakDemandHint) peakDemandHint.textContent = '';
+          if (requiredUnitsHint) requiredUnitsHint.textContent = '';
+          return;
+        }
+        var best = null;
+        points.slice(0, 24).forEach(function (p) {
+          var v = (p && p.predicted_adjusted != null) ? Number(p.predicted_adjusted) : Number((p && p.predicted) ? p.predicted : 0);
+          if (!best || v > best.v) best = { p: p, v: v };
+        });
+        if (!best) return;
+        var when = best.p && best.p.hour_label ? String(best.p.hour_label) : '';
+        var label = when || '—';
+        peakHourValue.textContent = label;
+        if (peakHourHint) peakHourHint.textContent = area && area.area_label ? String(area.area_label) : '';
+        peakDemandValue.textContent = String(Math.round(best.v));
+        if (peakDemandHint) peakDemandHint.textContent = currentType === 'route' ? 'High-demand route window' : 'High-demand terminal window';
+        var suggested = Math.max(1, Math.ceil(best.v));
+        requiredUnitsValue.textContent = String(suggested);
+        if (requiredUnitsHint) requiredUnitsHint.textContent = 'Rule-based: ceil(peak demand)';
       }
 
       function setWeatherNowUI(weather) {
@@ -1036,7 +1140,12 @@ $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
                 if (!best || peak > best.peak) best = { area: a, peak: peak };
               });
             }
-            if (best && best.area && best.area.forecast) renderBars(best.area.forecast);
+            if (best && best.area && best.area.forecast) {
+              renderBars(best.area.forecast);
+              updateForecastHighlights(best.area, best.area.forecast);
+            } else {
+              updateForecastHighlights(null, null);
+            }
             lastSpikes = data.spikes || [];
             renderSpikes(lastSpikes);
             bestTerminalLabel = (best && best.area && best.area.area_label) ? best.area.area_label : ((lastSpikes && lastSpikes.length) ? lastSpikes[0].area_label : '');

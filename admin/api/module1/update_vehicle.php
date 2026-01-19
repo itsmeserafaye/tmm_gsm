@@ -4,21 +4,43 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module1.vehicles.write');
-$plate = trim($_POST['plate_number'] ?? '');
-$status = trim($_POST['status'] ?? '');
-$type = trim($_POST['vehicle_type'] ?? '');
-if ($plate === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_plate']); exit; }
+$plate = trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
+$vehicleId = isset($_POST['vehicle_id']) ? (int)$_POST['vehicle_id'] : 0;
+$status = trim((string)($_POST['status'] ?? ''));
+$type = trim((string)($_POST['vehicle_type'] ?? ''));
+$engineNo = trim((string)($_POST['engine_no'] ?? ''));
+$chassisNo = trim((string)($_POST['chassis_no'] ?? ''));
+$make = trim((string)($_POST['make'] ?? ''));
+$model = trim((string)($_POST['model'] ?? ''));
+$yearModel = trim((string)($_POST['year_model'] ?? ''));
+$fuelType = trim((string)($_POST['fuel_type'] ?? ''));
+
+if ($vehicleId <= 0 && $plate === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_vehicle']); exit; }
 $sets = [];
 $params = [];
 $types = '';
 if ($status !== '' && $status !== 'Status') { $sets[] = "status=?"; $params[] = $status; $types .= 's'; }
 if ($type !== '' && $type !== 'Select vehicle type') { $sets[] = "vehicle_type=?"; $params[] = $type; $types .= 's'; }
+if ($engineNo !== '') { $sets[] = "engine_no=?"; $params[] = $engineNo; $types .= 's'; }
+if ($chassisNo !== '') { $sets[] = "chassis_no=?"; $params[] = $chassisNo; $types .= 's'; }
+if ($make !== '') { $sets[] = "make=?"; $params[] = $make; $types .= 's'; }
+if ($model !== '') { $sets[] = "model=?"; $params[] = $model; $types .= 's'; }
+if ($yearModel !== '') { $sets[] = "year_model=?"; $params[] = $yearModel; $types .= 's'; }
+if ($fuelType !== '') { $sets[] = "fuel_type=?"; $params[] = $fuelType; $types .= 's'; }
 if (!$sets) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'nothing_to_update']); exit; }
-$sql = "UPDATE vehicles SET ".implode(",", $sets)." WHERE plate_number=?";
-$params[] = $plate;
-$types .= 's';
+$whereSql = '';
+if ($vehicleId > 0) {
+  $whereSql = " WHERE id=?";
+  $params[] = $vehicleId;
+  $types .= 'i';
+} else {
+  $whereSql = " WHERE plate_number=?";
+  $params[] = $plate;
+  $types .= 's';
+}
+$sql = "UPDATE vehicles SET ".implode(",", $sets).$whereSql;
 $stmt = $db->prepare($sql);
 $stmt->bind_param($types, ...$params);
 $ok = $stmt->execute();
-echo json_encode(['ok'=>$ok, 'plate_number'=>$plate]);
+echo json_encode(['ok'=>$ok, 'plate_number'=>$plate, 'vehicle_id'=>$vehicleId]);
 ?> 

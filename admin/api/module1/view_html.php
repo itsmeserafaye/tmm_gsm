@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $types = [];
 if (is_file(__DIR__ . '/../../includes/vehicle_types.php')) { require_once __DIR__ . '/../../includes/vehicle_types.php'; $types = vehicle_types(); }
 $db = db();
@@ -9,7 +10,18 @@ $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
-$stmt = $db->prepare("SELECT v.plate_number, v.vehicle_type, v.operator_name, v.coop_name, v.franchise_id, v.route_id, v.status, v.created_at, fa.status AS franchise_status FROM vehicles v LEFT JOIN franchise_applications fa ON v.franchise_id = fa.franchise_ref_number WHERE v.plate_number=?");
+require_login();
+if (!has_any_permission(['module1.view','module1.vehicles.write','module1.routes.write','module2.view','module4.view','module5.view'])) {
+  http_response_code(403);
+  echo '<div class="text-sm">Forbidden</div>';
+  exit;
+}
+
+$stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id, COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
+                             v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.status, v.created_at
+                      FROM vehicles v
+                      LEFT JOIN operators o ON o.id=v.operator_id
+                      WHERE v.plate_number=?");
 $stmt->bind_param('s', $plate);
 $stmt->execute();
 $v = $stmt->get_result()->fetch_assoc();
@@ -26,8 +38,9 @@ if (!$v) {
 
 $statusClass = match($v['status']) {
     'Active' => 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
-    'Suspended' => 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
-    'Deactivated' => 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
+    'Linked' => 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
+    'Unlinked' => 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+    'Inactive' => 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
     default => 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
 };
 
@@ -58,7 +71,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                 </div>
                 <div class="text-base font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
                     <i data-lucide="user" class="w-4 h-4"></i>
-                    <?php echo htmlspecialchars($v['operator_name']); ?>
+                    <?php echo htmlspecialchars($v['operator_display'] !== '' ? $v['operator_display'] : 'Unlinked'); ?>
                 </div>
                 <div class="text-xs text-slate-400 mt-2 flex items-center gap-2">
                     <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
@@ -87,94 +100,26 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                             <dd class="text-lg font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['vehicle_type']); ?></dd>
                         </div>
                         <div>
-                            <dt class="<?php echo $labelClass; ?>">Franchise ID</dt>
-                            <dd class="text-lg font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2">
-                                <?php echo htmlspecialchars($v['franchise_id'] ?? '-'); ?>
-                                <?php if (!empty($v['franchise_id'])): ?>
-                                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
-                                <?php endif; ?>
-                            </dd>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <dt class="<?php echo $labelClass; ?>">Cooperative</dt>
-                            <dd class="font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                                <div class="p-1.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
-                                    <i data-lucide="building-2" class="w-4 h-4"></i>
-                                </div>
-                                <?php echo htmlspecialchars($v['coop_name'] ?? 'No Cooperative Assigned'); ?>
-                            </dd>
+                            <dt class="<?php echo $labelClass; ?>">Vehicle ID</dt>
+                            <dd class="text-lg font-bold text-slate-900 dark:text-white"><?php echo (int)$v['vehicle_id']; ?></dd>
                         </div>
                         <div>
-                            <dt class="<?php echo $labelClass; ?>">Route ID</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['route_id'] ?? '-'); ?></dd>
+                            <dt class="<?php echo $labelClass; ?>">Engine No</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['engine_no'] ?? '-'); ?></dd>
                         </div>
                         <div>
-                            <dt class="<?php echo $labelClass; ?>">Franchise Status</dt>
-                            <dd class="font-bold text-slate-700 dark:text-slate-300"><?php echo htmlspecialchars($v['franchise_status'] ?? 'No record'); ?></dd>
+                            <dt class="<?php echo $labelClass; ?>">Chassis No</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['chassis_no'] ?? '-'); ?></dd>
+                        </div>
+                        <div>
+                            <dt class="<?php echo $labelClass; ?>">Make / Model</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim(($v['make'] ?? '') . ' ' . ($v['model'] ?? '')) ?: '-'); ?></dd>
+                        </div>
+                        <div>
+                            <dt class="<?php echo $labelClass; ?>">Year / Fuel</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim(($v['year_model'] ?? '') . ' ' . ($v['fuel_type'] ?? '')) ?: '-'); ?></dd>
                         </div>
                     </dl>
-                </div>
-            </div>
-
-            <!-- Terminal Assignment -->
-            <?php
-            $stmtA = $db->prepare("SELECT route_id, terminal_name, status, assigned_at FROM terminal_assignments WHERE plate_number=?");
-            $stmtA->bind_param('s', $plate);
-            $stmtA->execute();
-            $a = $stmtA->get_result()->fetch_assoc();
-            ?>
-            <div class="<?php echo $cardClass; ?>">
-                <div class="<?php echo $cardHeaderClass; ?>">
-                    <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <i data-lucide="map-pin" class="w-4 h-4 text-emerald-500"></i> Terminal Assignment
-                    </h3>
-                </div>
-                <div class="<?php echo $cardBodyClass; ?>">
-                    <?php if (!$a): ?>
-                        <div class="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-200 dark:border-slate-700 flex items-center gap-3 text-slate-500">
-                            <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                            <span class="text-sm">No active terminal assignment.</span>
-                        </div>
-                    <?php else: ?>
-                        <div class="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Route</div>
-                                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($a['route_id']); ?></div>
-                            </div>
-                            <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Terminal</div>
-                                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($a['terminal_name']); ?></div>
-                            </div>
-                            <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Status</div>
-                                <div class="font-bold <?php echo $a['status']==='Authorized'?'text-emerald-600':'text-amber-600'; ?>">
-                                    <?php echo htmlspecialchars($a['status']); ?>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <form id="formAssign" class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/assign_route.php">
-                        <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                        <div class="sm:col-span-3">
-                            <label class="<?php echo $labelClass; ?>">Route ID</label>
-                            <input name="route_id" class="<?php echo $inputClass; ?>" placeholder="e.g. R-01" value="<?php echo htmlspecialchars($a['route_id'] ?? ''); ?>">
-                        </div>
-                        <div class="sm:col-span-4">
-                            <label class="<?php echo $labelClass; ?>">Terminal Name</label>
-                            <input name="terminal_name" class="<?php echo $inputClass; ?>" placeholder="e.g. Central Terminal" value="<?php echo htmlspecialchars($a['terminal_name'] ?? ''); ?>">
-                        </div>
-                        <div class="sm:col-span-3">
-                            <label class="<?php echo $labelClass; ?>">Status</label>
-                            <select name="status" class="<?php echo $inputClass; ?>">
-                                <option <?php echo (($a['status'] ?? '')==='Authorized'?'selected':''); ?>>Authorized</option>
-                                <option <?php echo (($a['status'] ?? '')!=='Authorized'?'selected':''); ?>>Pending</option>
-                            </select>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <button class="<?php echo $btnClass; ?> w-full">Update</button>
-                        </div>
-                    </form>
                 </div>
             </div>
 
@@ -194,9 +139,10 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                             <div class="flex gap-2">
                                 <select name="status" class="<?php echo $inputClass; ?>">
                                     <option disabled>Select Status</option>
+                                    <option <?php echo ($v['status']==='Unlinked'?'selected':''); ?>>Unlinked</option>
+                                    <option <?php echo ($v['status']==='Linked'?'selected':''); ?>>Linked</option>
                                     <option <?php echo ($v['status']==='Active'?'selected':''); ?>>Active</option>
-                                    <option <?php echo ($v['status']==='Suspended'?'selected':''); ?>>Suspended</option>
-                                    <option <?php echo ($v['status']==='Deactivated'?'selected':''); ?>>Deactivated</option>
+                                    <option <?php echo ($v['status']==='Inactive'?'selected':''); ?>>Inactive</option>
                                 </select>
                                 <button class="<?php echo $btnClass; ?>">Save</button>
                             </div>
@@ -219,32 +165,17 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                     </div>
 
                     <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
-                        <label class="<?php echo $labelClass; ?> mb-3">Link Operator / Cooperative</label>
-                        <?php
-                          $coopSuggestions = [];
-                          $resCoops = $db->query("SELECT coop_name FROM coops WHERE coop_name <> '' ORDER BY coop_name ASC LIMIT 200");
-                          if ($resCoops) {
-                            while ($r = $resCoops->fetch_assoc()) {
-                              $cn = trim((string)($r['coop_name'] ?? ''));
-                              if ($cn !== '') $coopSuggestions[] = $cn;
-                            }
-                          }
-                        ?>
+                        <label class="<?php echo $labelClass; ?> mb-3">Link Vehicle to Operator</label>
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <div>
-                                <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name" value="<?php echo htmlspecialchars($v['operator_name'] ?? ''); ?>">
+                                <input name="operator_id" class="<?php echo $inputClass; ?>" placeholder="Operator ID (preferred)">
                             </div>
                             <div>
-                                <input name="coop_name" list="vehicleCoopNameList" class="<?php echo $inputClass; ?>" placeholder="Cooperative Name" value="<?php echo htmlspecialchars($v['coop_name'] ?? ''); ?>">
-                                <datalist id="vehicleCoopNameList">
-                                  <?php foreach ($coopSuggestions as $cn): ?>
-                                    <option value="<?php echo htmlspecialchars($cn, ENT_QUOTES); ?>"></option>
-                                  <?php endforeach; ?>
-                                </datalist>
+                                <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name (fallback)" value="<?php echo htmlspecialchars($v['operator_display'] ?? ''); ?>">
                             </div>
                             <div>
-                                <button class="<?php echo $btnClass; ?> w-full">Link Entity</button>
+                                <button class="<?php echo $btnClass; ?> w-full">Link Operator</button>
                             </div>
                         </form>
                     </div>

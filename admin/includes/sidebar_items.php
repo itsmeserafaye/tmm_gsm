@@ -5,16 +5,16 @@ $sidebarItems = [
     'label' => 'Dashboard',
     'icon' => 'gauge',
     'path' => '/dashboard',
-    'anyPermissions' => ['dashboard.view'],
+    'anyPermissions' => ['dashboard.view','module1.read','module2.read','module3.read','module4.read','module5.read'],
   ],
   [
     'id' => 'module1',
     'label' => 'PUV Database',
     'icon' => 'bus',
     'subItems' => [
-      ['id' => 'submodule1', 'label' => 'Vehicle & Ownership Registry', 'path' => '/module1/submodule1', 'anyPermissions' => ['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']],
-      ['id' => 'submodule2', 'label' => 'Operator & Franchise Validation', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']],
-      ['id' => 'submodule3', 'label' => 'Route & Terminal Assignment', 'path' => '/module1/submodule3', 'anyPermissions' => ['module1.view','module1.vehicles.write','module1.routes.write','module1.coops.write']],
+      ['id' => 'submodule1', 'label' => 'Operators', 'path' => '/module1/submodule1', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule2', 'label' => 'Vehicles', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
     ],
   ],
   [
@@ -22,10 +22,9 @@ $sidebarItems = [
     'label' => 'Franchise Management',
     'icon' => 'shield-check',
     'subItems' => [
-      ['id' => 'overview', 'label' => 'Overview', 'path' => '/module2/overview', 'anyPermissions' => ['module2.view','module2.franchises.manage']],
-      ['id' => 'submodule1', 'label' => 'Franchise Application & Cooperative', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.view','module2.franchises.manage']],
-      ['id' => 'submodule2', 'label' => 'Validation, Endorsement & Compliance', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.view','module2.franchises.manage']],
-      ['id' => 'submodule3', 'label' => 'Renewals, Monitoring & Reporting', 'path' => '/module2/submodule3', 'anyPermissions' => ['module2.view','module2.franchises.manage']],
+      ['id' => 'submodule1', 'label' => 'Franchise Applications', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history','module2.apply']],
+      ['id' => 'submodule2', 'label' => 'Submit Franchise Application', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.apply']],
+      ['id' => 'submodule3', 'label' => 'Endorsement & LTFRB Approval', 'path' => '/module2/submodule3', 'anyPermissions' => ['module2.endorse','module2.approve','module2.history']],
     ],
   ],
   [
@@ -33,10 +32,9 @@ $sidebarItems = [
     'label' => 'Traffic Violation Monitoring',
     'icon' => 'ticket',
     'subItems' => [
-      ['id' => 'overview', 'label' => 'Overview', 'path' => '/module3/overview', 'anyPermissions' => ['module3.view','tickets.issue','tickets.validate','tickets.settle']],
-      ['id' => 'submodule1', 'label' => 'Violation Logging & Ticket Processing', 'path' => '/module3/submodule1', 'anyPermissions' => ['module3.view','tickets.issue']],
-      ['id' => 'submodule2', 'label' => 'Validation, Payment & Compliance', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.view','tickets.validate','tickets.settle']],
-      ['id' => 'submodule3', 'label' => 'Analytics, Reporting & Integration', 'path' => '/module3/submodule3', 'anyPermissions' => ['module3.view','analytics.view','reports.export']],
+      ['id' => 'submodule1', 'label' => 'Issue Ticket', 'path' => '/module3/submodule1', 'anyPermissions' => ['module3.issue','module3.read']],
+      ['id' => 'submodule2', 'label' => 'Payment', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.settle']],
+      ['id' => 'submodule3', 'label' => 'Analytics & Reports', 'path' => '/module3/submodule3', 'anyPermissions' => ['module3.analytics']],
     ],
   ],
   [
@@ -44,10 +42,10 @@ $sidebarItems = [
     'label' => 'Vehicle Inspection & Registration',
     'icon' => 'clipboard-check',
     'subItems' => [
-      ['id' => 'overview', 'label' => 'Overview', 'path' => '/module4/overview', 'anyPermissions' => ['module4.view','module4.inspections.manage']],
-      ['id' => 'submodule1', 'label' => 'Vehicle Verification & Scheduling', 'path' => '/module4/submodule1', 'anyPermissions' => ['module4.view','module4.inspections.manage']],
-      ['id' => 'submodule2', 'label' => 'Inspection Execution & Certification', 'path' => '/module4/submodule2', 'anyPermissions' => ['module4.view','module4.inspections.manage']],
-      ['id' => 'submodule3', 'label' => 'Route Validation & Compliance Reporting', 'path' => '/module4/submodule3', 'anyPermissions' => ['module4.view','module4.inspections.manage']],
+      ['id' => 'submodule1', 'label' => 'Vehicle Registration List', 'path' => '/module4/submodule1', 'anyPermissions' => ['module4.read','module4.schedule','module4.inspect','module4.certify']],
+      ['id' => 'submodule2', 'label' => 'Register Vehicle', 'path' => '/module4/submodule2', 'anyPermissions' => ['module4.schedule']],
+      ['id' => 'submodule3', 'label' => 'Schedule Inspection', 'path' => '/module4/submodule3', 'anyPermissions' => ['module4.schedule']],
+      ['id' => 'submodule4', 'label' => 'Conduct Inspection', 'path' => '/module4/submodule4', 'anyPermissions' => ['module4.inspect','module4.certify']],
     ],
   ],
   [
@@ -55,10 +53,10 @@ $sidebarItems = [
     'label' => 'Parking & Terminal Management',
     'icon' => 'map-pin',
     'subItems' => [
-      ['id' => 'overview', 'label' => 'Overview', 'path' => '/module5/overview', 'anyPermissions' => ['module5.view','parking.manage']],
-      ['id' => 'submodule1', 'label' => 'Terminal Management', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.view','parking.manage']],
-      ['id' => 'submodule2', 'label' => 'Parking Area Management', 'path' => '/module5/submodule2', 'anyPermissions' => ['module5.view','parking.manage']],
-      ['id' => 'submodule3', 'label' => 'Parking Fees, Enforcement & Analytics', 'path' => '/module5/submodule3', 'anyPermissions' => ['module5.view','parking.manage']],
+      ['id' => 'submodule1', 'label' => 'Terminal List', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.manage_terminal','module5.read']],
+      ['id' => 'submodule2', 'label' => 'Assign Vehicle to Terminal', 'path' => '/module5/submodule2', 'anyPermissions' => ['module5.assign_vehicle']],
+      ['id' => 'submodule3', 'label' => 'Parking Slot Management', 'path' => '/module5/submodule3', 'anyPermissions' => ['module5.manage_terminal']],
+      ['id' => 'submodule4', 'label' => 'Payment', 'path' => '/module5/submodule4', 'anyPermissions' => ['module5.parking_fees']],
     ],
   ],
   [

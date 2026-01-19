@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
+require_any_permission(['module1.view','module1.vehicles.write']);
 $q = trim($_GET['q'] ?? '');
 $status = trim($_GET['status'] ?? '');
-$sql = "SELECT plate_number, vehicle_type, operator_name, coop_name, franchise_id, route_id, status FROM vehicles";
+$sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operator_name, coop_name, franchise_id, route_id, engine_no, chassis_no, make, model, year_model, fuel_type, status, created_at FROM vehicles";
 $conds = [];
 $params = [];
 $types = '';

@@ -15,8 +15,33 @@ function db() {
   if ($user === '') $user = 'tmm_tmmgosergfvx';
   if ($name === '') $name = 'tmm_tmm';
 
-  $conn = @new mysqli($host, $user, $pass, $name);
-  if ($conn->connect_error) { die('DB connect error'); }
+  $candidates = [
+    [$host, $user, $pass, $name],
+  ];
+  if (strtolower($host) === 'localhost') {
+    $candidates[] = [$host, 'root', '', $name];
+    $candidates[] = [$host, 'root', '', 'tmm'];
+  }
+
+  $lastErr = '';
+  foreach ($candidates as $c) {
+    [$h, $u, $p, $n] = $c;
+    try {
+      $try = @new mysqli($h, $u, $p, $n);
+      if (!$try->connect_error) {
+        $conn = $try;
+        $host = $h;
+        $user = $u;
+        $pass = $p;
+        $name = $n;
+        break;
+      }
+      $lastErr = (string)$try->connect_error;
+    } catch (Throwable $e) {
+      $lastErr = $e->getMessage();
+    }
+  }
+  if (!$conn || $conn->connect_error) { die('DB connect error'); }
   $conn->set_charset('utf8mb4');
   $conn->query("CREATE TABLE IF NOT EXISTS vehicles (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -45,6 +70,20 @@ function db() {
   if (!$haveInspectionStatus) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_status VARCHAR(20) DEFAULT 'Pending'"); }
   if (!$haveInspectionCert) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL"); }
   if (!$haveInspectionPassedAt) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_passed_at DATETIME DEFAULT NULL"); }
+  $colVeh2 = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicles'");
+  $vehCols = [];
+  if ($colVeh2) {
+    while ($c = $colVeh2->fetch_assoc()) {
+      $vehCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($vehCols['operator_id'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN operator_id INT DEFAULT NULL"); }
+  if (!isset($vehCols['engine_no'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN engine_no VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($vehCols['chassis_no'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN chassis_no VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($vehCols['make'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN make VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($vehCols['model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($vehCols['year_model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL"); }
+  if (!isset($vehCols['fuel_type'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL"); }
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -87,6 +126,73 @@ function db() {
     INDEX (route_id),
     FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $colTA = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='terminal_assignments'");
+  $taCols = [];
+  if ($colTA) {
+    while ($c = $colTA->fetch_assoc()) {
+      $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (isset($taCols['id']) && !isset($taCols['assignment_id'])) {
+    $conn->query("ALTER TABLE terminal_assignments CHANGE COLUMN id assignment_id INT AUTO_INCREMENT");
+  }
+  if (!isset($taCols['terminal_id'])) { $conn->query("ALTER TABLE terminal_assignments ADD COLUMN terminal_id INT DEFAULT NULL"); }
+  if (!isset($taCols['vehicle_id'])) { $conn->query("ALTER TABLE terminal_assignments ADD COLUMN vehicle_id INT DEFAULT NULL"); }
+  $idxVeh = $conn->query("SHOW INDEX FROM terminal_assignments WHERE Key_name='uniq_vehicle'");
+  if (!$idxVeh || $idxVeh->num_rows == 0) {
+    $conn->query("ALTER TABLE terminal_assignments ADD UNIQUE KEY uniq_vehicle (vehicle_id)");
+  }
+  $conn->query("UPDATE terminal_assignments ta JOIN vehicles v ON v.plate_number=ta.plate_number SET ta.vehicle_id=v.id WHERE ta.vehicle_id IS NULL");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS terminals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    capacity INT DEFAULT 0,
+    type VARCHAR(50) DEFAULT 'Terminal',
+    city VARCHAR(100) DEFAULT NULL,
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+  $colTerm = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='terminals'");
+  $termCols = [];
+  if ($colTerm) {
+    while ($c = $colTerm->fetch_assoc()) {
+      $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($termCols['location'])) { $conn->query("ALTER TABLE terminals ADD COLUMN location VARCHAR(255) DEFAULT NULL"); }
+  if (!isset($termCols['capacity'])) { $conn->query("ALTER TABLE terminals ADD COLUMN capacity INT DEFAULT 0"); }
+  if (!isset($termCols['type'])) { $conn->query("ALTER TABLE terminals ADD COLUMN type VARCHAR(50) DEFAULT 'Terminal'"); }
+  if (!isset($termCols['city'])) { $conn->query("ALTER TABLE terminals ADD COLUMN city VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($termCols['address'])) { $conn->query("ALTER TABLE terminals ADD COLUMN address TEXT"); }
+  $conn->query("UPDATE terminals SET location=TRIM(CONCAT(COALESCE(address,''), CASE WHEN address IS NOT NULL AND address <> '' AND city IS NOT NULL AND city <> '' THEN ', ' ELSE '' END, COALESCE(city,''))) WHERE (location IS NULL OR location='') AND ((address IS NOT NULL AND address <> '') OR (city IS NOT NULL AND city <> ''))");
+  $conn->query("UPDATE terminal_assignments ta JOIN terminals t ON t.name=ta.terminal_name SET ta.terminal_id=t.id WHERE ta.terminal_id IS NULL AND ta.terminal_name IS NOT NULL AND ta.terminal_name<>''");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_slots (
+    slot_id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    slot_no VARCHAR(64) NOT NULL,
+    status ENUM('Free','Occupied') NOT NULL DEFAULT 'Free',
+    UNIQUE KEY uniq_terminal_slot (terminal_id, slot_no),
+    INDEX (terminal_id),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    slot_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    or_no VARCHAR(64) NOT NULL,
+    paid_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    exported_to_treasury TINYINT(1) DEFAULT 0,
+    exported_at DATETIME DEFAULT NULL,
+    INDEX (vehicle_id),
+    INDEX (slot_id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (slot_id) REFERENCES parking_slots(slot_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
   $conn->query("CREATE TABLE IF NOT EXISTS routes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     route_id VARCHAR(64) UNIQUE,
@@ -96,6 +202,19 @@ function db() {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $colRoutes = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='routes'");
+  $routeCols = [];
+  if ($colRoutes) {
+    while ($c = $colRoutes->fetch_assoc()) {
+      $routeCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($routeCols['route_code'])) { $conn->query("ALTER TABLE routes ADD COLUMN route_code VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($routeCols['origin'])) { $conn->query("ALTER TABLE routes ADD COLUMN origin VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($routeCols['destination'])) { $conn->query("ALTER TABLE routes ADD COLUMN destination VARCHAR(100) DEFAULT NULL"); }
+  if (!isset($routeCols['structure'])) { $conn->query("ALTER TABLE routes ADD COLUMN structure ENUM('Loop','Point-to-Point') DEFAULT NULL"); }
+  if (!isset($routeCols['distance_km'])) { $conn->query("ALTER TABLE routes ADD COLUMN distance_km DECIMAL(10,2) DEFAULT NULL"); }
+  if (!isset($routeCols['authorized_units'])) { $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL"); }
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
     $conn->query("INSERT INTO routes(route_id, route_name, max_vehicle_limit, status) VALUES
@@ -174,12 +293,25 @@ function db() {
     status ENUM('Pending', 'Under Review', 'Endorsed', 'Rejected') DEFAULT 'Pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
+  $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
+  if ($statusCol && ($row = $statusCol->fetch_assoc())) {
+    $t = (string)($row['Type'] ?? '');
+    if (stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','Approved','Rejected') DEFAULT 'Submitted'");
+    }
+  }
   $faCols = [
+    'route_id' => "INT DEFAULT NULL",
     'route_ids' => "VARCHAR(255)",
     'fee_receipt_id' => "VARCHAR(100)",
+    'representative_name' => "VARCHAR(150) DEFAULT NULL",
     'validation_notes' => "TEXT",
     'lptrp_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'coop_status' => "VARCHAR(50) DEFAULT 'Pending'",
+    'endorsed_at' => "DATETIME DEFAULT NULL",
+    'approved_at' => "DATETIME DEFAULT NULL",
+    'remarks' => "TEXT",
     'assigned_officer_id' => "INT"
   ];
   foreach ($faCols as $col => $def) {
@@ -188,6 +320,23 @@ function db() {
       $conn->query("ALTER TABLE franchise_applications ADD COLUMN $col $def");
     }
   }
+  $idxFaRoute = $conn->query("SHOW INDEX FROM franchise_applications WHERE Key_name='idx_franchise_route_id'");
+  if (!$idxFaRoute || $idxFaRoute->num_rows == 0) {
+    $conn->query("ALTER TABLE franchise_applications ADD INDEX idx_franchise_route_id (route_id)");
+  }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS franchises (
+    franchise_id INT AUTO_INCREMENT PRIMARY KEY,
+    application_id INT NOT NULL,
+    ltfrb_ref_no VARCHAR(80) DEFAULT NULL,
+    decision_order_no VARCHAR(80) DEFAULT NULL,
+    expiry_date DATE DEFAULT NULL,
+    status ENUM('Active','Expired','Revoked') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_franchise_app (application_id),
+    INDEX idx_ltfrb_ref (ltfrb_ref_no),
+    FOREIGN KEY (application_id) REFERENCES franchise_applications(application_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (
     case_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -219,6 +368,65 @@ function db() {
     coop_name VARCHAR(128) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $colOps = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='operators'");
+  $opsCols = [];
+  if ($colOps) {
+    while ($c = $colOps->fetch_assoc()) {
+      $opsCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($opsCols['operator_type'])) { $conn->query("ALTER TABLE operators ADD COLUMN operator_type ENUM('Individual','Cooperative','Corporation') DEFAULT 'Individual'"); }
+  if (!isset($opsCols['name'])) { $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL"); }
+  if (!isset($opsCols['address'])) { $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL"); }
+  if (!isset($opsCols['contact_no'])) { $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($opsCols['email'])) { $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL"); }
+  if (!isset($opsCols['status'])) { $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'"); }
+  if (!isset($opsCols['updated_at'])) { $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL"); }
+  $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS operator_documents (
+    doc_id INT AUTO_INCREMENT PRIMARY KEY,
+    operator_id INT NOT NULL,
+    doc_type ENUM('ID','CDA','SEC','Others') DEFAULT 'Others',
+    file_path VARCHAR(255) NOT NULL,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (operator_id),
+    FOREIGN KEY (operator_id) REFERENCES operators(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS vehicle_documents (
+    doc_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    doc_type ENUM('ORCR','Insurance','Others') DEFAULT 'Others',
+    file_path VARCHAR(255) NOT NULL,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (vehicle_id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $colVehDocs = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicle_documents'");
+  $vehDocCols = [];
+  if ($colVehDocs) {
+    while ($c = $colVehDocs->fetch_assoc()) {
+      $vehDocCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($vehDocCols['doc_id']) && isset($vehDocCols['id'])) {
+    $conn->query("ALTER TABLE vehicle_documents CHANGE COLUMN id doc_id INT NOT NULL AUTO_INCREMENT");
+  }
+  if (!isset($vehDocCols['doc_type']) && isset($vehDocCols['document_type'])) {
+    $conn->query("ALTER TABLE vehicle_documents CHANGE COLUMN document_type doc_type VARCHAR(32) DEFAULT 'Others'");
+  }
+  if (!isset($vehDocCols['vehicle_id'])) {
+    $conn->query("ALTER TABLE vehicle_documents ADD COLUMN vehicle_id INT NULL AFTER doc_id");
+    $conn->query("ALTER TABLE vehicle_documents ADD INDEX idx_vehicle_id (vehicle_id)");
+  }
+  $conn->query("UPDATE vehicle_documents SET doc_type=CASE
+    WHEN LOWER(COALESCE(doc_type,'')) IN ('or','cr','orcr','or/cr') THEN 'ORCR'
+    WHEN LOWER(COALESCE(doc_type,''))='insurance' THEN 'Insurance'
+    WHEN LOWER(COALESCE(doc_type,'')) IN ('others','other','deed') THEN 'Others'
+    WHEN COALESCE(doc_type,'') IN ('ORCR','Insurance','Others') THEN doc_type
+    ELSE 'Others' END");
+  $conn->query("UPDATE vehicle_documents vd JOIN vehicles v ON v.plate_number=vd.plate_number SET vd.vehicle_id=v.id WHERE (vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND COALESCE(vd.plate_number,'')<>''");
   $conn->query("CREATE TABLE IF NOT EXISTS coops (
     id INT AUTO_INCREMENT PRIMARY KEY,
     coop_name VARCHAR(128) UNIQUE,
@@ -316,27 +524,31 @@ function db() {
     date_issued DATETIME DEFAULT CURRENT_TIMESTAMP,
     violation_code VARCHAR(32),
     vehicle_plate VARCHAR(32),
+    operator_id INT DEFAULT NULL,
     franchise_id VARCHAR(64) DEFAULT NULL,
     coop_id INT DEFAULT NULL,
     driver_name VARCHAR(128) DEFAULT NULL,
     issued_by VARCHAR(128) DEFAULT NULL,
     issued_by_badge VARCHAR(64) DEFAULT NULL,
     officer_id INT DEFAULT NULL,
-    status ENUM('Pending','Validated','Settled','Escalated') DEFAULT 'Pending',
+    status ENUM('Unpaid','Pending','Validated','Settled','Escalated') DEFAULT 'Unpaid',
     fine_amount DECIMAL(10,2) DEFAULT 0,
     due_date DATE DEFAULT NULL,
     payment_ref VARCHAR(64) DEFAULT NULL,
     location VARCHAR(255) DEFAULT NULL,
+    evidence_path VARCHAR(255) DEFAULT NULL,
     INDEX (vehicle_plate),
     FOREIGN KEY (violation_code) REFERENCES violation_types(violation_code)
   ) ENGINE=InnoDB");
   // Ensure new audit columns exist (safe migrations)
   $colCheck = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets'");
-  $haveBadge = false; $haveOfficer = false;
+  $haveBadge = false; $haveOfficer = false; $haveOperatorId = false; $haveEvidencePath = false;
   if ($colCheck) {
     while ($c = $colCheck->fetch_assoc()) {
       if (($c['COLUMN_NAME'] ?? '') === 'issued_by_badge') $haveBadge = true;
       if (($c['COLUMN_NAME'] ?? '') === 'officer_id') $haveOfficer = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'operator_id') $haveOperatorId = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'evidence_path') $haveEvidencePath = true;
     }
   }
   if (!$haveBadge) { $conn->query("ALTER TABLE tickets ADD COLUMN issued_by_badge VARCHAR(64) DEFAULT NULL"); }
@@ -345,6 +557,16 @@ function db() {
     // Add FK if table exists
     $conn->query("ALTER TABLE tickets ADD INDEX idx_officer_id (officer_id)");
     $conn->query("ALTER TABLE tickets ADD CONSTRAINT fk_tickets_officer FOREIGN KEY (officer_id) REFERENCES officers(officer_id)");
+  }
+  if (!$haveOperatorId) { $conn->query("ALTER TABLE tickets ADD COLUMN operator_id INT DEFAULT NULL"); }
+  if (!$haveEvidencePath) { $conn->query("ALTER TABLE tickets ADD COLUMN evidence_path VARCHAR(255) DEFAULT NULL"); }
+  $statusColTickets = $conn->query("SHOW COLUMNS FROM tickets LIKE 'status'");
+  if ($statusColTickets && ($row = $statusColTickets->fetch_assoc())) {
+    $t = (string)($row['Type'] ?? '');
+    if (stripos($t, 'unpaid') === false) {
+      $conn->query("ALTER TABLE tickets MODIFY COLUMN status ENUM('Unpaid','Pending','Validated','Settled','Escalated') DEFAULT 'Unpaid'");
+      $conn->query("UPDATE tickets SET status='Unpaid' WHERE status IN ('Pending','Validated','Escalated')");
+    }
   }
   $conn->query("CREATE TABLE IF NOT EXISTS evidence (
     evidence_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -366,6 +588,21 @@ function db() {
     INDEX (ticket_id),
     FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS ticket_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    or_no VARCHAR(64) NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    paid_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (ticket_id),
+    FOREIGN KEY (ticket_id) REFERENCES tickets(ticket_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $conn->query("INSERT INTO ticket_payments (ticket_id, or_no, amount_paid, paid_at)
+    SELECT pr.ticket_id, COALESCE(NULLIF(pr.receipt_ref,''), CONCAT('OR-', pr.payment_id)), pr.amount_paid, pr.date_paid
+    FROM payment_records pr
+    LEFT JOIN ticket_payments tp ON tp.ticket_id=pr.ticket_id AND tp.amount_paid=pr.amount_paid AND tp.paid_at=pr.date_paid
+    WHERE tp.payment_id IS NULL");
   $colPay = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='payment_records'");
   $havePayChannel = false;
   $haveExternalPaymentId = false;
@@ -446,7 +683,9 @@ function db() {
   $conn->query("CREATE TABLE IF NOT EXISTS inspection_schedules (
     schedule_id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32) NOT NULL,
+    vehicle_id INT DEFAULT NULL,
     scheduled_at DATETIME NOT NULL,
+    schedule_date DATETIME DEFAULT NULL,
     location VARCHAR(255) DEFAULT NULL,
     inspection_type VARCHAR(32) DEFAULT 'Annual',
     requested_by VARCHAR(128) DEFAULT NULL,
@@ -459,7 +698,9 @@ function db() {
     or_verified TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX (plate_number),
+    INDEX (vehicle_id),
     FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
     FOREIGN KEY (inspector_id) REFERENCES officers(officer_id)
   ) ENGINE=InnoDB");
   $colCheckIns = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='inspection_schedules'");
@@ -468,6 +709,8 @@ function db() {
   $haveContactPerson = false;
   $haveContactNumber = false;
   $haveInspectorLabel = false;
+  $haveVehicleId = false;
+  $haveScheduleDate = false;
   if ($colCheckIns) {
     while ($c = $colCheckIns->fetch_assoc()) {
       $cn = $c['COLUMN_NAME'] ?? '';
@@ -476,6 +719,8 @@ function db() {
       if ($cn === 'contact_person') $haveContactPerson = true;
       if ($cn === 'contact_number') $haveContactNumber = true;
       if ($cn === 'inspector_label') $haveInspectorLabel = true;
+      if ($cn === 'vehicle_id') $haveVehicleId = true;
+      if ($cn === 'schedule_date') $haveScheduleDate = true;
     }
   }
   if (!$haveInspectionType) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspection_type VARCHAR(32) DEFAULT 'Annual'"); }
@@ -483,6 +728,39 @@ function db() {
   if (!$haveContactPerson) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_person VARCHAR(128) DEFAULT NULL"); }
   if (!$haveContactNumber) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_number VARCHAR(32) DEFAULT NULL"); }
    if (!$haveInspectorLabel) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspector_label VARCHAR(128) DEFAULT NULL AFTER inspector_id"); }
+  if (!$haveVehicleId) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN vehicle_id INT DEFAULT NULL AFTER plate_number"); }
+  if (!$haveScheduleDate) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN schedule_date DATETIME DEFAULT NULL AFTER scheduled_at"); }
+  $conn->query("UPDATE inspection_schedules s JOIN vehicles v ON v.plate_number=s.plate_number SET s.vehicle_id=v.id WHERE s.vehicle_id IS NULL");
+  $conn->query("UPDATE inspection_schedules SET schedule_date=scheduled_at WHERE schedule_date IS NULL");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS vehicle_registrations (
+    registration_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    orcr_no VARCHAR(64) NOT NULL,
+    orcr_date DATE NOT NULL,
+    registration_status ENUM('Pending','Registered','Expired') DEFAULT 'Registered',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (vehicle_id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS inspections (
+    inspection_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    schedule_id INT NOT NULL,
+    result ENUM('Passed','Failed') NOT NULL,
+    remarks TEXT,
+    inspected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (vehicle_id),
+    INDEX (schedule_id),
+    UNIQUE KEY uniq_inspections_schedule (schedule_id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (schedule_id) REFERENCES inspection_schedules(schedule_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+  $idxIns = $conn->query("SHOW INDEX FROM inspections WHERE Key_name='uniq_inspections_schedule'");
+  if (!$idxIns || $idxIns->num_rows == 0) {
+    $conn->query("ALTER TABLE inspections ADD UNIQUE KEY uniq_inspections_schedule (schedule_id)");
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS inspection_results (
     result_id INT AUTO_INCREMENT PRIMARY KEY,
     schedule_id INT NOT NULL,

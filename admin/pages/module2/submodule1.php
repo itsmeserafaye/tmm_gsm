@@ -1,1167 +1,524 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module2.view','module2.franchises.manage']);
+require_any_permission(['module2.read','module2.apply','module2.endorse','module2.approve','module2.history']);
+
+require_once __DIR__ . '/../../includes/db.php';
+$db = db();
+
+$statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications")->fetch_assoc()['c'] ?? 0);
+$statSubmitted = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Submitted'")->fetch_assoc()['c'] ?? 0);
+$statEndorsed = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Endorsed'")->fetch_assoc()['c'] ?? 0);
+$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Approved'")->fetch_assoc()['c'] ?? 0);
+
+$q = trim((string)($_GET['q'] ?? ''));
+$status = trim((string)($_GET['status'] ?? ''));
+$highlightAppId = (int)($_GET['highlight_application_id'] ?? 0);
+
+$sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
+               COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
+               fa.route_id,
+               r.route_id AS route_code,
+               r.origin, r.destination,
+               fa.vehicle_count, fa.representative_name,
+               fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at
+        FROM franchise_applications fa
+        LEFT JOIN operators o ON o.id=fa.operator_id
+        LEFT JOIN routes r ON r.id=fa.route_id";
+$conds = [];
+$params = [];
+$types = '';
+if ($q !== '') {
+  $conds[] = "(fa.franchise_ref_number LIKE ? OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE ? OR r.route_id LIKE ? OR r.origin LIKE ? OR r.destination LIKE ?)";
+  $params[] = "%$q%";
+  $params[] = "%$q%";
+  $params[] = "%$q%";
+  $params[] = "%$q%";
+  $params[] = "%$q%";
+  $types .= 'sssss';
+}
+if ($status !== '' && $status !== 'Status') {
+  $conds[] = "fa.status=?";
+  $params[] = $status;
+  $types .= 's';
+}
+if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
+$sql .= " ORDER BY fa.submitted_at DESC LIMIT 300";
+
+if ($params) {
+  $stmt = $db->prepare($sql);
+  $stmt->bind_param($types, ...$params);
+  $stmt->execute();
+  $res = $stmt->get_result();
+} else {
+  $res = $db->query($sql);
+}
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 ?>
-<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
+
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Application & Cooperative</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Intake and tracking of franchise endorsement applications, cooperative profiles, and documentation.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Applications</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → Endorsed → Approved.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <?php if (has_permission('reports.export')): ?>
+        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module2/export_applications_csv.php?<?php echo http_build_query(['q'=>$q,'status'=>$status]); ?>"
+          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Export CSV
+        </a>
+      <?php endif; ?>
+      <a href="?page=module2/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+        <i data-lucide="file-plus" class="w-4 h-4"></i>
+        Submit Application
+      </a>
+      <a href="?page=module2/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="badge-check" class="w-4 h-4"></i>
+        Endorse / Approve
+      </a>
     </div>
   </div>
 
-  <!-- Toast Container -->
-  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <?php
-    require_once __DIR__ . '/../../includes/db.php';
-    $db = db();
-    $prefillRepName = trim((string)($_GET['rep_name'] ?? ''));
-
-    $hasCons = false;
-    $chkCons = $db->query("SHOW COLUMNS FROM coops LIKE 'consolidation_status'");
-    if ($chkCons && $chkCons->num_rows > 0) $hasCons = true;
-    $coopsRes = $db->query("SELECT id, coop_name, " . ($hasCons ? "consolidation_status" : "'' AS consolidation_status") . " FROM coops ORDER BY coop_name");
-    $hasDescCol = false;
-    $hasRouteNameCol = false;
-    $hasApprovalCol = false;
-    $hasStatusCol = false;
-    $cc = $db->query("SHOW COLUMNS FROM lptrp_routes");
-    if ($cc) {
-      while ($c = $cc->fetch_assoc()) {
-        $f = (string)($c['Field'] ?? '');
-        if ($f === 'description') $hasDescCol = true;
-        if ($f === 'route_name') $hasRouteNameCol = true;
-        if ($f === 'approval_status') $hasApprovalCol = true;
-        if ($f === 'status') $hasStatusCol = true;
-      }
-    }
-    $descSel = $hasDescCol ? "description" : ($hasRouteNameCol ? "route_name" : "''");
-    $statusSel = $hasApprovalCol ? "approval_status" : ($hasStatusCol ? "status" : "''");
-    $routesRes = $db->query("SELECT id, route_code, $descSel AS route_desc, start_point, end_point, max_vehicle_capacity, current_vehicle_count, $statusSel AS route_status
-                             FROM lptrp_routes
-                             WHERE route_code REGEXP '^R_[0-9]+$'
-                             ORDER BY CAST(SUBSTRING(route_code,3) AS UNSIGNED), route_code");
-
-    $coops = [];
-    if ($coopsRes) {
-      while ($row = $coopsRes->fetch_assoc()) {
-        $coops[] = $row;
-      }
-    }
-
-    $routes = [];
-    if ($routesRes) {
-      while ($row = $routesRes->fetch_assoc()) {
-        $routes[] = $row;
-      }
-    }
-
-    $opNames = [];
-    $resOp = $db->query("
-      SELECT name FROM (
-        SELECT DISTINCT full_name AS name FROM operators
-        UNION
-        SELECT DISTINCT operator_name AS name FROM vehicles WHERE operator_name <> ''
-      ) AS names
-      ORDER BY name ASC
-      LIMIT 300
-    ");
-    if ($resOp) {
-      while ($r = $resOp->fetch_assoc()) {
-        if (!empty($r['name'])) $opNames[] = $r['name'];
-      }
-    }
-
-    $plateMap = [];
-    $resPlates = $db->query("SELECT plate_number, operator_name FROM vehicles WHERE plate_number <> '' ORDER BY plate_number ASC LIMIT 200");
-    if ($resPlates) {
-      while ($r = $resPlates->fetch_assoc()) {
-        $plate = strtoupper(trim($r['plate_number'] ?? ''));
-        if ($plate === '') continue;
-        if (!isset($plateMap[$plate])) {
-          $plateMap[$plate] = trim((string)($r['operator_name'] ?? ''));
-        }
-      }
-    }
-
-    $q = trim($_GET['q'] ?? '');
-    $statusFilter = trim($_GET['status'] ?? '');
-
-    $sql = "SELECT fa.*, o.full_name AS operator, c.coop_name, r.route_code, $descSel AS route_desc, r.start_point, r.end_point 
-            FROM franchise_applications fa 
-            LEFT JOIN operators o ON fa.operator_id = o.id 
-            LEFT JOIN coops c ON fa.coop_id = c.id 
-            LEFT JOIN lptrp_routes r ON r.id = fa.route_ids";
-
-    $conds = [];
-    $params = [];
-    $types = '';
-
-    if ($q !== '') {
-      $conds[] = "(fa.franchise_ref_number LIKE ? OR o.full_name LIKE ? OR c.coop_name LIKE ?)";
-      $like = "%$q%";
-      $params[] = $like;
-      $params[] = $like;
-      $params[] = $like;
-      $types .= 'sss';
-    }
-
-    if ($statusFilter !== '' && $statusFilter !== 'All') {
-      $conds[] = "fa.status = ?";
-      $params[] = $statusFilter;
-      $types .= 's';
-    }
-
-    if ($conds) {
-      $sql .= " WHERE " . implode(" AND ", $conds);
-    }
-
-    $sql .= " ORDER BY fa.submitted_at DESC LIMIT 50";
-
-    if ($params) {
-      $stmt = $db->prepare($sql);
-      if ($stmt && $types !== '') {
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $appsRes = $stmt->get_result();
-      } else {
-        $appsRes = false;
-      }
-    } else {
-      $appsRes = $db->query($sql);
-    }
-  ?>
-
-  <!-- Application Form -->
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-3">
-      <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-        <i data-lucide="file-plus" class="w-5 h-5"></i>
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total</div>
+        <i data-lucide="layers" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
       </div>
-      <div>
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">New Application</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Initiate franchise endorsement process</p>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTotal; ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Submitted</div>
+        <i data-lucide="send" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
       </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statSubmitted; ?></div>
     </div>
-    
-    <div class="p-6">
-      <form id="module2AppForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Cooperative</label>
-            <div class="relative">
-              <select name="coop_id" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
-                <option value="">Select cooperative</option>
-                <?php foreach ($coops as $c): ?>
-                  <?php
-                    $label = $c['coop_name'] ?? 'Coop';
-                  ?>
-                  <option value="<?php echo (int)$c['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
-                <?php endforeach; ?>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-          </div>
-          
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Representative Name</label>
-            <input name="rep_name" value="<?php echo htmlspecialchars($prefillRepName); ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. Juan Dela Cruz">
-          </div>
-          
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">LTFRB Franchise Ref</label>
-            <input id="ltfrbFranchiseRef" name="franchise_ref" maxlength="10" inputmode="numeric" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 2024-00123">
-          </div>
-        </div>
-
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Count</label>
-              <input name="vehicle_count" type="number" min="1" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. 10">
-            </div>
-            <div>
-               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Fee Receipt (Opt)</label>
-               <input name="fee_receipt" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="OR Reference">
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Proposed LPTRP Route</label>
-            <div class="relative">
-              <select name="route_id" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
-                <option value="">Select route</option>
-                <?php foreach ($routes as $r): ?>
-                  <?php
-                    $cap = (int)($r['max_vehicle_capacity'] ?? 0);
-                    $curr = (int)($r['current_vehicle_count'] ?? 0);
-                    $desc = (string)($r['route_desc'] ?? '');
-                    if ($desc === '') {
-                      $sp = (string)($r['start_point'] ?? '');
-                      $ep = (string)($r['end_point'] ?? '');
-                      $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                    }
-                    $label = ($r['route_code'] ?? 'Route') . ' • ' . $desc . " ({$curr}/{$cap})";
-                  ?>
-                  <option value="<?php echo (int)$r['id']; ?>"><?php echo htmlspecialchars($label); ?></option>
-                <?php endforeach; ?>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-          </div>
-        </div>
-
-        <!-- Document Uploads -->
-        <div class="md:col-span-2 pt-4 border-t border-slate-100">
-          <h3 class="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-            <i data-lucide="paperclip" class="w-4 h-4 text-emerald-500"></i> Required Documents
-          </h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="group relative">
-              <label class="block text-xs font-medium text-slate-500 mb-2">LTFRB Decision/Order</label>
-              <div class="relative flex items-center justify-center w-full">
-                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
-                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                          <i data-lucide="upload-cloud" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
-                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Image</p>
-                      </div>
-                      <input name="doc_ltfrb" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
-                  </label>
-              </div>
-              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
-            </div>
-            
-            <div class="group relative">
-              <label class="block text-xs font-medium text-slate-500 mb-2">Coop Registration</label>
-              <div class="relative flex items-center justify-center w-full">
-                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
-                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                          <i data-lucide="file-badge" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
-                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Image</p>
-                      </div>
-                      <input name="doc_coop" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
-                  </label>
-              </div>
-              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
-            </div>
-            
-            <div class="group relative">
-              <label class="block text-xs font-medium text-slate-500 mb-2">Member Vehicles List</label>
-              <div class="relative flex items-center justify-center w-full">
-                  <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 transition-all group-hover:shadow-sm">
-                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                          <i data-lucide="list" class="w-8 h-8 mb-2 text-slate-400 group-hover:text-emerald-500"></i>
-                          <p class="text-xs text-slate-500 text-center px-2"><span class="font-semibold">Click to upload</span> PDF/Excel</p>
-                      </div>
-                      <input name="doc_members" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="showFileName(this)">
-                  </label>
-              </div>
-              <div class="file-name-display mt-2 text-xs text-emerald-600 font-medium text-center hidden"></div>
-            </div>
-          </div>
-          <?php if (getenv('TMM_AV_SCANNER')): ?>
-            <p class="mt-4 text-[11px] text-slate-400 flex items-center gap-1"><i data-lucide="shield-check" class="w-3 h-3"></i> Files are scanned for viruses when uploaded.</p>
-          <?php endif; ?>
-        </div>
-
-        <div class="md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700 pt-6">
-          <div id="module2AppStatus" class="text-xs font-medium text-slate-500"></div>
-          <button type="button" id="module2SubmitBtn" class="w-full md:w-auto px-6 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
-            <span>Create Application</span>
-            <i data-lucide="arrow-right" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="operatorFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="operatorFormModalPanel">
-      <form id="saveOperatorForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_operator.php">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-          <h3 class="text-lg font-black text-slate-800 dark:text-white">Add New Operator</h3>
-          <button type="button" onclick="closeOperatorFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
-        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
-          <div class="grid grid-cols-1 gap-5">
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Full Name</label>
-              <input name="full_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Full Name" required>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Contact Info</label>
-                <input name="contact_info" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Phone / Email" required>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Cooperative</label>
-                <input name="coop_name" list="coopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
-          <button type="button" onclick="closeOperatorFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            Cancel
-          </button>
-          <button type="submit" id="btnSaveOperator" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
-            <span>Save Operator</span>
-            <i data-lucide="save" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="coopFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="coopFormModalPanel">
-      <form id="saveCoopForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/save_coop.php">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-          <h3 class="text-lg font-black text-slate-800 dark:text-white">Register Cooperative</h3>
-          <button type="button" onclick="closeCoopFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
-        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
-          <div class="grid grid-cols-1 gap-5">
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop Name</label>
-              <input name="coop_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Cooperative Name" required>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Address</label>
-              <input name="address" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Official Address" required>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Chairperson</label>
-                <input name="chairperson_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">LGU Approval #</label>
-                <input name="lgu_approval_number" maxlength="20" inputmode="text" autocomplete="off" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="e.g. CAL-COOP-2026-001">
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Consolidation</label>
-              <div class="relative">
-                <select name="consolidation_status" class="w-full pl-4 pr-10 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none appearance-none cursor-pointer">
-                  <option value="Not Consolidated">Not Consolidated</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Consolidated">Consolidated</option>
-                </select>
-                <i data-lucide="chevron-down" class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-              </div>
-              <div class="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Not Consolidated → In Progress → Consolidated. Set to Consolidated only after LGU verification and required documents are complete.
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
-          <button type="button" onclick="closeCoopFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            Cancel
-          </button>
-          <button type="submit" id="btnSaveCoop" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
-            <span>Save Cooperative</span>
-            <i data-lucide="save" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="vehicleLinkFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-[60] transition-opacity opacity-0 p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform border border-slate-100 dark:border-slate-700" id="vehicleLinkFormModalPanel">
-      <form id="linkVehicleForm" class="space-y-0" method="POST" action="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-          <h3 class="text-lg font-black text-slate-800 dark:text-white">Link Vehicle</h3>
-          <button type="button" onclick="closeVehicleLinkFormModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-500 transition-all">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
-        <div class="p-5 sm:p-8 space-y-5 max-h-[70vh] overflow-y-auto">
-          <div class="grid grid-cols-1 gap-5">
-            <div>
-              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Plate Number</label>
-              <input name="plate_number" list="plateList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all uppercase" placeholder="ABC-1234" required>
-              <datalist id="plateList">
-                <?php foreach ($plateMap as $plate => $opName): ?>
-                  <option value="<?php echo htmlspecialchars($plate); ?>" data-operator="<?php echo htmlspecialchars($opName); ?>"></option>
-                <?php endforeach; ?>
-              </datalist>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Operator</label>
-                <input name="operator_name" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Name" required>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-widest">Coop</label>
-                <input name="coop_name" list="coopNameList" class="w-full px-4 py-3 text-sm font-bold border-0 rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-teal-500 outline-none transition-all" placeholder="Optional">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="p-6 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-end gap-3">
-          <button type="button" onclick="closeVehicleLinkFormModal()" class="px-5 py-2.5 text-sm font-bold rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            Cancel
-          </button>
-          <button type="submit" id="btnLinkVehicle" class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-500 hover:bg-teal-600 text-white text-sm font-bold rounded-lg transition-all shadow-lg shadow-teal-500/30 hover:shadow-teal-500/40 active:scale-[0.98]">
-            <span>Link to Vehicle</span>
-            <i data-lucide="link" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="entityModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 transform transition-all overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-          <div class="text-lg font-black text-slate-800 dark:text-white">Details</div>
-          <button id="entityModalClose" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
-        </div>
-        <div id="entityModalBody" class="p-0 max-h-[70vh] overflow-y-auto"></div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Endorsed</div>
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-violet-600 dark:text-violet-400"></i>
       </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statEndorsed; ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Approved</div>
+        <i data-lucide="badge-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statApproved; ?></div>
     </div>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-2">
-      <i data-lucide="map" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i>
-      <h2 class="font-bold text-slate-900 dark:text-white text-sm">LPTRP Route Masterlist</h2>
-    </div>
-    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <form id="module2LptrpForm" class="space-y-3 lg:col-span-1">
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Code</label>
-          <input name="route_code" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="e.g. R_001">
+  <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
+      <input type="hidden" name="page" value="module2/submodule1">
+      <div class="flex-1 flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1 sm:max-w-sm group">
+          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search operator or route...">
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Route Name</label>
-          <input name="description" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Start Point</label>
-          <input name="start_point" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">End Point</label>
-          <input name="end_point" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Optional">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Max Capacity</label>
-            <input name="max_vehicle_capacity" type="number" min="0" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="0">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Approval</label>
-            <div class="relative">
-              <select name="status" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
-                <option value="Approved">Approved</option>
-                <option value="Pending">Pending</option>
-                <option value="Suspended">Suspended</option>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-          </div>
-        </div>
-        <button type="button" id="module2LptrpSaveBtn" class="w-full px-6 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
-          <span>Save Route</span>
-          <i data-lucide="save" class="w-4 h-4"></i>
-        </button>
-      </form>
-
-      <div class="lg:col-span-2 overflow-x-auto">
-        <table class="min-w-full text-sm text-left border border-slate-100 rounded-xl overflow-hidden">
-          <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-            <tr>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Route</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Name / Points</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Capacity</th>
-              <th class="py-2.5 px-3 text-xs uppercase tracking-wider">Approval</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <?php if (!empty($routes)): ?>
-              <?php foreach ($routes as $r): ?>
-                <?php
-                  $desc = (string)($r['route_desc'] ?? '');
-                  if ($desc === '') {
-                    $sp = (string)($r['start_point'] ?? '');
-                    $ep = (string)($r['end_point'] ?? '');
-                    $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                  }
-                ?>
-                <tr class="hover:bg-slate-50/50 transition-colors">
-                  <td class="py-2.5 px-3 font-semibold text-slate-700"><?php echo htmlspecialchars((string)($r['route_code'] ?? '')); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars($desc); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo (int)($r['current_vehicle_count'] ?? 0); ?>/<?php echo (int)($r['max_vehicle_capacity'] ?? 0); ?></td>
-                  <td class="py-2.5 px-3 text-slate-600"><?php echo htmlspecialchars((string)($r['route_status'] ?? '')); ?></td>
-                </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="4" class="py-6 text-center text-slate-400 text-sm">No routes yet. Add your routes here.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-teal-200/60 dark:border-teal-900/40 ring-1 ring-teal-100/80 dark:ring-teal-900/30 overflow-hidden lg:col-span-1 flex flex-col h-full">
-      <div class="p-4 border-b border-teal-200/60 dark:border-teal-900/40 bg-teal-50/70 dark:bg-teal-900/20 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <div class="h-8 w-8 rounded-lg bg-white/80 dark:bg-slate-800 flex items-center justify-center text-teal-700 dark:text-teal-300 ring-1 ring-teal-100 dark:ring-teal-900/30">
-            <i data-lucide="users" class="w-4 h-4"></i>
-          </div>
-          <div>
-            <h2 class="font-black text-slate-900 dark:text-white text-sm leading-tight">Operator & Cooperative</h2>
-            <div class="text-[11px] font-semibold text-teal-700/80 dark:text-teal-300/80">Quick actions</div>
-          </div>
-        </div>
-      </div>
-      <div class="p-4 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="group relative">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
-            <input id="opViewName" list="opNameList" class="w-full pl-10 pr-3 py-3 text-sm font-bold border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 dark:text-white focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search operator...">
-            <datalist id="opNameList">
-              <?php foreach ($opNames as $name): ?>
-                <option value="<?php echo htmlspecialchars($name); ?>"></option>
-              <?php endforeach; ?>
-            </datalist>
-          </div>
-          <div class="group relative">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors"></i>
-            <input id="coopViewName" list="coopNameList" class="w-full pl-10 pr-3 py-3 text-sm font-bold border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 dark:text-white focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Search cooperative...">
-          </div>
-        </div>
-        <datalist id="coopNameList">
-          <?php foreach ($coops as $c): ?>
-            <?php $cn = trim((string)($c['coop_name'] ?? '')); if ($cn === '') continue; ?>
-            <option value="<?php echo htmlspecialchars($cn); ?>"></option>
-          <?php endforeach; ?>
-        </datalist>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <button type="button" id="btnOpenOperatorModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-all shadow-sm shadow-blue-600/20 active:scale-[0.99]">
-            <i data-lucide="user-plus" class="w-4 h-4"></i>
-            <span>Add Operator</span>
-          </button>
-          <button type="button" id="btnOpenCoopModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-sm shadow-emerald-600/20 active:scale-[0.99]">
-            <i data-lucide="building-2" class="w-4 h-4"></i>
-            <span>Register Coop</span>
-          </button>
-          <button type="button" id="btnOpenVehicleLinkModal" class="inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-black transition-all active:scale-[0.99]">
-            <i data-lucide="link-2" class="w-4 h-4"></i>
-            <span>Link Vehicle</span>
-          </button>
-        </div>
-        <div class="rounded-lg bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-          Tip: type a name above to open details, then click “Use in form”.
-        </div>
-      </div>
-    </div>
-
-    <!-- Recent Applications -->
-    <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden lg:col-span-2 flex flex-col h-full">
-      <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
-          <h2 class="font-semibold text-slate-800 text-sm">Recent Applications</h2>
-        </div>
-        
-        <form id="module2FilterForm" method="GET" class="flex items-center gap-2">
-          <input type="hidden" name="page" value="module2/submodule1">
-          <div class="relative">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400"></i>
-            <input name="q" list="module2SearchList" value="<?php echo htmlspecialchars($q); ?>" class="pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none w-40 md:w-56" placeholder="Search...">
-            <?php
-              $module2SearchOptions = [];
-              $module2ResSearch = $db->query("SELECT DISTINCT fa.franchise_ref_number, o.full_name AS operator_name, c.coop_name FROM franchise_applications fa LEFT JOIN operators o ON fa.operator_id=o.id LEFT JOIN coops c ON fa.coop_id=c.id ORDER BY fa.submitted_at DESC LIMIT 100");
-              if ($module2ResSearch) {
-                while ($r = $module2ResSearch->fetch_assoc()) {
-                  $ref = trim((string)($r['franchise_ref_number'] ?? ''));
-                  $opn = trim((string)($r['operator_name'] ?? ''));
-                  $coopn = trim((string)($r['coop_name'] ?? ''));
-                  if ($ref !== '') $module2SearchOptions[$ref] = true;
-                  if ($opn !== '') $module2SearchOptions[$opn] = true;
-                  if ($coopn !== '') $module2SearchOptions[$coopn] = true;
-                }
-              }
-            ?>
-            <datalist id="module2SearchList">
-              <?php foreach (array_keys($module2SearchOptions) as $opt): ?>
-                <option value="<?php echo htmlspecialchars($opt); ?>"></option>
-              <?php endforeach; ?>
-            </datalist>
-          </div>
-          <select name="status" class="px-2 py-1.5 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900/50 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none">
-            <option value="">Status</option>
-            <?php
-              $statuses = ['Pending','Under Review','Endorsed','Rejected'];
-              foreach ($statuses as $st):
-            ?>
-              <option value="<?php echo $st; ?>" <?php echo $statusFilter === $st ? 'selected' : ''; ?>><?php echo $st; ?></option>
+        <div class="relative w-full sm:w-52">
+          <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+            <option value="">All Status</option>
+            <?php foreach (['Submitted','Endorsed','Approved','Rejected'] as $s): ?>
+              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-        </form>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
       </div>
-      
-      <div class="overflow-x-auto flex-1">
-        <table class="min-w-full text-sm text-left">
-          <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-            <tr>
-              <th class="py-3 px-4 text-xs uppercase tracking-wider">Reference</th>
-              <th class="py-3 px-4 text-xs uppercase tracking-wider">Details</th>
-              <th class="py-3 px-4 text-xs uppercase tracking-wider">Status</th>
-              <th class="py-3 px-4 text-right text-xs uppercase tracking-wider">Action</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <?php if ($appsRes && $appsRes->num_rows > 0): ?>
-              <?php while ($row = $appsRes->fetch_assoc()): ?>
-                <?php
-                  $ref = $row['franchise_ref_number'] ?? '';
-                  $track = 'APP-' . (int)($row['application_id'] ?? 0);
-                  $status = $row['status'] ?? 'Pending';
-                  
-                  $badgeClass = 'bg-slate-100 text-slate-600 border border-slate-200';
-                  $dotClass = 'bg-slate-400';
-                  
-                  if ($status === 'Endorsed') {
-                    $badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-                    $dotClass = 'bg-emerald-500';
-                  } elseif ($status === 'Pending') {
-                    $badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100';
-                    $dotClass = 'bg-amber-500';
-                  } elseif ($status === 'Under Review') {
-                    $badgeClass = 'bg-blue-50 text-blue-700 border border-blue-100';
-                    $dotClass = 'bg-blue-500';
-                  } elseif ($status === 'Rejected') {
-                    $badgeClass = 'bg-rose-50 text-rose-700 border border-rose-100';
-                    $dotClass = 'bg-rose-500';
-                  }
-                  
-                  $lpStatus = $row['lptrp_status'] ?? '';
-                  $coopStatus = $row['coop_status'] ?? '';
-                  $routeCode = (string)($row['route_code'] ?? '');
-                  $desc = (string)($row['route_desc'] ?? '');
-                  if ($desc === '') {
-                    $sp = (string)($row['start_point'] ?? '');
-                    $ep = (string)($row['end_point'] ?? '');
-                    $desc = ($sp !== '' || $ep !== '') ? trim($sp . ' → ' . $ep) : '';
-                  }
-                  $routeLabel = $routeCode !== '' ? ($routeCode . ($desc !== '' ? (' • ' . $desc) : '')) : (string)($row['route_ids'] ?? '');
-                  $openHref = $ref !== '' ? '?page=module2/submodule2&q=' . urlencode($ref) : '';
-                ?>
-                <tr class="hover:bg-slate-50/50 transition-colors">
-                  <td class="py-3 px-4 align-top">
-                    <div class="font-medium text-slate-800"><?php echo htmlspecialchars($track); ?></div>
-                    <div class="text-xs text-slate-500 font-mono mt-0.5"><?php echo htmlspecialchars($ref !== '' ? $ref : 'No Ref'); ?></div>
-                  </td>
-                  <td class="py-3 px-4 align-top">
-                    <div class="font-medium text-slate-700 text-sm"><?php echo htmlspecialchars($row['coop_name'] ?? '—'); ?></div>
-                    <div class="text-xs text-slate-500 mt-0.5">
-                      Route: <span class="font-semibold text-slate-600"><?php echo htmlspecialchars($routeLabel !== '' ? $routeLabel : '—'); ?></span> • 
-                      <?php echo (int)($row['vehicle_count'] ?? 0); ?> Units
-                    </div>
-                  </td>
-                  <td class="py-3 px-4 align-top">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium <?php echo $badgeClass; ?>">
-                      <span class="w-1.5 h-1.5 rounded-full <?php echo $dotClass; ?>"></span>
-                      <?php echo htmlspecialchars($status); ?>
-                    </span>
-                    <div class="mt-1.5 flex gap-2">
-                       <?php if ($lpStatus !== ''): ?>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">LPTRP: <?php echo htmlspecialchars($lpStatus); ?></span>
-                      <?php endif; ?>
-                    </div>
-                  </td>
-                  <td class="py-3 px-4 align-top text-right">
-                    <?php if ($openHref !== ''): ?>
-                      <a href="<?php echo htmlspecialchars($openHref); ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50 transition-all shadow-sm">
-                        <span>Validate</span>
-                        <i data-lucide="arrow-right" class="w-3 h-3"></i>
-                      </a>
-                    <?php else: ?>
-                      <span class="text-xs text-slate-400 italic">No Ref</span>
+      <div class="flex items-center gap-2">
+        <button class="inline-flex items-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+          <i data-lucide="filter" class="w-4 h-4"></i>
+          Apply
+        </button>
+        <a href="?page=module2/submodule1" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          Reset
+        </a>
+      </div>
+    </form>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <?php foreach (['Submitted','Endorsed','Approved','Rejected'] as $chip): ?>
+        <a href="?<?php echo http_build_query(['page'=>'module2/submodule1','q'=>$q,'status'=>$chip]); ?>"
+          class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
+          <?php echo htmlspecialchars($chip); ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+          <tr class="text-left text-slate-500 dark:text-slate-400">
+            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Application</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Route</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Units</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Status</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Submitted</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+          <?php if ($res && $res->num_rows > 0): ?>
+            <?php while ($row = $res->fetch_assoc()): ?>
+              <?php
+                $appId = (int)($row['application_id'] ?? 0);
+                $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
+                $st = (string)($row['status'] ?? '');
+                $badge = match($st) {
+                  'Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Endorsed' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
+                  'Submitted' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
+                };
+              ?>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" <?php echo $isHighlight ? 'id="app-row-highlight"' : ''; ?>>
+                <td class="py-4 px-6">
+                  <div class="font-black text-slate-900 dark:text-white">APP-<?php echo $appId; ?></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars((string)($row['franchise_ref_number'] ?? '')); ?></div>
+                </td>
+                <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
+                  <?php echo htmlspecialchars((string)($row['operator_name'] ?? '')); ?>
+                  <?php if (!empty($row['representative_name'] ?? '')): ?>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Rep: <?php echo htmlspecialchars((string)$row['representative_name']); ?></div>
+                  <?php endif; ?>
+                </td>
+                <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium">
+                  <?php
+                    $rc = trim((string)($row['route_code'] ?? ''));
+                    $ro = trim((string)($row['origin'] ?? ''));
+                    $rd = trim((string)($row['destination'] ?? ''));
+                    $label = $rc !== '' ? $rc : '-';
+                    if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
+                    echo htmlspecialchars($label);
+                  ?>
+                </td>
+                <td class="py-4 px-4 hidden sm:table-cell font-black text-slate-700 dark:text-slate-200"><?php echo (int)($row['vehicle_count'] ?? 0); ?></td>
+                <td class="py-4 px-4">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
+                </td>
+                <td class="py-4 px-4 hidden sm:table-cell text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  <?php echo htmlspecialchars(date('M d, Y', strtotime((string)($row['submitted_at'] ?? 'now')))); ?>
+                </td>
+                <td class="py-4 px-4 text-right">
+                  <div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-app-view="1" data-app-id="<?php echo (int)$appId; ?>" title="View Details">
+                      <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                    <?php if (has_permission('module2.franchises.manage') && $st === 'Submitted'): ?>
+                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all" data-app-endorse="1" data-app-id="<?php echo (int)$appId; ?>" title="Endorse">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                      </button>
                     <?php endif; ?>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="4" class="py-8 text-center text-slate-400">
-                  <div class="flex flex-col items-center gap-2">
-                    <i data-lucide="inbox" class="w-8 h-8 stroke-1"></i>
-                    <span class="text-sm">No franchise applications found.</span>
+                    <?php if (has_permission('module2.franchises.manage') && ($st === 'Endorsed' || $st === 'Approved')): ?>
+                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-app-approve="1" data-app-id="<?php echo (int)$appId; ?>" title="LTFRB Approval Entry">
+                        <i data-lucide="badge-check" class="w-4 h-4"></i>
+                      </button>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
+            <?php endwhile; ?>
+          <?php else: ?>
+            <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No applications found.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modalApp" class="fixed inset-0 z-[200] hidden">
+  <div id="modalAppBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalAppPanel" class="w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white" id="modalAppTitle">Application</div>
+        <button type="button" id="modalAppClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
+      <div id="modalAppBody" class="p-6"></div>
     </div>
   </div>
 </div>
 
 <script>
-// File Name Display Helper
-function showFileName(input) {
-  const display = input.parentElement.parentElement.nextElementSibling;
-  if (input.files && input.files[0]) {
-    display.textContent = input.files[0].name;
-    display.classList.remove('hidden');
-    // Change icon style to indicate success
-    const icon = input.parentElement.querySelector('i');
-    if(icon) {
-        icon.classList.remove('text-slate-400');
-        icon.classList.add('text-emerald-500');
-        icon.setAttribute('data-lucide', 'check-circle');
-        if(window.lucide) window.lucide.createIcons();
+  (function(){
+    const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const canManage = <?php echo json_encode(has_permission('module2.franchises.manage')); ?>;
+
+    function showToast(message, type) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = (type || 'success').toString();
+      const color = t === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold ${color}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
+      setTimeout(() => { el.remove(); }, 3000);
     }
-  } else {
-    display.textContent = '';
-    display.classList.add('hidden');
-  }
-}
 
-(function() {
-  if (window.lucide) window.lucide.createIcons();
+    const modal = document.getElementById('modalApp');
+    const backdrop = document.getElementById('modalAppBackdrop');
+    const panel = document.getElementById('modalAppPanel');
+    const body = document.getElementById('modalAppBody');
+    const title = document.getElementById('modalAppTitle');
+    const closeBtn = document.getElementById('modalAppClose');
 
-  function showToast(msg, type = 'success') {
-    const container = document.getElementById('toast-container');
-    if(!container) return;
-    const toast = document.createElement('div');
-    const colors = type === 'success' ? 'bg-emerald-500' : (type === 'error' ? 'bg-rose-500' : 'bg-amber-500');
-    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-    
-    toast.className = `${colors} text-white px-4 py-3 rounded-xl shadow-lg shadow-black/5 flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px] backdrop-blur-md`;
-    toast.innerHTML = `
-      <i data-lucide="${icon}" class="w-5 h-5"></i>
-      <span class="font-medium text-sm">${msg}</span>
-    `;
-    
-    container.appendChild(toast);
-    if (window.lucide) window.lucide.createIcons();
-    requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
-    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
-  }
-  window.showToast = showToast;
-
-  var form = document.getElementById('module2AppForm');
-  var btn = document.getElementById('module2SubmitBtn');
-  var statusEl = document.getElementById('module2AppStatus');
-  
-  if (form && btn && statusEl) {
-    btn.addEventListener('click', function() {
-      if (btn.disabled) return;
-      var coopId = form.elements['coop_id'] ? form.elements['coop_id'].value : '';
-      
-      // Basic validation
-      if(!coopId) {
-          showToast('Please select a cooperative', 'error');
-          return;
-      }
-
-      var fd = new FormData(form);
-      
-      // Manually append files if needed, but FormData(form) handles it usually.
-      // Explicitly check file inputs
-      var docLtfrbInput = form.querySelector('input[name="doc_ltfrb"]');
-      var docCoopInput = form.querySelector('input[name="doc_coop"]');
-      var docMembersInput = form.querySelector('input[name="doc_members"]');
-
-      btn.disabled = true;
-      const originalBtnContent = btn.innerHTML;
-      btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...';
-      if(window.lucide) window.lucide.createIcons();
-      statusEl.textContent = 'Submitting application...';
-      statusEl.className = 'text-xs font-medium text-slate-500';
-
-      fetch('api/module2/save_application.php', {
-        method: 'POST',
-        body: fd
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data && data.ok) {
-            var appId = data.application_id || 0;
-            var hasLtfrb = docLtfrbInput && docLtfrbInput.files && docLtfrbInput.files.length > 0;
-            var hasCoop = docCoopInput && docCoopInput.files && docCoopInput.files.length > 0;
-            var hasMembers = docMembersInput && docMembersInput.files && docMembersInput.files.length > 0;
-            var hasAnyDocs = hasLtfrb || hasCoop || hasMembers;
-
-            if (appId && hasAnyDocs) {
-              statusEl.textContent = 'Uploading documents...';
-              
-              var docsFd = new FormData();
-              docsFd.append('application_id', appId);
-              if (hasLtfrb) docsFd.append('doc_ltfrb', docLtfrbInput.files[0]);
-              if (hasCoop) docsFd.append('doc_coop', docCoopInput.files[0]);
-              if (hasMembers) docsFd.append('doc_members', docMembersInput.files[0]);
-
-              return fetch('api/module2/upload_app_docs.php', {
-                method: 'POST',
-                body: docsFd
-              })
-                .then(function(r) { return r.json(); })
-                .then(function(docRes) {
-                  var hasErrors = docRes && Array.isArray(docRes.errors) && docRes.errors.length > 0;
-                  if (hasErrors) {
-                    showToast('Application saved, but some documents failed: ' + docRes.errors.join('; '), 'warning');
-                  } else {
-                    showToast('Application and documents submitted successfully!', 'success');
-                  }
-                  form.reset();
-                  setTimeout(function() { window.location.reload(); }, 1500);
-                });
-            } else {
-              showToast(data.message || 'Application submitted successfully!', 'success');
-              form.reset();
-              setTimeout(function() { window.location.reload(); }, 1000);
-            }
-          } else {
-            showToast((data && data.error) ? data.error : 'Unable to submit application.', 'error');
-          }
-        })
-        .catch(function(err) {
-          showToast('Error: ' + err.message, 'error');
-        })
-        .finally(function() {
-          btn.disabled = false;
-          btn.innerHTML = originalBtnContent;
-          if(window.lucide) window.lucide.createIcons();
-          statusEl.textContent = '';
-        });
-    });
-  }
-})();
-
-(function() {
-  var lptrpForm = document.getElementById('module2LptrpForm');
-  var lptrpBtn = document.getElementById('module2LptrpSaveBtn');
-
-  if (lptrpForm && lptrpBtn) {
-    lptrpBtn.addEventListener('click', function () {
-      if (lptrpBtn.disabled) return;
-      var fd = new FormData(lptrpForm);
-      lptrpBtn.disabled = true;
-      fetch((window.TMM_ROOT_URL || '') + '/admin/api/module2/save_lptrp_route.php', { method: 'POST', body: fd })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.ok) {
-            if (window.showToast) window.showToast('LPTRP route saved', 'success');
-            lptrpForm.reset();
-            setTimeout(function () { window.location.reload(); }, 700);
-          } else {
-            if (window.showToast) window.showToast((data && data.error) ? data.error : 'Failed to save route', 'error');
-          }
-        })
-        .catch(function (e) { if (window.showToast) window.showToast('Error: ' + e.message, 'error'); })
-        .finally(function () { lptrpBtn.disabled = false; });
-    });
-  }
-})();
-
-(function(){
-  var form = document.getElementById('module2FilterForm');
-  if (!form) return;
-  var qInput = form.querySelector('input[name="q"]');
-  var statusSelect = form.querySelector('select[name="status"]');
-  var debounceTimer = null;
-  function scheduleSubmit() {
-    if (!form) return;
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function(){ form.submit(); }, 400);
-  }
-  if (qInput) {
-    qInput.addEventListener('input', scheduleSubmit);
-  }
-  if (statusSelect) {
-    statusSelect.addEventListener('change', function(){
-      form.submit();
-    });
-  }
-})();
-
-(function () {
-  var input = document.getElementById('ltfrbFranchiseRef');
-  if (!input) return;
-  function formatLtfrb(v) {
-    var digits = String(v || '').replace(/\D/g, '').slice(0, 9);
-    if (digits.length <= 4) return digits;
-    return digits.slice(0, 4) + '-' + digits.slice(4);
-  }
-  input.addEventListener('input', function () {
-    var next = formatLtfrb(input.value);
-    if (input.value !== next) input.value = next;
-  });
-})();
-
-(function () {
-  function formatLguApproval(v) {
-    var raw = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    var prefixMatch = raw.match(/^[A-Z]{0,6}/);
-    var prefix = prefixMatch ? prefixMatch[0] : '';
-    var rest = raw.slice(prefix.length);
-    if (rest.startsWith('COOP')) rest = rest.slice(4);
-    var digits = rest.replace(/[^0-9]/g, '').slice(0, 7);
-    var year = digits.slice(0, 4);
-    var seq = digits.slice(4, 7);
-    if (!prefix) return '';
-    if (raw.length <= prefix.length) return prefix;
-    var out = prefix + '-COOP-';
-    if (year) out += year;
-    if (digits.length > 4) out += '-' + seq;
-    return out;
-  }
-
-  function attach(formId) {
-    var form = document.getElementById(formId);
-    if (!form) return;
-    var input = form.querySelector('input[name="lgu_approval_number"]');
-    if (!input) return;
-    input.addEventListener('input', function () {
-      var next = formatLguApproval(input.value);
-      if (input.value !== next) input.value = next;
-    });
-  }
-
-  attach('saveCoopForm');
-})();
-
-(function () {
-  function openModal(modalId, panelId) {
-    var modal = document.getElementById(modalId);
-    var panel = document.getElementById(panelId);
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    setTimeout(function () {
-      modal.classList.remove('opacity-0');
-      if (panel) {
-        panel.classList.remove('scale-95');
-        panel.classList.add('scale-100');
-      }
-    }, 10);
-  }
-
-  function closeModal(modalId, panelId) {
-    var modal = document.getElementById(modalId);
-    var panel = document.getElementById(panelId);
-    if (!modal) return;
-    modal.classList.add('opacity-0');
-    if (panel) {
-      panel.classList.remove('scale-100');
-      panel.classList.add('scale-95');
-    }
-    setTimeout(function () {
-      modal.classList.add('hidden');
-    }, 200);
-  }
-
-  window.openOperatorFormModal = function () { openModal('operatorFormModal', 'operatorFormModalPanel'); };
-  window.closeOperatorFormModal = function () { closeModal('operatorFormModal', 'operatorFormModalPanel'); };
-  window.openCoopFormModal = function () { openModal('coopFormModal', 'coopFormModalPanel'); };
-  window.closeCoopFormModal = function () { closeModal('coopFormModal', 'coopFormModalPanel'); };
-  window.openVehicleLinkFormModal = function () { openModal('vehicleLinkFormModal', 'vehicleLinkFormModalPanel'); };
-  window.closeVehicleLinkFormModal = function () { closeModal('vehicleLinkFormModal', 'vehicleLinkFormModalPanel'); };
-
-  var btnOp = document.getElementById('btnOpenOperatorModal');
-  if (btnOp) btnOp.addEventListener('click', function () {
-    var form = document.getElementById('saveOperatorForm');
-    if (form) form.reset();
-    window.openOperatorFormModal();
-  });
-
-  var btnCoop = document.getElementById('btnOpenCoopModal');
-  if (btnCoop) btnCoop.addEventListener('click', function () {
-    var form = document.getElementById('saveCoopForm');
-    if (form) form.reset();
-    window.openCoopFormModal();
-  });
-
-  var btnLink = document.getElementById('btnOpenVehicleLinkModal');
-  if (btnLink) btnLink.addEventListener('click', function () {
-    var form = document.getElementById('linkVehicleForm');
-    if (form) form.reset();
-    window.openVehicleLinkFormModal();
-  });
-
-  function bindAjaxForm(formId, submitBtnId, onSuccessClose) {
-    var form = document.getElementById(formId);
-    var btn = document.getElementById(submitBtnId);
-    if (!form) return;
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (btn && btn.disabled) return;
-      if (formId === 'saveCoopForm') {
-        var lgu = '';
-        try { lgu = ((form.elements['lgu_approval_number'] && form.elements['lgu_approval_number'].value) || '').trim().toUpperCase(); } catch (e) { lgu = ''; }
-        if (!/^[A-Z]{2,6}-COOP-[0-9]{4}-[0-9]{3}$/.test(lgu)) {
-          if (window.showToast) window.showToast('LGU approval number must look like CAL-COOP-2026-001.', 'error');
-          return;
-        }
-      }
-      var fd = new FormData(form);
-      if (btn) btn.disabled = true;
-      fetch(form.action, { method: 'POST', body: fd })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.ok) {
-            if (window.showToast) window.showToast('Saved successfully', 'success');
-            if (typeof onSuccessClose === 'function') onSuccessClose();
-            setTimeout(function () { window.location.reload(); }, 600);
-          } else {
-            if (window.showToast) window.showToast((data && data.error) ? data.error : 'Failed to save', 'error');
-          }
-        })
-        .catch(function (err) {
-          if (window.showToast) window.showToast('Error: ' + err.message, 'error');
-        })
-        .finally(function () {
-          if (btn) btn.disabled = false;
-        });
-    });
-  }
-
-  bindAjaxForm('saveOperatorForm', 'btnSaveOperator', window.closeOperatorFormModal);
-  bindAjaxForm('saveCoopForm', 'btnSaveCoop', window.closeCoopFormModal);
-  bindAjaxForm('linkVehicleForm', 'btnLinkVehicle', window.closeVehicleLinkFormModal);
-
-  (function () {
-    var modal = document.getElementById('entityModal');
-    var body = document.getElementById('entityModalBody');
-    var closeBtn = document.getElementById('entityModalClose');
-    function openEntity(html) {
-      if (!modal || !body) return;
+    function openModal(html, t) {
+      if (t) title.textContent = t;
       body.innerHTML = html;
       modal.classList.remove('hidden');
-      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
-    }
-    function closeEntity() {
-      if (!modal || !body) return;
-      modal.classList.add('hidden');
-      body.innerHTML = '';
-    }
-    if (closeBtn) closeBtn.addEventListener('click', closeEntity);
-    if (modal) modal.addEventListener('click', function (e) {
-      if (e.target === modal || (e.target && e.target.classList && e.target.classList.contains('backdrop-blur-sm'))) closeEntity();
-    });
-
-    function attachEntityAutoView(inputId, urlBase) {
-      var input = document.getElementById(inputId);
-      if (!input) return;
-      var timeout = null;
-      input.addEventListener('input', function () {
-        var name = (input.value || '').trim();
-        if (!name) return;
-        if (timeout) clearTimeout(timeout);
-        timeout = setTimeout(function () {
-          fetch(urlBase + encodeURIComponent(name))
-            .then(function (r) { return r.text(); })
-            .then(openEntity);
-        }, 300);
+      requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        panel.classList.remove('scale-95','opacity-0');
       });
+      if (window.lucide) window.lucide.createIcons();
+    }
+    function closeModal() {
+      panel.classList.add('scale-95','opacity-0');
+      backdrop.classList.add('opacity-0');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        body.innerHTML = '';
+      }, 200);
+    }
+    if (backdrop) backdrop.addEventListener('click', closeModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+
+    function formatDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      return d.toLocaleString();
     }
 
-    attachEntityAutoView('opViewName', 'api/module1/operator_html.php?name=');
-    attachEntityAutoView('coopViewName', 'api/module1/coop_html.php?name=');
+    async function loadApp(appId) {
+      const res = await fetch(rootUrl + '/admin/api/module2/get_application.php?application_id=' + encodeURIComponent(appId));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return data.data;
+    }
 
-    window.__useOperatorInForm = function (fullName, contactInfo, coopName) {
-      var form = document.getElementById('saveOperatorForm');
-      if (!form) return;
-      var nameInput = form.elements['full_name'];
-      var contactInput = form.elements['contact_info'];
-      var coopInput = form.elements['coop_name'];
-      if (nameInput && fullName) nameInput.value = fullName;
-      if (contactInput) contactInput.value = contactInfo || '';
-      if (coopInput) coopInput.value = coopName || '';
-      window.openOperatorFormModal();
-      closeEntity();
-    };
+    async function loadDocs(appId) {
+      const res = await fetch(rootUrl + '/admin/api/module2/list_app_documents.php?application_id=' + encodeURIComponent(appId));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return Array.isArray(data.data) ? data.data : [];
+    }
 
-    window.__useCoopInForm = function (coopName, address, chairperson, lguApproval) {
-      var form = document.getElementById('saveCoopForm');
-      if (!form) return;
-      var nameInput = form.elements['coop_name'];
-      var addressInput = form.elements['address'];
-      var chairInput = form.elements['chairperson_name'];
-      var lguInput = form.elements['lgu_approval_number'];
-      if (nameInput && coopName) nameInput.value = coopName;
-      if (addressInput) addressInput.value = address || '';
-      if (chairInput) chairInput.value = chairperson || '';
-      if (lguInput) lguInput.value = lguApproval || '';
-      window.openCoopFormModal();
-      closeEntity();
-    };
-  })();
-
-  (function () {
-    var plateInput = document.querySelector('#linkVehicleForm input[name="plate_number"]');
-    var operatorInput = document.querySelector('#linkVehicleForm input[name="operator_name"]');
-    var plateList = document.getElementById('plateList');
-    if (!plateInput || !operatorInput || !plateList) return;
-    function applyOperator() {
-      var value = (plateInput.value || '').toUpperCase();
-      if (!value) return;
-      var options = plateList.options;
-      for (var i = 0; i < options.length; i++) {
-        var opt = options[i];
-        if ((opt.value || '').toUpperCase() === value) {
-          var op = opt.getAttribute('data-operator') || '';
-          if (op && !operatorInput.value) operatorInput.value = op;
-          break;
+    document.querySelectorAll('[data-app-view="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.getAttribute('data-app-id');
+        openModal('<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>', 'Application');
+        try {
+          const a = await loadApp(appId);
+          const docs = await loadDocs(appId);
+          const routeLabel = (a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : '');
+          body.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 space-y-4">
+                <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Application</div>
+                  <div class="mt-2 text-lg font-black text-slate-900 dark:text-white">APP-${a.application_id}</div>
+                  <div class="mt-1 text-sm text-slate-600 dark:text-slate-300">${(a.franchise_ref_number || '').toString()}</div>
+                </div>
+                <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</div>
+                      <div class="mt-1 font-bold text-slate-900 dark:text-white">${(a.operator_name || '').toString()}</div>
+                      <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Type: ${(a.operator_type || '-').toString()} • Status: ${(a.operator_status || '-').toString()}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route</div>
+                      <div class="mt-1 font-bold text-slate-900 dark:text-white">${routeLabel}</div>
+                      <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Route status: ${(a.route_status || '-').toString()}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Vehicle Count</div>
+                      <div class="mt-1 font-bold text-slate-900 dark:text-white">${Number(a.vehicle_count || 0)}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Status</div>
+                      <div class="mt-1 font-bold text-slate-900 dark:text-white">${(a.status || '-').toString()}</div>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Representative Name</div>
+                      <div class="mt-1 font-bold text-slate-900 dark:text-white">${(a.representative_name || '-').toString()}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Submitted</div>
+                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.submitted_at)}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Endorsed</div>
+                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.endorsed_at)}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved</div>
+                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.approved_at)}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Ref</div>
+                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${(a.ltfrb_ref_no || '-').toString()}</div>
+                    </div>
+                    <div class="sm:col-span-2">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Remarks</div>
+                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">${(a.remarks || '').toString() || '-'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-4">
+                <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Documents</div>
+                  <div class="mt-3 space-y-2">
+                    ${docs.length ? docs.map((d) => {
+                      const href = rootUrl + '/admin/uploads/' + encodeURIComponent((d.file_path || '').toString());
+                      return `<a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
+                        <div>
+                          <div class="text-sm font-black text-slate-800 dark:text-white">${(d.type || '').toString()}</div>
+                          <div class="text-xs text-slate-500 dark:text-slate-400">${formatDate(d.uploaded_at)}</div>
+                        </div>
+                        <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
+                      </a>`;
+                    }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+          body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load.'}</div>`;
         }
-      }
-    }
-    plateInput.addEventListener('change', applyOperator);
-    plateInput.addEventListener('input', applyOperator);
-  })();
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape' && e.key !== 'Esc') return;
-    var opModal = document.getElementById('operatorFormModal');
-    var coopModal = document.getElementById('coopFormModal');
-    var vehicleModal = document.getElementById('vehicleLinkFormModal');
-    var entityModal = document.getElementById('entityModal');
-    if (opModal && !opModal.classList.contains('hidden')) { window.closeOperatorFormModal(); return; }
-    if (coopModal && !coopModal.classList.contains('hidden')) { window.closeCoopFormModal(); return; }
-    if (vehicleModal && !vehicleModal.classList.contains('hidden')) { window.closeVehicleLinkFormModal(); return; }
-    if (entityModal && !entityModal.classList.contains('hidden')) { entityModal.classList.add('hidden'); return; }
-  });
-
-  function bindBackdropClose(modalId, closeFn) {
-    var modal = document.getElementById(modalId);
-    if (!modal) return;
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) closeFn();
+      });
     });
-  }
-  bindBackdropClose('operatorFormModal', window.closeOperatorFormModal);
-  bindBackdropClose('coopFormModal', window.closeCoopFormModal);
-  bindBackdropClose('vehicleLinkFormModal', window.closeVehicleLinkFormModal);
 
-  (function () {
-    try {
-      var params = new URLSearchParams(window.location.search || '');
-      var open = (params.get('open') || '').toLowerCase();
-      if (open === 'coop') window.openCoopFormModal();
-      if (open === 'operator') window.openOperatorFormModal();
-      if (open === 'link') window.openVehicleLinkFormModal();
-    } catch (e) {}
+    document.querySelectorAll('[data-app-endorse="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!canManage) return;
+        const appId = btn.getAttribute('data-app-id');
+        openModal(`
+          <form id="formEndorse" class="space-y-4">
+            <input type="hidden" name="application_id" value="${appId}">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Notes (optional)</label>
+              <textarea name="notes" rows="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Validation notes..."></textarea>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
+              <button id="btnEndorse" class="px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Endorse</button>
+            </div>
+          </form>
+        `, 'Endorse Application');
+        const close = body.querySelector('[data-close="1"]');
+        if (close) close.addEventListener('click', closeModal);
+        const form = document.getElementById('formEndorse');
+        const btnEnd = document.getElementById('btnEndorse');
+        if (!form || !btnEnd) return;
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          btnEnd.disabled = true;
+          btnEnd.textContent = 'Endorsing...';
+          try {
+            const fd = new FormData(form);
+            const res = await fetch(rootUrl + '/admin/api/module2/endorse_app.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
+            showToast('Application endorsed.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page','module2/submodule1');
+            params.set('highlight_application_id', String(appId));
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+            btnEnd.disabled = false;
+            btnEnd.textContent = 'Endorse';
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-app-approve="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!canManage) return;
+        const appId = btn.getAttribute('data-app-id');
+        openModal(`
+          <form id="formApprove" class="space-y-4">
+            <input type="hidden" name="application_id" value="${appId}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">LTFRB Ref No</label>
+                <input name="ltfrb_ref_no" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Franchise number">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Decision Order No</label>
+                <input name="decision_order_no" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Decision order">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Expiry Date</label>
+                <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Remarks (optional)</label>
+                <input name="remarks" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Remarks">
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 pt-2">
+              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
+              <button id="btnApprove" class="px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Save Approval</button>
+            </div>
+          </form>
+        `, 'LTFRB Approval Entry');
+        const close = body.querySelector('[data-close="1"]');
+        if (close) close.addEventListener('click', closeModal);
+        const form = document.getElementById('formApprove');
+        const btnA = document.getElementById('btnApprove');
+        if (!form || !btnA) return;
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!form.checkValidity()) { form.reportValidity(); return; }
+          btnA.disabled = true;
+          btnA.textContent = 'Saving...';
+          try {
+            const fd = new FormData(form);
+            const res = await fetch(rootUrl + '/admin/api/module2/approve_application.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'approve_failed');
+            showToast('Application approved.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page','module2/submodule1');
+            params.set('highlight_application_id', String(appId));
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+            btnA.disabled = false;
+            btnA.textContent = 'Save Approval';
+          }
+        });
+      });
+    });
+
+    const highlight = document.getElementById('app-row-highlight');
+    if (highlight) setTimeout(() => { highlight.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
   })();
-})();
-
 </script>
