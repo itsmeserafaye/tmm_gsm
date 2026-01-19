@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module4.view', 'module4.inspections.manage']);
+require_permission('module4.inspections.manage');
 $db = db();
 $plateParam = trim($_GET['plate'] ?? '');
 $frRefParam = trim($_GET['fr_ref'] ?? '');

@@ -187,12 +187,25 @@ if ($itemStmt) {
       $vehOperationalStatus = 'Suspended';
     }
 
-    $passedAt = ($vehInspection === 'Passed') ? date('Y-m-d H:i:s') : null;
-    $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=?, inspection_passed_at=? WHERE plate_number=?");
-    if ($upVeh) {
-      $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $plate);
-      $upVeh->execute();
-      $upVeh->close();
+    $hasPassedAt = false;
+    $chkCol = $db->query("SHOW COLUMNS FROM vehicles LIKE 'inspection_passed_at'");
+    if ($chkCol && $chkCol->num_rows > 0) $hasPassedAt = true;
+
+    if ($hasPassedAt) {
+      $passedAt = ($vehInspection === 'Passed') ? date('Y-m-d H:i:s') : null;
+      $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=?, inspection_passed_at=? WHERE plate_number=?");
+      if ($upVeh) {
+        $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $plate);
+        $upVeh->execute();
+        $upVeh->close();
+      }
+    } else {
+      $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=? WHERE plate_number=?");
+      if ($upVeh) {
+        $upVeh->bind_param('sss', $vehInspection, $vehOperationalStatus, $plate);
+        $upVeh->execute();
+        $upVeh->close();
+      }
     }
   }
 

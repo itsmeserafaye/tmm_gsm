@@ -126,7 +126,7 @@ if ($periodStartSql !== '') {
 }
 $latestSubqueryWhereSql = $latestSubqueryWhere ? ('WHERE ' . implode(' AND ', $latestSubqueryWhere)) : '';
 
-$latestSql = "SELECT s2.plate_number, MAX(ir2.submitted_at) AS max_submitted
+$latestSql = "SELECT s2.plate_number, MAX(ir2.result_id) AS max_result_id
   FROM inspection_schedules s2
   JOIN inspection_results ir2 ON ir2.schedule_id=s2.schedule_id
   $latestSubqueryWhereSql
@@ -144,7 +144,7 @@ $sqlCount = "SELECT COUNT(*) AS c
     SELECT s.plate_number, ir.overall_status, ir.submitted_at
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
-    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_submitted=ir.submitted_at
+    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_result_id=ir.result_id
   ) last ON last.plate_number=v.plate_number
   $reportWhereSql";
 $resCount = $db->query($sqlCount);
@@ -168,7 +168,7 @@ $sqlReport = "SELECT v.plate_number, v.operator_name, v.coop_name, v.coop_id, v.
     SELECT s.plate_number, ir.overall_status, ir.submitted_at
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
-    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_submitted=ir.submitted_at
+    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_result_id=ir.result_id
   ) last ON last.plate_number=v.plate_number
   $reportWhereSql
   ORDER BY v.plate_number ASC
@@ -207,10 +207,12 @@ $terminalsForSelect = array_map(function ($t) { return (string)($t['name'] ?? ''
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
             Reset
         </a>
-        <a href="?page=module4/submodule2" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors">
-            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
-            Go to Inspection
-        </a>
+        <?php if (has_permission('module4.inspections.manage')): ?>
+          <a href="?page=module4/submodule2" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors">
+              <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+              Go to Inspection
+          </a>
+        <?php endif; ?>
     </div>
   </div>
 
