@@ -35,10 +35,40 @@ if (!$stmt->execute()) {
     exit;
 }
 
-// Check if both verified, if so, maybe update status? 
-// Logic from submodule1: status stays 'Pending Verification' until explicit status change? 
-// No, usually verification is a step. But let's just save the flags.
-// If both verified, we might want to ensure status allows inspection.
-// For now, just save flags. User can proceed if UI updates.
+// Apply real-world flow: verification gates assignment and inspection.
+$stmtS = $db->prepare("SELECT status, inspector_id FROM inspection_schedules WHERE schedule_id=? LIMIT 1");
+if (!$stmtS) {
+    echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
+    exit;
+}
+$stmtS->bind_param('i', $scheduleId);
+$stmtS->execute();
+$rowS = $stmtS->get_result()->fetch_assoc();
+$stmtS->close();
 
-echo json_encode(['ok' => true]);
+$currentStatus = (string)($rowS['status'] ?? '');
+$inspectorId = (int)($rowS['inspector_id'] ?? 0);
+
+$finalStatus = $currentStatus;
+if ($currentStatus !== 'Completed' && $currentStatus !== 'Cancelled') {
+    if ($cr === 1 && $or === 1) {
+        if ($inspectorId > 0) {
+            $finalStatus = ($currentStatus === 'Rescheduled') ? 'Rescheduled' : 'Scheduled';
+        } else {
+            $finalStatus = 'Pending Assignment';
+        }
+    } else {
+        $finalStatus = 'Pending Verification';
+    }
+}
+
+if ($finalStatus !== $currentStatus) {
+    $stmtU = $db->prepare("UPDATE inspection_schedules SET status=? WHERE schedule_id=?");
+    if ($stmtU) {
+        $stmtU->bind_param('si', $finalStatus, $scheduleId);
+        $stmtU->execute();
+        $stmtU->close();
+    }
+}
+
+echo json_encode(['ok' => true, 'status' => $finalStatus, 'cr_verified' => $cr, 'or_verified' => $or]);

@@ -204,6 +204,14 @@ function db() {
     permit_number VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $idxEr = $conn->query("SHOW INDEX FROM endorsement_records WHERE Key_name='uniq_endorsement_application'");
+  if (!$idxEr || $idxEr->num_rows == 0) {
+    $conn->query("DELETE er1 FROM endorsement_records er1
+                  JOIN endorsement_records er2
+                    ON er1.application_id = er2.application_id
+                   AND er1.endorsement_id < er2.endorsement_id");
+    $conn->query("ALTER TABLE endorsement_records ADD UNIQUE KEY uniq_endorsement_application (application_id)");
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS operators (
     id INT AUTO_INCREMENT PRIMARY KEY,
     full_name VARCHAR(128) UNIQUE,

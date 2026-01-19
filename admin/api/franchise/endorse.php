@@ -28,24 +28,53 @@ $res = $stmt->get_result();
 
 if ($row = $res->fetch_assoc()) {
     $realAppId = $row['application_id'];
+    $currentStatus = (string)($row['status'] ?? '');
     
-    // Check if already endorsed
-    // (Optional: Allow re-issuance? For now, let's assume one endorsement per app)
-    // $check = $db->query("SELECT * FROM endorsement_records WHERE application_id = $realAppId");
-    // if ($check->num_rows > 0) { ... }
+    if (strcasecmp($currentStatus, 'Endorsed') === 0) {
+        $stmtEx = $db->prepare("SELECT endorsement_id, permit_number FROM endorsement_records WHERE application_id=? ORDER BY endorsement_id DESC LIMIT 1");
+        $endorsementId = 0;
+        $permit = '';
+        if ($stmtEx) {
+            $stmtEx->bind_param('i', $realAppId);
+            $stmtEx->execute();
+            $ex = $stmtEx->get_result()->fetch_assoc();
+            $stmtEx->close();
+            if ($ex) {
+                $endorsementId = (int)($ex['endorsement_id'] ?? 0);
+                $permit = (string)($ex['permit_number'] ?? '');
+            }
+        }
+        echo json_encode(['ok' => true, 'endorsement_id' => $endorsementId, 'permit_no' => $permit, 'message' => 'Application already endorsed']);
+        exit;
+    }
 
     // Create Endorsement Record
-    $stmtIns = $db->prepare("INSERT INTO endorsement_records (application_id, permit_number, issued_date) VALUES (?, ?, CURDATE())");
+    $db->begin_transaction();
+    $stmtIns = $db->prepare("INSERT INTO endorsement_records (application_id, permit_number, issued_date)
+                             VALUES (?, ?, CURDATE())
+                             ON DUPLICATE KEY UPDATE issued_date=issued_date");
     $stmtIns->bind_param('is', $realAppId, $permitNo);
     
     if ($stmtIns->execute()) {
-        $endorsementId = $db->insert_id;
+        $endorsementId = (int)$db->insert_id;
+        if ($endorsementId <= 0) {
+            $stmtGet = $db->prepare("SELECT endorsement_id FROM endorsement_records WHERE application_id=? ORDER BY endorsement_id DESC LIMIT 1");
+            if ($stmtGet) {
+                $stmtGet->bind_param('i', $realAppId);
+                $stmtGet->execute();
+                $er = $stmtGet->get_result()->fetch_assoc();
+                $stmtGet->close();
+                $endorsementId = (int)($er['endorsement_id'] ?? 0);
+            }
+        }
         
         // Update Application Status
         $db->query("UPDATE franchise_applications SET status = 'Endorsed' WHERE application_id = $realAppId");
+        $db->commit();
         
         echo json_encode(['ok' => true, 'endorsement_id' => $endorsementId, 'message' => 'Endorsement generated successfully']);
     } else {
+        $db->rollback();
         echo json_encode(['error' => 'Failed to create endorsement record']);
     }
 } else {

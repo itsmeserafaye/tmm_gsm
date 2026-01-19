@@ -36,9 +36,14 @@ $stmt->bind_param('si', $status, $id);
 $ok = $stmt->execute();
 if (!$ok) { echo json_encode(['error'=>'update_failed']); exit; }
 if ($status === 'Endorsed') {
-  $stmt2 = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number) VALUES (?, CURDATE(), ?)");
-  $stmt2->bind_param('is', $id, $permit);
-  $stmt2->execute();
+  $stmt2 = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number)
+                         VALUES (?, CURDATE(), ?)
+                         ON DUPLICATE KEY UPDATE issued_date=issued_date, permit_number=IF(permit_number IS NULL OR permit_number='', VALUES(permit_number), permit_number)");
+  if ($stmt2) {
+    $stmt2->bind_param('is', $id, $permit);
+    $stmt2->execute();
+    $stmt2->close();
+  }
 }
 echo json_encode(['ok'=>true, 'application_id'=>$id, 'status'=>$status, 'permit_number'=>$permit]);
 ?> 

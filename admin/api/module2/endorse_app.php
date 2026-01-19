@@ -20,49 +20,19 @@ if ($app_id === 0) {
     exit;
 }
 
-// Check Application Status
-$res = $db->query("SELECT * FROM franchise_applications WHERE application_id = $app_id");
-$app = $res->fetch_assoc();
-
-if (!$app) {
-    echo json_encode(['ok' => false, 'error' => 'Application not found']);
-    exit;
-}
-
-if ($app['status'] === 'Endorsed') {
-    echo json_encode(['ok' => false, 'error' => 'Application already endorsed']);
-    exit;
-}
-
-// Create Endorsement Record (aligned with endorsement_records schema in db.php)
-$permit_no = "PERMIT-" . date('Y') . "-" . str_pad($app_id, 4, '0', STR_PAD_LEFT);
-
-$stmt = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number) VALUES (?, CURDATE(), ?)");
-if (!$stmt) {
-    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $db->error]);
-    exit;
-}
-
-$stmt->bind_param('is', $app_id, $permit_no);
-$okInsert = $stmt->execute();
-$stmt->close();
-
-if ($okInsert) {
-    // Update Application Status
-    $db->query("UPDATE franchise_applications SET status = 'Endorsed' WHERE application_id = $app_id");
-
-    // Update LPTRP Count
-    $route_id = $app['route_ids']; // Assuming single ID for now
-    $count = (int)$app['vehicle_count'];
-    $db->query("UPDATE lptrp_routes SET current_vehicle_count = current_vehicle_count + $count WHERE id = '$route_id'");
-
+function tmm_endorse_response(mysqli $db, array $app, string $message, ?string $permitNoOverride = null): void {
+    $appId = (int)($app['application_id'] ?? 0);
     $frRef = trim((string)($app['franchise_ref_number'] ?? ''));
-    if ($frRef !== '') {
-        $stmtVeh = $db->prepare("UPDATE vehicles SET status='Active' WHERE franchise_id=? AND (status IS NULL OR status='' OR status='Suspended')");
-        if ($stmtVeh) {
-            $stmtVeh->bind_param('s', $frRef);
-            $stmtVeh->execute();
-            $stmtVeh->close();
+
+    $permitNo = $permitNoOverride;
+    if ($permitNo === null && $appId > 0) {
+        $stmtE = $db->prepare("SELECT permit_number FROM endorsement_records WHERE application_id=? ORDER BY endorsement_id DESC LIMIT 1");
+        if ($stmtE) {
+            $stmtE->bind_param('i', $appId);
+            $stmtE->execute();
+            $rowE = $stmtE->get_result()->fetch_assoc();
+            $stmtE->close();
+            if ($rowE && isset($rowE['permit_number'])) $permitNo = (string)$rowE['permit_number'];
         }
     }
 
@@ -93,13 +63,79 @@ if ($okInsert) {
 
     echo json_encode([
       'ok' => true,
-      'message' => 'Endorsement issued successfully',
-      'permit_no' => $permit_no,
+      'message' => $message,
+      'permit_no' => $permitNo,
       'franchise_ref_number' => $frRef,
       'plate_number' => $plate,
       'route_code' => $routeCode,
     ]);
-} else {
-    echo json_encode(['ok' => false, 'error' => $db->error]);
+    exit;
+}
+
+$db->begin_transaction();
+try {
+    $stmtA = $db->prepare("SELECT application_id, franchise_ref_number, route_ids, vehicle_count, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
+    if (!$stmtA) {
+        throw new Exception('db_prepare_failed');
+    }
+    $stmtA->bind_param('i', $app_id);
+    $stmtA->execute();
+    $app = $stmtA->get_result()->fetch_assoc();
+    $stmtA->close();
+
+    if (!$app) {
+        $db->rollback();
+        echo json_encode(['ok' => false, 'error' => 'Application not found']);
+        exit;
+    }
+
+    if (($app['status'] ?? '') === 'Endorsed') {
+        $db->commit();
+        tmm_endorse_response($db, $app, 'Application already endorsed');
+    }
+
+    $permit_no = "PERMIT-" . date('Y') . "-" . str_pad((string)$app_id, 4, '0', STR_PAD_LEFT);
+
+    $stmtIns = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number)
+                             VALUES (?, CURDATE(), ?)
+                             ON DUPLICATE KEY UPDATE issued_date=issued_date");
+    if (!$stmtIns) {
+        throw new Exception('db_prepare_failed');
+    }
+    $stmtIns->bind_param('is', $app_id, $permit_no);
+    if (!$stmtIns->execute()) {
+        throw new Exception('insert_failed');
+    }
+    $stmtIns->close();
+
+    $db->query("UPDATE franchise_applications SET status = 'Endorsed' WHERE application_id = $app_id");
+
+    $route_id = (string)($app['route_ids'] ?? '');
+    $count = (int)($app['vehicle_count'] ?? 0);
+    if ($route_id !== '' && $count > 0) {
+        $stmtL = $db->prepare("UPDATE lptrp_routes SET current_vehicle_count = current_vehicle_count + ? WHERE id = ?");
+        if ($stmtL) {
+            $stmtL->bind_param('is', $count, $route_id);
+            $stmtL->execute();
+            $stmtL->close();
+        }
+    }
+
+    $frRef = trim((string)($app['franchise_ref_number'] ?? ''));
+    if ($frRef !== '') {
+        $stmtVeh = $db->prepare("UPDATE vehicles SET status='Active' WHERE franchise_id=? AND (status IS NULL OR status='' OR status='Suspended')");
+        if ($stmtVeh) {
+            $stmtVeh->bind_param('s', $frRef);
+            $stmtVeh->execute();
+            $stmtVeh->close();
+        }
+    }
+
+    $db->commit();
+    tmm_endorse_response($db, $app, 'Endorsement issued successfully');
+} catch (Throwable $e) {
+    $db->rollback();
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'db_error']);
 }
 ?>
