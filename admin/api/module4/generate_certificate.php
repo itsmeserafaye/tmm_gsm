@@ -4,6 +4,25 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module4.inspections.manage');
+$tmm_norm_plate = function (string $plate): string {
+    $p = strtoupper(trim($plate));
+    $p = preg_replace('/[^A-Z0-9]/', '', $p);
+    return $p !== null ? $p : '';
+};
+$tmm_resolve_plate = function (mysqli $db, string $plate) use ($tmm_norm_plate): string {
+    $clean = strtoupper(trim($plate));
+    $norm = $tmm_norm_plate($clean);
+    if ($norm === '') return $clean;
+    $stmt = $db->prepare("SELECT plate_number FROM vehicles WHERE REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('s', $norm);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row && isset($row['plate_number']) && (string)$row['plate_number'] !== '') return (string)$row['plate_number'];
+    }
+    return $clean;
+};
 $schedule_id = (int)($_POST['schedule_id'] ?? 0);
 $approved_by = isset($_POST['approved_by']) ? (int)$_POST['approved_by'] : 0;
 $approved_name = trim($_POST['approved_name'] ?? '');
@@ -51,7 +70,12 @@ if ($ex) {
     $prow = $plateStmt->get_result()->fetch_assoc();
     $plate = '';
     if ($prow && ($prow['plate_number'] ?? '') !== '') {
-        $plate = (string)$prow['plate_number'];
+        $plateOrig = (string)$prow['plate_number'];
+        $plate = $tmm_resolve_plate($db, $plateOrig);
+        if ($plateOrig !== '' && $plate !== '' && $plate !== $plateOrig) {
+            $upSch = $db->prepare("UPDATE inspection_schedules SET plate_number=? WHERE schedule_id=?");
+            if ($upSch) { $upSch->bind_param('si', $plate, $schedule_id); $upSch->execute(); $upSch->close(); }
+        }
         $upVeh = $db->prepare("UPDATE vehicles SET inspection_status='Passed', inspection_cert_ref=? WHERE plate_number=?");
         $upVeh->bind_param('ss', $ex['certificate_number'], $plate);
         $upVeh->execute();
@@ -94,7 +118,12 @@ $plateStmt2->execute();
 $prow2 = $plateStmt2->get_result()->fetch_assoc();
 $plate2 = '';
 if ($prow2 && ($prow2['plate_number'] ?? '') !== '') {
-    $plate2 = (string)$prow2['plate_number'];
+    $plate2Orig = (string)$prow2['plate_number'];
+    $plate2 = $tmm_resolve_plate($db, $plate2Orig);
+    if ($plate2Orig !== '' && $plate2 !== '' && $plate2 !== $plate2Orig) {
+        $upSch2 = $db->prepare("UPDATE inspection_schedules SET plate_number=? WHERE schedule_id=?");
+        if ($upSch2) { $upSch2->bind_param('si', $plate2, $schedule_id); $upSch2->execute(); $upSch2->close(); }
+    }
     $upVeh2 = $db->prepare("UPDATE vehicles SET inspection_status='Passed', inspection_cert_ref=? WHERE plate_number=?");
     $upVeh2->bind_param('ss', $cert_no, $plate2);
     $upVeh2->execute();

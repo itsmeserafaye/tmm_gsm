@@ -3,6 +3,25 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_permission('module4.inspections.manage');
 $db = db();
+$tmm_norm_plate = function (string $plate): string {
+    $p = strtoupper(trim($plate));
+    $p = preg_replace('/[^A-Z0-9]/', '', $p);
+    return $p !== null ? $p : '';
+};
+$tmm_resolve_plate = function (mysqli $db, string $plate) use ($tmm_norm_plate): string {
+    $clean = strtoupper(trim($plate));
+    $norm = $tmm_norm_plate($clean);
+    if ($norm === '') return $clean;
+    $stmt = $db->prepare("SELECT plate_number FROM vehicles WHERE REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param('s', $norm);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row && isset($row['plate_number']) && (string)$row['plate_number'] !== '') return (string)$row['plate_number'];
+    }
+    return $clean;
+};
 $plateParam = trim($_GET['plate'] ?? '');
 $frRefParam = trim($_GET['fr_ref'] ?? '');
 $scheduleParam = isset($_GET['schedule_id']) ? (int) $_GET['schedule_id'] : 0;
@@ -30,6 +49,9 @@ if ($plateParam === '' && $frRefParam !== '') {
         if ($rowP && isset($rowP['plate_number']))
             $plateParam = (string) $rowP['plate_number'];
     }
+}
+if ($plateParam !== '') {
+    $plateParam = $tmm_resolve_plate($db, $plateParam);
 }
 
 // --- Action Handling ---
@@ -98,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'sched
     if ($platePost === '' || $scheduledAtPost === '' || $locationPost === '') {
         $scheduleError = 'Plate, schedule date/time, and inspection site are required.';
     } else {
+        $platePost = $tmm_resolve_plate($db, $platePost);
         if ($inspectorIdPost > 0) {
             $inspStmt = $db->prepare("SELECT officer_id, active_status FROM officers WHERE officer_id=?");
             if ($inspStmt) {

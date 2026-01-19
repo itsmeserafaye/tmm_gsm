@@ -4,6 +4,25 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module4.inspections.manage');
+$tmm_norm_plate = function (string $plate): string {
+  $p = strtoupper(trim($plate));
+  $p = preg_replace('/[^A-Z0-9]/', '', $p);
+  return $p !== null ? $p : '';
+};
+$tmm_resolve_plate = function (mysqli $db, string $plate) use ($tmm_norm_plate): string {
+  $clean = strtoupper(trim($plate));
+  $norm = $tmm_norm_plate($clean);
+  if ($norm === '') return $clean;
+  $stmt = $db->prepare("SELECT plate_number FROM vehicles WHERE REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') = ? LIMIT 1");
+  if ($stmt) {
+    $stmt->bind_param('s', $norm);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($row && isset($row['plate_number']) && (string)$row['plate_number'] !== '') return (string)$row['plate_number'];
+  }
+  return $clean;
+};
 $scheduleId = (int)($_POST['schedule_id'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
 $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : [];
@@ -34,6 +53,7 @@ if ($scheduleStatus !== '' && !in_array($scheduleStatus, $allowedScheduleStatuse
   exit;
 }
 $plate = trim((string)($srow['plate_number'] ?? ''));
+$vehPlate = $plate !== '' ? $tmm_resolve_plate($db, $plate) : '';
 
 function normalize_item_status($raw) {
   $v = strtoupper(trim((string)$raw));
@@ -157,13 +177,22 @@ if ($itemStmt) {
     $upSch->execute();
   }
 
-  if ($plate !== '') {
+  if ($vehPlate !== '' && $plate !== '' && $vehPlate !== $plate) {
+    $upPlate = $db->prepare("UPDATE inspection_schedules SET plate_number=? WHERE schedule_id=?");
+    if ($upPlate) {
+      $upPlate->bind_param('si', $vehPlate, $scheduleId);
+      $upPlate->execute();
+      $upPlate->close();
+    }
+  }
+
+  if ($vehPlate !== '') {
     $vehInspection = $overall;
     $vehOperationalStatus = 'Suspended';
     $franchiseId = '';
     $stmtV = $db->prepare("SELECT franchise_id FROM vehicles WHERE plate_number=? LIMIT 1");
     if ($stmtV) {
-      $stmtV->bind_param('s', $plate);
+      $stmtV->bind_param('s', $vehPlate);
       $stmtV->execute();
       $vr = $stmtV->get_result()->fetch_assoc();
       $stmtV->close();
@@ -195,14 +224,14 @@ if ($itemStmt) {
       $passedAt = ($vehInspection === 'Passed') ? date('Y-m-d H:i:s') : null;
       $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=?, inspection_passed_at=? WHERE plate_number=?");
       if ($upVeh) {
-        $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $plate);
+        $upVeh->bind_param('ssss', $vehInspection, $vehOperationalStatus, $passedAt, $vehPlate);
         $upVeh->execute();
         $upVeh->close();
       }
     } else {
       $upVeh = $db->prepare("UPDATE vehicles SET inspection_status=?, status=? WHERE plate_number=?");
       if ($upVeh) {
-        $upVeh->bind_param('sss', $vehInspection, $vehOperationalStatus, $plate);
+        $upVeh->bind_param('sss', $vehInspection, $vehOperationalStatus, $vehPlate);
         $upVeh->execute();
         $upVeh->close();
       }

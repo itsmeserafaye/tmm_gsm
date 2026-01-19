@@ -126,11 +126,11 @@ if ($periodStartSql !== '') {
 }
 $latestSubqueryWhereSql = $latestSubqueryWhere ? ('WHERE ' . implode(' AND ', $latestSubqueryWhere)) : '';
 
-$latestSql = "SELECT s2.plate_number, MAX(ir2.result_id) AS max_result_id
+$latestSql = "SELECT REPLACE(REPLACE(UPPER(s2.plate_number), '-', ''), ' ', '') AS plate_norm, MAX(ir2.result_id) AS max_result_id
   FROM inspection_schedules s2
   JOIN inspection_results ir2 ON ir2.schedule_id=s2.schedule_id
   $latestSubqueryWhereSql
-  GROUP BY s2.plate_number";
+  GROUP BY plate_norm";
 
 $reportWhereSql = $whereParts ? ('WHERE ' . implode(' AND ', $whereParts)) : '';
 
@@ -141,11 +141,11 @@ $sqlCount = "SELECT COUNT(*) AS c
   LEFT JOIN terminal_assignments ta ON ta.plate_number=v.plate_number AND ta.status='Authorized'
   LEFT JOIN routes r ON r.route_id=COALESCE(ta.route_id, v.route_id)
   LEFT JOIN (
-    SELECT s.plate_number, ir.overall_status, ir.submitted_at
+    SELECT REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AS plate_norm, ir.overall_status, ir.submitted_at
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
-    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_result_id=ir.result_id
-  ) last ON last.plate_number=v.plate_number
+    JOIN ($latestSql) l ON l.plate_norm=REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AND l.max_result_id=ir.result_id
+  ) last ON last.plate_norm=REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '')
   $reportWhereSql";
 $resCount = $db->query($sqlCount);
 if ($resCount && ($row = $resCount->fetch_assoc())) {
@@ -165,11 +165,11 @@ $sqlReport = "SELECT v.plate_number, v.operator_name, v.coop_name, v.coop_id, v.
   LEFT JOIN terminal_assignments ta ON ta.plate_number=v.plate_number AND ta.status='Authorized'
   LEFT JOIN routes r ON r.route_id=COALESCE(ta.route_id, v.route_id)
   LEFT JOIN (
-    SELECT s.plate_number, ir.overall_status, ir.submitted_at
+    SELECT REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AS plate_norm, ir.overall_status, ir.submitted_at
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
-    JOIN ($latestSql) l ON l.plate_number=s.plate_number AND l.max_result_id=ir.result_id
-  ) last ON last.plate_number=v.plate_number
+    JOIN ($latestSql) l ON l.plate_norm=REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AND l.max_result_id=ir.result_id
+  ) last ON last.plate_norm=REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '')
   $reportWhereSql
   ORDER BY v.plate_number ASC
   LIMIT $repOffset, $repPageSize";
