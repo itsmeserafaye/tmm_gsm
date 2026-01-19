@@ -23,13 +23,13 @@ $cr = isset($_POST['cr_verified']) ? 1 : 0;
 $or = isset($_POST['or_verified']) ? 1 : 0;
 
 // Update schedule
-$stmt = $db->prepare("UPDATE inspection_schedules SET cr_verified=?, or_verified=?, updated_at=? WHERE schedule_id=?");
+$stmt = $db->prepare("UPDATE inspection_schedules SET cr_verified=?, or_verified=? WHERE schedule_id=?");
 if (!$stmt) {
     echo json_encode(['ok' => false, 'error' => $db->error]);
     exit;
 }
 
-$stmt->bind_param('iisi', $cr, $or, $date, $scheduleId);
+$stmt->bind_param('iii', $cr, $or, $scheduleId);
 if (!$stmt->execute()) {
     echo json_encode(['ok' => false, 'error' => $stmt->error]);
     exit;
