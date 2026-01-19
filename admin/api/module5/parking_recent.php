@@ -17,7 +17,7 @@ elseif ($range === '7d') $rangeDays = 7;
 elseif ($range === '30d') $rangeDays = 30;
 
 if ($kind === 'payments') {
-  $sql = "SELECT t.vehicle_plate, t.parking_area_id, t.amount, t.status, t.created_at, p.name AS area_name
+  $sql = "SELECT t.id, t.vehicle_plate, t.parking_area_id, t.amount, t.status, t.created_at, p.name AS area_name
           FROM parking_transactions t
           LEFT JOIN parking_areas p ON t.parking_area_id = p.id";
   $conds = [];

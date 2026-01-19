@@ -361,15 +361,21 @@ function db() {
   $colPay = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='payment_records'");
   $havePayChannel = false;
   $haveExternalPaymentId = false;
+  $haveExportedToTreasury = false;
+  $haveExportedAt = false;
   if ($colPay) {
     while ($c = $colPay->fetch_assoc()) {
       $cn = $c['COLUMN_NAME'] ?? '';
       if ($cn === 'payment_channel') $havePayChannel = true;
       if ($cn === 'external_payment_id') $haveExternalPaymentId = true;
+      if ($cn === 'exported_to_treasury') $haveExportedToTreasury = true;
+      if ($cn === 'exported_at') $haveExportedAt = true;
     }
   }
   if (!$havePayChannel) { $conn->query("ALTER TABLE payment_records ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL"); }
   if (!$haveExternalPaymentId) { $conn->query("ALTER TABLE payment_records ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL"); }
+  if (!$haveExportedToTreasury) { $conn->query("ALTER TABLE payment_records ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0"); }
+  if (!$haveExportedAt) { $conn->query("ALTER TABLE payment_records ADD COLUMN exported_at DATETIME DEFAULT NULL"); }
 
   $conn->query("CREATE TABLE IF NOT EXISTS treasury_payment_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,

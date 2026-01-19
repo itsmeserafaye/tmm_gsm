@@ -43,9 +43,22 @@ if (!is_array($payload)) {
   exit;
 }
 
-$kind = strtolower(trim((string)($payload['kind'] ?? 'ticket')));
-
 $transactionId = trim((string)($payload['transaction_id'] ?? ($payload['ref'] ?? '')));
+$kind = strtolower(trim((string)($payload['kind'] ?? '')));
+if ($kind === '' && $transactionId !== '') {
+  $stmtK = $db->prepare("SELECT kind FROM treasury_payment_requests WHERE ref=? LIMIT 1");
+  if ($stmtK) {
+    $stmtK->bind_param('s', $transactionId);
+    $stmtK->execute();
+    $rowK = $stmtK->get_result()->fetch_assoc();
+    $stmtK->close();
+    if ($rowK && isset($rowK['kind'])) $kind = strtolower(trim((string)$rowK['kind']));
+  }
+  if ($kind === '') {
+    if (stripos($transactionId, 'park-') === 0) $kind = 'parking';
+    else $kind = 'ticket';
+  }
+}
 $statusRaw = strtoupper(trim((string)($payload['payment_status'] ?? ($payload['status'] ?? ($payload['result'] ?? 'PAID')))));
 $receipt = trim((string)($payload['official_receipt_no'] ?? ($payload['receipt_ref'] ?? ($payload['or_no'] ?? ($payload['receipt'] ?? '')))));
 $amountPaid = (float)($payload['amount_paid'] ?? ($payload['amount'] ?? 0));
@@ -159,6 +172,19 @@ if ($kind === 'ticket') {
 
 if ($kind === 'parking') {
   $id = (int)$transactionId;
+  if ($id <= 0) {
+    $stmtFind = $db->prepare("SELECT transaction_id FROM treasury_payment_requests WHERE ref=? AND kind='parking' LIMIT 1");
+    if ($stmtFind) {
+      $stmtFind->bind_param('s', $transactionId);
+      $stmtFind->execute();
+      $rowFind = $stmtFind->get_result()->fetch_assoc();
+      $stmtFind->close();
+      if ($rowFind && isset($rowFind['transaction_id'])) $id = (int)$rowFind['transaction_id'];
+    }
+  }
+  if ($id <= 0 && preg_match('/([0-9]{1,10})$/', $transactionId, $m)) {
+    $id = (int)$m[1];
+  }
   if ($id <= 0) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'invalid_parking_transaction_id']);

@@ -137,6 +137,11 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Record Payment</span>
           </button>
+
+          <button type="button" id="btnPayTreasury" class="w-full py-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
+            <i data-lucide="banknote" class="w-4 h-4"></i>
+            <span>Pay via Treasury (Digital)</span>
+          </button>
         </form>
 
         <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
@@ -338,6 +343,18 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
                 btn.innerHTML = originalHtml;
                 if(window.lucide) window.lucide.createIcons();
             });
+    });
+  }
+
+  const btnPayTreasury = document.getElementById('btnPayTreasury');
+  if (btnPayTreasury) {
+    btnPayTreasury.addEventListener('click', () => {
+      const inp = document.getElementById('pay-ticket-number');
+      const ticket = inp ? (inp.value || '').trim() : '';
+      if (!ticket) { showToast('Enter a ticket number first', 'error'); return; }
+      const url = `treasury/pay.php?kind=ticket&transaction_id=${encodeURIComponent(ticket)}`;
+      window.open(url, '_blank', 'noopener');
+      showToast('Opening Treasury payment...', 'success');
     });
   }
 })();

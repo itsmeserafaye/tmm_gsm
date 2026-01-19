@@ -128,6 +128,7 @@ require_any_permission(['module5.view','parking.manage']);
                 <select id="filter-status" class="block w-full rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 py-2 pl-3 pr-8 text-slate-900 dark:text-white focus:border-blue-500 focus:ring-blue-500 sm:text-sm shadow-sm">
                     <option value="">All Statuses</option>
                     <option value="Paid">Paid</option>
+                    <option value="Pending Payment">Pending Payment</option>
                     <option value="Unpaid">Unpaid</option>
                 </select>
             </div>
@@ -151,12 +152,13 @@ require_any_permission(['module5.view','parking.manage']);
                         <th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700" id="col-amount">Amount</th>
                         <th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">Status</th>
                         <th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">Date/Time</th>
+                        <th class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="table-body" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300">
                     <!-- JS Populated -->
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-500">
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">
                             <div class="flex flex-col items-center">
                                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
                                 <span>Loading data...</span>
@@ -225,6 +227,11 @@ require_any_permission(['module5.view','parking.manage']);
                                 <option value="Card">Card</option>
                             </select>
                         </div>
+
+                        <label class="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
+                            <input type="checkbox" id="pay-via-treasury" name="pay_via_treasury" value="1" class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300">
+                            <span class="text-sm text-slate-600 font-medium">Pay via Treasury (Digital)</span>
+                        </label>
 
                         <div>
                             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reference No. (Optional)</label>
@@ -326,6 +333,23 @@ window.closePaymentModal = () => toggleModal('paymentModal', false);
 window.openViolationModal = () => toggleModal('violationModal', true);
 window.closeViolationModal = () => toggleModal('violationModal', false);
 
+function showToast(msg, type = 'success') {
+    const id = 'tmm-toast';
+    let el = document.getElementById(id);
+    if (!el) {
+        el = document.createElement('div');
+        el.id = id;
+        el.className = 'fixed top-4 right-4 z-[100] max-w-sm space-y-2';
+        document.body.appendChild(el);
+    }
+    const item = document.createElement('div');
+    const bg = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-600' : 'bg-amber-600');
+    item.className = `${bg} text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium`;
+    item.textContent = msg;
+    el.appendChild(item);
+    setTimeout(() => item.remove(), 3500);
+}
+
 // Tab Switching
 window.switchTab = (tab) => {
     currentTab = tab;
@@ -353,7 +377,7 @@ const fetchData = async () => {
     const range = document.getElementById('filter-range').value;
     const tbody = document.getElementById('table-body');
     
-    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div><span>Updating...</span></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500"><div class="flex flex-col items-center"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div><span>Updating...</span></div></td></tr>`;
     
     try {
         const url = `${(window.TMM_ROOT_URL || '')}/admin/api/module5/parking_recent.php?kind=${currentTab}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}&range=${encodeURIComponent(range)}`;
@@ -362,18 +386,22 @@ const fetchData = async () => {
         
         if(data.ok && data.rows) {
             if(data.rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500 italic">No records found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No records found.</td></tr>`;
                 return;
             }
             
             tbody.innerHTML = data.rows.map(row => {
                 let statusClass = '';
                 if(row.status === 'Paid') statusClass = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+                else if(row.status === 'Pending Payment') statusClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
                 else if(row.status === 'Unpaid') statusClass = 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
                 else statusClass = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
                 
                 const amt = currentTab === 'payments' ? row.amount : row.penalty_amount;
                 const typeLabel = currentTab === 'violations' ? `<div class="text-xs text-slate-400 mt-0.5">${row.violation_type}</div>` : '';
+                const actions = currentTab === 'payments' && row.status !== 'Paid' && row.id
+                    ? `<button type="button" class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white" onclick="window.openTreasuryPay(${Number(row.id)})"><i data-lucide='banknote' class='w-3.5 h-3.5'></i>Pay</button>`
+                    : `<span class="text-xs text-slate-400">—</span>`;
                 
                 return `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -398,6 +426,7 @@ const fetchData = async () => {
                     <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
                         ${new Date(row.created_at).toLocaleDateString()} <span class="text-xs opacity-70">${new Date(row.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </td>
+                    <td class="px-6 py-4">${actions}</td>
                 </tr>
                 `;
             }).join('');
@@ -406,7 +435,7 @@ const fetchData = async () => {
         }
     } catch(e) {
         console.error(e);
-        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Error loading data.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Error loading data.</td></tr>`;
     }
 };
 
@@ -419,6 +448,39 @@ document.getElementById('filter-range').addEventListener('change', fetchData);
 document.addEventListener('DOMContentLoaded', () => {
     if(window.lucide) window.lucide.createIcons();
     fetchData();
+});
+
+window.openTreasuryPay = (txId) => {
+    if (!txId) return;
+    const url = `treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
+    window.open(url, '_blank', 'noopener');
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('paymentModal');
+    const form = modal ? modal.querySelector('form') : null;
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+        const cb = document.getElementById('pay-via-treasury');
+        if (!cb || !cb.checked) return;
+        e.preventDefault();
+        const fd = new FormData(form);
+        try {
+            const res = await fetch(`${(window.TMM_ROOT_URL || '')}/admin/api/module5/parking_create_pending.php`, { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data && data.ok && data.transaction_id) {
+                toggleModal('paymentModal', false);
+                showToast('Opening Treasury payment...', 'success');
+                window.openTreasuryPay(data.transaction_id);
+                setTimeout(() => fetchData(), 1200);
+            } else {
+                showToast((data && (data.error || data.message)) ? (data.error || data.message) : 'Unable to create transaction', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Unable to create transaction', 'error');
+        }
+    });
 });
 
 // Simple debounce polyfill if lodash missing
