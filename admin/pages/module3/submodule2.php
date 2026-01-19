@@ -109,6 +109,7 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
       </div>
       
       <div class="p-6 flex-1">
+        <?php if (has_permission('tickets.settle')): ?>
         <form id="ticket-payment-form" class="space-y-4">
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
@@ -124,18 +125,13 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Receipt Ref</label>
-              <input id="pay-receipt" name="receipt_ref" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="OR Number">
+              <input id="pay-receipt" name="receipt_ref" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="OR Number">
             </div>
           </div>
-
-          <label class="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
-            <input type="checkbox" name="verified_by_treasury" value="1" checked class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300">
-            <span class="text-sm text-slate-600 font-medium">Verified by Treasury</span>
-          </label>
           
           <button type="submit" id="btnPay" class="w-full py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
             <i data-lucide="check" class="w-4 h-4"></i>
-            <span>Record Payment</span>
+            <span>Record Treasury Payment</span>
           </button>
 
           <button type="button" id="btnPayTreasury" class="w-full py-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm">
@@ -143,6 +139,11 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
             <span>Pay via Treasury (Digital)</span>
           </button>
         </form>
+        <?php else: ?>
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300">
+            Payments are processed through the City Treasury. Please coordinate with the Treasurer to settle tickets and issue the official receipt (OR).
+          </div>
+        <?php endif; ?>
 
         <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
           <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Recent Payments</h3>
@@ -307,11 +308,102 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
   }
 
   // Payment Form
+  function setPaymentUiState(state) {
+    const receiptInput = document.getElementById('pay-receipt');
+    const amtInput = document.getElementById('pay-amount');
+    const btnPay = document.getElementById('btnPay');
+    const btnPayTreasury = document.getElementById('btnPayTreasury');
+    const ctx = document.getElementById('pay-ticket-context');
+
+    if (!receiptInput || !amtInput) return;
+
+    if (state && state.paid) {
+      if (state.receipt_ref) {
+        receiptInput.value = state.receipt_ref;
+        receiptInput.placeholder = state.receipt_ref;
+      }
+      if (state.amount_paid && (!amtInput.value || Number(amtInput.value) <= 0)) {
+        amtInput.value = state.amount_paid;
+      }
+
+      receiptInput.readOnly = true;
+      amtInput.readOnly = true;
+      if (btnPay) btnPay.disabled = true;
+      if (btnPayTreasury) btnPayTreasury.disabled = true;
+
+      if (ctx) {
+        const paidAt = state.date_paid ? ` • Paid: ${state.date_paid}` : '';
+        const channel = state.payment_channel ? ` • ${state.payment_channel}` : '';
+        ctx.textContent = `Treasury Confirmed • OR: ${state.receipt_ref || 'N/A'}${channel}${paidAt}`;
+        ctx.className = 'mt-1 text-xs text-emerald-600 font-semibold h-4';
+      }
+    } else {
+      receiptInput.readOnly = false;
+      amtInput.readOnly = false;
+      if (btnPay) btnPay.disabled = false;
+      if (btnPayTreasury) btnPayTreasury.disabled = false;
+    }
+  }
+
+  function fetchPaymentStatus(ticketNumber) {
+    return fetch('api/tickets/payment_status.php?ticket_number=' + encodeURIComponent(ticketNumber))
+      .then(r => r.json());
+  }
+
+  let pollTimer = null;
+  function startTreasuryPoll(ticketNumber) {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    const startedAt = Date.now();
+    const maxMs = 120000;
+    pollTimer = setInterval(() => {
+      fetchPaymentStatus(ticketNumber)
+        .then(d => {
+          if (!d || !d.ok || !d.ticket) return;
+          const t = d.ticket;
+          if (t.is_paid && t.receipt_ref) {
+            setPaymentUiState({
+              paid: true,
+              receipt_ref: t.receipt_ref,
+              amount_paid: t.amount_paid || t.fine_amount,
+              date_paid: t.date_paid || '',
+              payment_channel: t.payment_channel || ''
+            });
+            showToast('Treasury payment confirmed. OR: ' + t.receipt_ref, 'success');
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        })
+        .catch(() => {});
+
+      if (Date.now() - startedAt > maxMs) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        showToast('Waiting for Treasury confirmation... try again after a few seconds.', 'warning');
+      }
+    }, 2000);
+  }
+
   setupSuggestions('pay-ticket-number', 'pay-ticket-suggestions', (item) => {
     const ctx = document.getElementById('pay-ticket-context');
     if(ctx) ctx.textContent = `Plate: ${item.vehicle_plate} • Fine: ₱${item.fine_amount || '0.00'}`;
     const amt = document.getElementById('pay-amount');
     if(amt && !amt.value && item.fine_amount) amt.value = item.fine_amount;
+
+    const ticketNumber = (item.external_ticket_number || item.ticket_number || '').toString();
+    if (ticketNumber) {
+      fetchPaymentStatus(ticketNumber).then(d => {
+        if (d && d.ok && d.ticket) {
+          const t = d.ticket;
+          setPaymentUiState({
+            paid: !!t.is_paid,
+            receipt_ref: t.receipt_ref || '',
+            amount_paid: t.amount_paid || 0,
+            date_paid: t.date_paid || '',
+            payment_channel: t.payment_channel || ''
+          });
+        }
+      }).catch(() => {});
+    }
   });
 
   const payForm = document.getElementById('ticket-payment-form');
@@ -355,6 +447,8 @@ require_any_permission(['module3.view','tickets.validate','tickets.settle']);
       const url = `treasury/pay.php?kind=ticket&transaction_id=${encodeURIComponent(ticket)}`;
       window.open(url, '_blank', 'noopener');
       showToast('Opening Treasury payment...', 'success');
+      showToast('Waiting for Treasury confirmation...', 'warning');
+      startTreasuryPoll(ticket);
     });
   }
 })();

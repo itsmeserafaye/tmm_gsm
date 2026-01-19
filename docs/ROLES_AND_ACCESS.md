@@ -161,6 +161,9 @@ This document defines the real-world roles in the Transport & Mobility Managemen
 - View ticket/payment references and record settlement.
 - Export payment reports as required.
 
+**Payment control (recommended):**
+- Payments should be processed/confirmed through Treasury and supported by an official receipt (OR). Non-Treasury roles should not be able to mark transactions as paid.
+
 **Not allowed (recommended):**
 - Issue or validate tickets.
 - Endorse franchise applications.
@@ -240,4 +243,3 @@ This document defines the real-world roles in the Transport & Mobility Managemen
 - **Treasurer**: Settlement only; no issuance/validation.
 - **ParkingStaff**: Parking/terminal management only.
 - **Viewer**: Read-only across modules; no exports unless required by policy.
-

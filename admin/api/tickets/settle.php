@@ -8,13 +8,20 @@ require_permission('tickets.settle');
 $ticket = trim($_POST['ticket_number'] ?? '');
 $amount = (float)($_POST['amount_paid'] ?? 0);
 $receipt = trim($_POST['receipt_ref'] ?? '');
-$verified = isset($_POST['verified_by_treasury']) ? (int)$_POST['verified_by_treasury'] : 1;
+$verified = 1;
 $channel = trim((string)($_POST['payment_channel'] ?? ''));
 $externalPaymentId = trim((string)($_POST['external_payment_id'] ?? ''));
 $datePaid = trim((string)($_POST['date_paid'] ?? ''));
 
 if ($ticket === '' || $amount <= 0) {
   echo json_encode(['error' => 'Ticket number and amount are required']);
+  exit;
+}
+
+$receipt = trim($receipt);
+if ($receipt === '') {
+  http_response_code(400);
+  echo json_encode(['error' => 'Receipt Ref (OR number) is required']);
   exit;
 }
 

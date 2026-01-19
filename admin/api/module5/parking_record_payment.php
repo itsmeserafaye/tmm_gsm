@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.settle','parking.manage']);
+require_permission('tickets.settle');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   http_response_code(405);
@@ -22,6 +22,11 @@ $externalPaymentId = trim((string)($_POST['external_payment_id'] ?? ''));
 if ($plate === '' || $amount <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_fields']);
+  exit;
+}
+if ($receiptRef === '') {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'receipt_required']);
   exit;
 }
 
