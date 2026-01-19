@@ -452,11 +452,9 @@ if ($resUpcoming) {
                                     <div class="text-xs text-slate-500 mb-3">Uploaded:
                                         <?php echo htmlspecialchars(substr((string) ($orDoc['uploaded_at'] ?? ''), 0, 16), ENT_QUOTES); ?>
                                     </div>
-                                    <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($orDoc['file_path']); ?>"
-                                        target="_blank"
-                                        class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
+                                    <button type="button" onclick="openDocModal('<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($orDoc['file_path']); ?>', 'OR Document')" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
                                         <i data-lucide="eye" class="w-3 h-3"></i> View File
-                                    </a>
+                                    </button>
                                 <?php else: ?>
                                     <div class="text-xs text-slate-400 italic">No document found</div>
                                 <?php endif; ?>
@@ -481,11 +479,9 @@ if ($resUpcoming) {
                                     <div class="text-xs text-slate-500 mb-3">Uploaded:
                                         <?php echo htmlspecialchars(substr((string) ($crDoc['uploaded_at'] ?? ''), 0, 16), ENT_QUOTES); ?>
                                     </div>
-                                    <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($crDoc['file_path']); ?>"
-                                        target="_blank"
-                                        class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
+                                    <button type="button" onclick="openDocModal('<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/uploads/<?php echo rawurlencode($crDoc['file_path']); ?>', 'CR Document')" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-500 hover:underline">
                                         <i data-lucide="eye" class="w-3 h-3"></i> View File
-                                    </a>
+                                    </button>
                                 <?php else: ?>
                                     <div class="text-xs text-slate-400 italic">No document found</div>
                                 <?php endif; ?>
@@ -825,11 +821,12 @@ if ($resUpcoming) {
                                     $plateRow = (string) ($row['plate_number'] ?? '');
                                     $certRefRow = (string) ($row['inspection_cert_ref'] ?? '');
                                     $hasQrRow = ($plateRow !== '' && $certRefRow !== '' && ($st === 'Completed'));
-                                    if ($hasQrRow) {
+                                      if ($hasQrRow) {
                                         $qrPayloadRow = 'CITY-INSPECTION|' . $plateRow . '|' . $certRefRow;
                                         $qrUrlRow = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($qrPayloadRow);
-                                        echo '<button type="button" onclick="event.stopPropagation()" class="btn-show-qr p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-qr-url="' . htmlspecialchars($qrUrlRow, ENT_QUOTES) . '"><i data-lucide="qr-code" class="w-4 h-4"></i></button>';
-                                    }
+                                        // Use click handler directly
+                                        echo '<button type="button" onclick="event.stopPropagation(); window.openQrModal(\''.htmlspecialchars($qrUrlRow, ENT_QUOTES).'\')" class="btn-show-qr p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"><i data-lucide="qr-code" class="w-4 h-4"></i></button>';
+                                      }
                                     ?>
                                 </div>
                             </div>
@@ -891,6 +888,45 @@ if ($resUpcoming) {
     </div>
 </div>
 
+<!-- Document Modal -->
+<div id="doc-modal-overlay"
+    class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] hidden transition-opacity opacity-0">
+    <div
+        class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 w-11/12 max-w-3xl h-5/6 flex flex-col transform transition-all scale-95 border border-slate-200 dark:border-slate-700">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="doc-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Document Viewer</h3>
+            <button type="button" id="doc-modal-close"
+                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="flex-1 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 mb-6">
+            <iframe id="doc-modal-iframe" src="" frameborder="0" class="w-full h-full bg-slate-50 dark:bg-slate-800"></iframe>
+        </div>
+        <button type="button"
+            class="w-full py-2.5 rounded-md bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+            onclick="closeDocModal()">Close</button>
+    </div>
+</div>
+
+<!-- Doc Viewer Modal -->
+<div id="doc-modal-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[100] hidden transition-opacity opacity-0">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col transform transition-all scale-95 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+            <h3 id="doc-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Document Viewer</h3>
+            <button type="button" onclick="closeDocModal()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="flex-1 bg-slate-100 dark:bg-slate-950/50 p-1 overflow-hidden relative">
+             <iframe id="doc-modal-frame" src="" class="w-full h-full rounded border border-slate-200 dark:border-slate-800 bg-white"></iframe>
+             <div id="doc-loading" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                 <i data-lucide="loader-2" class="w-8 h-8 text-blue-500 animate-spin"></i>
+             </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         if (window.lucide) window.lucide.createIcons();
@@ -926,6 +962,10 @@ if ($resUpcoming) {
         var qrModal = document.getElementById('qr-modal-overlay');
         var qrModalImage = document.getElementById('qr-modal-image');
         var qrModalClose = document.getElementById('qr-modal-close');
+        var docModal = document.getElementById('doc-modal-overlay');
+        var docModalIframe = document.getElementById('doc-modal-iframe');
+        var docModalTitle = document.getElementById('doc-modal-title');
+        var docModalClose = document.getElementById('doc-modal-close');
 
         // UI Helpers
         function clearBox(box) {
@@ -965,6 +1005,46 @@ if ($resUpcoming) {
             setTimeout(() => {
                 qrModalImage.src = '';
                 qrModal.classList.add('hidden');
+            }, 300);
+        }
+
+        function openDocModal(url, title) {
+            var ov = document.getElementById('doc-modal-overlay');
+            var fr = document.getElementById('doc-modal-frame');
+            var ti = document.getElementById('doc-modal-title');
+            var ld = document.getElementById('doc-loading');
+
+            if (!ov || !fr) return;
+
+            if (title && ti) ti.textContent = title;
+            fr.src = url;
+
+            if (ld) ld.classList.remove('hidden');
+            fr.onload = function () {
+                if (ld) ld.classList.add('hidden');
+            };
+
+            ov.classList.remove('hidden');
+            setTimeout(() => {
+                ov.classList.remove('opacity-0');
+                ov.querySelector('div').classList.remove('scale-95');
+                ov.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDocModal() {
+            var ov = document.getElementById('doc-modal-overlay');
+            var fr = document.getElementById('doc-modal-frame');
+
+            if (!ov) return;
+
+            ov.classList.add('opacity-0');
+            ov.querySelector('div').classList.remove('scale-100');
+            ov.querySelector('div').classList.add('scale-95');
+
+            setTimeout(() => {
+                ov.classList.add('hidden');
+                if (fr) fr.src = 'about:blank';
             }, 300);
         }
 
@@ -1198,14 +1278,17 @@ if ($resUpcoming) {
             }
         }
 
-        // QR Modal
-        document.addEventListener('click', function (e) {
-            if (e.target.closest('.btn-show-qr')) {
-                var btn = e.target.closest('.btn-show-qr');
-                openQrModal(btn.dataset.qrUrl);
-            }
-            if (e.target === qrModal) closeQrModal();
-        });
+        // QR Modal logic exposed globally
+    window.openQrModal = openQrModal;
+    window.openDocModal = openDocModal;
+    window.closeDocModal = closeDocModal;
+    
+    // Legacy support if needed but updated above
+    document.addEventListener('click', function (e) {
+        if (e.target === qrModal) closeQrModal();
+        if (e.target === docModal) closeDocModal();
+    });
         if (qrModalClose) qrModalClose.addEventListener('click', closeQrModal);
+        if (docModalClose) docModalClose.addEventListener('click', closeDocModal);
     });
 </script>

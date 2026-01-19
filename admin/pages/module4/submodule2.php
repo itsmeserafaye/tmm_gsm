@@ -256,6 +256,201 @@ if ($resPick) {
                                     </span>
                                 </h2>
                                 <div class="flex items-center gap-2 mt-1 text-sm font-medium text-slate-500">
+      $pres = $pStmt->get_result();
+      if ($pres) {
+        while ($pr = $pres->fetch_assoc()) {
+          $photoRows[] = $pr;
+        }
+      }
+    }
+  }
+}
+function opt_sel($current, $value) {
+  return strcasecmp((string)$current, (string)$value) === 0 ? 'selected' : '';
+}
+
+$pickWhereParts = [];
+if ($pickQ !== '') {
+  $esc = $db->real_escape_string($pickQ);
+  $like = '%' . $esc . '%';
+  $pickWhereParts[] = "(s.plate_number LIKE '$like' OR s.location LIKE '$like' OR s.inspector_label LIKE '$like' OR o.name LIKE '$like' OR o.badge_no LIKE '$like')";
+}
+if ($pickMode === 'ready') {
+  $pickWhereParts[] = "s.status IN ('Scheduled','Rescheduled')";
+} elseif ($pickMode === 'completed') {
+  $pickWhereParts[] = "s.status='Completed'";
+} elseif ($pickMode === 'pending_verification') {
+  $pickWhereParts[] = "s.status='Pending Verification'";
+} elseif ($pickMode === 'pending_assignment') {
+  $pickWhereParts[] = "s.status='Pending Assignment'";
+}
+$pickWhereSql = $pickWhereParts ? (' WHERE ' . implode(' AND ', $pickWhereParts)) : '';
+$sqlPick = "SELECT s.schedule_id, s.plate_number, s.scheduled_at, s.location, s.status, s.cr_verified, s.or_verified, s.inspector_label, o.name AS inspector_name, o.badge_no, v.operator_name, v.inspection_cert_ref FROM inspection_schedules s LEFT JOIN officers o ON s.inspector_id=o.officer_id LEFT JOIN vehicles v ON v.plate_number=s.plate_number" . $pickWhereSql . " ORDER BY s.scheduled_at DESC LIMIT 30";
+$resPick = $db->query($sqlPick);
+if ($resPick) {
+  while ($row = $resPick->fetch_assoc()) {
+    $pickSchedules[] = $row;
+  }
+  $pickTotal = count($pickSchedules);
+}
+?>
+
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-2 border-b border-slate-200 dark:border-slate-700 pb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Inspection Execution</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Record checklist findings, upload evidence, and issue compliance certificates.</p>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    <?php if ($flashError !== ''): ?>
+        <div class="rounded-md border border-rose-200 bg-rose-50 p-4 dark:border-rose-900/30 dark:bg-rose-900/20">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i data-lucide="alert-circle" class="h-5 w-5 text-rose-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-semibold text-rose-800 dark:text-rose-200"><?php echo htmlspecialchars($flashError, ENT_QUOTES); ?></p>
+                </div>
+            </div>
+        </div>
+    <?php elseif ($flashNotice !== ''): ?>
+        <div class="rounded-md border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/20">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i data-lucide="check-circle" class="h-5 w-5 text-emerald-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-200"><?php echo htmlspecialchars($flashNotice, ENT_QUOTES); ?></p>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Selection List -->
+        <div class="space-y-6">
+            <div class="overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm h-full flex flex-col">
+                <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="list-checks" class="w-5 h-5 text-slate-500 dark:text-slate-300"></i>
+                            Select Schedule
+                        </h2>
+                        <a href="?page=module4/submodule1" class="text-sm font-semibold text-blue-700 hover:text-blue-800">Go to Scheduling</a>
+                    </div>
+                    
+                    <form method="GET" class="space-y-3">
+                        <input type="hidden" name="page" value="module4/submodule2">
+                        <?php if ($scheduleId > 0): ?>
+                            <input type="hidden" name="schedule_id" value="<?php echo (int)$scheduleId; ?>">
+                        <?php endif; ?>
+                        
+                        <input name="pick_q" value="<?php echo htmlspecialchars($pickQ, ENT_QUOTES); ?>" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-3 text-sm font-semibold text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="Search Plate, Inspector...">
+                        
+                        <div class="flex gap-2">
+                            <select name="pick_mode" class="block w-full rounded-md bg-white dark:bg-slate-900/50 py-2.5 px-3 text-sm font-semibold text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none transition-all">
+                                <option value="ready" <?php echo $pickMode === 'ready' ? 'selected' : ''; ?>>Ready for Inspection</option>
+                                <option value="completed" <?php echo $pickMode === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="pending_verification" <?php echo $pickMode === 'pending_verification' ? 'selected' : ''; ?>>Pending Docs</option>
+                                <option value="all" <?php echo $pickMode === 'all' ? 'selected' : ''; ?>>All Schedules</option>
+                            </select>
+                            <button type="submit" class="rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2 text-sm font-semibold text-white transition-colors shadow-sm">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar max-h-[600px]">
+                    <?php if ($pickSchedules): ?>
+                        <?php foreach ($pickSchedules as $r): ?>
+                            <?php
+                                $sid = (int)($r['schedule_id'] ?? 0);
+                                $isActive = $sid === $scheduleId;
+                                $plate = (string)($r['plate_number'] ?? '');
+                                $st = (string)($r['status'] ?? '');
+                                $crOk = (int)($r['cr_verified'] ?? 0) === 1;
+                                $orOk = (int)($r['or_verified'] ?? 0) === 1;
+                                
+                                $statusColor = 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+                                if ($st === 'Completed') $statusColor = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+                                if ($st === 'Scheduled' || $st === 'Rescheduled') $statusColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+                                if ($st === 'Pending Verification') $statusColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                            ?>
+                            <a href="?page=module4/submodule2&schedule_id=<?php echo $sid; ?>" class="block group relative p-4 rounded-2xl border transition-all duration-300 <?php echo $isActive ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 shadow-md ring-1 ring-blue-300 dark:ring-blue-700' : 'bg-white dark:bg-slate-800 border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:border-slate-200 dark:hover:border-slate-600'; ?>">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div class="font-black text-sm text-slate-800 dark:text-white"><?php echo htmlspecialchars($plate, ENT_QUOTES); ?></div>
+                                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">#<?php echo $sid; ?></div>
+                                    </div>
+                                    <span class="px-2 py-1 rounded-lg text-[10px] font-bold <?php echo $statusColor; ?>"><?php echo htmlspecialchars($st, ENT_QUOTES); ?></span>
+                                </div>
+                                
+                                <div class="flex items-center gap-2 text-xs font-medium text-slate-500 mb-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                    <?php echo htmlspecialchars(substr((string)($r['scheduled_at'] ?? ''), 0, 16), ENT_QUOTES); ?>
+                                </div>
+
+                                <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold <?php echo $crOk ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-600 bg-rose-50 dark:bg-rose-900/20'; ?>">
+                                        CR <?php echo $crOk ? '✓' : '✗'; ?>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold <?php echo $orOk ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' : 'text-rose-600 bg-rose-50 dark:bg-rose-900/20'; ?>">
+                                        OR <?php echo $orOk ? '✓' : '✗'; ?>
+                                    </span>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="h-48 flex flex-col items-center justify-center text-center p-6">
+                            <i data-lucide="inbox" class="w-8 h-8 text-slate-300 mb-2"></i>
+                            <p class="text-xs font-medium text-slate-500">No schedules match your filters.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Inspection Details -->
+        <div class="lg:col-span-2 space-y-6">
+            <?php if ($schedule): ?>
+                <?php
+                    $plateNo = (string)($schedule['plate_number'] ?? '');
+                    $docsOk = ((int)($schedule['cr_verified'] ?? 0) === 1 && (int)($schedule['or_verified'] ?? 0) === 1);
+                    $schStatus = (string)($schedule['status'] ?? '');
+                    $canInspect = in_array($schStatus, ['Scheduled','Rescheduled','Completed'], true);
+                    $certRef = (string)($schedule['inspection_cert_ref'] ?? '');
+                    
+                    $inspLabel = trim((string)($schedule['inspector_label'] ?? ''));
+                    if ($inspLabel === '') {
+                        $inspParts = [];
+                        if (!empty($schedule['inspector_name'])) $inspParts[] = $schedule['inspector_name'];
+                        if (!empty($schedule['badge_no'])) $inspParts[] = $schedule['badge_no'];
+                        $inspLabel = implode(' - ', $inspParts);
+                    }
+                    
+                    $qrUrlCurrent = '';
+                    if ($plateNo !== '' && $certRef !== '') {
+                        $qrPayloadCurrent = 'CITY-INSPECTION|' . $plateNo . '|' . $certRef;
+                        $qrUrlCurrent = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($qrPayloadCurrent);
+                    }
+                ?>
+                
+                <!-- Info Card -->
+                <div class="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-xl shadow-slate-200/40 dark:shadow-none p-6">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                    <div class="relative">
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+                                    <?php echo htmlspecialchars($plateNo, ENT_QUOTES); ?>
+                                    <span class="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300">
+                                        <?php echo htmlspecialchars((string)($schedule['inspection_type'] ?? 'Annual'), ENT_QUOTES); ?>
+                                    </span>
+                                </h2>
+                                <div class="flex items-center gap-2 mt-1 text-sm font-medium text-slate-500">
                                     <i data-lucide="user" class="w-4 h-4"></i>
                                     <?php echo htmlspecialchars($inspLabel ?: 'Unassigned', ENT_QUOTES); ?>
                                 </div>
@@ -265,7 +460,7 @@ if ($resPick) {
                                 <div class="px-4 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold flex items-center gap-2">
                                     <i data-lucide="alert-triangle" class="w-4 h-4"></i>
                                     Docs Unverified
-                                    <a href="?page=module4/submodule1&plate=<?php echo urlencode($plateNo); ?>&schedule_id=<?php echo $scheduleId; ?>" class="underline hover:text-rose-800 ml-1">Fix</a>
+                                    <button type="button" onclick="openVerifyModal()" class="underline hover:text-rose-800 ml-1">Verify Now</button>
                                 </div>
                             <?php elseif (!$canInspect): ?>
                                 <div class="px-4 py-2 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold flex items-center gap-2">
@@ -337,7 +532,8 @@ if ($resPick) {
                                         $cur = strtoupper((string)($latestItems[$code] ?? ''));
                                         $curVal = ($cur === 'PASS' || $cur === 'PASSED') ? 'Pass' : (($cur === 'FAIL' || $cur === 'FAILED') ? 'Fail' : '');
                                 ?>
-                                    <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700/50">
+                                    <div class=
+                                    "flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border border-slate-100 dark:border-slate-700/50">
                                         <span class="text-sm font-bold text-slate-700 dark:text-slate-200"><?php echo $label; ?></span>
                                         <input type="hidden" name="items[<?php echo $code; ?>]" id="item-<?php echo $code; ?>" data-item-code="<?php echo $code; ?>" value="<?php echo htmlspecialchars($curVal, ENT_QUOTES); ?>">
                                         
@@ -495,6 +691,31 @@ if ($resPick) {
             </div>
         </div>
         <button type="button" id="qr-modal-close" class="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Close</button>
+    </div>
+</div>
+
+<!-- Verify Modal -->
+<div id="verify-modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] hidden transition-opacity opacity-0">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 w-96 transform transition-all scale-95 border border-slate-100 dark:border-slate-700">
+        <h3 class="text-xl font-black text-slate-800 dark:text-white mb-4">Verify Documents</h3>
+        <p class="text-sm text-slate-500 mb-6">Confirm that you have physically checked the documents.</p>
+        
+        <form id="verify-docs-form" class="space-y-4">
+            <input type="hidden" name="schedule_id" value="<?php echo (int)$scheduleId; ?>">
+            <label class="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 cursor-pointer border border-transparent hover:border-blue-200 transition-colors">
+                <input type="checkbox" name="cr_verified" value="1" <?php echo ((int)($schedule['cr_verified']??0)===1)?'checked':''; ?> class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+                <span class="font-bold text-slate-700 dark:text-slate-200">CR Verified</span>
+            </label>
+            <label class="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 cursor-pointer border border-transparent hover:border-blue-200 transition-colors">
+                <input type="checkbox" name="or_verified" value="1" <?php echo ((int)($schedule['or_verified']??0)===1)?'checked':''; ?> class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+                <span class="font-bold text-slate-700 dark:text-slate-200">OR Verified</span>
+            </label>
+            
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeVerifyModal()" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 py-3 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-colors">Save</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -691,5 +912,53 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === qrModal) closeQrModal();
     });
     if (qrModalClose) qrModalClose.addEventListener('click', closeQrModal);
+
+    // Verify Modal Logic
+    var vModal = document.getElementById('verify-modal-overlay');
+    window.openVerifyModal = function() {
+        if(!vModal) return;
+        vModal.classList.remove('hidden');
+        setTimeout(() => {
+            vModal.classList.remove('opacity-0');
+            vModal.querySelector('div').classList.remove('scale-95');
+            vModal.querySelector('div').classList.add('scale-100');
+        }, 10);
+    };
+    window.closeVerifyModal = function() {
+        if(!vModal) return;
+        vModal.classList.add('opacity-0');
+        vModal.querySelector('div').classList.remove('scale-100');
+        vModal.querySelector('div').classList.add('scale-95');
+        setTimeout(() => vModal.classList.add('hidden'), 300);
+    };
+    
+    var vForm = document.getElementById('verify-docs-form');
+    if(vForm) {
+        vForm.addEventListener('submit', function(e){
+            e.preventDefault();
+            var fd = new FormData(this);
+            var btn = this.querySelector('button[type="submit"]');
+            var oldIdx = btn.innerHTML;
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            
+            fetch((window.TMM_ROOT_URL || '') + '/admin/api/module4/verify_docs.php', { method: 'POST', body: fd })
+                .then(res => res.json())
+                .then(data => {
+                    if(data && data.ok) {
+                        window.location.reload();
+                    } else {
+                        alert(data.error || 'Failed to verify');
+                        btn.disabled = false;
+                        btn.innerHTML = oldIdx;
+                    }
+                })
+                .catch(err => {
+                    alert('Error: ' + err);
+                    btn.disabled = false;
+                    btn.innerHTML = oldIdx;
+                });
+        });
+    }
 });
 </script>
