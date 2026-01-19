@@ -103,7 +103,7 @@ if ($repTerminal !== '') {
 if ($repQ !== '') {
   $esc = $db->real_escape_string($repQ);
   $like = '%' . $esc . '%';
-  $whereParts[] = "(v.plate_number LIKE '$like' OR v.operator_name LIKE '$like' OR v.coop_name LIKE '$like' OR r.route_name LIKE '$like' OR r.route_id LIKE '$like' OR ta.terminal_name LIKE '$like')";
+  $whereParts[] = "(COALESCE(v.plate_number, sch.plate_number, '') LIKE '$like' OR v.operator_name LIKE '$like' OR v.coop_name LIKE '$like' OR r.route_name LIKE '$like' OR r.route_id LIKE '$like' OR ta.terminal_name LIKE '$like')";
 }
 if ($repStatus !== '') {
   $stKey = strtolower(trim($repStatus));
@@ -132,12 +132,27 @@ $latestSql = "SELECT REPLACE(REPLACE(UPPER(s2.plate_number), '-', ''), ' ', '') 
   $latestSubqueryWhereSql
   GROUP BY plate_norm";
 
+$plateIndexSql = "SELECT DISTINCT REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') AS plate_norm
+  FROM vehicles
+  WHERE plate_number IS NOT NULL AND plate_number <> ''
+  UNION
+  SELECT DISTINCT REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') AS plate_norm
+  FROM inspection_schedules
+  WHERE plate_number IS NOT NULL AND plate_number <> ''";
+$latestScheduleSql = "SELECT REPLACE(REPLACE(UPPER(plate_number), '-', ''), ' ', '') AS plate_norm, MAX(schedule_id) AS max_schedule_id
+  FROM inspection_schedules
+  WHERE plate_number IS NOT NULL AND plate_number <> ''
+  GROUP BY plate_norm";
+
 $reportWhereSql = $whereParts ? ('WHERE ' . implode(' AND ', $whereParts)) : '';
 
 $reportRows = [];
 $reportTotal = 0;
 $sqlCount = "SELECT COUNT(*) AS c
-  FROM vehicles v
+  FROM ($plateIndexSql) pi
+  LEFT JOIN vehicles v ON REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '') = pi.plate_norm
+  LEFT JOIN ($latestScheduleSql) si ON si.plate_norm = pi.plate_norm
+  LEFT JOIN inspection_schedules sch ON sch.schedule_id = si.max_schedule_id
   LEFT JOIN terminal_assignments ta ON ta.plate_number=v.plate_number AND ta.status='Authorized'
   LEFT JOIN routes r ON r.route_id=COALESCE(ta.route_id, v.route_id)
   LEFT JOIN (
@@ -145,7 +160,7 @@ $sqlCount = "SELECT COUNT(*) AS c
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
     JOIN ($latestSql) l ON l.plate_norm=REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AND l.max_result_id=ir.result_id
-  ) last ON last.plate_norm=REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '')
+  ) last ON last.plate_norm=pi.plate_norm
   $reportWhereSql";
 $resCount = $db->query($sqlCount);
 if ($resCount && ($row = $resCount->fetch_assoc())) {
@@ -157,11 +172,15 @@ if ($repPage > $repMaxPage) $repPage = $repMaxPage;
 $repOffset = ($repPage - 1) * $repPageSize;
 if ($repOffset < 0) $repOffset = 0;
 
-$sqlReport = "SELECT v.plate_number, v.operator_name, v.coop_name, v.coop_id, v.route_id AS vehicle_route_id, v.inspection_status AS vehicle_inspection_status, v.inspection_cert_ref,
+$sqlReport = "SELECT COALESCE(v.plate_number, sch.plate_number, pi.plate_norm) AS plate_number, v.operator_name, v.coop_name, v.coop_id, v.route_id AS vehicle_route_id, v.inspection_status AS vehicle_inspection_status, v.inspection_cert_ref, c.certificate_number AS schedule_cert_ref,
   ta.route_id AS assigned_route_id, ta.terminal_name,
   r.route_name,
   last.overall_status AS last_status, last.submitted_at AS last_submitted_at
-  FROM vehicles v
+  FROM ($plateIndexSql) pi
+  LEFT JOIN vehicles v ON REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '') = pi.plate_norm
+  LEFT JOIN ($latestScheduleSql) si ON si.plate_norm = pi.plate_norm
+  LEFT JOIN inspection_schedules sch ON sch.schedule_id = si.max_schedule_id
+  LEFT JOIN inspection_certificates c ON c.schedule_id = sch.schedule_id AND c.status='Issued'
   LEFT JOIN terminal_assignments ta ON ta.plate_number=v.plate_number AND ta.status='Authorized'
   LEFT JOIN routes r ON r.route_id=COALESCE(ta.route_id, v.route_id)
   LEFT JOIN (
@@ -169,9 +188,9 @@ $sqlReport = "SELECT v.plate_number, v.operator_name, v.coop_name, v.coop_id, v.
     FROM inspection_schedules s
     JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
     JOIN ($latestSql) l ON l.plate_norm=REPLACE(REPLACE(UPPER(s.plate_number), '-', ''), ' ', '') AND l.max_result_id=ir.result_id
-  ) last ON last.plate_norm=REPLACE(REPLACE(UPPER(v.plate_number), '-', ''), ' ', '')
+  ) last ON last.plate_norm=pi.plate_norm
   $reportWhereSql
-  ORDER BY v.plate_number ASC
+  ORDER BY COALESCE(v.plate_number, sch.plate_number, pi.plate_norm) ASC
   LIMIT $repOffset, $repPageSize";
 $resReport = $db->query($sqlReport);
 if ($resReport) {
@@ -490,6 +509,9 @@ $terminalsForSelect = array_map(function ($t) { return (string)($t['name'] ?? ''
                                     $statusLabel = $status !== '' ? $status : 'No Result';
                                     $badge = badge_class_for_status($status);
                                     $certRef = (string)($row['inspection_cert_ref'] ?? '');
+                                    if ($certRef === '') {
+                                        $certRef = (string)($row['schedule_cert_ref'] ?? '');
+                                    }
                                     $qrUrl = '';
                                     if ($plate !== '' && $certRef !== '') {
                                         $qrPayload = 'CITY-INSPECTION|' . $plate . '|' . $certRef;
