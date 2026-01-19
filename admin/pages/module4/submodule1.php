@@ -759,7 +759,7 @@ if ($resUpcoming) {
                 <div class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
                     <?php if ($upcomingSchedules): ?>
                         <?php foreach ($upcomingSchedules as $row): ?>
-                            <div onclick="window.location.href='?page=module4/submodule1&plate=<?php echo urlencode($row['plate_number'] ?? ''); ?>&schedule_id=<?php echo (int) $row['schedule_id']; ?>'"
+                            <div onclick="window.location.href='?page=module4/submodule2&pick_q=<?php echo urlencode($row['plate_number'] ?? ''); ?>&pick_mode=all&schedule_id=<?php echo (int) $row['schedule_id']; ?>'"
                                 class="group relative p-4 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/30 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 transition-all cursor-pointer shadow-sm hover:shadow-md">
                                 <div class="flex justify-between items-start mb-2">
                                     <div>
