@@ -94,6 +94,13 @@ function rbac_has_unique_index_on(mysqli $db, string $table, string $column): bo
   return (bool)($res && $res->num_rows > 0);
 }
 
+function rbac_column_exists(mysqli $db, string $table, string $column): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($column);
+  $res = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return (bool)($res && $res->num_rows > 0);
+}
+
 function rbac_ensure_auto_increment(mysqli $db, string $table, string $idCol, string $sqlType): void {
   $t = $db->real_escape_string($table);
   $c = $db->real_escape_string($idCol);
@@ -130,6 +137,10 @@ function rbac_repair_schema(mysqli $db): void {
   rbac_ensure_auto_increment($db, 'rbac_permissions', 'id', 'INT');
   if (!rbac_has_unique_index_on($db, 'rbac_permissions', 'code')) {
     $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
+  }
+
+  if (!rbac_column_exists($db, 'rbac_user_roles', 'assigned_at')) {
+    $db->query("ALTER TABLE rbac_user_roles ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   }
 
   rbac_ensure_primary_key($db, 'rbac_login_audit', 'id');

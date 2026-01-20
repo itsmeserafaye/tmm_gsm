@@ -60,6 +60,7 @@ module1.write	Encoder, Admin
 module1.delete	Admin
 module1.link_vehicle	Encoder, Admin
 module1.route_manage	Admin
+
 Module 2 – Franchise Management
 Permission	Role
 module2.read	All roles
@@ -67,18 +68,21 @@ module2.apply	Encoder, Admin
 module2.endorse	Franchise Officer, Admin
 module2.approve	Admin
 module2.history	Admin, Franchise Officer
+
 Module 3 – Traffic Violation
 Permission	Role
 module3.issue	Traffic Enforcer
 module3.read	All roles
 module3.settle	Treasurer
 module3.analytics	Admin
+
 Module 4 – Vehicle Inspection
 Permission	Role
 module4.schedule	Inspector, Admin
 module4.inspect	Inspector
 module4.read	All roles
 module4.certify	Inspector, Admin
+
 Module 5 – Parking & Terminal
 Permission	Role
 module5.manage_terminal	Terminal Manager, Admin

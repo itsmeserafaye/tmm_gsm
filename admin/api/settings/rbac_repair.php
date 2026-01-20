@@ -42,6 +42,11 @@ try {
     if ($checkPK->num_rows === 0) {
         $db->query("ALTER TABLE rbac_user_roles ADD PRIMARY KEY (user_id, role_id)");
     }
+    // Ensure assigned_at column exists (older schemas may not have it)
+    $checkAssignedAt = $db->query("SHOW COLUMNS FROM rbac_user_roles LIKE 'assigned_at'");
+    if (!$checkAssignedAt || $checkAssignedAt->num_rows === 0) {
+        $db->query("ALTER TABLE rbac_user_roles ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    }
 
     // 5. Ensure Auto Increment on IDs
     $db->query("ALTER TABLE rbac_roles MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
