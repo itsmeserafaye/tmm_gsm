@@ -10,8 +10,6 @@ return [
         'Traffic Enforcer' => 'Issues tickets',
         'Treasurer / Cashier' => 'Payment & settlement',
         'Terminal Manager' => 'Handles terminals & parking',
-        'Viewer' => 'Read-only access',
-        'Commuter' => 'Citizen portal account',
     ],
     'permissions' => [
         // Module 1
@@ -116,12 +114,5 @@ return [
             'module5.read', 'module5.manage_terminal', 'module5.assign_vehicle',
             'dashboard.view'
         ],
-
-        'Viewer' => [
-             'module1.read', 'module2.read', 'module3.read', 'module4.read', 'module5.read',
-             'dashboard.view'
-        ],
-
-        'Commuter' => []
     ]
 ];
