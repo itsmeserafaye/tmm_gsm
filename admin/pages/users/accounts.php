@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchRoles() {
     try {
-        const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_roles.php');
+        const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_roles.php?t=' + Date.now());
         const data = await res.json();
         if (data.ok) {
             allRoles = data.roles;
@@ -220,18 +220,20 @@ function renderRolesInput() {
     container.innerHTML = '';
     
     allRoles.forEach(role => {
-        const div = document.createElement('div');
-        div.className = 'relative flex items-start';
-        div.innerHTML = `
+        // Use a wrapper label to ensure the whole area is clickable and toggles the checkbox
+        const label = document.createElement('label');
+        label.className = 'relative flex items-start cursor-pointer group p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors';
+        label.innerHTML = `
             <div class="flex h-6 items-center">
-                <input id="role-${role.id}" name="role_ids[]" value="${role.id}" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 bg-slate-100">
+                <input id="role-${role.id}" name="role_ids[]" value="${role.id}" type="checkbox" 
+                    class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 bg-slate-100 cursor-pointer">
             </div>
-            <div class="ml-3 text-sm leading-6">
-                <label for="role-${role.id}" class="font-bold text-slate-900 dark:text-white">${role.name}</label>
-                <p class="text-xs text-slate-500">${role.description || ''}</p>
+            <div class="ml-3 text-sm leading-6 select-none">
+                <span class="font-bold text-slate-900 dark:text-white block">${role.name}</span>
+                <span class="text-xs text-slate-500 block">${role.description || ''}</span>
             </div>
         `;
-        container.appendChild(div);
+        container.appendChild(label);
     });
 }
 
@@ -244,6 +246,7 @@ async function fetchUsers(q = '', status = '') {
         const url = new URL((window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_users.php', window.location.origin);
         if (q) url.searchParams.append('q', q);
         if (status) url.searchParams.append('status', status);
+        url.searchParams.append('t', Date.now()); // Prevent caching
 
         const res = await fetch(url);
         const data = await res.json();
@@ -318,12 +321,9 @@ function openUserModal(isEdit = false) {
     modal.classList.remove('hidden');
     document.getElementById('modal-title').textContent = isEdit ? 'Edit Account' : 'New Account';
     
-    // Toggle password field visibility/hint
     const pwdContainer = document.getElementById('password-container');
     if (isEdit) {
-        pwdContainer.style.display = 'none'; // Hide password on edit for now (reset separate) or make it optional?
-        // Actually, user update API doesn't support password update. 
-        // Let's hide it for Edit.
+        pwdContainer.style.display = 'none';
     } else {
         pwdContainer.style.display = 'block';
     }
@@ -338,27 +338,31 @@ function closeUserModal() {
 }
 
 function editUser(id) {
-    const user = allUsers.find(u => u.id === id);
-    if (!user) return;
+    // Force refresh of roles to ensure we have latest IDs
+    fetchRoles().then(() => {
+        const user = allUsers.find(u => u.id === id);
+        if (!user) return;
 
-    document.getElementById('user-id').value = user.id;
-    document.getElementById('user-first').value = user.first_name;
-    document.getElementById('user-last').value = user.last_name;
-    document.getElementById('user-middle').value = user.middle_name;
-    document.getElementById('user-suffix').value = user.suffix;
-    document.getElementById('user-email').value = user.email;
-    document.getElementById('user-emp-no').value = user.employee_no;
-    document.getElementById('user-dept').value = user.department;
-    document.getElementById('user-pos').value = user.position_title;
-    document.getElementById('user-status').value = user.status;
+        document.getElementById('user-id').value = user.id;
+        document.getElementById('user-first').value = user.first_name;
+        document.getElementById('user-last').value = user.last_name;
+        document.getElementById('user-middle').value = user.middle_name;
+        document.getElementById('user-suffix').value = user.suffix;
+        document.getElementById('user-email').value = user.email;
+        document.getElementById('user-emp-no').value = user.employee_no;
+        document.getElementById('user-dept').value = user.department;
+        document.getElementById('user-pos').value = user.position_title;
+        document.getElementById('user-status').value = user.status;
 
-    // Check roles
-    const roleIds = user.roles.map(r => r.id);
-    document.querySelectorAll('input[name="role_ids[]"]').forEach(cb => {
-        cb.checked = roleIds.includes(parseInt(cb.value));
+        // Check roles
+        // We must match against the numeric ID
+        const userRoleIds = user.roles.map(r => parseInt(r.id));
+        document.querySelectorAll('input[name="role_ids[]"]').forEach(cb => {
+            cb.checked = userRoleIds.includes(parseInt(cb.value));
+        });
+
+        openUserModal(true);
     });
-
-    openUserModal(true);
 }
 
 async function saveUser() {
@@ -378,6 +382,12 @@ async function saveUser() {
     if(window.lucide) window.lucide.createIcons();
 
     const formData = new FormData(form);
+    
+    // Explicitly handle roles to be safe
+    const checkedRoles = Array.from(document.querySelectorAll('input[name="role_ids[]"]:checked')).map(cb => cb.value);
+    
+    // Debug
+    // console.log('Saving roles:', checkedRoles);
 
     try {
         let url = (window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_user_create.php';
@@ -392,14 +402,17 @@ async function saveUser() {
         const data = await res.json();
 
         if (data.ok) {
-            // If Edit, we also need to save roles separately because update API doesn't handle roles
             if (isEdit) {
                 const roleFormData = new FormData();
                 roleFormData.append('id', id);
-                document.querySelectorAll('input[name="role_ids[]"]:checked').forEach(cb => {
-                    roleFormData.append('role_ids[]', cb.value);
-                });
+                checkedRoles.forEach(rid => roleFormData.append('role_ids[]', rid));
                 
+                // If no roles checked, we should probably send something or the API handles it (errors out)
+                if (checkedRoles.length === 0) {
+                     // The API expects at least one role usually, or it throws 'no_roles'
+                     // Let's allow it to error if that's the logic, or handle it gracefully
+                }
+
                 const roleRes = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_user_set_roles.php', {
                     method: 'POST',
                     body: roleFormData
@@ -410,14 +423,12 @@ async function saveUser() {
 
             closeUserModal();
             fetchUsers();
-            
-            // Show success toast? (For now just refresh table)
         } else {
             alert('Error: ' + (data.error || 'Failed to save'));
         }
     } catch (e) {
         console.error(e);
-        alert('An error occurred while saving.');
+        alert('An error occurred while saving: ' + e.message);
     } finally {
         btn.innerHTML = originalBtnContent;
         btn.disabled = false;
