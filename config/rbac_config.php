@@ -10,7 +10,6 @@ return [
         'Traffic Enforcer' => 'Issues tickets',
         'Treasurer / Cashier' => 'Payment & settlement',
         'Terminal Manager' => 'Handles terminals & parking',
-        // Keeping Viewer/Commuter as they seem to be system defaults or required by other parts
         'Viewer' => 'Read-only access',
         'Commuter' => 'Citizen portal account',
     ],
@@ -47,59 +46,82 @@ return [
         'module5.parking_fees' => 'Module 5 - Parking Fees',
         'module5.read' => 'Module 5 - Read Access',
 
-        // System
+        // System (Implied/Required for UI)
         'dashboard.view' => 'View Dashboard',
         'settings.manage' => 'Manage Settings',
         'reports.export' => 'Export Reports',
         'analytics.view' => 'View Analytics',
         'analytics.train' => 'Train Analytics',
-        'users.manage' => 'Manage Users', // Implied for SuperAdmin
+        'users.manage' => 'Manage Users',
     ],
     'role_permissions' => [
-        'SuperAdmin' => ['*'], // Special handling or list all
+        'SuperAdmin' => ['*'],
+        
         'Admin / Transport Officer' => [
+            // Module 1: All permissions per Granular
             'module1.read', 'module1.write', 'module1.delete', 'module1.link_vehicle', 'module1.route_manage',
+            
+            // Module 2: All permissions per Granular (apply, endorse, approve, history)
             'module2.read', 'module2.apply', 'module2.endorse', 'module2.approve', 'module2.history',
-            'module3.read', 'module3.read', 'module3.analytics', // Admin has read and analytics
-            'module4.read', 'module4.schedule', 'module4.certify', // Admin has schedule, certify
+            
+            // Module 3: read, analytics (Granular does NOT give issue or settle to Admin)
+            'module3.read', 'module3.analytics',
+            
+            // Module 4: schedule, certify (Granular does NOT give inspect to Admin)
+            'module4.read', 'module4.schedule', 'module4.certify',
+            
+            // Module 5: manage_terminal (Granular does NOT give assign_vehicle or parking_fees to Admin)
             'module5.read', 'module5.manage_terminal',
+            
+            // System
             'dashboard.view', 'settings.manage', 'reports.export', 'analytics.view', 'analytics.train'
         ],
+
         'Franchise Officer' => [
             'module1.read',
-            'module2.read', 'module2.apply', 'module2.endorse', 'module2.history',
+            // Module 2: endorse, history (Granular: apply is Encoder/Admin, approve is Admin)
+            // Summary says "Module 2 (full)", but Granular is specific.
+            // Keeping strict to Granular + read.
+            'module2.read', 'module2.endorse', 'module2.history',
             'dashboard.view', 'reports.export'
         ],
+
         'Encoder' => [
             'module1.read', 'module1.write', 'module1.link_vehicle',
             'module2.read', 'module2.apply',
             'dashboard.view'
         ],
+
         'Inspector' => [
             'module1.read',
             'module4.read', 'module4.schedule', 'module4.inspect', 'module4.certify',
             'dashboard.view'
         ],
+
         'Traffic Enforcer' => [
             'module1.read',
             'module3.read', 'module3.issue',
             'dashboard.view'
         ],
+
         'Treasurer / Cashier' => [
-            'module1.read', // Not explicitly in list but implied by 'read' access usually? RBAC.md says "Access: Module 3 (payment), Module 5 (parking fees)". But later "Module 3 read: All roles".
+            'module1.read',
             'module3.read', 'module3.settle',
             'module5.read', 'module5.parking_fees',
             'dashboard.view'
         ],
+
         'Terminal Manager' => [
             'module1.read',
             'module5.read', 'module5.manage_terminal', 'module5.assign_vehicle',
             'dashboard.view'
         ],
+
         'Viewer' => [
              'module1.read', 'module2.read', 'module3.read', 'module4.read', 'module5.read',
              'dashboard.view'
         ],
+
         'Commuter' => []
     ]
 ];
