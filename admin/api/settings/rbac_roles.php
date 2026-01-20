@@ -8,7 +8,7 @@ try {
   $db = db();
   require_role(['SuperAdmin']);
 
-  $res = $db->query("SELECT id, name, description FROM rbac_roles ORDER BY name ASC");
+  $res = $db->query("SELECT MIN(id) AS id, name, MAX(COALESCE(description,'')) AS description FROM rbac_roles GROUP BY name ORDER BY name ASC");
   $roles = [];
   if ($res) {
     while ($row = $res->fetch_assoc()) {

@@ -75,10 +75,84 @@ function rbac_ensure_schema(mysqli $db) {
     CONSTRAINT fk_rbac_login_audit_user FOREIGN KEY (user_id) REFERENCES rbac_users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
 
+  rbac_repair_roles($db);
   rbac_seed_roles_permissions($db);
   rbac_seed_default_admin($db);
   rbac_migrate_commuter_role($db);
   rbac_ensure_compat_views($db);
+}
+
+function rbac_has_unique_index_on(mysqli $db, string $table, string $column): bool {
+  $tableEsc = $db->real_escape_string($table);
+  $colEsc = $db->real_escape_string($column);
+  $res = $db->query("SHOW INDEX FROM `$tableEsc` WHERE Column_name='$colEsc' AND Non_unique=0");
+  return (bool)($res && $res->num_rows > 0);
+}
+
+function rbac_repair_roles(mysqli $db): void {
+  $col = $db->query("SHOW COLUMNS FROM rbac_roles LIKE 'id'");
+  if ($col) {
+    $c = $col->fetch_assoc();
+    $extra = strtolower((string)($c['Extra'] ?? ''));
+    if (strpos($extra, 'auto_increment') === false) {
+      $db->query("ALTER TABLE rbac_roles MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
+    }
+  }
+
+  $resDup = $db->query("SELECT name, MIN(id) AS keep_id, COUNT(*) AS c FROM rbac_roles GROUP BY name HAVING c > 1");
+  if ($resDup) {
+    while ($d = $resDup->fetch_assoc()) {
+      $name = (string)($d['name'] ?? '');
+      $keepId = (int)($d['keep_id'] ?? 0);
+      if ($name === '' || $keepId <= 0) continue;
+
+      $nameEsc = $db->real_escape_string($name);
+      $resIds = $db->query("SELECT id, description FROM rbac_roles WHERE name='$nameEsc' ORDER BY id ASC");
+      if (!$resIds) continue;
+      $ids = [];
+      $bestDesc = '';
+      while ($r = $resIds->fetch_assoc()) {
+        $rid = (int)($r['id'] ?? 0);
+        if ($rid <= 0) continue;
+        $ids[] = $rid;
+        $desc = trim((string)($r['description'] ?? ''));
+        if ($desc !== '' && strlen($desc) > strlen($bestDesc)) $bestDesc = $desc;
+      }
+      if (!$ids) continue;
+
+      $keepDescRow = $db->query("SELECT description FROM rbac_roles WHERE id=" . (int)$keepId . " LIMIT 1");
+      $keepDesc = '';
+      if ($keepDescRow) {
+        $kr = $keepDescRow->fetch_assoc();
+        $keepDesc = trim((string)($kr['description'] ?? ''));
+      }
+      if ($keepDesc === '' && $bestDesc !== '') {
+        $stmtU = $db->prepare("UPDATE rbac_roles SET description=? WHERE id=?");
+        if ($stmtU) {
+          $stmtU->bind_param('si', $bestDesc, $keepId);
+          $stmtU->execute();
+          $stmtU->close();
+        }
+      }
+
+      foreach ($ids as $rid) {
+        if ($rid === $keepId) continue;
+        $db->query("INSERT IGNORE INTO rbac_user_roles(user_id, role_id, assigned_at)
+          SELECT user_id, " . (int)$keepId . ", assigned_at FROM rbac_user_roles WHERE role_id=" . (int)$rid);
+        $db->query("DELETE FROM rbac_user_roles WHERE role_id=" . (int)$rid);
+
+        $db->query("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id)
+          SELECT " . (int)$keepId . ", permission_id FROM rbac_role_permissions WHERE role_id=" . (int)$rid);
+        $db->query("DELETE FROM rbac_role_permissions WHERE role_id=" . (int)$rid);
+
+        $db->query("DELETE FROM rbac_roles WHERE id=" . (int)$rid);
+      }
+    }
+  }
+
+  if (!rbac_has_unique_index_on($db, 'rbac_roles', 'name')) {
+    $db->query("ALTER TABLE rbac_roles ADD UNIQUE KEY uniq_rbac_roles_name (name)");
+  }
 }
 
 function rbac_seed_roles_permissions(mysqli $db) {
