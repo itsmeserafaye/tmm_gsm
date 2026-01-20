@@ -298,26 +298,27 @@ if (current_user_role() !== 'SuperAdmin') {
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span
               class="text-rose-500">*</span></label>
-          <input type="text" name="first_name" required minlength="2" maxlength="80"
+          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span class="text-rose-500">*</span></label>
+          <input type="text" name="first_name" required minlength="2" maxlength="80" placeholder="e.g. Juan"
             class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Last Name <span
               class="text-rose-500">*</span></label>
-          <input type="text" name="last_name" required minlength="2" maxlength="80"
+          <input type="text" name="last_name" required minlength="2" maxlength="80" placeholder="e.g. Dela Cruz"
             class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="md:col-span-2 space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Email Address <span
               class="text-rose-500">*</span></label>
-          <input type="email" name="email" required
+          <input type="email" name="email" required placeholder="name@city.gov.ph"
             class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Employee No.</label>
-          <input type="text" name="employee_no" maxlength="32"
+          <input type="text" name="employee_no" maxlength="32" placeholder="e.g. EMP-2024-001"
             class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 uppercase">
         </div>
         <div class="space-y-1">
@@ -334,7 +335,7 @@ if (current_user_role() !== 'SuperAdmin') {
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Position Title</label>
-          <input type="text" name="position_title" maxlength="120"
+          <input type="text" name="position_title" maxlength="120" placeholder="e.g. Project Manager"
             class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
@@ -550,8 +551,9 @@ if (current_user_role() !== 'SuperAdmin') {
 
     tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Loading...</td></tr>';
 
+    
     try {
-      const params = new URLSearchParams({ q, status });
+      const params = new URLSearchParams({ q, status, _: Date.now() }); // Cache buster
       const res = await fetch(`${API_BASE}rbac_users.php?${params}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed');
