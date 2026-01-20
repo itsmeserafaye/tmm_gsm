@@ -15,6 +15,7 @@ function cu_fail(string $msg, int $code = 400): void
 try {
   $db = db();
   require_role(['SuperAdmin']);
+  rbac_ensure_schema($db);
 
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     cu_fail('method_not_allowed', 405);
@@ -42,6 +43,9 @@ try {
   }
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     cu_fail('invalid_email_format');
+  }
+  if (is_array($roleIds) && count($roleIds) === 0) {
+    cu_fail('roles_required');
   }
 
   $db->begin_transaction();
@@ -91,17 +95,24 @@ try {
       // Remove all existing roles
       $del = $db->prepare("DELETE FROM rbac_user_roles WHERE user_id = ?");
       $del->bind_param('i', $userId);
-      $del->execute();
+      if (!$del->execute()) {
+        throw new Exception('roles_delete_failed: ' . (string) $del->error);
+      }
       $del->close();
 
       // Insert new roles
       if (!empty($roleIds)) {
         $ins = $db->prepare("INSERT IGNORE INTO rbac_user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())");
+        if (!$ins) {
+          throw new Exception('roles_insert_prepare_failed');
+        }
         foreach ($roleIds as $rid) {
           $rid = (int) $rid;
           if ($rid > 0) {
             $ins->bind_param('ii', $userId, $rid);
-            $ins->execute();
+            if (!$ins->execute()) {
+              throw new Exception('roles_insert_failed: ' . (string) $ins->error);
+            }
           }
         }
         $ins->close();

@@ -296,30 +296,28 @@ if (current_user_role() !== 'SuperAdmin') {
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="space-y-1">
-          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span
-              class="text-rose-500">*</span></label>
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span class="text-rose-500">*</span></label>
           <input type="text" name="first_name" required minlength="2" maxlength="80" placeholder="e.g. Juan"
-            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Last Name <span
               class="text-rose-500">*</span></label>
           <input type="text" name="last_name" required minlength="2" maxlength="80" placeholder="e.g. Dela Cruz"
-            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="md:col-span-2 space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Email Address <span
               class="text-rose-500">*</span></label>
           <input type="email" name="email" required placeholder="name@city.gov.ph"
-            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-500 focus:ring-indigo-500">
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Employee No.</label>
           <input type="text" name="employee_no" maxlength="32" placeholder="e.g. EMP-2024-001"
-            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 uppercase">
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-500 focus:ring-indigo-500 uppercase">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Department</label>
@@ -336,7 +334,7 @@ if (current_user_role() !== 'SuperAdmin') {
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Position Title</label>
           <input type="text" name="position_title" maxlength="120" placeholder="e.g. Project Manager"
-            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold placeholder:text-slate-400 placeholder:font-medium focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Status</label>
@@ -874,7 +872,7 @@ if (current_user_role() !== 'SuperAdmin') {
   if (activityBackdrop) activityBackdrop.addEventListener('click', function (e) { if (e.target === activityBackdrop) closeActivityModal(); });
 
   // --- USER MODAL (STAFF) ---
-  function openUserModal(user = null) {
+  async function openUserModal(user = null) {
     const modal = document.getElementById('userModal');
     const form = document.getElementById('formUser');
     const title = document.getElementById('modalTitle');
@@ -884,6 +882,10 @@ if (current_user_role() !== 'SuperAdmin') {
     form.reset();
     errorDiv.classList.add('hidden');
     successDiv.classList.add('hidden');
+
+    if (!rolesCache || rolesCache.length === 0) {
+      await loadRoles();
+    }
 
     if (user) {
       title.textContent = 'Edit Account';
@@ -927,6 +929,13 @@ if (current_user_role() !== 'SuperAdmin') {
     const payload = Object.fromEntries(formData.entries());
     const roleCheckboxes = form.querySelectorAll('input[name="roles[]"]:checked');
     payload.roles = Array.from(roleCheckboxes).map(cb => parseInt(cb.value));
+    delete payload['roles[]'];
+
+    if (!payload.roles || payload.roles.length === 0) {
+      errorText.textContent = 'Please select at least one role.';
+      errorDiv.classList.remove('hidden');
+      return;
+    }
     delete payload['roles[]'];
 
     const isEdit = !!userId;

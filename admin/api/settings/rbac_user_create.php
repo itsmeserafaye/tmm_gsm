@@ -15,6 +15,7 @@ function cu_fail(string $msg, int $code = 400): void
 try {
   $db = db();
   require_role(['SuperAdmin']);
+  rbac_ensure_schema($db);
 
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     cu_fail('method_not_allowed', 405);
@@ -38,6 +39,9 @@ try {
   }
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     cu_fail('invalid_email_format');
+  }
+  if (!is_array($roleIds) || count($roleIds) === 0) {
+    cu_fail('roles_required');
   }
 
   // Transaction Start
@@ -74,11 +78,16 @@ try {
     // 3. Assign Roles
     if (is_array($roleIds) && !empty($roleIds)) {
       $roleStmt = $db->prepare("INSERT IGNORE INTO rbac_user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())");
+      if (!$roleStmt) {
+        throw new Exception('roles_insert_prepare_failed');
+      }
       foreach ($roleIds as $rid) {
         $rid = (int) $rid;
         if ($rid > 0) {
           $roleStmt->bind_param('ii', $userId, $rid);
-          $roleStmt->execute();
+          if (!$roleStmt->execute()) {
+            throw new Exception('roles_insert_failed: ' . (string) $roleStmt->error);
+          }
         }
       }
       $roleStmt->close();
