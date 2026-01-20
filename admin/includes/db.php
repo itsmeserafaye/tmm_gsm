@@ -10,18 +10,6 @@ function db() {
   $user = trim((string)getenv('TMM_DB_USER'));
   $pass = (string)getenv('TMM_DB_PASS');
   $name = trim((string)getenv('TMM_DB_NAME'));
-  $portEnv = (int)getenv('TMM_DB_PORT');
-  $ports = [];
-  if ($portEnv > 0) $ports[] = $portEnv;
-  foreach ([3306, 3307, 3308] as $p) {
-    if (!in_array($p, $ports, true)) $ports[] = $p;
-  }
-  $sockEnv = trim((string)getenv('TMM_DB_SOCKET'));
-  $sockets = [];
-  if ($sockEnv !== '') $sockets[] = $sockEnv;
-  foreach (['MySQL', 'MariaDB', 'mysql'] as $s) {
-    if (!in_array($s, $sockets, true)) $sockets[] = $s;
-  }
 
   if ($host === '') $host = 'localhost';
   if ($user === '') $user = 'tmm_tmmgosergfvx';
@@ -33,97 +21,22 @@ function db() {
   if (strtolower($host) === 'localhost') {
     $candidates[] = [$host, 'root', '', $name];
     $candidates[] = [$host, 'root', '', 'tmm'];
-    $candidates[] = ['127.0.0.1', $user, $pass, $name];
-    $candidates[] = ['127.0.0.1', 'root', '', $name];
-    $candidates[] = ['127.0.0.1', 'root', '', 'tmm'];
   }
 
   $lastErr = '';
   foreach ($candidates as $c) {
     [$h, $u, $p, $n] = $c;
     try {
-      foreach ($ports as $port) {
-        $try = @new mysqli($h, $u, $p, $n, $port);
-        if ($try && !$try->connect_error) {
-          $conn = $try;
-          $host = $h;
-          $user = $u;
-          $pass = $p;
-          $name = $n;
-          break 2;
-        }
-        if ($try) $lastErr = (string)$try->connect_error;
+      $try = @new mysqli($h, $u, $p, $n);
+      if (!$try->connect_error) {
+        $conn = $try;
+        $host = $h;
+        $user = $u;
+        $pass = $p;
+        $name = $n;
+        break;
       }
-    } catch (Throwable $e) {
-      $lastErr = $e->getMessage();
-    }
-  }
-
-  $pickDb = function(mysqli $try, array $want): string {
-    $res = $try->query("SHOW DATABASES");
-    $dbs = [];
-    while ($res && ($row = $res->fetch_assoc())) {
-      $dbs[] = (string)($row['Database'] ?? '');
-    }
-    foreach ($want as $w) {
-      if ($w !== '' && in_array($w, $dbs, true)) return $w;
-    }
-    foreach ($dbs as $d) {
-      if (stripos($d, 'tmm') === 0) return $d;
-    }
-    return '';
-  };
-
-  if ((!$conn || $conn->connect_error) && strtolower($host) === 'localhost') {
-    try {
-      $hostsToTry = ['localhost', '127.0.0.1'];
-      foreach ($hostsToTry as $h) {
-        foreach ($ports as $port) {
-          $try = @new mysqli($h, $user, $pass, '', $port);
-          if ($try && !$try->connect_error) {
-            $found = $pickDb($try, [$name, 'tmm', 'tmm_tmm']);
-            if ($found !== '' && $try->select_db($found)) {
-              $conn = $try;
-              $host = $h;
-              $name = $found;
-              break 2;
-            }
-            $try->close();
-          }
-        }
-
-        foreach ($ports as $port) {
-          $try2 = @new mysqli($h, 'root', '', '', $port);
-          if ($try2 && !$try2->connect_error) {
-            $found2 = $pickDb($try2, [$name, 'tmm', 'tmm_tmm']);
-            if ($found2 !== '' && $try2->select_db($found2)) {
-              $conn = $try2;
-              $host = $h;
-              $user = 'root';
-              $pass = '';
-              $name = $found2;
-              break 2;
-            }
-            $try2->close();
-          }
-        }
-      }
-    } catch (Throwable $e) {
-      $lastErr = $e->getMessage();
-    }
-  }
-
-  if ((!$conn || $conn->connect_error) && $sockets) {
-    try {
-      foreach ($sockets as $sock) {
-        $try = @new mysqli('.', $user, $pass, $name, 0, $sock);
-        if ($try && !$try->connect_error) { $conn = $try; $host = '.'; break; }
-        if ($try) $lastErr = (string)$try->connect_error;
-
-        $try2 = @new mysqli('.', 'root', '', $name, 0, $sock);
-        if ($try2 && !$try2->connect_error) { $conn = $try2; $host = '.'; $user = 'root'; $pass = ''; break; }
-        if ($try2) $lastErr = (string)$try2->connect_error;
-      }
+      $lastErr = (string)$try->connect_error;
     } catch (Throwable $e) {
       $lastErr = $e->getMessage();
     }

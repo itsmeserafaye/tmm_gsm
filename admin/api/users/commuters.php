@@ -23,22 +23,11 @@ try {
 
     $sql = "
       SELECT u.id, u.email, u.first_name, u.last_name, u.status, u.last_login_at, u.created_at,
-             MAX(COALESCE(p.mobile,'')) AS mobile,
-             MAX(COALESCE(p.barangay,'')) AS barangay
+             p.mobile, p.barangay
       FROM rbac_users u
+      JOIN rbac_user_roles ur ON ur.user_id=u.id
+      JOIN rbac_roles r ON r.id=ur.role_id AND r.name='Commuter'
       LEFT JOIN user_profiles p ON p.user_id=u.id
-      WHERE EXISTS (
-        SELECT 1
-        FROM rbac_user_roles ur
-        JOIN rbac_roles r ON r.id=ur.role_id
-        WHERE ur.user_id=u.id AND r.name='Commuter'
-      )
-      AND NOT EXISTS (
-        SELECT 1
-        FROM rbac_user_roles ur2
-        JOIN rbac_roles r2 ON r2.id=ur2.role_id
-        WHERE ur2.user_id=u.id AND r2.name <> 'Commuter'
-      )
     ";
     $conds = [];
     $params = [];
@@ -55,8 +44,7 @@ try {
       $params[] = $status;
       $types .= 's';
     }
-    if ($conds) $sql .= " AND " . implode(" AND ", $conds);
-    $sql .= " GROUP BY u.id, u.email, u.first_name, u.last_name, u.status, u.last_login_at, u.created_at";
+    if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
     $sql .= " ORDER BY u.created_at DESC LIMIT 1000";
 
     if ($params) {

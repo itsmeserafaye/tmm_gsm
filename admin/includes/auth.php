@@ -1,5 +1,19 @@
 <?php
 if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+
+function rbac_get_config_auth() {
+    static $config = null;
+    if ($config === null) {
+        $path = __DIR__ . '/../../config/rbac_config.php';
+        if (file_exists($path)) {
+            $config = require $path;
+        } else {
+            $config = [];
+        }
+    }
+    return $config;
+}
+
 function normalize_role($role) {
   if (!is_string($role)) {
     return 'Admin / Transport Officer';
@@ -133,37 +147,18 @@ function has_permission(string $code) {
   }
   $role = current_user_role();
   if ($role === 'SuperAdmin') return true;
-  $fallback = [
-    'Admin / Transport Officer' => [
-      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
-      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
-      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
-      'module3.read','module3.issue','module3.settle','module3.analytics',
-      'module4.read','module4.schedule','module4.inspect','module4.certify',
-      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
-    ],
-    'Franchise Officer' => ['dashboard.view','module1.read','module2.read','module2.apply','module2.endorse','module2.history','reports.export'],
-    'Encoder' => ['dashboard.view','module1.read','module1.write','module1.link_vehicle','module2.read','module2.apply'],
-    'Inspector' => ['dashboard.view','module1.read','module4.read','module4.schedule','module4.inspect','module4.certify'],
-    'Traffic Enforcer' => ['dashboard.view','module1.read','module3.read','module3.issue'],
-    'Treasurer / Cashier' => ['dashboard.view','module1.read','module3.read','module3.settle','module5.read','module5.parking_fees'],
-    'Terminal Manager' => ['dashboard.view','module1.read','module5.read','module5.manage_terminal','module5.assign_vehicle'],
-    'Viewer' => ['dashboard.view','module1.read','module2.read','module3.read','module4.read','module5.read'],
 
-    'Admin' => [
-      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
-      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
-      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
-      'module3.read','module3.issue','module3.settle','module3.analytics',
-      'module4.read','module4.schedule','module4.inspect','module4.certify',
-      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
-    ],
-    'ParkingStaff' => ['dashboard.view','module1.read','module5.read','module5.manage_terminal','module5.assign_vehicle'],
-    'Treasurer' => ['dashboard.view','module1.read','module3.read','module3.settle','module5.read','module5.parking_fees'],
-  ];
-  if (in_array($code, $fallback[$role] ?? [], true)) return true;
+  // Use config for fallback
+  $config = rbac_get_config_auth();
+  $rolePerms = $config['role_permissions'] ?? [];
+  $allowed = $rolePerms[$role] ?? [];
+
+  if (in_array('*', $allowed, true)) return true;
+
+  if (in_array($code, $allowed, true)) return true;
+  
   foreach ($aliases[$code] ?? [] as $alt) {
-    if (in_array($alt, $fallback[$role] ?? [], true)) return true;
+    if (in_array($alt, $allowed, true)) return true;
   }
   return false;
 }

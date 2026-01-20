@@ -1009,11 +1009,8 @@ async function makeAPICall(url, data, method = 'POST') {
             }
             return json;
         }
-        const text = await response.text();
         if (!response.ok) {
-            const snippet = (text || '').toString().replace(/\s+/g, ' ').trim().slice(0, 180);
-            console.error('Non-JSON error response:', response.status, snippet);
-            return { ok: false, message: `Request failed (${response.status})`, data: { raw: snippet } };
+            return { ok: false, message: `Request failed (${response.status})`, data: null };
         }
         return { ok: true, message: 'OK', data: null };
     } catch (error) {

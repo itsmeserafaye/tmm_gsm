@@ -1,9 +1,7 @@
 <?php
 require_once __DIR__ . '/env.php';
 tmm_load_env(__DIR__ . '/../.env');
-if (is_file(__DIR__ . '/../vendor/autoload.php')) {
-  require_once __DIR__ . '/../vendor/autoload.php';
-}
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 

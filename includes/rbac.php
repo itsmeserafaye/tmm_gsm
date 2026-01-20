@@ -1,6 +1,19 @@
 <?php
 if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
 
+function rbac_get_config() {
+    static $config = null;
+    if ($config === null) {
+        $path = __DIR__ . '/../config/rbac_config.php';
+        if (file_exists($path)) {
+            $config = require $path;
+        } else {
+            $config = [];
+        }
+    }
+    return $config;
+}
+
 function rbac_ensure_schema(mysqli $db) {
   $db->query("CREATE TABLE IF NOT EXISTS rbac_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -75,383 +88,86 @@ function rbac_ensure_schema(mysqli $db) {
     CONSTRAINT fk_rbac_login_audit_user FOREIGN KEY (user_id) REFERENCES rbac_users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
 
-  rbac_repair_schema($db);
   rbac_seed_roles_permissions($db);
   rbac_seed_default_admin($db);
   rbac_migrate_commuter_role($db);
   rbac_ensure_compat_views($db);
 }
 
-function rbac_is_truthy_env(string $key): bool {
-  $v = strtolower(trim((string)getenv($key)));
-  return $v === '1' || $v === 'true' || $v === 'yes';
-}
-
-function rbac_has_unique_index_on(mysqli $db, string $table, string $column): bool {
-  $tableEsc = $db->real_escape_string($table);
-  $colEsc = $db->real_escape_string($column);
-  $res = $db->query("SHOW INDEX FROM `$tableEsc` WHERE Column_name='$colEsc' AND Non_unique=0");
-  return (bool)($res && $res->num_rows > 0);
-}
-
-function rbac_column_exists(mysqli $db, string $table, string $column): bool {
-  $t = $db->real_escape_string($table);
-  $c = $db->real_escape_string($column);
-  $res = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
-  return (bool)($res && $res->num_rows > 0);
-}
-
-function rbac_ensure_auto_increment(mysqli $db, string $table, string $idCol, string $sqlType): void {
-  $t = $db->real_escape_string($table);
-  $c = $db->real_escape_string($idCol);
-  $col = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
-  if ($col) {
-    $row = $col->fetch_assoc();
-    $extra = strtolower((string)($row['Extra'] ?? ''));
-    if (strpos($extra, 'auto_increment') === false) {
-      $db->query("ALTER TABLE `$t` MODIFY COLUMN `$c` $sqlType NOT NULL AUTO_INCREMENT");
-    }
-  }
-}
-
-function rbac_ensure_primary_key(mysqli $db, string $table, string $idCol): void {
-  $t = $db->real_escape_string($table);
-  $c = $db->real_escape_string($idCol);
-  $idx = $db->query("SHOW INDEX FROM `$t` WHERE Key_name='PRIMARY'");
-  if (!$idx || $idx->num_rows === 0) {
-    $db->query("ALTER TABLE `$t` ADD PRIMARY KEY (`$c`)");
-  }
-}
-
-function rbac_repair_schema(mysqli $db): void {
-  rbac_ensure_primary_key($db, 'rbac_users', 'id');
-  rbac_ensure_auto_increment($db, 'rbac_users', 'id', 'INT');
-  if (!rbac_has_unique_index_on($db, 'rbac_users', 'email')) {
-    $db->query("ALTER TABLE rbac_users ADD UNIQUE KEY uniq_rbac_users_email (email)");
-  }
-
-  rbac_ensure_primary_key($db, 'rbac_roles', 'id');
-  rbac_ensure_auto_increment($db, 'rbac_roles', 'id', 'INT');
-
-  rbac_ensure_primary_key($db, 'rbac_permissions', 'id');
-  rbac_ensure_auto_increment($db, 'rbac_permissions', 'id', 'INT');
-  if (!rbac_has_unique_index_on($db, 'rbac_permissions', 'code')) {
-    $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
-  }
-
-  if (!rbac_column_exists($db, 'rbac_user_roles', 'assigned_at')) {
-    $db->query("ALTER TABLE rbac_user_roles ADD COLUMN assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
-  }
-
-  rbac_ensure_primary_key($db, 'rbac_login_audit', 'id');
-  rbac_ensure_auto_increment($db, 'rbac_login_audit', 'id', 'BIGINT');
-
-  rbac_repair_roles($db);
-  rbac_repair_permissions($db);
-}
-
-function rbac_repair_roles(mysqli $db): void {
-  $col = $db->query("SHOW COLUMNS FROM rbac_roles LIKE 'id'");
-  if ($col) {
-    $c = $col->fetch_assoc();
-    $extra = strtolower((string)($c['Extra'] ?? ''));
-    if (strpos($extra, 'auto_increment') === false) {
-      $db->query("ALTER TABLE rbac_roles MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
-    }
-  }
-
-  $resDup = $db->query("SELECT name, MIN(id) AS keep_id, COUNT(*) AS c FROM rbac_roles GROUP BY name HAVING c > 1");
-  if ($resDup) {
-    while ($d = $resDup->fetch_assoc()) {
-      $name = (string)($d['name'] ?? '');
-      $keepId = (int)($d['keep_id'] ?? 0);
-      if ($name === '' || $keepId <= 0) continue;
-
-      $nameEsc = $db->real_escape_string($name);
-      $resIds = $db->query("SELECT id, description FROM rbac_roles WHERE name='$nameEsc' ORDER BY id ASC");
-      if (!$resIds) continue;
-      $ids = [];
-      $bestDesc = '';
-      while ($r = $resIds->fetch_assoc()) {
-        $rid = (int)($r['id'] ?? 0);
-        if ($rid <= 0) continue;
-        $ids[] = $rid;
-        $desc = trim((string)($r['description'] ?? ''));
-        if ($desc !== '' && strlen($desc) > strlen($bestDesc)) $bestDesc = $desc;
-      }
-      if (!$ids) continue;
-
-      $keepDescRow = $db->query("SELECT description FROM rbac_roles WHERE id=" . (int)$keepId . " LIMIT 1");
-      $keepDesc = '';
-      if ($keepDescRow) {
-        $kr = $keepDescRow->fetch_assoc();
-        $keepDesc = trim((string)($kr['description'] ?? ''));
-      }
-      if ($keepDesc === '' && $bestDesc !== '') {
-        $stmtU = $db->prepare("UPDATE rbac_roles SET description=? WHERE id=?");
-        if ($stmtU) {
-          $stmtU->bind_param('si', $bestDesc, $keepId);
-          $stmtU->execute();
-          $stmtU->close();
-        }
-      }
-
-      foreach ($ids as $rid) {
-        if ($rid === $keepId) continue;
-        $db->query("INSERT IGNORE INTO rbac_user_roles(user_id, role_id, assigned_at)
-          SELECT user_id, " . (int)$keepId . ", assigned_at FROM rbac_user_roles WHERE role_id=" . (int)$rid);
-        $db->query("DELETE FROM rbac_user_roles WHERE role_id=" . (int)$rid);
-
-        $db->query("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id)
-          SELECT " . (int)$keepId . ", permission_id FROM rbac_role_permissions WHERE role_id=" . (int)$rid);
-        $db->query("DELETE FROM rbac_role_permissions WHERE role_id=" . (int)$rid);
-
-        $db->query("DELETE FROM rbac_roles WHERE id=" . (int)$rid);
-      }
-    }
-  }
-
-  if (!rbac_has_unique_index_on($db, 'rbac_roles', 'name')) {
-    $db->query("ALTER TABLE rbac_roles ADD UNIQUE KEY uniq_rbac_roles_name (name)");
-  }
-}
-
-function rbac_repair_permissions(mysqli $db): void {
-  $resDup = $db->query("SELECT code, MIN(id) AS keep_id, COUNT(*) AS c FROM rbac_permissions GROUP BY code HAVING c > 1");
-  if ($resDup) {
-    while ($d = $resDup->fetch_assoc()) {
-      $code = (string)($d['code'] ?? '');
-      $keepId = (int)($d['keep_id'] ?? 0);
-      if ($code === '' || $keepId <= 0) continue;
-
-      $codeEsc = $db->real_escape_string($code);
-      $resIds = $db->query("SELECT id, description FROM rbac_permissions WHERE code='$codeEsc' ORDER BY id ASC");
-      if (!$resIds) continue;
-      $ids = [];
-      $bestDesc = '';
-      while ($r = $resIds->fetch_assoc()) {
-        $pid = (int)($r['id'] ?? 0);
-        if ($pid <= 0) continue;
-        $ids[] = $pid;
-        $desc = trim((string)($r['description'] ?? ''));
-        if ($desc !== '' && strlen($desc) > strlen($bestDesc)) $bestDesc = $desc;
-      }
-      if (!$ids) continue;
-
-      $keepDescRow = $db->query("SELECT description FROM rbac_permissions WHERE id=" . (int)$keepId . " LIMIT 1");
-      $keepDesc = '';
-      if ($keepDescRow) {
-        $kr = $keepDescRow->fetch_assoc();
-        $keepDesc = trim((string)($kr['description'] ?? ''));
-      }
-      if ($keepDesc === '' && $bestDesc !== '') {
-        $stmtU = $db->prepare("UPDATE rbac_permissions SET description=? WHERE id=?");
-        if ($stmtU) {
-          $stmtU->bind_param('si', $bestDesc, $keepId);
-          $stmtU->execute();
-          $stmtU->close();
-        }
-      }
-
-      foreach ($ids as $pid) {
-        if ($pid === $keepId) continue;
-        $db->query("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id)
-          SELECT role_id, " . (int)$keepId . " FROM rbac_role_permissions WHERE permission_id=" . (int)$pid);
-        $db->query("DELETE FROM rbac_role_permissions WHERE permission_id=" . (int)$pid);
-        $db->query("DELETE FROM rbac_permissions WHERE id=" . (int)$pid);
-      }
-    }
-  }
-
-  if (!rbac_has_unique_index_on($db, 'rbac_permissions', 'code')) {
-    $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
-  }
-}
-
 function rbac_seed_roles_permissions(mysqli $db) {
-  $roles = [
-    ['SuperAdmin', 'City ICTO super administrator'],
-    ['Admin / Transport Officer', 'Full access to modules (except user management)'],
-    ['Franchise Officer', 'Handles franchise application & endorsement'],
-    ['Encoder', 'Data entry only (Module 1 write, Module 2 apply)'],
-    ['Inspector', 'Handles inspection scheduling & execution'],
-    ['Traffic Enforcer', 'Issues tickets (traffic enforcement)'],
-    ['Treasurer / Cashier', 'Payment & settlement (Module 3 + parking fees)'],
-    ['Terminal Manager', 'Handles terminals & parking operations'],
-    ['Viewer', 'Read-only (module read access)'],
-    ['Commuter', 'Citizen portal account (no admin access)'],
-  ];
-  foreach ($roles as $r) {
+  $config = rbac_get_config();
+  if (empty($config)) return;
+
+  // 1. Seed Roles
+  $roles = $config['roles'] ?? [];
+  foreach ($roles as $name => $desc) {
     $stmt = $db->prepare("INSERT IGNORE INTO rbac_roles(name, description) VALUES(?, ?)");
     if ($stmt) {
-      $stmt->bind_param('ss', $r[0], $r[1]);
+      $stmt->bind_param('ss', $name, $desc);
       $stmt->execute();
       $stmt->close();
     }
   }
 
-  $perms = [
-    ['dashboard.view', 'View dashboards'],
-    ['analytics.view', 'View analytics'],
-    ['analytics.train', 'Create/update demand observation logs'],
-    ['reports.export', 'Export reports'],
-    ['settings.manage', 'Manage system settings'],
-    ['users.manage', 'Manage RBAC users and roles'],
-
-    ['module1.read', 'Module 1 read access'],
-    ['module1.write', 'Module 1 write access'],
-    ['module1.delete', 'Module 1 delete access'],
-    ['module1.link_vehicle', 'Link vehicle to operator'],
-    ['module1.route_manage', 'Manage routes and terminals'],
-
-    ['module2.read', 'Module 2 read access'],
-    ['module2.apply', 'Submit franchise applications'],
-    ['module2.endorse', 'Endorse franchise applications'],
-    ['module2.approve', 'Approve franchise applications'],
-    ['module2.history', 'View franchise history and audit'],
-
-    ['module3.read', 'Module 3 read access'],
-    ['module3.issue', 'Issue tickets'],
-    ['module3.settle', 'Settle ticket payments'],
-    ['module3.analytics', 'Module 3 analytics'],
-
-    ['module4.read', 'Module 4 read access'],
-    ['module4.schedule', 'Schedule inspections'],
-    ['module4.inspect', 'Conduct inspections'],
-    ['module4.certify', 'Certify inspections'],
-
-    ['module5.read', 'Module 5 read access'],
-    ['module5.manage_terminal', 'Manage terminals and parking'],
-    ['module5.assign_vehicle', 'Assign vehicles to terminals'],
-    ['module5.parking_fees', 'Record parking fees'],
-
-    ['module1.view', 'Legacy: View Module 1 screens'],
-    ['module2.view', 'Legacy: View Module 2 screens'],
-    ['module3.view', 'Legacy: View Module 3 screens'],
-    ['module4.view', 'Legacy: View Module 4 screens'],
-    ['module5.view', 'Legacy: View Module 5 screens'],
-    ['module1.vehicles.write', 'Legacy: Create/update vehicle records'],
-    ['module1.routes.write', 'Legacy: Create/update route records'],
-    ['module1.coops.write', 'Legacy: Create/update cooperative records'],
-    ['module2.franchises.manage', 'Legacy: Process franchise applications'],
-    ['module4.inspections.manage', 'Legacy: Manage inspections'],
-    ['tickets.issue', 'Legacy: Issue citations'],
-    ['tickets.validate', 'Legacy: Validate citations'],
-    ['tickets.settle', 'Legacy: Settle citations'],
-    ['parking.manage', 'Legacy: Manage parking'],
-  ];
-  foreach ($perms as $p) {
+  // 2. Seed Permissions
+  $perms = $config['permissions'] ?? [];
+  foreach ($perms as $code => $desc) {
     $stmt = $db->prepare("INSERT IGNORE INTO rbac_permissions(code, description) VALUES(?, ?)");
     if ($stmt) {
-      $stmt->bind_param('ss', $p[0], $p[1]);
+      $stmt->bind_param('ss', $code, $desc);
       $stmt->execute();
       $stmt->close();
     }
   }
 
-  $allCodes = array_map(function ($p) { return $p[0]; }, $perms);
-  $rolePerms = rbac_recommended_role_permission_codes($allCodes);
+  // 3. Sync Role-Permissions
+  // Strategy: For each role in config, DELETE all existing permissions and INSERT new ones.
+  // This ensures strict enforcement of the config.
+  $rolePerms = $config['role_permissions'] ?? [];
+  $allPermsCodes = array_keys($perms);
 
   foreach ($rolePerms as $roleName => $permCodes) {
     $roleId = rbac_role_id($db, $roleName);
     if (!$roleId) continue;
-    foreach ($permCodes as $code) {
-      $permId = rbac_permission_id($db, $code);
-      if (!$permId) continue;
-      $stmt = $db->prepare("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id) VALUES(?, ?)");
-      if ($stmt) {
-        $stmt->bind_param('ii', $roleId, $permId);
-        $stmt->execute();
-        $stmt->close();
-      }
+
+    // Handle '*' for SuperAdmin
+    if (in_array('*', $permCodes, true)) {
+        $targetPerms = $allPermsCodes;
+    } else {
+        $targetPerms = $permCodes;
+    }
+
+    // Get IDs for target permissions
+    $permIds = [];
+    foreach ($targetPerms as $code) {
+        $pid = rbac_permission_id($db, $code);
+        if ($pid) $permIds[] = $pid;
+    }
+
+    // Start transaction if possible, or just sequential
+    // First, remove permissions for this role that are NOT in the target list
+    // Actually, simpler to just delete all and re-insert?
+    // "Any attempt to modify role permissions must be prevented" -> forcing config state.
+    
+    // To minimize churn, maybe we can do: DELETE where role_id=? AND permission_id NOT IN (...)
+    // And INSERT IGNORE ...
+    
+    if (empty($permIds)) {
+        $db->query("DELETE FROM rbac_role_permissions WHERE role_id=$roleId");
+    } else {
+        $idList = implode(',', $permIds);
+        $db->query("DELETE FROM rbac_role_permissions WHERE role_id=$roleId AND permission_id NOT IN ($idList)");
+        
+        $stmt = $db->prepare("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id) VALUES(?, ?)");
+        if ($stmt) {
+            foreach ($permIds as $pid) {
+                $stmt->bind_param('ii', $roleId, $pid);
+                $stmt->execute();
+            }
+            $stmt->close();
+        }
     }
   }
-
-  $parkingRoleId = rbac_role_id($db, 'Terminal Manager');
-  $ticketsIssuePermId = rbac_permission_id($db, 'tickets.issue');
-  if ($parkingRoleId && $ticketsIssuePermId) {
-    $stmtDel = $db->prepare("DELETE FROM rbac_role_permissions WHERE role_id=? AND permission_id=?");
-    if ($stmtDel) {
-      $stmtDel->bind_param('ii', $parkingRoleId, $ticketsIssuePermId);
-      $stmtDel->execute();
-      $stmtDel->close();
-    }
-  }
-
-  $viewerRoleId = rbac_role_id($db, 'Viewer');
-  $reportsExportPermId = rbac_permission_id($db, 'reports.export');
-  if ($viewerRoleId && $reportsExportPermId) {
-    $stmtDel = $db->prepare("DELETE FROM rbac_role_permissions WHERE role_id=? AND permission_id=?");
-    if ($stmtDel) {
-      $stmtDel->bind_param('ii', $viewerRoleId, $reportsExportPermId);
-      $stmtDel->execute();
-      $stmtDel->close();
-    }
-  }
-
-  $legacyRoleMap = [
-    'Admin' => 'Admin / Transport Officer',
-    'Treasurer' => 'Treasurer / Cashier',
-    'ParkingStaff' => 'Terminal Manager',
-  ];
-  foreach ($legacyRoleMap as $legacy => $target) {
-    $legacyId = rbac_role_id($db, $legacy);
-    if (!$legacyId) continue;
-    foreach ($rolePerms[$target] ?? [] as $code) {
-      $permId = rbac_permission_id($db, $code);
-      if (!$permId) continue;
-      $stmt = $db->prepare("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id) VALUES(?, ?)");
-      if ($stmt) {
-        $stmt->bind_param('ii', $legacyId, $permId);
-        $stmt->execute();
-        $stmt->close();
-      }
-    }
-  }
-}
-
-function rbac_recommended_role_permission_codes(array $allCodes): array {
-  $allRolesRead = ['module1.read', 'module2.read', 'module3.read', 'module4.read', 'module5.read'];
-  return [
-    'SuperAdmin' => $allCodes,
-    'Admin / Transport Officer' => [
-      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
-      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
-      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
-      'module3.read','module3.issue','module3.settle','module3.analytics',
-      'module4.read','module4.schedule','module4.inspect','module4.certify',
-      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
-    ],
-    'Franchise Officer' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view','reports.export',
-      'module2.apply','module2.endorse','module2.history'
-    ]))),
-    'Encoder' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-      'module1.write','module1.link_vehicle',
-      'module2.apply',
-    ]))),
-    'Inspector' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-      'module4.schedule','module4.inspect','module4.certify',
-    ]))),
-    'Traffic Enforcer' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-      'module3.issue',
-    ]))),
-    'Treasurer / Cashier' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-      'module3.settle',
-      'module5.parking_fees',
-    ]))),
-    'Terminal Manager' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-      'module5.manage_terminal','module5.assign_vehicle',
-    ]))),
-    'Viewer' => array_values(array_unique(array_merge($allRolesRead, [
-      'dashboard.view',
-    ]))),
-  ];
 }
 
 function rbac_ensure_compat_views(mysqli $db): void {
@@ -587,20 +303,14 @@ function rbac_migrate_commuter_role(mysqli $db): void {
     SELECT ur.user_id, $commuterId
     FROM rbac_user_roles ur
     JOIN user_profiles p ON p.user_id=ur.user_id
-    JOIN rbac_users u ON u.id=ur.user_id
     WHERE ur.role_id = $viewerId
-      AND (u.department IS NULL OR u.department = '')
-      AND (u.position_title IS NULL OR u.position_title = '')
   ");
 
   $db->query("
     DELETE urv
     FROM rbac_user_roles urv
     JOIN rbac_user_roles urc ON urc.user_id=urv.user_id AND urc.role_id=$commuterId
-    JOIN rbac_users u ON u.id=urv.user_id
     WHERE urv.role_id=$viewerId
-      AND (u.department IS NULL OR u.department = '')
-      AND (u.position_title IS NULL OR u.position_title = '')
   ");
 }
 
