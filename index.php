@@ -78,7 +78,7 @@ if (!empty($_SESSION['user_id'])) {
                         <div
                             class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-5">
                             <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
-                                alt="TMM" class="h-16 md:h-20 w-auto">
+                                alt="TMM" class="h-16 md:h-20 w-auto" style="height: 5rem; width: auto;">
                         </div>
                         <div class="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">
                             Transport & Mobility<br /><span class="text-custom-secondary">Management</span>

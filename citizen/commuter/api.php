@@ -108,7 +108,9 @@ if ($action === 'get_terminals') {
 if ($action === 'get_advisories') {
     // Fetches public advisories (Matches Admin 'public_advisories' table)
     $advisories = [];
-    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories WHERE is_active=1 ORDER BY posted_at DESC LIMIT 20");
+    // Check if is_active column exists, otherwise just fetch all or filter by type if needed
+    // For now, simply fetch all since is_active might not be present in all schema versions
+    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 20");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $advisories[] = $row;
