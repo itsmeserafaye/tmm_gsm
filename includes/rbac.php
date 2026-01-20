@@ -75,11 +75,16 @@ function rbac_ensure_schema(mysqli $db) {
     CONSTRAINT fk_rbac_login_audit_user FOREIGN KEY (user_id) REFERENCES rbac_users(id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
 
-  rbac_repair_roles($db);
+  rbac_repair_schema($db);
   rbac_seed_roles_permissions($db);
   rbac_seed_default_admin($db);
   rbac_migrate_commuter_role($db);
   rbac_ensure_compat_views($db);
+}
+
+function rbac_is_truthy_env(string $key): bool {
+  $v = strtolower(trim((string)getenv($key)));
+  return $v === '1' || $v === 'true' || $v === 'yes';
 }
 
 function rbac_has_unique_index_on(mysqli $db, string $table, string $column): bool {
@@ -87,6 +92,47 @@ function rbac_has_unique_index_on(mysqli $db, string $table, string $column): bo
   $colEsc = $db->real_escape_string($column);
   $res = $db->query("SHOW INDEX FROM `$tableEsc` WHERE Column_name='$colEsc' AND Non_unique=0");
   return (bool)($res && $res->num_rows > 0);
+}
+
+function rbac_ensure_auto_increment(mysqli $db, string $table, string $idCol, string $sqlType): void {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($idCol);
+  $col = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  if ($col) {
+    $row = $col->fetch_assoc();
+    $extra = strtolower((string)($row['Extra'] ?? ''));
+    if (strpos($extra, 'auto_increment') === false) {
+      $db->query("ALTER TABLE `$t` MODIFY COLUMN `$c` $sqlType NOT NULL AUTO_INCREMENT");
+    }
+  }
+}
+
+function rbac_ensure_primary_key(mysqli $db, string $table, string $idCol): void {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($idCol);
+  $idx = $db->query("SHOW INDEX FROM `$t` WHERE Key_name='PRIMARY'");
+  if (!$idx || $idx->num_rows === 0) {
+    $db->query("ALTER TABLE `$t` ADD PRIMARY KEY (`$c`)");
+  }
+}
+
+function rbac_repair_schema(mysqli $db): void {
+  rbac_ensure_primary_key($db, 'rbac_users', 'id');
+  rbac_ensure_auto_increment($db, 'rbac_users', 'id', 'INT');
+  if (!rbac_has_unique_index_on($db, 'rbac_users', 'email')) {
+    $db->query("ALTER TABLE rbac_users ADD UNIQUE KEY uniq_rbac_users_email (email)");
+  }
+
+  rbac_ensure_primary_key($db, 'rbac_roles', 'id');
+  rbac_ensure_auto_increment($db, 'rbac_roles', 'id', 'INT');
+
+  rbac_ensure_primary_key($db, 'rbac_permissions', 'id');
+  rbac_ensure_auto_increment($db, 'rbac_permissions', 'id', 'INT');
+
+  rbac_ensure_primary_key($db, 'rbac_login_audit', 'id');
+  rbac_ensure_auto_increment($db, 'rbac_login_audit', 'id', 'BIGINT');
+
+  rbac_repair_roles($db);
 }
 
 function rbac_repair_roles(mysqli $db): void {

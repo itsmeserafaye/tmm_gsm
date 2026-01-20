@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../../includes/rbac.php';
 
 header('Content-Type: application/json');
 
@@ -23,6 +24,7 @@ try {
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_out(405, ['ok' => false, 'error' => 'method_not_allowed']);
   $db = db();
   require_role(['SuperAdmin']);
+  rbac_ensure_schema($db);
 
   $email = strtolower(trim((string)($_POST['email'] ?? '')));
   $first = trim((string)($_POST['first_name'] ?? ''));
@@ -63,8 +65,15 @@ try {
   $ok = $stmt->execute();
   if (!$ok) {
     $err = (string)$stmt->error;
+    $errno = (int)$stmt->errno;
     $stmt->close();
-    json_out(400, ['ok' => false, 'error' => 'create_failed', 'detail' => $err]);
+    $debug = strtolower(trim((string)getenv('TMM_DEBUG')));
+    $isDebug = $debug === '1' || $debug === 'true' || $debug === 'yes';
+    $msg = 'create_failed';
+    if ($isDebug && ($err !== '' || $errno)) {
+      $msg .= ': ' . ($errno ? ('errno ' . $errno . ' ') : '') . $err;
+    }
+    json_out(400, ['ok' => false, 'error' => $msg, 'detail' => $isDebug ? $err : '']);
   }
   $userId = (int)$stmt->insert_id;
   $stmt->close();
