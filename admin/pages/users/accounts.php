@@ -348,6 +348,36 @@ if (current_user_role() !== 'SuperAdmin') {
   tabBtnCommuters.addEventListener('click', () => switchTab('commuters'));
   tabBtnOperators.addEventListener('click', () => switchTab('operators'));
 
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.lucide) window.lucide.createIcons();
+
+    var btnOpenCreate = document.getElementById('btnOpenCreate');
+    var btnRefresh = document.getElementById('btnRefresh');
+    var btnRepair = document.getElementById('btnRepair');
+    var qEl = document.getElementById('q');
+    var statusEl = document.getElementById('statusFilter');
+
+    if (btnOpenCreate) btnOpenCreate.addEventListener('click', function () { openUserModal(null); });
+    if (btnRefresh) btnRefresh.addEventListener('click', function () { loadUsers().catch(function () {}); });
+    if (btnRepair) btnRepair.addEventListener('click', function () { runRepair().catch(function () {}); });
+    if (qEl) qEl.addEventListener('input', debounce(function () { loadUsers().catch(function () {}); }, 250));
+    if (statusEl) statusEl.addEventListener('change', function () { loadUsers().catch(function () {}); });
+
+    var modalBackdrop = document.getElementById('userModal');
+    if (modalBackdrop) {
+      modalBackdrop.addEventListener('click', function (e) {
+        if (e.target === modalBackdrop) closeModal();
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        closeActivityModal();
+      }
+    });
+  });
+
   // Helpers
   function escapeHtml(text) {
     if (!text) return '';
@@ -798,6 +828,7 @@ if (current_user_role() !== 'SuperAdmin') {
     const payload = Object.fromEntries(formData.entries());
     const roleCheckboxes = form.querySelectorAll('input[name="roles[]"]:checked');
     payload.roles = Array.from(roleCheckboxes).map(cb => parseInt(cb.value));
+    delete payload['roles[]'];
     
     const isEdit = !!userId;
     const endpoint = isEdit ? 'rbac_user_update.php' : 'rbac_user_create.php';
