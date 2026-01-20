@@ -17,7 +17,10 @@ function otp_ensure_schema(mysqli $db): bool {
     INDEX idx_expires (expires_at),
     INDEX idx_consumed (consumed_at)
   ) ENGINE=InnoDB");
-  return (bool)$ok;
+  if ($ok) return true;
+  $chk = $db->query("SHOW TABLES LIKE 'email_otps'");
+  if ($chk && $chk->num_rows > 0) return true;
+  return false;
 }
 
 function otp_generate_code(): string {
