@@ -1,13 +1,17 @@
 <?php
-if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
 
 // Standalone DB connection to avoid legacy schema migration issues
 require_once __DIR__ . '/../../includes/env.php';
 tmm_load_env(__DIR__ . '/../../.env');
 
-function get_db() {
+function get_db()
+{
     static $conn;
-    if ($conn) return $conn;
+    if ($conn)
+        return $conn;
 
     $host = getenv('TMM_DB_HOST') ?: 'localhost';
     $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';
@@ -16,17 +20,17 @@ function get_db() {
 
     // Try primary connection
     $conn = @new mysqli($host, $user, $pass, $name);
-    
+
     // If primary fails, try standard local fallback (root/empty) often used in dev
     if ($conn->connect_error) {
-         $conn = @new mysqli('localhost', 'root', '', 'tmm');
+        $conn = @new mysqli('localhost', 'root', '', 'tmm');
     }
 
     if ($conn->connect_error) {
         // Return JSON error so frontend can see it
-        die(json_encode(['ok'=>false, 'error'=>'DB Connection Error: ' . $conn->connect_error])); 
+        die(json_encode(['ok' => false, 'error' => 'DB Connection Error: ' . $conn->connect_error]));
     }
-    
+
     $conn->set_charset('utf8mb4');
     return $conn;
 }
@@ -55,18 +59,24 @@ $hasRouteId = false;
 $hasPlateNumber = false;
 if ($cols) {
     while ($c = $cols->fetch_assoc()) {
-        if ($c['Field'] === 'route_id') $hasRouteId = true;
-        if ($c['Field'] === 'plate_number') $hasPlateNumber = true;
+        if ($c['Field'] === 'route_id')
+            $hasRouteId = true;
+        if ($c['Field'] === 'plate_number')
+            $hasPlateNumber = true;
     }
 }
-if (!$hasRouteId) { $db->query("ALTER TABLE commuter_complaints ADD COLUMN route_id VARCHAR(64) DEFAULT NULL"); }
-if (!$hasPlateNumber) { $db->query("ALTER TABLE commuter_complaints ADD COLUMN plate_number VARCHAR(32) DEFAULT NULL"); }
+if (!$hasRouteId) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN route_id VARCHAR(64) DEFAULT NULL");
+}
+if (!$hasPlateNumber) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN plate_number VARCHAR(32) DEFAULT NULL");
+}
 
 $action = $_REQUEST['action'] ?? '';
 
 // Check Login State
 $isLoggedIn = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'Commuter';
-$userId = $isLoggedIn ? (int)$_SESSION['user_id'] : null;
+$userId = $isLoggedIn ? (int) $_SESSION['user_id'] : null;
 
 // ----------------------------------------------------------------------
 // AUTH ENDPOINTS
@@ -116,16 +126,135 @@ if ($action === 'get_terminals') {
 }
 
 if ($action === 'get_advisories') {
-    // Fetches public advisories (Matches Admin 'public_advisories' table)
+    // Fetch AI-powered advisories from admin's demand insights API
     $advisories = [];
-    // Check if is_active column exists, otherwise just fetch all or filter by type if needed
-    // For now, simply fetch all since is_active might not be present in all schema versions
-    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 20");
-    if ($res) {
-        while ($row = $res->fetch_assoc()) {
-            $advisories[] = $row;
+
+    try {
+        // Call admin's demand insights API
+        $insightsUrl = __DIR__ . '/../../admin/api/analytics/demand_insights.php';
+
+        if (file_exists($insightsUrl)) {
+            // Save current GET params
+            $savedGet = $_GET;
+            $_GET = ['area_type' => 'terminal', 'hours' => '24'];
+
+            ob_start();
+            include $insightsUrl;
+            $raw = ob_get_clean();
+
+            // Restore GET params
+            $_GET = $savedGet;
+
+            $insights = json_decode($raw, true);
+
+            if (is_array($insights) && ($insights['ok'] ?? false)) {
+                $alerts = $insights['alerts'] ?? [];
+                $playbook = $insights['playbook'] ?? [];
+                $overDemand = $playbook['over_demand'] ?? [];
+                $underDemand = $playbook['under_demand'] ?? [];
+
+                // Transform over-demand insights into advisories
+                foreach ($overDemand as $insight) {
+                    $type = 'info';
+                    $title = '📊 Travel Advisory';
+
+                    // Detect severity from insight text
+                    if (stripos($insight, 'CRITICAL') !== false) {
+                        $type = 'alert';
+                        $title = '🚨 High Demand Alert';
+                    } elseif (stripos($insight, 'High Demand') !== false || stripos($insight, 'Heavy') !== false) {
+                        $type = 'warning';
+                        $title = '⚠️ Traffic & Demand Update';
+                    } elseif (stripos($insight, 'Traffic Impact') !== false) {
+                        $type = 'warning';
+                        $title = '🚦 Traffic Advisory';
+                    } elseif (stripos($insight, 'Rain') !== false) {
+                        $type = 'warning';
+                        $title = '🌧️ Weather Alert';
+                    }
+
+                    // Clean up technical jargon for commuters
+                    $content = $insight;
+                    $content = str_replace('**', '', $content); // Remove markdown bold
+                    $content = str_replace('route-compliant reserve units', 'additional vehicles', $content);
+                    $content = str_replace('dispatch headways', 'wait times', $content);
+                    $content = str_replace('Shorten dispatch headways by 5-10 minutes', 'More vehicles will be deployed to reduce wait times', $content);
+
+                    $advisories[] = [
+                        'id' => 'ai_' . md5($insight),
+                        'title' => $title,
+                        'content' => $content,
+                        'type' => $type,
+                        'posted_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+
+                // Transform under-demand insights (travel tips)
+                foreach ($underDemand as $insight) {
+                    // Only show helpful tips, skip technical optimization messages
+                    if (stripos($insight, 'Low Activity') !== false || stripos($insight, 'minimal demand') !== false) {
+                        $content = str_replace('**', '', $insight);
+                        $content = str_replace('Extend headways to conserve fuel/energy', 'Light traffic - good time to travel!', $content);
+
+                        $advisories[] = [
+                            'id' => 'ai_tip_' . md5($insight),
+                            'title' => '✅ Travel Tip',
+                            'content' => $content,
+                            'type' => 'info',
+                            'posted_at' => date('Y-m-d H:i:s')
+                        ];
+                    }
+                }
+
+                // Add weather-specific advisories from alerts
+                foreach ($alerts as $alert) {
+                    $weather = $alert['weather'] ?? [];
+                    $precipProb = (int) ($weather['precip_prob'] ?? 0);
+
+                    if ($precipProb > 60) {
+                        $loc = $alert['area_label'] ?? 'your area';
+                        $advisories[] = [
+                            'id' => 'weather_' . $alert['area_ref'],
+                            'title' => '🌧️ Weather Advisory',
+                            'content' => "Rain expected at {$loc} ({$precipProb}% chance). Allow extra travel time and bring an umbrella.",
+                            'type' => 'warning',
+                            'posted_at' => date('Y-m-d H:i:s')
+                        ];
+                        break; // Only show one weather advisory
+                    }
+                }
+            }
+        }
+
+        // Fallback: Also fetch manual advisories from public_advisories table
+        $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 10");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $advisories[] = $row;
+            }
+        }
+
+        // If no advisories at all, show a default message
+        if (empty($advisories)) {
+            $advisories[] = [
+                'id' => 'default',
+                'title' => '✅ All Systems Normal',
+                'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
+                'type' => 'info',
+                'posted_at' => date('Y-m-d H:i:s')
+            ];
+        }
+
+    } catch (Exception $e) {
+        // On error, try to fetch manual advisories only
+        $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 10");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $advisories[] = $row;
+            }
         }
     }
+
     echo json_encode(['ok' => true, 'data' => $advisories]);
     exit;
 }
@@ -181,10 +310,13 @@ if ($action === 'get_travel_info') {
 
     // Simple logic for crowding
     $crowding = 'Low'; // Default
-    $hour = (int)date('H');
-    if ($hour >= 7 && $hour <= 9) $crowding = 'High';
-    elseif ($hour >= 17 && $hour <= 19) $crowding = 'High';
-    elseif ($hour >= 10 && $hour <= 16) $crowding = 'Moderate';
+    $hour = (int) date('H');
+    if ($hour >= 7 && $hour <= 9)
+        $crowding = 'High';
+    elseif ($hour >= 17 && $hour <= 19)
+        $crowding = 'High';
+    elseif ($hour >= 10 && $hour <= 16)
+        $crowding = 'Moderate';
 
     $data = [
         'crowding_level' => $crowding,
@@ -192,7 +324,7 @@ if ($action === 'get_travel_info') {
         'best_time_to_travel' => '10:00 AM - 3:00 PM (Off-peak)',
         'forecast' => $forecast
     ];
-    
+
     echo json_encode(['ok' => true, 'data' => $data]);
     exit;
 }
@@ -203,7 +335,7 @@ if ($action === 'submit_complaint') {
     $routeId = $_POST['route_id'] ?? null; // ID from Admin routes
     $plate = $_POST['plate_number'] ?? '';
     $location = $_POST['location'] ?? '';
-    
+
     if (!$type || !$desc) {
         echo json_encode(['ok' => false, 'error' => 'Type and description are required']);
         exit;
@@ -214,8 +346,9 @@ if ($action === 'submit_complaint') {
         $ext = pathinfo($_FILES['media']['name'], PATHINFO_EXTENSION);
         $filename = 'complaint_' . time() . '_' . uniqid() . '.' . $ext;
         $targetDir = __DIR__ . '/uploads/';
-        if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
-        
+        if (!is_dir($targetDir))
+            mkdir($targetDir, 0777, true);
+
         if (move_uploaded_file($_FILES['media']['tmp_name'], $targetDir . $filename)) {
             $mediaPath = 'uploads/' . $filename;
         }
@@ -223,21 +356,24 @@ if ($action === 'submit_complaint') {
 
     // AI Auto-tagging simulation
     $aiTags = [];
-    if (stripos($desc, 'speed') !== false) $aiTags[] = 'Speeding';
-    if (stripos($desc, 'rude') !== false) $aiTags[] = 'Behavior';
-    if (stripos($desc, 'overcharge') !== false) $aiTags[] = 'Overcharging';
+    if (stripos($desc, 'speed') !== false)
+        $aiTags[] = 'Speeding';
+    if (stripos($desc, 'rude') !== false)
+        $aiTags[] = 'Behavior';
+    if (stripos($desc, 'overcharge') !== false)
+        $aiTags[] = 'Overcharging';
     $aiTagsStr = implode(',', $aiTags);
 
     $ref = 'COM-' . strtoupper(uniqid());
-    
+
     // Store full description including location if not separate
     // $fullDesc = "Location: $location\n\n$desc"; 
     // We now have a dedicated location column, but we'll keep it in description for backward compatibility if needed, 
     // or just store it separately. Let's store separately.
-    
+
     $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags, route_id, plate_number, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->bind_param('sisssssss', $ref, $userId, $type, $desc, $mediaPath, $aiTagsStr, $routeId, $plate, $location);
-    
+
     if ($stmt->execute()) {
         echo json_encode(['ok' => true, 'ref_number' => $ref, 'ai_tags' => $aiTags]);
     } else {
@@ -257,7 +393,7 @@ if ($action === 'get_complaint_status') {
     $stmt->bind_param('s', $ref);
     $stmt->execute();
     $res = $stmt->get_result();
-    
+
     if ($row = $res->fetch_assoc()) {
         echo json_encode(['ok' => true, 'data' => $row]);
     } else {
@@ -276,12 +412,12 @@ if ($action === 'get_my_complaints') {
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $res = $stmt->get_result();
-    
+
     $complaints = [];
     while ($row = $res->fetch_assoc()) {
         $complaints[] = $row;
     }
-    
+
     echo json_encode(['ok' => true, 'data' => $complaints]);
     exit;
 }

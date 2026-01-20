@@ -1,8 +1,10 @@
 <?php
-if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) {
+    @session_start();
+}
 
 // No login required for public portal
-$baseUrl = str_replace('\\', '/', (string)dirname(dirname(dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
+$baseUrl = str_replace('\\', '/', (string) dirname(dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 
 $isLoggedIn = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'Commuter';
@@ -10,6 +12,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,13 +38,39 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         }
     </script>
     <style>
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .tab-active { border-bottom: 2px solid #0ea5e9; color: #0284c7; font-weight: 700; }
-        .tab-inactive { color: #64748b; font-weight: 500; }
-        .tab-inactive:hover { color: #334155; }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #0ea5e9;
+            color: #0284c7;
+            font-weight: 700;
+        }
+
+        .tab-inactive {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .tab-inactive:hover {
+            color: #334155;
+        }
     </style>
 </head>
+
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
     <!-- Header -->
@@ -49,7 +78,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         <div class="max-w-5xl mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+                    <div
+                        class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center text-white shadow-lg">
                         <i data-lucide="bus" class="w-6 h-6"></i>
                     </div>
                     <div>
@@ -59,41 +89,56 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 </div>
                 <!-- Desktop Nav -->
                 <nav class="hidden md:flex space-x-6 text-sm">
-                    <button onclick="switchTab('home')" id="nav-home" class="tab-active py-2 transition-colors">Advisories</button>
-                    <button onclick="switchTab('routes')" id="nav-routes" class="tab-inactive py-2 transition-colors">Routes & Fares</button>
-                    <button onclick="switchTab('terminals')" id="nav-terminals" class="tab-inactive py-2 transition-colors">Terminals</button>
-                    <button onclick="switchTab('complaints')" id="nav-complaints" class="tab-inactive py-2 transition-colors">File Complaint</button>
+                    <button onclick="switchTab('home')" id="nav-home"
+                        class="tab-active py-2 transition-colors">Advisories</button>
+                    <button onclick="switchTab('routes')" id="nav-routes"
+                        class="tab-inactive py-2 transition-colors">Routes & Fares</button>
+                    <button onclick="switchTab('terminals')" id="nav-terminals"
+                        class="tab-inactive py-2 transition-colors">Terminals</button>
+                    <button onclick="switchTab('complaints')" id="nav-complaints"
+                        class="tab-inactive py-2 transition-colors">File Complaint</button>
                 </nav>
-                
+
                 <!-- Login/Logout -->
                 <div class="hidden md:flex items-center gap-3">
                     <?php if ($isLoggedIn): ?>
                         <div class="text-xs text-slate-500 font-bold">Hi, <?= htmlspecialchars($userName) ?></div>
                         <a href="logout.php" class="text-xs font-bold text-slate-400 hover:text-slate-600">Logout</a>
                     <?php else: ?>
-                        <a href="../../gsm_login/index.php" class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition shadow-sm flex items-center gap-2">
+                        <a href="../../gsm_login/index.php"
+                            class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition shadow-sm flex items-center gap-2">
                             <i data-lucide="log-in" class="w-3 h-3"></i> Login
                         </a>
                     <?php endif; ?>
                 </div>
 
                 <!-- Mobile Menu Button -->
-                <button class="md:hidden text-slate-500" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+                <button class="md:hidden text-slate-500"
+                    onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
                     <i data-lucide="menu" class="w-6 h-6"></i>
                 </button>
             </div>
             <!-- Mobile Menu -->
             <div id="mobile-menu" class="hidden md:hidden mt-4 pb-2 space-y-2 border-t border-slate-100 pt-2">
-                <button onclick="switchTab('home')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Advisories</button>
-                <button onclick="switchTab('routes')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Routes & Fares</button>
-                <button onclick="switchTab('terminals')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Terminals</button>
-                <button onclick="switchTab('complaints')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">File Complaint</button>
+                <button onclick="switchTab('home')"
+                    class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Advisories</button>
+                <button onclick="switchTab('routes')"
+                    class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Routes &
+                    Fares</button>
+                <button onclick="switchTab('terminals')"
+                    class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Terminals</button>
+                <button onclick="switchTab('complaints')"
+                    class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">File
+                    Complaint</button>
                 <div class="border-t border-slate-100 pt-2 mt-2">
                     <?php if ($isLoggedIn): ?>
                         <div class="px-4 py-2 text-xs font-bold text-slate-500">Hi, <?= htmlspecialchars($userName) ?></div>
-                        <a href="logout.php" class="block w-full text-left px-4 py-2 text-sm font-medium text-red-500 hover:bg-slate-50 rounded-lg">Logout</a>
+                        <a href="logout.php"
+                            class="block w-full text-left px-4 py-2 text-sm font-medium text-red-500 hover:bg-slate-50 rounded-lg">Logout</a>
                     <?php else: ?>
-                        <a href="../../gsm_login/index.php" class="block w-full text-left px-4 py-2 text-sm font-medium text-brand-600 hover:bg-slate-50 rounded-lg">Login / Sign Up</a>
+                        <a href="../../gsm_login/index.php"
+                            class="block w-full text-left px-4 py-2 text-sm font-medium text-brand-600 hover:bg-slate-50 rounded-lg">Login
+                            / Sign Up</a>
                     <?php endif; ?>
                 </div>
             </div>
@@ -102,13 +147,15 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
     <!-- Main Content -->
     <main class="max-w-5xl mx-auto px-4 py-8 pb-24">
-        
+
         <!-- HOME / ADVISORIES -->
         <section id="tab-home" class="fade-in space-y-6">
-            <div class="bg-gradient-to-r from-brand-600 to-brand-900 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+            <div
+                class="bg-gradient-to-r from-brand-600 to-brand-900 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
                 <div class="relative z-10">
                     <h2 class="text-3xl font-bold mb-2">Welcome to City Transport</h2>
-                    <p class="text-brand-100 max-w-lg">Official information source for routes, terminals, fares, and service advisories. Plan your commute with confidence.</p>
+                    <p class="text-brand-100 max-w-lg">Official information source for routes, terminals, fares, and
+                        service advisories. Plan your commute with confidence.</p>
                 </div>
                 <div class="absolute right-0 bottom-0 opacity-10 transform translate-x-10 translate-y-10">
                     <i data-lucide="map" class="w-64 h-64"></i>
@@ -120,7 +167,14 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     <i data-lucide="bell" class="w-5 h-5 text-brand-600"></i>
                     Service Advisories
                 </h3>
-                <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">Live Updates</span>
+                <div class="flex items-center gap-3">
+                    <span id="last-updated" class="text-xs font-medium text-slate-400">Loading...</span>
+                    <span
+                        class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full flex items-center gap-1">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        Live Updates
+                    </span>
+                </div>
             </div>
 
             <div id="advisories-container" class="space-y-4">
@@ -150,7 +204,9 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                             </tr>
                         </thead>
                         <tbody id="routes-table-body" class="divide-y divide-slate-100 text-sm">
-                            <tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">Loading routes...</td></tr>
+                            <tr>
+                                <td colspan="4" class="px-6 py-8 text-center text-slate-400">Loading routes...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -180,10 +236,16 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
                 <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
                     <div class="flex border-b border-slate-100">
-                        <button onclick="toggleComplaintMode('new')" id="btn-mode-new" class="flex-1 py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50/50">New Complaint</button>
-                        <button onclick="toggleComplaintMode('track')" id="btn-mode-track" class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">Track Status</button>
+                        <button onclick="toggleComplaintMode('new')" id="btn-mode-new"
+                            class="flex-1 py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50/50">New
+                            Complaint</button>
+                        <button onclick="toggleComplaintMode('track')" id="btn-mode-track"
+                            class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">Track
+                            Status</button>
                         <?php if ($isLoggedIn): ?>
-                        <button onclick="toggleComplaintMode('my')" id="btn-mode-my" class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">My Reports</button>
+                            <button onclick="toggleComplaintMode('my')" id="btn-mode-my"
+                                class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">My
+                                Reports</button>
                         <?php endif; ?>
                     </div>
 
@@ -192,8 +254,10 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                         <form id="complaintForm" onsubmit="submitComplaint(event)" class="space-y-5">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Incident Type <span class="text-red-500">*</span></label>
-                                    <select name="type" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none bg-white">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Incident Type
+                                        <span class="text-red-500">*</span></label>
+                                    <select name="type" required
+                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none bg-white">
                                         <option value="">Select Type...</option>
                                         <option value="Overcharging">Overcharging</option>
                                         <option value="Reckless Driving">Reckless Driving</option>
@@ -204,43 +268,57 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date & Time</label>
-                                    <input type="datetime-local" name="datetime" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date &
+                                        Time</label>
+                                    <input type="datetime-local" name="datetime"
+                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Route / PUV Type</label>
-                                    <input type="text" name="route" placeholder="e.g. Jeepney Route 12" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Route / PUV
+                                        Type</label>
+                                    <input type="text" name="route" placeholder="e.g. Jeepney Route 12"
+                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number (Optional)</label>
-                                    <input type="text" name="plate_number" placeholder="ABC-1234" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase">
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number
+                                        (Optional)</label>
+                                    <input type="text" name="plate_number" placeholder="ABC-1234"
+                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase">
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Location of Incident</label>
-                                <input type="text" name="location" placeholder="e.g. Near Central Terminal" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Location of
+                                    Incident</label>
+                                <input type="text" name="location" placeholder="e.g. Near Central Terminal"
+                                    class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description <span class="text-red-500">*</span></label>
-                                <textarea name="description" rows="3" required placeholder="Describe what happened..." class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"></textarea>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description <span
+                                        class="text-red-500">*</span></label>
+                                <textarea name="description" rows="3" required placeholder="Describe what happened..."
+                                    class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"></textarea>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Photo Evidence (Optional)</label>
-                                <input type="file" name="media" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Photo Evidence
+                                    (Optional)</label>
+                                <input type="file" name="media" accept="image/*"
+                                    class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
                             </div>
 
                             <div class="pt-4">
-                                <button type="submit" id="btn-submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                                <button type="submit" id="btn-submit"
+                                    class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-2">
                                     <i data-lucide="send" class="w-5 h-5"></i>
                                     Submit Complaint
                                 </button>
-                                <p class="text-center text-xs text-slate-400 mt-3">Your report helps us improve city transport. Personal info is optional.</p>
+                                <p class="text-center text-xs text-slate-400 mt-3">Your report helps us improve city
+                                    transport. Personal info is optional.</p>
                             </div>
                         </form>
                     </div>
@@ -248,52 +326,61 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     <!-- Track Status Form -->
                     <div id="mode-track" class="hidden p-6 md:p-8 space-y-6">
                         <div class="text-center">
-                            <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                            <div
+                                class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
                                 <i data-lucide="search" class="w-8 h-8 text-slate-400"></i>
                             </div>
                             <h3 class="text-lg font-bold text-slate-900">Track Your Report</h3>
-                            <p class="text-sm text-slate-500">Enter the reference number provided when you submitted your complaint.</p>
+                            <p class="text-sm text-slate-500">Enter the reference number provided when you submitted
+                                your complaint.</p>
                         </div>
 
                         <div class="max-w-md mx-auto space-y-4">
                             <div class="relative">
-                                <input type="text" id="trackRef" placeholder="Reference No. (e.g. COM-X1Y2Z3)" class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase font-bold text-center tracking-widest">
+                                <input type="text" id="trackRef" placeholder="Reference No. (e.g. COM-X1Y2Z3)"
+                                    class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase font-bold text-center tracking-widest">
                                 <i data-lucide="hash" class="absolute left-4 top-3.5 text-slate-400 w-5 h-5"></i>
                             </div>
-                            <button onclick="trackComplaint()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors">
+                            <button onclick="trackComplaint()"
+                                class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors">
                                 Check Status
                             </button>
                         </div>
 
                         <div id="trackResult" class="hidden bg-slate-50 rounded-xl p-6 border border-slate-200 mt-6">
                             <div class="flex items-start gap-4">
-                                <div id="statusIcon" class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 shrink-0">
+                                <div id="statusIcon"
+                                    class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 shrink-0">
                                     <i data-lucide="activity" class="w-5 h-5"></i>
                                 </div>
                                 <div>
                                     <div class="text-xs font-bold text-slate-500 uppercase mb-1">Current Status</div>
                                     <div id="trackStatus" class="text-xl font-black text-slate-900">Submitted</div>
                                     <div id="trackDate" class="text-sm text-slate-500 mt-1"></div>
-                                    <div class="mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600 italic" id="trackDesc"></div>
+                                    <div class="mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600 italic"
+                                        id="trackDesc"></div>
                                 </div>
                             </div>
                         </div>
-                        <div id="trackError" class="hidden text-center text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-100"></div>
+                        <div id="trackError"
+                            class="hidden text-center text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-100">
+                        </div>
                     </div>
 
                     <!-- My Reports (Logged In Only) -->
                     <?php if ($isLoggedIn): ?>
-                    <div id="mode-my" class="hidden p-6 md:p-8 space-y-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-bold text-lg text-slate-800">My Complaint History</h3>
-                            <button onclick="loadMyComplaints()" class="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
-                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
-                            </button>
+                        <div id="mode-my" class="hidden p-6 md:p-8 space-y-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-bold text-lg text-slate-800">My Complaint History</h3>
+                                <button onclick="loadMyComplaints()"
+                                    class="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
+                                    <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
+                                </button>
+                            </div>
+                            <div id="my-complaints-list" class="space-y-3">
+                                <div class="text-center py-8 text-slate-400 italic">Loading your reports...</div>
+                            </div>
                         </div>
-                        <div id="my-complaints-list" class="space-y-3">
-                            <div class="text-center py-8 text-slate-400 italic">Loading your reports...</div>
-                        </div>
-                    </div>
                     <?php endif; ?>
 
                 </div>
@@ -303,20 +390,25 @@ $userName = $_SESSION['name'] ?? 'Commuter';
     </main>
 
     <!-- Bottom Mobile Nav -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button onclick="switchTab('home')" class="nav-btn-mobile flex flex-col items-center text-brand-600" data-target="home">
+    <div
+        class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button onclick="switchTab('home')" class="nav-btn-mobile flex flex-col items-center text-brand-600"
+            data-target="home">
             <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold mt-1">Home</span>
         </button>
-        <button onclick="switchTab('routes')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="routes">
+        <button onclick="switchTab('routes')" class="nav-btn-mobile flex flex-col items-center text-slate-400"
+            data-target="routes">
             <i data-lucide="map-pin" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold mt-1">Routes</span>
         </button>
-        <button onclick="switchTab('terminals')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="terminals">
+        <button onclick="switchTab('terminals')" class="nav-btn-mobile flex flex-col items-center text-slate-400"
+            data-target="terminals">
             <i data-lucide="warehouse" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold mt-1">Terminals</span>
         </button>
-        <button onclick="switchTab('complaints')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="complaints">
+        <button onclick="switchTab('complaints')" class="nav-btn-mobile flex flex-col items-center text-slate-400"
+            data-target="complaints">
             <i data-lucide="message-square-warning" class="w-5 h-5"></i>
             <span class="text-[10px] font-bold mt-1">Report</span>
         </button>
@@ -324,7 +416,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
     <script>
         const API_URL = 'api.php';
-        
+
         // Initialize Icons
         lucide.createIcons();
 
@@ -343,7 +435,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 el.classList.add('tab-inactive');
             });
             const activeBtn = document.getElementById('nav-' + tabId);
-            if(activeBtn) {
+            if (activeBtn) {
                 activeBtn.classList.remove('tab-inactive');
                 activeBtn.classList.add('tab-active');
             }
@@ -354,15 +446,15 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 el.classList.add('text-slate-400');
             });
             const activeMobile = document.querySelector(`.nav-btn-mobile[data-target="${tabId}"]`);
-            if(activeMobile) {
+            if (activeMobile) {
                 activeMobile.classList.remove('text-slate-400');
                 activeMobile.classList.add('text-brand-600');
             }
 
             // Lazy Load Data
-            if(tabId === 'routes') loadRoutes();
-            if(tabId === 'terminals') loadTerminals();
-            
+            if (tabId === 'routes') loadRoutes();
+            if (tabId === 'terminals') loadTerminals();
+
             // Close mobile menu if open
             document.getElementById('mobile-menu').classList.add('hidden');
         }
@@ -372,38 +464,62 @@ $userName = $_SESSION['name'] ?? 'Commuter';
             // Reset all
             document.getElementById('mode-new').classList.add('hidden');
             document.getElementById('mode-track').classList.add('hidden');
-            if(document.getElementById('mode-my')) document.getElementById('mode-my').classList.add('hidden');
+            if (document.getElementById('mode-my')) document.getElementById('mode-my').classList.add('hidden');
 
             document.getElementById('btn-mode-new').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
             document.getElementById('btn-mode-track').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
-            if(document.getElementById('btn-mode-my')) document.getElementById('btn-mode-my').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
+            if (document.getElementById('btn-mode-my')) document.getElementById('btn-mode-my').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
 
             // Activate selected
             document.getElementById('mode-' + mode).classList.remove('hidden');
             document.getElementById('btn-mode-' + mode).className = 'flex-1 py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50/50';
 
-            if(mode === 'my') loadMyComplaints();
+            if (mode === 'my') loadMyComplaints();
         }
 
         // Data Loading Functions
+        let lastAdvisoryUpdate = null;
+
         async function loadAdvisories() {
             try {
                 const res = await fetch(`${API_URL}?action=get_advisories`);
                 const data = await res.json();
                 const container = document.getElementById('advisories-container');
-                
-                if(data.ok && data.data.length > 0) {
-                    container.innerHTML = data.data.map(item => `
+
+                if (data.ok && data.data.length > 0) {
+                    container.innerHTML = data.data.map(item => {
+                        // Determine icon based on title
+                        let icon = '📊';
+                        if (item.title.includes('🚨')) icon = '🚨';
+                        else if (item.title.includes('⚠️')) icon = '⚠️';
+                        else if (item.title.includes('🚦')) icon = '🚦';
+                        else if (item.title.includes('🌧️')) icon = '🌧️';
+                        else if (item.title.includes('✅')) icon = '✅';
+
+                        // Remove emoji from title since we're showing it separately
+                        const cleanTitle = item.title.replace(/[📊🚨⚠️🚦🌧️✅]/g, '').trim();
+
+                        return `
                         <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 ${item.type === 'alert' ? 'border-red-500' : (item.type === 'warning' ? 'border-amber-500' : 'border-brand-500')} hover:shadow-md transition-shadow">
-                            <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-bold text-lg text-slate-800">${item.title}</h4>
-                                <span class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-slate-100 text-slate-500">${new Date(item.posted_at).toLocaleDateString()}</span>
+                            <div class="flex items-start gap-4">
+                                <div class="text-3xl shrink-0">${icon}</div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h4 class="font-bold text-lg text-slate-800">${cleanTitle}</h4>
+                                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-slate-100 text-slate-500">${new Date(item.posted_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <p class="text-slate-600 text-sm leading-relaxed">${item.content}</p>
+                                </div>
                             </div>
-                            <p class="text-slate-600 text-sm leading-relaxed">${item.content}</p>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
+
+                    // Update last updated timestamp
+                    lastAdvisoryUpdate = new Date();
+                    updateLastUpdatedTime();
                 } else if (!data.ok) {
-                     container.innerHTML = `<div class="text-center py-8 text-red-400 italic">Error: ${data.error || 'Failed to load advisories'}</div>`;
+                    container.innerHTML = `<div class="text-center py-8 text-red-400 italic">Error: ${data.error || 'Failed to load advisories'}</div>`;
                 } else {
                     container.innerHTML = `<div class="text-center py-8 text-slate-400 italic">No active advisories at the moment.</div>`;
                 }
@@ -413,19 +529,43 @@ $userName = $_SESSION['name'] ?? 'Commuter';
             }
         }
 
+        function updateLastUpdatedTime() {
+            const el = document.getElementById('last-updated');
+            if (!el || !lastAdvisoryUpdate) return;
+
+            const now = new Date();
+            const diff = Math.floor((now - lastAdvisoryUpdate) / 1000); // seconds
+
+            let text = 'Just now';
+            if (diff >= 60) {
+                const mins = Math.floor(diff / 60);
+                text = `${mins} min${mins > 1 ? 's' : ''} ago`;
+            } else if (diff > 5) {
+                text = `${diff} sec ago`;
+            }
+
+            el.textContent = `Updated ${text}`;
+        }
+
+        // Auto-refresh advisories every 5 minutes
+        setInterval(loadAdvisories, 5 * 60 * 1000);
+
+        // Update "last updated" time every 10 seconds
+        setInterval(updateLastUpdatedTime, 10 * 1000);
+
         async function populateRouteOptions() {
             try {
                 const res = await fetch(`${API_URL}?action=get_routes`);
                 const data = await res.json();
                 const select = document.getElementById('complaint-route-select');
-                
-                if(data.ok && data.data.length > 0) {
+
+                if (data.ok && data.data.length > 0) {
                     // Keep the default options
                     let opts = '<option value="">Select Route...</option><option value="Other">Other / Not Listed</option>';
                     opts += data.data.map(r => `<option value="${r.route_id}">${r.route_name}</option>`).join('');
                     select.innerHTML = opts;
                 } else if (!data.ok) {
-                     console.error("Route fetch error:", data.error);
+                    console.error("Route fetch error:", data.error);
                 }
             } catch (e) {
                 console.error("Failed to load routes for dropdown", e);
@@ -434,13 +574,13 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         async function loadRoutes() {
             const tbody = document.getElementById('routes-table-body');
-            if(tbody.getAttribute('data-loaded') === 'true') return;
+            if (tbody.getAttribute('data-loaded') === 'true') return;
 
             try {
                 const res = await fetch(`${API_URL}?action=get_routes`);
                 const data = await res.json();
-                
-                if(data.ok && data.data.length > 0) {
+
+                if (data.ok && data.data.length > 0) {
                     tbody.innerHTML = data.data.map(r => `
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="px-6 py-4 font-bold text-brand-700">${r.route_name}</td>
@@ -471,13 +611,13 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         async function loadTerminals() {
             const grid = document.getElementById('terminals-grid');
-            if(grid.getAttribute('data-loaded') === 'true') return;
+            if (grid.getAttribute('data-loaded') === 'true') return;
 
             try {
                 const res = await fetch(`${API_URL}?action=get_terminals`);
                 const data = await res.json();
-                
-                if(data.ok && data.data.length > 0) {
+
+                if (data.ok && data.data.length > 0) {
                     grid.innerHTML = data.data.map(t => `
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-brand-200 transition-colors group">
                             <div class="flex items-start justify-between mb-4">
@@ -524,7 +664,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 const res = await fetch(API_URL, { method: 'POST', body: formData });
                 const data = await res.json();
 
-                if(data.ok) {
+                if (data.ok) {
                     // Switch to track mode and show result
                     toggleComplaintMode('track');
                     document.getElementById('trackRef').value = data.ref_number;
@@ -545,19 +685,19 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         async function trackComplaint() {
             const ref = document.getElementById('trackRef').value.trim();
-            if(!ref) return;
+            if (!ref) return;
 
             const resultBox = document.getElementById('trackResult');
             const errorBox = document.getElementById('trackError');
-            
+
             try {
                 const res = await fetch(`${API_URL}?action=get_complaint_status&ref_number=${ref}`);
                 const data = await res.json();
 
-                if(data.ok) {
+                if (data.ok) {
                     errorBox.classList.add('hidden');
                     resultBox.classList.remove('hidden');
-                    
+
                     document.getElementById('trackStatus').innerText = data.data.status;
                     document.getElementById('trackDate').innerText = 'Reported on: ' + new Date(data.data.created_at).toLocaleString();
                     document.getElementById('trackDesc').innerText = data.data.description ? data.data.description.substring(0, 100) + '...' : '';
@@ -591,7 +731,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 const res = await fetch(`${API_URL}?action=get_my_complaints`);
                 const data = await res.json();
 
-                if(data.ok && data.data.length > 0) {
+                if (data.ok && data.data.length > 0) {
                     container.innerHTML = data.data.map(c => {
                         const statusColors = {
                             'Submitted': 'bg-slate-100 text-slate-600',
@@ -600,7 +740,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                             'Dismissed': 'bg-red-100 text-red-700'
                         };
                         const colorClass = statusColors[c.status] || statusColors['Submitted'];
-                        
+
                         return `
                         <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
                             <div class="flex justify-between items-start mb-2">
@@ -624,4 +764,5 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         }
     </script>
 </body>
+
 </html>
