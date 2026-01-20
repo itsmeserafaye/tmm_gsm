@@ -128,11 +128,15 @@ function rbac_repair_schema(mysqli $db): void {
 
   rbac_ensure_primary_key($db, 'rbac_permissions', 'id');
   rbac_ensure_auto_increment($db, 'rbac_permissions', 'id', 'INT');
+  if (!rbac_has_unique_index_on($db, 'rbac_permissions', 'code')) {
+    $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
+  }
 
   rbac_ensure_primary_key($db, 'rbac_login_audit', 'id');
   rbac_ensure_auto_increment($db, 'rbac_login_audit', 'id', 'BIGINT');
 
   rbac_repair_roles($db);
+  rbac_repair_permissions($db);
 }
 
 function rbac_repair_roles(mysqli $db): void {
@@ -198,6 +202,58 @@ function rbac_repair_roles(mysqli $db): void {
 
   if (!rbac_has_unique_index_on($db, 'rbac_roles', 'name')) {
     $db->query("ALTER TABLE rbac_roles ADD UNIQUE KEY uniq_rbac_roles_name (name)");
+  }
+}
+
+function rbac_repair_permissions(mysqli $db): void {
+  $resDup = $db->query("SELECT code, MIN(id) AS keep_id, COUNT(*) AS c FROM rbac_permissions GROUP BY code HAVING c > 1");
+  if ($resDup) {
+    while ($d = $resDup->fetch_assoc()) {
+      $code = (string)($d['code'] ?? '');
+      $keepId = (int)($d['keep_id'] ?? 0);
+      if ($code === '' || $keepId <= 0) continue;
+
+      $codeEsc = $db->real_escape_string($code);
+      $resIds = $db->query("SELECT id, description FROM rbac_permissions WHERE code='$codeEsc' ORDER BY id ASC");
+      if (!$resIds) continue;
+      $ids = [];
+      $bestDesc = '';
+      while ($r = $resIds->fetch_assoc()) {
+        $pid = (int)($r['id'] ?? 0);
+        if ($pid <= 0) continue;
+        $ids[] = $pid;
+        $desc = trim((string)($r['description'] ?? ''));
+        if ($desc !== '' && strlen($desc) > strlen($bestDesc)) $bestDesc = $desc;
+      }
+      if (!$ids) continue;
+
+      $keepDescRow = $db->query("SELECT description FROM rbac_permissions WHERE id=" . (int)$keepId . " LIMIT 1");
+      $keepDesc = '';
+      if ($keepDescRow) {
+        $kr = $keepDescRow->fetch_assoc();
+        $keepDesc = trim((string)($kr['description'] ?? ''));
+      }
+      if ($keepDesc === '' && $bestDesc !== '') {
+        $stmtU = $db->prepare("UPDATE rbac_permissions SET description=? WHERE id=?");
+        if ($stmtU) {
+          $stmtU->bind_param('si', $bestDesc, $keepId);
+          $stmtU->execute();
+          $stmtU->close();
+        }
+      }
+
+      foreach ($ids as $pid) {
+        if ($pid === $keepId) continue;
+        $db->query("INSERT IGNORE INTO rbac_role_permissions(role_id, permission_id)
+          SELECT role_id, " . (int)$keepId . " FROM rbac_role_permissions WHERE permission_id=" . (int)$pid);
+        $db->query("DELETE FROM rbac_role_permissions WHERE permission_id=" . (int)$pid);
+        $db->query("DELETE FROM rbac_permissions WHERE id=" . (int)$pid);
+      }
+    }
+  }
+
+  if (!rbac_has_unique_index_on($db, 'rbac_permissions', 'code')) {
+    $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
   }
 }
 

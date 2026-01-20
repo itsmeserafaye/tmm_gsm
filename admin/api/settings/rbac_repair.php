@@ -46,6 +46,18 @@ try {
     // 5. Ensure Auto Increment on IDs
     $db->query("ALTER TABLE rbac_roles MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
     $db->query("ALTER TABLE rbac_users MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
+    $db->query("ALTER TABLE rbac_permissions MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT");
+
+    // 6. Deduplicate Permissions (Keep MIN id, remove others)
+    $db->query("CREATE TEMPORARY TABLE tmp_perm_keep SELECT code, MIN(id) AS keep_id FROM rbac_permissions GROUP BY code");
+    $db->query("UPDATE rbac_role_permissions rp JOIN rbac_permissions p ON p.id = rp.permission_id JOIN tmp_perm_keep k ON k.code = p.code SET rp.permission_id = k.keep_id");
+    $db->query("DELETE p FROM rbac_permissions p JOIN tmp_perm_keep k ON k.code = p.code WHERE p.id <> k.keep_id");
+    $db->query("DROP TEMPORARY TABLE tmp_perm_keep");
+
+    $checkPermUniq = $db->query("SHOW INDEX FROM rbac_permissions WHERE Key_name = 'uniq_rbac_permissions_code'");
+    if ($checkPermUniq && $checkPermUniq->num_rows === 0) {
+        $db->query("ALTER TABLE rbac_permissions ADD UNIQUE KEY uniq_rbac_permissions_code (code)");
+    }
 
     $db->commit();
 

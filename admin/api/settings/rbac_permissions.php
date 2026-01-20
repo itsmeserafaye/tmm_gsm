@@ -20,7 +20,7 @@ try {
   rbac_ensure_schema($db);
   require_role(['SuperAdmin']);
 
-  $res = $db->query("SELECT id, code, COALESCE(description,'') AS description FROM rbac_permissions ORDER BY code ASC");
+  $res = $db->query("SELECT MIN(id) AS id, code, MAX(COALESCE(description,'')) AS description FROM rbac_permissions GROUP BY code ORDER BY code ASC");
   $items = [];
   if ($res) {
     while ($row = $res->fetch_assoc()) {
@@ -37,4 +37,3 @@ try {
   if (defined('TMM_TEST')) throw $e;
   rbac_json_out(500, ['ok' => false, 'error' => $e->getMessage()]);
 }
-
