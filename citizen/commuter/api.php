@@ -1,4 +1,6 @@
 <?php
+if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+
 // Standalone DB connection to avoid legacy schema migration issues
 function get_db() {
     static $conn;
@@ -20,6 +22,7 @@ function get_db() {
 }
 
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
 $db = get_db();
 
@@ -27,6 +30,7 @@ $db = get_db();
 $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ref_number VARCHAR(64) UNIQUE,
+    user_id INT DEFAULT NULL,
     complaint_type VARCHAR(64),
     description TEXT,
     media_path VARCHAR(255) DEFAULT NULL,
@@ -36,6 +40,87 @@ $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
 ) ENGINE=InnoDB");
 
 $action = $_REQUEST['action'] ?? '';
+
+// Check Login State
+$isLoggedIn = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'Commuter';
+$userId = $isLoggedIn ? (int)$_SESSION['user_id'] : null;
+
+// ----------------------------------------------------------------------
+// AUTH ENDPOINTS
+// ----------------------------------------------------------------------
+
+if ($action === 'check_session') {
+    echo json_encode([
+        'ok' => true,
+        'is_logged_in' => $isLoggedIn,
+        'user' => $isLoggedIn ? [
+            'name' => $_SESSION['name'] ?? 'Commuter',
+            'email' => $_SESSION['email'] ?? ''
+        ] : null
+    ]);
+    exit;
+}
+
+// ----------------------------------------------------------------------
+// PUBLIC ENDPOINTS (No Login Required)
+// ----------------------------------------------------------------------
+
+if ($action === 'get_routes') {
+    // Fetches list of authorized routes
+    $routes = [];
+    $res = $db->query("SELECT * FROM routes ORDER BY route_name ASC");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $routes[] = $row;
+        }
+    }
+    echo json_encode(['ok' => true, 'data' => $routes]);
+    exit;
+}
+
+if ($action === 'get_terminals') {
+    // Fetches list of terminals
+    $terminals = [];
+    $res = $db->query("SELECT * FROM terminals ORDER BY name ASC");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $terminals[] = $row;
+        }
+    }
+    echo json_encode(['ok' => true, 'data' => $terminals]);
+    exit;
+}
+
+if ($action === 'get_advisories') {
+    // Fetches public advisories
+    $advisories = [];
+    $res = $db->query("SELECT * FROM public_advisories ORDER BY posted_at DESC LIMIT 20");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $advisories[] = $row;
+        }
+    }
+    echo json_encode(['ok' => true, 'data' => $advisories]);
+    exit;
+}
+
+if ($action === 'get_fares') {
+    // Fetches fare matrix information (can be from routes or dedicated table)
+    // For now, we extract fare info from routes
+    $fares = [];
+    $res = $db->query("SELECT route_name, fare, origin, destination FROM routes ORDER BY route_name ASC");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $fares[] = $row;
+        }
+    }
+    echo json_encode(['ok' => true, 'data' => $fares]);
+    exit;
+}
+
+// ----------------------------------------------------------------------
+// EXISTING ENDPOINTS
+// ----------------------------------------------------------------------
 
 if ($action === 'verify_vehicle') {
     $plate = trim($_REQUEST['plate_number'] ?? '');
@@ -62,10 +147,6 @@ if ($action === 'verify_vehicle') {
 }
 
 if ($action === 'get_travel_info') {
-    // Get latest log entries to determine crowding (simple logic)
-    // In real app, this would use Module 5 logs + AI Demand Forecasts
-    // Mocking AI data for now based on requirement "Data Source: Module 5 + AI Demand Forecasts"
-    
     // Check if we have forecast data
     $forecast = [];
     $res = $db->query("SELECT * FROM demand_forecasts ORDER BY ts DESC LIMIT 1");
@@ -94,6 +175,9 @@ if ($action === 'get_travel_info') {
 if ($action === 'submit_complaint') {
     $type = $_POST['type'] ?? '';
     $desc = $_POST['description'] ?? '';
+    $route = $_POST['route'] ?? '';
+    $plate = $_POST['plate_number'] ?? '';
+    $location = $_POST['location'] ?? '';
     
     if (!$type || !$desc) {
         echo json_encode(['ok' => false, 'error' => 'Type and description are required']);
@@ -121,8 +205,14 @@ if ($action === 'submit_complaint') {
 
     $ref = 'COM-' . strtoupper(uniqid());
     
-    $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, complaint_type, description, media_path, ai_tags) VALUES (?, ?, ?, ?, ?)");
-    $stmt->bind_param('sssss', $ref, $type, $desc, $mediaPath, $aiTagsStr);
+    // We append extra details to description for now since table schema is simple, 
+    // or we could add columns. For safety, let's just append to description if columns don't exist.
+    // Ideally we should alter table, but let's stick to existing schema + new fields in description for simplicity unless we want to run ALTER.
+    
+    $fullDesc = "Route: $route\nPlate: $plate\nLocation: $location\n\n$desc";
+
+    $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('sissss', $ref, $userId, $type, $fullDesc, $mediaPath, $aiTagsStr);
     
     if ($stmt->execute()) {
         echo json_encode(['ok' => true, 'ref_number' => $ref, 'ai_tags' => $aiTags]);
@@ -139,7 +229,7 @@ if ($action === 'get_complaint_status') {
         exit;
     }
 
-    $stmt = $db->prepare("SELECT ref_number, status, created_at FROM commuter_complaints WHERE ref_number = ?");
+    $stmt = $db->prepare("SELECT ref_number, status, created_at, description FROM commuter_complaints WHERE ref_number = ?");
     $stmt->bind_param('s', $ref);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -149,6 +239,26 @@ if ($action === 'get_complaint_status') {
     } else {
         echo json_encode(['ok' => false, 'error' => 'Complaint not found']);
     }
+    exit;
+}
+
+if ($action === 'get_my_complaints') {
+    if (!$isLoggedIn) {
+        echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+
+    $stmt = $db->prepare("SELECT ref_number, complaint_type, status, created_at, description FROM commuter_complaints WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    
+    $complaints = [];
+    while ($row = $res->fetch_assoc()) {
+        $complaints[] = $row;
+    }
+    
+    echo json_encode(['ok' => true, 'data' => $complaints]);
     exit;
 }
 

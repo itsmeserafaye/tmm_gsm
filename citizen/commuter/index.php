@@ -1,28 +1,34 @@
 <?php
-require_once __DIR__ . '/../../includes/commuter_portal.php';
+if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+
+// No login required for public portal
 $baseUrl = str_replace('\\', '/', (string)dirname(dirname(dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
-commuter_portal_require_login($baseUrl . '/index.php');
+
+$isLoggedIn = !empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'Commuter';
+$userName = $_SESSION['name'] ?? 'Commuter';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commuter Portal - TMM</title>
+    <title>City Transport Portal - Public Information</title>
     <link rel="icon" type="image/jpeg" href="images/logo.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/tesseract.min.js"></script> <!-- Local fallback from npm install -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script> <!-- CDN for Worker ease -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#f97316', // Orange-500
-                        secondary: '#22c55e', // Green-500
-                        'primary-dark': '#ea580c', // Orange-600
-                        'secondary-dark': '#16a34a', // Green-600
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
                     }
                 }
             }
@@ -30,392 +36,459 @@ commuter_portal_require_login($baseUrl . '/index.php');
     </script>
     <style>
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-active { border-bottom: 2px solid #0ea5e9; color: #0284c7; font-weight: 700; }
+        .tab-inactive { color: #64748b; font-weight: 500; }
+        .tab-inactive:hover { color: #334155; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
     <!-- Header -->
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-                <img src="images/logo.jpg" alt="Logo" class="w-10 h-10 rounded-lg shadow-lg object-cover">
-                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">Commuter<span class="text-secondary">Portal</span></h1>
-            </div>
-            <div class="hidden md:flex items-center gap-3">
-                <div class="text-xs font-bold text-slate-500"><?php echo htmlspecialchars((string)($_SESSION['name'] ?? '')); ?></div>
-                <a href="logout.php" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition">Logout</a>
-            </div>
-            <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-600">
-                <button onclick="showSection('verify')" class="hover:text-primary transition-colors">Verify Vehicle</button>
-                <button onclick="showSection('travel')" class="hover:text-primary transition-colors">Travel Info</button>
-                <button onclick="showSection('complaint')" class="hover:text-primary transition-colors">Complaints</button>
-            </nav>
-            <div class="md:hidden">
-                <!-- Mobile menu button placeholder -->
-                <button class="text-slate-500 hover:text-primary">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    <header class="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200">
+        <div class="max-w-5xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center text-white shadow-lg">
+                        <i data-lucide="bus" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-900 leading-tight">City Transport</h1>
+                        <p class="text-xs text-slate-500 font-medium">Public Information Portal</p>
+                    </div>
+                </div>
+                <!-- Desktop Nav -->
+                <nav class="hidden md:flex space-x-6 text-sm">
+                    <button onclick="switchTab('home')" id="nav-home" class="tab-active py-2 transition-colors">Advisories</button>
+                    <button onclick="switchTab('routes')" id="nav-routes" class="tab-inactive py-2 transition-colors">Routes & Fares</button>
+                    <button onclick="switchTab('terminals')" id="nav-terminals" class="tab-inactive py-2 transition-colors">Terminals</button>
+                    <button onclick="switchTab('complaints')" id="nav-complaints" class="tab-inactive py-2 transition-colors">File Complaint</button>
+                </nav>
+                
+                <!-- Login/Logout -->
+                <div class="hidden md:flex items-center gap-3">
+                    <?php if ($isLoggedIn): ?>
+                        <div class="text-xs text-slate-500 font-bold">Hi, <?= htmlspecialchars($userName) ?></div>
+                        <a href="logout.php" class="text-xs font-bold text-slate-400 hover:text-slate-600">Logout</a>
+                    <?php else: ?>
+                        <a href="../../gsm_login/index.php" class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="log-in" class="w-3 h-3"></i> Login
+                        </a>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden text-slate-500" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
                 </button>
+            </div>
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden mt-4 pb-2 space-y-2 border-t border-slate-100 pt-2">
+                <button onclick="switchTab('home')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Advisories</button>
+                <button onclick="switchTab('routes')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Routes & Fares</button>
+                <button onclick="switchTab('terminals')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">Terminals</button>
+                <button onclick="switchTab('complaints')" class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-slate-50 rounded-lg">File Complaint</button>
+                <div class="border-t border-slate-100 pt-2 mt-2">
+                    <?php if ($isLoggedIn): ?>
+                        <div class="px-4 py-2 text-xs font-bold text-slate-500">Hi, <?= htmlspecialchars($userName) ?></div>
+                        <a href="logout.php" class="block w-full text-left px-4 py-2 text-sm font-medium text-red-500 hover:bg-slate-50 rounded-lg">Logout</a>
+                    <?php else: ?>
+                        <a href="../../gsm_login/index.php" class="block w-full text-left px-4 py-2 text-sm font-medium text-brand-600 hover:bg-slate-50 rounded-lg">Login / Sign Up</a>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-md md:max-w-4xl mx-auto px-4 py-8 pb-20">
+    <main class="max-w-5xl mx-auto px-4 py-8 pb-24">
         
-        <!-- Welcome / Verify Section -->
-        <section id="verify-section" class="fade-in space-y-6">
-            <div class="text-center space-y-2 mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Safe Commute, Verified.</h2>
-                <p class="text-slate-500">Enter a plate number to verify vehicle legitimacy.</p>
+        <!-- HOME / ADVISORIES -->
+        <section id="tab-home" class="fade-in space-y-6">
+            <div class="bg-gradient-to-r from-brand-600 to-brand-900 rounded-2xl p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-3xl font-bold mb-2">Welcome to City Transport</h2>
+                    <p class="text-brand-100 max-w-lg">Official information source for routes, terminals, fares, and service advisories. Plan your commute with confidence.</p>
+                </div>
+                <div class="absolute right-0 bottom-0 opacity-10 transform translate-x-10 translate-y-10">
+                    <i data-lucide="map" class="w-64 h-64"></i>
+                </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-xl p-6 border-t-4 border-primary">
-                <form id="verifyForm" onsubmit="verifyVehicle(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Plate Number</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="plateInput" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-lg uppercase tracking-wider" placeholder="ABC-1234" required>
-                            <button type="button" onclick="document.getElementById('plateScanner').click()" class="bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-xl px-4 flex items-center justify-center transition-colors" title="Scan Plate from Image">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="bell" class="w-5 h-5 text-brand-600"></i>
+                    Service Advisories
+                </h3>
+                <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">Live Updates</span>
+            </div>
+
+            <div id="advisories-container" class="space-y-4">
+                <div class="animate-pulse space-y-4">
+                    <div class="h-24 bg-slate-200 rounded-xl"></div>
+                    <div class="h-24 bg-slate-200 rounded-xl"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROUTES & FARES -->
+        <section id="tab-routes" class="hidden fade-in space-y-6">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-900">Authorized Routes & Fares</h2>
+                <p class="text-slate-500">Official fare matrix and route information.</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-4">Route Name</th>
+                                <th class="px-6 py-4">Origin &rarr; Destination</th>
+                                <th class="px-6 py-4">Fare (Base)</th>
+                                <th class="px-6 py-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="routes-table-body" class="divide-y divide-slate-100 text-sm">
+                            <tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">Loading routes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TERMINALS -->
+        <section id="tab-terminals" class="hidden fade-in space-y-6">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-900">Transport Terminals</h2>
+                <p class="text-slate-500">Find authorized loading and unloading zones.</p>
+            </div>
+
+            <div id="terminals-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Terminals injected here -->
+                <div class="col-span-full text-center py-12 text-slate-400">Loading terminals...</div>
+            </div>
+        </section>
+
+        <!-- COMPLAINTS -->
+        <section id="tab-complaints" class="hidden fade-in space-y-6">
+            <div class="max-w-2xl mx-auto">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-bold text-slate-900">Report an Issue</h2>
+                    <p class="text-slate-500">Submit a complaint or track the status of an existing report.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+                    <div class="flex border-b border-slate-100">
+                        <button onclick="toggleComplaintMode('new')" id="btn-mode-new" class="flex-1 py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50/50">New Complaint</button>
+                        <button onclick="toggleComplaintMode('track')" id="btn-mode-track" class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">Track Status</button>
+                        <?php if ($isLoggedIn): ?>
+                        <button onclick="toggleComplaintMode('my')" id="btn-mode-my" class="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50">My Reports</button>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- New Complaint Form -->
+                    <div id="mode-new" class="p-6 md:p-8 space-y-6">
+                        <form id="complaintForm" onsubmit="submitComplaint(event)" class="space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Incident Type <span class="text-red-500">*</span></label>
+                                    <select name="type" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none bg-white">
+                                        <option value="">Select Type...</option>
+                                        <option value="Overcharging">Overcharging</option>
+                                        <option value="Reckless Driving">Reckless Driving</option>
+                                        <option value="Refusal to Load">Refusal to Load</option>
+                                        <option value="Discourteous Driver">Discourteous Driver</option>
+                                        <option value="Unauthorized Trip">Unauthorized Trip</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date & Time</label>
+                                    <input type="datetime-local" name="datetime" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Route / PUV Type</label>
+                                    <input type="text" name="route" placeholder="e.g. Jeepney Route 12" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number (Optional)</label>
+                                    <input type="text" name="plate_number" placeholder="ABC-1234" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Location of Incident</label>
+                                <input type="text" name="location" placeholder="e.g. Near Central Terminal" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description <span class="text-red-500">*</span></label>
+                                <textarea name="description" rows="3" required placeholder="Describe what happened..." class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Photo Evidence (Optional)</label>
+                                <input type="file" name="media" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="submit" id="btn-submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                                    <i data-lucide="send" class="w-5 h-5"></i>
+                                    Submit Complaint
+                                </button>
+                                <p class="text-center text-xs text-slate-400 mt-3">Your report helps us improve city transport. Personal info is optional.</p>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Track Status Form -->
+                    <div id="mode-track" class="hidden p-6 md:p-8 space-y-6">
+                        <div class="text-center">
+                            <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                                <i data-lucide="search" class="w-8 h-8 text-slate-400"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-900">Track Your Report</h3>
+                            <p class="text-sm text-slate-500">Enter the reference number provided when you submitted your complaint.</p>
+                        </div>
+
+                        <div class="max-w-md mx-auto space-y-4">
+                            <div class="relative">
+                                <input type="text" id="trackRef" placeholder="Reference No. (e.g. COM-X1Y2Z3)" class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none uppercase font-bold text-center tracking-widest">
+                                <i data-lucide="hash" class="absolute left-4 top-3.5 text-slate-400 w-5 h-5"></i>
+                            </div>
+                            <button onclick="trackComplaint()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors">
+                                Check Status
                             </button>
-                            <input type="file" id="plateScanner" accept="image/*" class="hidden" onchange="scanPlate(this)">
                         </div>
-                        <div id="scanStatus" class="hidden text-xs text-primary font-bold mt-1 flex items-center">
-                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Scanning image...
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full bg-gradient-to-r from-primary to-primary-dark text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-primary/30 transform hover:-translate-y-0.5 transition-all">
-                        Check Status
-                    </button>
-                </form>
 
-                <!-- Result Card -->
-                <div id="vehicleResult" class="hidden mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <div class="flex items-center justify-between mb-4">
-                        <span class="text-sm text-slate-500">Status</span>
-                        <span id="vStatus" class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">ACTIVE</span>
+                        <div id="trackResult" class="hidden bg-slate-50 rounded-xl p-6 border border-slate-200 mt-6">
+                            <div class="flex items-start gap-4">
+                                <div id="statusIcon" class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 shrink-0">
+                                    <i data-lucide="activity" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-500 uppercase mb-1">Current Status</div>
+                                    <div id="trackStatus" class="text-xl font-black text-slate-900">Submitted</div>
+                                    <div id="trackDate" class="text-sm text-slate-500 mt-1"></div>
+                                    <div class="mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600 italic" id="trackDesc"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="trackError" class="hidden text-center text-red-500 font-bold bg-red-50 p-4 rounded-xl border border-red-100"></div>
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 text-sm">Operator</span>
-                            <span id="vOperator" class="font-medium text-slate-800 text-right">-</span>
+
+                    <!-- My Reports (Logged In Only) -->
+                    <?php if ($isLoggedIn): ?>
+                    <div id="mode-my" class="hidden p-6 md:p-8 space-y-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg text-slate-800">My Complaint History</h3>
+                            <button onclick="loadMyComplaints()" class="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
+                            </button>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 text-sm">Coop</span>
-                            <span id="vCoop" class="font-medium text-slate-800 text-right">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 text-sm">Route</span>
-                            <span id="vRoute" class="font-medium text-slate-800 text-right">-</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500 text-sm">Terminal</span>
-                            <span id="vTerminal" class="font-medium text-slate-800 text-right">-</span>
+                        <div id="my-complaints-list" class="space-y-3">
+                            <div class="text-center py-8 text-slate-400 italic">Loading your reports...</div>
                         </div>
                     </div>
-                </div>
-                <div id="verifyError" class="hidden mt-4 text-center text-red-500 text-sm font-medium"></div>
-            </div>
-        </section>
+                    <?php endif; ?>
 
-        <!-- Travel Info Section -->
-        <section id="travel-section" class="hidden fade-in space-y-6">
-            <div class="text-center space-y-2 mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Smart Travel Insights</h2>
-                <p class="text-slate-500">AI-powered predictions for your commute.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold opacity-90">Crowding Level</h3>
-                        <svg class="w-6 h-6 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    </div>
-                    <div id="tCrowding" class="text-3xl font-bold mb-1">Loading...</div>
-                    <p class="text-sm opacity-80">Current estimated density</p>
-                </div>
-
-                <div class="bg-white rounded-2xl p-6 shadow-md border border-slate-100">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-slate-700">Wait Time</h3>
-                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                    <div id="tWait" class="text-3xl font-bold text-slate-800 mb-1">-- mins</div>
-                    <p class="text-sm text-slate-500">Estimated queuing time</p>
-                </div>
-
-                <div class="bg-white rounded-2xl p-6 shadow-md border border-slate-100 md:col-span-2">
-                    <div class="flex items-center space-x-3 mb-2">
-                        <div class="p-2 bg-yellow-100 text-yellow-600 rounded-lg">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        </div>
-                        <h3 class="font-bold text-slate-700">AI Suggestion</h3>
-                    </div>
-                    <p id="tSuggestion" class="text-slate-600">Loading suggestion...</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Complaint Section -->
-        <section id="complaint-section" class="hidden fade-in space-y-6">
-            <div class="text-center space-y-2 mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Report an Issue</h2>
-                <p class="text-slate-500">Help us improve public transport.</p>
-            </div>
-
-            <!-- Tabs for Complaint: New vs Track -->
-            <div class="flex rounded-xl bg-slate-200 p-1 mb-6">
-                <button onclick="toggleComplaintTab('new')" id="tab-new" class="flex-1 py-2 text-sm font-bold rounded-lg bg-white text-slate-800 shadow-sm transition-all">New Complaint</button>
-                <button onclick="toggleComplaintTab('track')" id="tab-track" class="flex-1 py-2 text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all">Track Status</button>
-            </div>
-
-            <!-- New Complaint Form -->
-            <div id="new-complaint-form">
-                <form id="complaintForm" onsubmit="submitComplaint(event)" class="space-y-4 bg-white p-6 rounded-2xl shadow-md border border-slate-100">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Complaint Type</label>
-                        <select name="type" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none bg-white">
-                            <option value="Overcharging">Overcharging</option>
-                            <option value="Reckless Driving">Reckless Driving</option>
-                            <option value="Refusal to Load">Refusal to Load</option>
-                            <option value="No Permit">No Permit Displayed</option>
-                            <option value="Rude Behavior">Rude Behavior</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                        <textarea name="description" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none" placeholder="Describe what happened..." required></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Photo/Video (Optional)</label>
-                        <input type="file" name="media" accept="image/*,video/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20">
-                    </div>
-                    <button type="submit" class="w-full bg-secondary text-white font-bold py-3 rounded-xl shadow-lg hover:bg-secondary-dark transform hover:-translate-y-0.5 transition-all">
-                        Submit Report
-                    </button>
-                </form>
-            </div>
-
-            <!-- Track Complaint Form -->
-            <div id="track-complaint-form" class="hidden">
-                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-100">
-                    <div class="flex space-x-2 mb-4">
-                        <input type="text" id="trackRef" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none uppercase" placeholder="Enter Reference No. (e.g. COM-123)">
-                        <button onclick="trackComplaint()" class="bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-700">Track</button>
-                    </div>
-                    <div id="trackResult" class="hidden mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="text-sm text-slate-500 mb-1">Status</div>
-                        <div id="trackStatus" class="text-lg font-bold text-slate-800">Submitted</div>
-                        <div id="trackDate" class="text-xs text-slate-400 mt-2"></div>
-                    </div>
-                    <div id="trackError" class="hidden mt-4 text-center text-red-500 text-sm"></div>
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- Bottom Nav (Mobile) -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-50">
-        <button onclick="showSection('verify')" class="flex flex-col items-center text-primary">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span class="text-xs mt-1">Verify</span>
+    <!-- Bottom Mobile Nav -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button onclick="switchTab('home')" class="nav-btn-mobile flex flex-col items-center text-brand-600" data-target="home">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold mt-1">Home</span>
         </button>
-        <button onclick="showSection('travel')" class="flex flex-col items-center text-slate-400 hover:text-primary">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-            <span class="text-xs mt-1">Travel</span>
+        <button onclick="switchTab('routes')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="routes">
+            <i data-lucide="map-pin" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold mt-1">Routes</span>
         </button>
-        <button onclick="showSection('complaint')" class="flex flex-col items-center text-slate-400 hover:text-primary">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <span class="text-xs mt-1">Report</span>
+        <button onclick="switchTab('terminals')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="terminals">
+            <i data-lucide="warehouse" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold mt-1">Terminals</span>
+        </button>
+        <button onclick="switchTab('complaints')" class="nav-btn-mobile flex flex-col items-center text-slate-400" data-target="complaints">
+            <i data-lucide="message-square-warning" class="w-5 h-5"></i>
+            <span class="text-[10px] font-bold mt-1">Report</span>
         </button>
     </div>
 
     <script>
-        // Navigation Logic
-        function showSection(sectionId) {
-            // Hide all sections
-            document.getElementById('verify-section').classList.add('hidden');
-            document.getElementById('travel-section').classList.add('hidden');
-            document.getElementById('complaint-section').classList.add('hidden');
-            
-            // Show selected
-            document.getElementById(sectionId + '-section').classList.remove('hidden');
-            
-            // Mobile Nav Active State (Simple Implementation)
-            const btns = document.querySelectorAll('.fixed.bottom-0 button');
-            btns.forEach(b => b.classList.remove('text-primary'));
-            if(sectionId === 'verify') btns[0].classList.add('text-primary');
-            if(sectionId === 'travel') btns[1].classList.add('text-primary');
-            if(sectionId === 'complaint') btns[2].classList.add('text-primary');
-
-            // Load data if needed
-            if(sectionId === 'travel') loadTravelInfo();
-        }
-
-        function toggleComplaintTab(tab) {
-            if(tab === 'new') {
-                document.getElementById('new-complaint-form').classList.remove('hidden');
-                document.getElementById('track-complaint-form').classList.add('hidden');
-                document.getElementById('tab-new').classList.replace('text-slate-500', 'text-slate-800');
-                document.getElementById('tab-new').classList.add('bg-white', 'shadow-sm');
-                document.getElementById('tab-track').classList.replace('text-slate-800', 'text-slate-500');
-                document.getElementById('tab-track').classList.remove('bg-white', 'shadow-sm');
-            } else {
-                document.getElementById('new-complaint-form').classList.add('hidden');
-                document.getElementById('track-complaint-form').classList.remove('hidden');
-                document.getElementById('tab-track').classList.replace('text-slate-500', 'text-slate-800');
-                document.getElementById('tab-track').classList.add('bg-white', 'shadow-sm');
-                document.getElementById('tab-new').classList.replace('text-slate-800', 'text-slate-500');
-                document.getElementById('tab-new').classList.remove('bg-white', 'shadow-sm');
-            }
-        }
-
-        // API Interactions
         const API_URL = 'api.php';
+        
+        // Initialize Icons
+        lucide.createIcons();
 
-        // OCR Functions
-        async function scanPlate(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const status = document.getElementById('scanStatus');
-                status.classList.remove('hidden');
-                
-                try {
-                    const worker = await Tesseract.createWorker('eng');
-                    const ret = await worker.recognize(file);
-                    console.log(ret.data.text);
-                    
-                    // Simple regex to find plate number pattern (XXX-0000 or XXX 0000)
-                    const text = ret.data.text;
-                    const plateMatch = text.match(/[A-Z]{3}[\s-]?[0-9]{3,4}/i);
-                    
-                    if (plateMatch) {
-                        let plate = plateMatch[0].replace(/\s/g, '-').toUpperCase();
-                        if (!plate.includes('-')) {
-                            // Insert dash if missing
-                            plate = plate.slice(0, 3) + '-' + plate.slice(3);
-                        }
-                        document.getElementById('plateInput').value = plate;
-                        // Auto-verify
-                        document.querySelector('#verifyForm button[type="submit"]').click();
-                    } else {
-                        alert('Could not detect a clear plate number. Please type it manually.');
-                    }
-                    await worker.terminate();
-                } catch (err) {
-                    console.error(err);
-                    alert('Error scanning image.');
-                } finally {
-                    status.classList.add('hidden');
-                    input.value = ''; // Reset
-                }
+        // Initial Load
+        loadAdvisories();
+
+        // Navigation
+        function switchTab(tabId) {
+            // Hide all sections
+            document.querySelectorAll('section[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+
+            // Update Desktop Nav
+            document.querySelectorAll('nav button').forEach(el => {
+                el.classList.remove('tab-active');
+                el.classList.add('tab-inactive');
+            });
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.remove('tab-inactive');
+                activeBtn.classList.add('tab-active');
             }
+
+            // Update Mobile Nav
+            document.querySelectorAll('.nav-btn-mobile').forEach(el => {
+                el.classList.remove('text-brand-600');
+                el.classList.add('text-slate-400');
+            });
+            const activeMobile = document.querySelector(`.nav-btn-mobile[data-target="${tabId}"]`);
+            if(activeMobile) {
+                activeMobile.classList.remove('text-slate-400');
+                activeMobile.classList.add('text-brand-600');
+            }
+
+            // Lazy Load Data
+            if(tabId === 'routes') loadRoutes();
+            if(tabId === 'terminals') loadTerminals();
+            
+            // Close mobile menu if open
+            document.getElementById('mobile-menu').classList.add('hidden');
         }
 
-        async function analyzeComplaintImage(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                if (!file.type.startsWith('image/')) return;
+        // Complaint Mode Toggle
+        function toggleComplaintMode(mode) {
+            // Reset all
+            document.getElementById('mode-new').classList.add('hidden');
+            document.getElementById('mode-track').classList.add('hidden');
+            if(document.getElementById('mode-my')) document.getElementById('mode-my').classList.add('hidden');
 
-                const ocrBox = document.getElementById('ocrAnalysis');
-                const ocrText = document.getElementById('ocrText');
-                
-                ocrBox.classList.remove('hidden');
-                ocrText.innerText = 'Analyzing image...';
-                
-                try {
-                    const worker = await Tesseract.createWorker('eng');
-                    const ret = await worker.recognize(file);
-                    const text = ret.data.text.trim();
-                    
-                    if (text.length > 5) {
-                        ocrText.innerText = text.substring(0, 100) + (text.length > 100 ? '...' : '');
-                        
-                        // Auto-fill description if empty
-                        const desc = document.querySelector('textarea[name="description"]');
-                        if (!desc.value) {
-                            desc.value = `[AI Scanned Text]: ${text}`;
-                        } else {
-                            desc.value += `\n\n[AI Scanned Text]: ${text}`;
-                        }
-                    } else {
-                        ocrBox.classList.add('hidden');
-                    }
-                    await worker.terminate();
-                } catch (err) {
-                    console.error(err);
-                    ocrBox.classList.add('hidden');
-                }
-            }
+            document.getElementById('btn-mode-new').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
+            document.getElementById('btn-mode-track').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
+            if(document.getElementById('btn-mode-my')) document.getElementById('btn-mode-my').className = 'flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50';
+
+            // Activate selected
+            document.getElementById('mode-' + mode).classList.remove('hidden');
+            document.getElementById('btn-mode-' + mode).className = 'flex-1 py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-brand-50/50';
+
+            if(mode === 'my') loadMyComplaints();
         }
 
-        async function verifyVehicle(e) {
-            e.preventDefault();
-            const plate = document.getElementById('plateInput').value;
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerText;
-            btn.innerText = 'Checking...';
-            btn.disabled = true;
-
+        // Data Loading Functions
+        async function loadAdvisories() {
             try {
-                const formData = new FormData();
-                formData.append('action', 'verify_vehicle');
-                formData.append('plate_number', plate);
-                
-                const res = await fetch(API_URL, { method: 'POST', body: formData });
+                const res = await fetch(`${API_URL}?action=get_advisories`);
                 const data = await res.json();
-
-                if(data.ok) {
-                    document.getElementById('verifyError').classList.add('hidden');
-                    document.getElementById('vehicleResult').classList.remove('hidden');
-                    
-                    const v = data.data;
-                    document.getElementById('vStatus').innerText = v.status;
-                    document.getElementById('vStatus').className = `px-3 py-1 rounded-full text-xs font-bold ${v.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
-                    document.getElementById('vOperator').innerText = v.operator_name || 'N/A';
-                    document.getElementById('vCoop').innerText = v.coop_name || 'N/A';
-                    document.getElementById('vRoute').innerText = v.route_id || 'N/A';
-                    document.getElementById('vTerminal').innerText = v.terminal_name || 'Not Assigned';
+                const container = document.getElementById('advisories-container');
+                
+                if(data.ok && data.data.length > 0) {
+                    container.innerHTML = data.data.map(item => `
+                        <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 ${item.type === 'alert' ? 'border-red-500' : (item.type === 'warning' ? 'border-amber-500' : 'border-brand-500')} hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-bold text-lg text-slate-800">${item.title}</h4>
+                                <span class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-slate-100 text-slate-500">${new Date(item.posted_at).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-slate-600 text-sm leading-relaxed">${item.content}</p>
+                        </div>
+                    `).join('');
                 } else {
-                    document.getElementById('vehicleResult').classList.add('hidden');
-                    document.getElementById('verifyError').innerText = data.error || 'Vehicle not found.';
-                    document.getElementById('verifyError').classList.remove('hidden');
+                    container.innerHTML = `<div class="text-center py-8 text-slate-400 italic">No active advisories at the moment.</div>`;
                 }
-            } catch (err) {
-                console.error(err);
-                alert('Connection error');
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
+            } catch (e) {
+                console.error(e);
             }
         }
 
-        async function loadTravelInfo() {
+        async function loadRoutes() {
+            const tbody = document.getElementById('routes-table-body');
+            if(tbody.getAttribute('data-loaded') === 'true') return;
+
             try {
-                const res = await fetch(API_URL + '?action=get_travel_info');
+                const res = await fetch(`${API_URL}?action=get_routes`);
                 const data = await res.json();
                 
-                if(data.ok) {
-                    const info = data.data;
-                    document.getElementById('tCrowding').innerText = info.crowding_level;
-                    document.getElementById('tWait').innerText = info.estimated_wait_time;
-                    document.getElementById('tSuggestion').innerText = `Best time to travel: ${info.best_time_to_travel}`;
+                if(data.ok && data.data.length > 0) {
+                    tbody.innerHTML = data.data.map(r => `
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-4 font-bold text-brand-700">${r.route_name}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2 text-slate-600">
+                                    <span class="font-medium">${r.origin}</span>
+                                    <i data-lucide="arrow-right" class="w-3 h-3 text-slate-400"></i>
+                                    <span class="font-medium">${r.destination}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-slate-800">₱${parseFloat(r.fare || 0).toFixed(2)}</td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-emerald-100 text-emerald-700">Active</span>
+                            </td>
+                        </tr>
+                    `).join('');
+                    tbody.setAttribute('data-loaded', 'true');
+                    lucide.createIcons();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No routes found.</td></tr>`;
                 }
-            } catch (err) {
-                console.error(err);
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Failed to load routes.</td></tr>`;
+            }
+        }
+
+        async function loadTerminals() {
+            const grid = document.getElementById('terminals-grid');
+            if(grid.getAttribute('data-loaded') === 'true') return;
+
+            try {
+                const res = await fetch(`${API_URL}?action=get_terminals`);
+                const data = await res.json();
+                
+                if(data.ok && data.data.length > 0) {
+                    grid.innerHTML = data.data.map(t => `
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-brand-200 transition-colors group">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-slate-50 rounded-lg group-hover:bg-brand-50 transition-colors">
+                                    <i data-lucide="warehouse" class="w-6 h-6 text-slate-400 group-hover:text-brand-500"></i>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 bg-slate-100 rounded text-slate-500">${t.city || 'City'}</span>
+                            </div>
+                            <h4 class="font-bold text-lg text-slate-900 mb-1">${t.name}</h4>
+                            <p class="text-sm text-slate-500 flex items-center gap-1 mb-4">
+                                <i data-lucide="map-pin" class="w-3 h-3"></i> ${t.address || 'No address provided'}
+                            </p>
+                            <div class="pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
+                                <span class="text-slate-400">Capacity</span>
+                                <span class="font-bold text-slate-700">${t.capacity || '-'} Vehicles</span>
+                            </div>
+                        </div>
+                    `).join('');
+                    grid.setAttribute('data-loaded', 'true');
+                    lucide.createIcons();
+                } else {
+                    grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 italic">No terminals found.</div>`;
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 
         async function submitComplaint(e) {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const originalText = btn.innerText;
-            btn.innerText = 'Submitting...';
+            const btn = document.getElementById('btn-submit');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Submitting...';
             btn.disabled = true;
+            lucide.createIcons();
 
             try {
                 const formData = new FormData(e.target);
@@ -425,42 +498,101 @@ commuter_portal_require_login($baseUrl . '/index.php');
                 const data = await res.json();
 
                 if(data.ok) {
-                    alert(`Complaint Submitted!\nRef No: ${data.ref_number}\nAI Tags: ${data.ai_tags.join(', ')}`);
-                    e.target.reset();
-                    toggleComplaintTab('track');
+                    // Switch to track mode and show result
+                    toggleComplaintMode('track');
                     document.getElementById('trackRef').value = data.ref_number;
                     trackComplaint();
+                    e.target.reset();
+                    alert(`Complaint Submitted Successfully!\nReference No: ${data.ref_number}`);
                 } else {
-                    alert('Error: ' + data.error);
+                    alert('Error: ' + (data.error || 'Submission failed'));
                 }
             } catch (err) {
-                alert('Submission failed');
+                alert('Connection error. Please try again.');
             } finally {
-                btn.innerText = originalText;
+                btn.innerHTML = originalContent;
                 btn.disabled = false;
+                lucide.createIcons();
             }
         }
 
         async function trackComplaint() {
-            const ref = document.getElementById('trackRef').value;
+            const ref = document.getElementById('trackRef').value.trim();
             if(!ref) return;
 
+            const resultBox = document.getElementById('trackResult');
+            const errorBox = document.getElementById('trackError');
+            
             try {
                 const res = await fetch(`${API_URL}?action=get_complaint_status&ref_number=${ref}`);
                 const data = await res.json();
 
                 if(data.ok) {
-                    document.getElementById('trackError').classList.add('hidden');
-                    document.getElementById('trackResult').classList.remove('hidden');
+                    errorBox.classList.add('hidden');
+                    resultBox.classList.remove('hidden');
+                    
                     document.getElementById('trackStatus').innerText = data.data.status;
-                    document.getElementById('trackDate').innerText = 'Submitted on: ' + data.data.created_at;
+                    document.getElementById('trackDate').innerText = 'Reported on: ' + new Date(data.data.created_at).toLocaleString();
+                    document.getElementById('trackDesc').innerText = data.data.description ? data.data.description.substring(0, 100) + '...' : '';
+
+                    // Color code status
+                    const statusColors = {
+                        'Submitted': 'bg-slate-100 text-slate-600',
+                        'Under Review': 'bg-amber-100 text-amber-700',
+                        'Resolved': 'bg-emerald-100 text-emerald-700',
+                        'Dismissed': 'bg-red-100 text-red-700'
+                    };
+                    const colorClass = statusColors[data.data.status] || statusColors['Submitted'];
+                    const iconBox = document.getElementById('statusIcon');
+                    iconBox.className = `w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${colorClass}`;
                 } else {
-                    document.getElementById('trackResult').classList.add('hidden');
-                    document.getElementById('trackError').innerText = data.error;
-                    document.getElementById('trackError').classList.remove('hidden');
+                    resultBox.classList.add('hidden');
+                    errorBox.innerText = data.error || 'Complaint not found';
+                    errorBox.classList.remove('hidden');
                 }
             } catch (err) {
                 console.error(err);
+            }
+        }
+
+        async function loadMyComplaints() {
+            const container = document.getElementById('my-complaints-list');
+            container.innerHTML = `<div class="text-center py-8 text-slate-400 italic"><i data-lucide="loader-2" class="w-5 h-5 animate-spin mx-auto mb-2"></i> Loading...</div>`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`${API_URL}?action=get_my_complaints`);
+                const data = await res.json();
+
+                if(data.ok && data.data.length > 0) {
+                    container.innerHTML = data.data.map(c => {
+                        const statusColors = {
+                            'Submitted': 'bg-slate-100 text-slate-600',
+                            'Under Review': 'bg-amber-100 text-amber-700',
+                            'Resolved': 'bg-emerald-100 text-emerald-700',
+                            'Dismissed': 'bg-red-100 text-red-700'
+                        };
+                        const colorClass = statusColors[c.status] || statusColors['Submitted'];
+                        
+                        return `
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-400 uppercase">Ref: ${c.ref_number}</div>
+                                    <div class="font-bold text-slate-800">${c.complaint_type}</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${colorClass}">${c.status}</span>
+                            </div>
+                            <p class="text-sm text-slate-600 line-clamp-2">${c.description}</p>
+                            <div class="mt-2 text-xs text-slate-400 text-right">${new Date(c.created_at).toLocaleDateString()}</div>
+                        </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-400 italic">No reports found.</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="text-center py-8 text-red-400 italic">Failed to load reports.</div>`;
             }
         }
     </script>

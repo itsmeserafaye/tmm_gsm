@@ -55,6 +55,12 @@ function require_login() {
 function require_role(array $allowed) {
   require_login();
   $role = current_user_role();
+  
+  // DEBUG: Log access attempts
+  $log = __DIR__ . '/../../debug_auth_access.log';
+  $data = date('Y-m-d H:i:s') . " - User: " . ($_SESSION['user_id'] ?? 'none') . " - Role: $role - Allowed: " . implode(',', $allowed) . "\n";
+  @file_put_contents($log, $data, FILE_APPEND);
+
   if (!in_array($role, $allowed, true)) {
     if (defined('TMM_TEST')) {
       throw new Exception('forbidden');
@@ -80,11 +86,7 @@ function current_user_permissions() {
       return !(is_string($p) && strpos($p, 'tickets.') === 0);
     }));
   }
-  if (current_user_role() === 'Viewer') {
-    $out = array_values(array_filter($out, function ($p) {
-      return !($p === 'reports.export');
-    }));
-  }
+  // Viewer logic removed as it's no longer a valid role
   return $out;
 }
 
@@ -100,118 +102,49 @@ function tmm_permission_aliases(): array {
     'module2.apply' => ['module2.franchises.manage'],
     'module2.endorse' => ['module2.franchises.manage'],
     'module2.approve' => ['module2.franchises.manage'],
-    'module2.history' => ['module2.franchises.manage'],
+    'module2.history' => ['module2.view'],
 
+    'module3.issue' => ['module3.tickets.issue'],
     'module3.read' => ['module3.view'],
-    'module3.issue' => ['tickets.issue','tickets.validate'],
-    'module3.settle' => ['tickets.settle'],
-    'module3.analytics' => ['analytics.view','reports.export'],
+    'module3.settle' => ['module3.tickets.settle'],
+    'module3.analytics' => ['module3.view'],
 
-    'module4.read' => ['module4.view'],
     'module4.schedule' => ['module4.inspections.manage'],
     'module4.inspect' => ['module4.inspections.manage'],
+    'module4.read' => ['module4.view'],
     'module4.certify' => ['module4.inspections.manage'],
 
+    'module5.manage_terminal' => ['module5.terminals.manage'],
+    'module5.assign_vehicle' => ['module5.terminals.manage'],
+    'module5.parking_fees' => ['module5.terminals.manage'],
     'module5.read' => ['module5.view'],
-    'module5.manage_terminal' => ['parking.manage'],
-    'module5.assign_vehicle' => ['parking.manage'],
-    'module5.parking_fees' => ['parking.manage','tickets.settle'],
 
-    'module1.view' => ['module1.read'],
-    'module1.vehicles.write' => ['module1.write'],
-    'module1.routes.write' => ['module1.write','module1.route_manage'],
-    'module1.coops.write' => ['module1.write'],
-
-    'module2.view' => ['module2.read'],
-    'module2.franchises.manage' => ['module2.apply','module2.endorse','module2.approve','module2.history'],
-
-    'module3.view' => ['module3.read'],
-    'tickets.issue' => ['module3.issue'],
-    'tickets.validate' => ['module3.issue'],
-    'tickets.settle' => ['module3.settle'],
-
-    'module4.view' => ['module4.read'],
-    'module4.inspections.manage' => ['module4.schedule','module4.inspect','module4.certify'],
-
-    'module5.view' => ['module5.read'],
-    'parking.manage' => ['module5.manage_terminal','module5.assign_vehicle','module5.parking_fees'],
+    'dashboard.view' => [],
+    'settings.manage' => [],
+    'reports.export' => [],
+    'analytics.view' => [],
+    'analytics.train' => [],
+    'users.manage' => [],
   ];
 }
 
-function has_permission(string $code) {
-  $perms = current_user_permissions();
-  if (in_array($code, $perms, true)) return true;
-  $aliases = tmm_permission_aliases();
-  foreach ($aliases[$code] ?? [] as $alt) {
-    if (is_string($alt) && $alt !== '' && in_array($alt, $perms, true)) return true;
-  }
-  $role = current_user_role();
-  if ($role === 'SuperAdmin') return true;
-
-  // Use config for fallback
-  $config = rbac_get_config_auth();
-  $rolePerms = $config['role_permissions'] ?? [];
-  $allowed = $rolePerms[$role] ?? [];
-
-  if (in_array('*', $allowed, true)) return true;
-
-  if (in_array($code, $allowed, true)) return true;
+function has_permission(string $p): bool {
+  $my = current_user_permissions();
+  if (in_array('*', $my, true)) return true;
+  if (in_array($p, $my, true)) return true;
   
-  foreach ($aliases[$code] ?? [] as $alt) {
-    if (in_array($alt, $allowed, true)) return true;
+  $aliases = tmm_permission_aliases();
+  if (isset($aliases[$p])) {
+    foreach ($aliases[$p] as $alias) {
+      if (in_array($alias, $my, true)) return true;
+    }
   }
   return false;
 }
 
-function has_any_permission(array $codes) {
-  foreach ($codes as $c) {
-    if (is_string($c) && $c !== '' && has_permission($c)) return true;
+function has_any_permission(array $permissions): bool {
+  foreach ($permissions as $p) {
+    if (has_permission($p)) return true;
   }
-  return false;
-}
-
-function require_permission(string $code) {
-  require_login();
-  if (has_permission($code)) return;
-  if (defined('TMM_TEST')) {
-    throw new Exception('forbidden');
-  }
-  http_response_code(403);
-  header('Content-Type: application/json');
-  echo json_encode(['ok'=>false,'error'=>'forbidden','permission'=>$code,'role'=>current_user_role()]);
-  exit;
-}
-
-function require_any_permission(array $codes) {
-  require_login();
-  if (has_any_permission($codes)) return;
-  if (defined('TMM_TEST')) {
-    throw new Exception('forbidden');
-  }
-  http_response_code(403);
-  header('Content-Type: application/json');
-  echo json_encode(['ok'=>false,'error'=>'forbidden','permissions'=>$codes,'role'=>current_user_role()]);
-  exit;
-}
-
-function require_permission_page(string $code, string $message = 'You do not have access to this page.') {
-  if (has_permission($code)) return true;
-  echo '<div class="mx-auto max-w-3xl px-4 py-10">';
-  echo '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">';
-  echo '<div class="text-lg font-black">Access Denied</div>';
-  echo '<div class="mt-1 text-sm font-bold">' . htmlspecialchars($message) . '</div>';
-  echo '</div>';
-  echo '</div>';
-  return false;
-}
-
-function require_any_permission_page(array $codes, string $message = 'You do not have access to this page.') {
-  if (has_any_permission($codes)) return true;
-  echo '<div class="mx-auto max-w-3xl px-4 py-10">';
-  echo '<div class="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700">';
-  echo '<div class="text-lg font-black">Access Denied</div>';
-  echo '<div class="mt-1 text-sm font-bold">' . htmlspecialchars($message) . '</div>';
-  echo '</div>';
-  echo '</div>';
   return false;
 }
