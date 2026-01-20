@@ -36,6 +36,11 @@ try {
   if (!in_array($status, ['Active','Inactive','Locked'], true)) $status = 'Active';
 
   $roleIds = [];
+  
+  // Debug logging
+  $debugLog = __DIR__ . '/../debug_log.txt';
+  file_put_contents($debugLog, date('Y-m-d H:i:s') . " - CREATE USER INPUT: " . print_r($_POST, true) . "\n", FILE_APPEND);
+
   if (isset($_POST['role_ids'])) {
     if (is_array($_POST['role_ids'])) {
       foreach ($_POST['role_ids'] as $rid) {
@@ -47,6 +52,36 @@ try {
       if ($rid > 0) $roleIds[] = $rid;
     }
   }
+
+  // Fallback: Check for JSON input
+  if (empty($roleIds)) {
+      $input = json_decode(file_get_contents('php://input'), true);
+      if (isset($input['role_ids'])) {
+           if (is_array($input['role_ids'])) {
+              foreach ($input['role_ids'] as $rid) {
+                $rid = (int)$rid;
+                if ($rid > 0) $roleIds[] = $rid;
+              }
+           } else {
+               $rid = (int)$input['role_ids'];
+               if ($rid > 0) $roleIds[] = $rid;
+           }
+      }
+      // Also check other fields if POST was empty (meaning it was a JSON request)
+      if (empty($_POST) && $input) {
+          $email = strtolower(trim((string)($input['email'] ?? '')));
+          $first = trim((string)($input['first_name'] ?? ''));
+          $last = trim((string)($input['last_name'] ?? ''));
+          $middle = trim((string)($input['middle_name'] ?? ''));
+          $suffix = trim((string)($input['suffix'] ?? ''));
+          $employeeNo = trim((string)($input['employee_no'] ?? ''));
+          $dept = trim((string)($input['department'] ?? ''));
+          $pos = trim((string)($input['position_title'] ?? ''));
+          $status = trim((string)($input['status'] ?? 'Active'));
+          $inputPassword = trim((string)($input['password'] ?? ''));
+      }
+  }
+
   $roleIds = array_values(array_unique($roleIds));
 
   if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) json_out(400, ['ok' => false, 'error' => 'invalid_email']);
@@ -75,11 +110,18 @@ try {
       if ($res && ($row = $res->fetch_assoc())) $roleIds = [(int)$row['id']];
     }
     foreach ($roleIds as $rid) {
-      $st = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
+      // Use INSERT (not IGNORE) to catch errors, but handle duplicate entry if needed (though user_id is new so unlikely)
+      $st = $db->prepare("INSERT INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
       if ($st) {
         $st->bind_param('ii', $userId, $rid);
-        $st->execute();
+        if (!$st->execute()) {
+             file_put_contents($debugLog, date('Y-m-d H:i:s') . " - ROLE INSERT ERROR: " . $st->error . "\n", FILE_APPEND);
+        } else {
+             file_put_contents($debugLog, date('Y-m-d H:i:s') . " - ROLE INSERT SUCCESS: User $userId, Role $rid\n", FILE_APPEND);
+        }
         $st->close();
+      } else {
+          file_put_contents($debugLog, date('Y-m-d H:i:s') . " - ROLE PREPARE ERROR: " . $db->error . "\n", FILE_APPEND);
       }
     }
   }

@@ -21,7 +21,8 @@ try {
   $roleIds = [];
   
   // Debug logging
-  // error_log('rbac_user_set_roles input: ' . print_r($_POST, true));
+  $debugLog = __DIR__ . '/../debug_log.txt';
+  file_put_contents($debugLog, date('Y-m-d H:i:s') . " - SET ROLES INPUT: " . print_r($_POST, true) . "\n", FILE_APPEND);
 
   if (isset($_POST['role_ids'])) {
     if (is_array($_POST['role_ids'])) {
@@ -65,11 +66,16 @@ try {
   }
 
   foreach ($roleIds as $rid) {
-    $st = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?,?)");
+    // Use INSERT (not IGNORE) to catch errors
+    $st = $db->prepare("INSERT INTO rbac_user_roles(user_id, role_id) VALUES(?,?)");
     if ($st) {
       $st->bind_param('ii', $id, $rid);
-      $st->execute();
+      if (!$st->execute()) {
+          file_put_contents($debugLog, date('Y-m-d H:i:s') . " - SET ROLES INSERT ERROR: " . $st->error . "\n", FILE_APPEND);
+      }
       $st->close();
+    } else {
+        file_put_contents($debugLog, date('Y-m-d H:i:s') . " - SET ROLES PREPARE ERROR: " . $db->error . "\n", FILE_APPEND);
     }
   }
 
