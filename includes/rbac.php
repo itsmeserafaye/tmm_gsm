@@ -520,14 +520,20 @@ function rbac_migrate_commuter_role(mysqli $db): void {
     SELECT ur.user_id, $commuterId
     FROM rbac_user_roles ur
     JOIN user_profiles p ON p.user_id=ur.user_id
+    JOIN rbac_users u ON u.id=ur.user_id
     WHERE ur.role_id = $viewerId
+      AND (u.department IS NULL OR u.department = '')
+      AND (u.position_title IS NULL OR u.position_title = '')
   ");
 
   $db->query("
     DELETE urv
     FROM rbac_user_roles urv
     JOIN rbac_user_roles urc ON urc.user_id=urv.user_id AND urc.role_id=$commuterId
+    JOIN rbac_users u ON u.id=urv.user_id
     WHERE urv.role_id=$viewerId
+      AND (u.department IS NULL OR u.department = '')
+      AND (u.position_title IS NULL OR u.position_title = '')
   ");
 }
 
