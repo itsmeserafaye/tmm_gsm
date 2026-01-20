@@ -66,6 +66,9 @@ if (current_user_role() !== 'SuperAdmin') {
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             Refresh
           </button>
+          <button id="btnRepair" class="rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2" title="Fix database duplicates">
+            <i data-lucide="wrench" class="w-4 h-4"></i>
+          </button>
         </div>
       </div>
 
@@ -235,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Event Listeners
   document.getElementById('btnRefresh').addEventListener('click', loadUsers);
+  document.getElementById('btnRepair').addEventListener('click', runRepair);
   document.getElementById('q').addEventListener('input', debounce(loadUsers, 300));
   document.getElementById('statusFilter').addEventListener('change', loadUsers);
   document.getElementById('btnOpenCreate').addEventListener('click', () => openUserModal());
@@ -278,6 +282,30 @@ function switchTab(tab) {
 }
 
 // --- User Management (Staff) ---
+
+async function runRepair() {
+  if (!confirm('Run database diagnostics and repair? This will deduplicate roles and fix constraints.')) return;
+  
+  const btn = document.getElementById('btnRepair');
+  const icon = btn.querySelector('i');
+  btn.classList.add('opacity-50', 'pointer-events-none');
+  
+  try {
+    const res = await fetch(`${API_BASE}rbac_repair.php`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Success: ' + data.message);
+      loadUsers();
+      loadRoles();
+    } else {
+      alert('Repair Failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Repair Error: ' + e.message);
+  } finally {
+    btn.classList.remove('opacity-50', 'pointer-events-none');
+  }
+}
 
 async function loadUsers() {
   const loader = document.getElementById('usersLoader');

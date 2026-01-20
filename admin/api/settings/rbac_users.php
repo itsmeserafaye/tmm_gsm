@@ -99,11 +99,18 @@ try {
     while ($rRow = $rRes->fetch_assoc()) {
       $uid = (int)$rRow['user_id'];
       if (isset($users[$uid])) {
-        $users[$uid]['roles'][] = [
-          'id' => (int)$rRow['role_id'],
-          'name' => $rRow['name'],
-          'description' => $rRow['description']
-        ];
+        // Prevent duplicates in output even if DB is messy
+        $alreadyHas = false;
+        foreach ($users[$uid]['roles'] as $existing) {
+             if ($existing['name'] === $rRow['name']) { $alreadyHas = true; break; }
+        }
+        if (!$alreadyHas) {
+            $users[$uid]['roles'][] = [
+              'id' => (int)$rRow['role_id'],
+              'name' => $rRow['name'],
+              'description' => $rRow['description']
+            ];
+        }
       }
     }
   }
