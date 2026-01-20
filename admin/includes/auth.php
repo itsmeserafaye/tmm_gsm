@@ -148,3 +148,31 @@ function has_any_permission(array $permissions): bool {
   }
   return false;
 }
+
+function require_permission(string $p) {
+  require_login();
+  if (!has_permission($p)) {
+    if (defined('TMM_TEST')) {
+      throw new Exception('forbidden');
+    } else {
+      http_response_code(403);
+      header('Content-Type: application/json');
+      echo json_encode(['ok'=>false,'error'=>'forbidden','permission'=>$p]);
+      exit;
+    }
+  }
+}
+
+function require_any_permission(array $permissions) {
+  require_login();
+  if (!has_any_permission($permissions)) {
+    if (defined('TMM_TEST')) {
+      throw new Exception('forbidden');
+    } else {
+      http_response_code(403);
+      header('Content-Type: application/json');
+      echo json_encode(['ok'=>false,'error'=>'forbidden','required_any'=>$permissions]);
+      exit;
+    }
+  }
+}

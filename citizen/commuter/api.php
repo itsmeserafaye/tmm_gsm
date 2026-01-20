@@ -2,21 +2,31 @@
 if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
 
 // Standalone DB connection to avoid legacy schema migration issues
+require_once __DIR__ . '/../../includes/env.php';
+tmm_load_env(__DIR__ . '/../../.env');
+
 function get_db() {
     static $conn;
     if ($conn) return $conn;
-    $host = '127.0.0.1';
-    $user = 'root';
-    $pass = '';
-    $name = 'tmm';
+
+    $host = getenv('TMM_DB_HOST') ?: 'localhost';
+    $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';
+    $pass = getenv('TMM_DB_PASS') ?: 'lVy6QxSxoF5Q9F';
+    $name = getenv('TMM_DB_NAME') ?: 'tmm_tmm';
+
+    // Try primary connection
     $conn = @new mysqli($host, $user, $pass, $name);
+    
+    // If primary fails, try standard local fallback (root/empty) often used in dev
     if ($conn->connect_error) {
-        // Fallback: Try connecting without DB name and create it
-        $conn = @new mysqli($host, $user, $pass);
-        if ($conn->connect_error) { die(json_encode(['ok'=>false, 'error'=>'DB Connection Error'])); }
-        $conn->query("CREATE DATABASE IF NOT EXISTS `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        $conn->select_db($name);
+         $conn = @new mysqli('localhost', 'root', '', 'tmm');
     }
+
+    if ($conn->connect_error) {
+        // Return JSON error so frontend can see it
+        die(json_encode(['ok'=>false, 'error'=>'DB Connection Error: ' . $conn->connect_error])); 
+    }
+    
     $conn->set_charset('utf8mb4');
     return $conn;
 }

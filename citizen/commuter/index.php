@@ -402,11 +402,14 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                             <p class="text-slate-600 text-sm leading-relaxed">${item.content}</p>
                         </div>
                     `).join('');
+                } else if (!data.ok) {
+                     container.innerHTML = `<div class="text-center py-8 text-red-400 italic">Error: ${data.error || 'Failed to load advisories'}</div>`;
                 } else {
                     container.innerHTML = `<div class="text-center py-8 text-slate-400 italic">No active advisories at the moment.</div>`;
                 }
             } catch (e) {
                 console.error(e);
+                document.getElementById('advisories-container').innerHTML = `<div class="text-center py-8 text-red-400 italic">Connection Failed. Please check network.</div>`;
             }
         }
 
@@ -421,6 +424,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     let opts = '<option value="">Select Route...</option><option value="Other">Other / Not Listed</option>';
                     opts += data.data.map(r => `<option value="${r.route_id}">${r.route_name}</option>`).join('');
                     select.innerHTML = opts;
+                } else if (!data.ok) {
+                     console.error("Route fetch error:", data.error);
                 }
             } catch (e) {
                 console.error("Failed to load routes for dropdown", e);
@@ -454,6 +459,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     `).join('');
                     tbody.setAttribute('data-loaded', 'true');
                     lucide.createIcons();
+                } else if (!data.ok) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400 italic">Error: ${data.error}</td></tr>`;
                 } else {
                     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No routes found.</td></tr>`;
                 }
@@ -491,11 +498,14 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     `).join('');
                     grid.setAttribute('data-loaded', 'true');
                     lucide.createIcons();
+                } else if (!data.ok) {
+                    grid.innerHTML = `<div class="col-span-full text-center py-12 text-red-400 italic">Error: ${data.error}</div>`;
                 } else {
                     grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 italic">No terminals found.</div>`;
                 }
             } catch (e) {
                 console.error(e);
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-red-400 italic">Failed to load terminals.</div>`;
             }
         }
 
