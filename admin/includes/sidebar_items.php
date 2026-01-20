@@ -64,7 +64,7 @@ $sidebarItems = [
     'label' => 'User Management',
     'icon' => 'users',
     'subItems' => [
-      ['id' => 'accounts', 'label' => 'Accounts & Roles', 'path' => '/users/accounts', 'roles' => ['SuperAdmin']],
+      ['id' => 'rbac', 'label' => 'RBAC Management', 'path' => '/users/rbac', 'roles' => ['SuperAdmin']],
       ['id' => 'security', 'label' => 'Security Policy', 'path' => '/users/security', 'anyPermissions' => ['settings.manage']],
       ['id' => 'activity', 'label' => 'Activity Logs', 'path' => '/users/activity', 'roles' => ['SuperAdmin']],
     ],
