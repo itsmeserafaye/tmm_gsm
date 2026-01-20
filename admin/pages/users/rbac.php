@@ -229,6 +229,8 @@ if (current_user_role() !== 'SuperAdmin') {
   let roles = [];
   let permissions = [];
   let rolePermIds = [];
+  let recommendedRolePerms = null;
+  let currentRole = null;
 
   function toast(msg, ok = true) {
     const el = document.getElementById('toast');
@@ -328,8 +330,16 @@ if (current_user_role() !== 'SuperAdmin') {
     renderPermissionsBox(byId('permSearch').value || '');
   }
 
+  async function loadRecommendedRolePerms() {
+    if (recommendedRolePerms) return recommendedRolePerms;
+    const data = await apiGet('rbac_recommended_role_perms.php');
+    recommendedRolePerms = data.recommended || {};
+    return recommendedRolePerms;
+  }
+
   async function selectRole(roleId) {
     const r = roles.find(x => x.id === roleId);
+    currentRole = r || null;
     byId('roleId').value = r ? r.id : '';
     byId('roleName').value = r ? r.name : '';
     byId('roleDescription').value = r ? (r.description || '') : '';
@@ -340,6 +350,17 @@ if (current_user_role() !== 'SuperAdmin') {
     if (r) {
       const data = await apiGet(`rbac_role_permissions_get.php?role_id=${encodeURIComponent(r.id)}`);
       rolePermIds = data.permission_ids || [];
+    }
+
+    if (r && r.name !== 'SuperAdmin' && rolePermIds.length === 0) {
+      const rec = await loadRecommendedRolePerms();
+      const entry = rec[r.name] || null;
+      if (entry && Array.isArray(entry.permission_ids) && entry.permission_ids.length) {
+        await apiPost('rbac_role_permissions_set.php', { role_id: r.id, permission_ids: entry.permission_ids });
+        const data2 = await apiGet(`rbac_role_permissions_get.php?role_id=${encodeURIComponent(r.id)}`);
+        rolePermIds = data2.permission_ids || [];
+        toast('Default permissions applied.', true);
+      }
     }
     renderPermissionsBox(byId('permSearch').value || '');
   }
@@ -611,4 +632,3 @@ if (current_user_role() !== 'SuperAdmin') {
     }
   });
 </script>
-

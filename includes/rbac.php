@@ -349,52 +349,8 @@ function rbac_seed_roles_permissions(mysqli $db) {
     }
   }
 
-  $rolePerms = [
-    'SuperAdmin' => array_map(function ($p) { return $p[0]; }, $perms),
-    'Admin / Transport Officer' => [
-      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
-      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
-      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
-      'module3.read','module3.issue','module3.settle','module3.analytics',
-      'module4.read','module4.schedule','module4.inspect','module4.certify',
-      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
-    ],
-    'Franchise Officer' => [
-      'dashboard.view','reports.export',
-      'module1.read',
-      'module2.read','module2.apply','module2.endorse','module2.history'
-    ],
-    'Encoder' => [
-      'dashboard.view',
-      'module1.read','module1.write','module1.link_vehicle',
-      'module2.read','module2.apply',
-    ],
-    'Inspector' => [
-      'dashboard.view',
-      'module1.read',
-      'module4.read','module4.schedule','module4.inspect','module4.certify',
-    ],
-    'Traffic Enforcer' => [
-      'dashboard.view',
-      'module1.read',
-      'module3.read','module3.issue',
-    ],
-    'Treasurer / Cashier' => [
-      'dashboard.view',
-      'module1.read',
-      'module3.read','module3.settle',
-      'module5.read','module5.parking_fees',
-    ],
-    'Terminal Manager' => [
-      'dashboard.view',
-      'module1.read',
-      'module5.read','module5.manage_terminal','module5.assign_vehicle',
-    ],
-    'Viewer' => [
-      'dashboard.view',
-      'module1.read','module2.read','module3.read','module4.read','module5.read'
-    ],
-  ];
+  $allCodes = array_map(function ($p) { return $p[0]; }, $perms);
+  $rolePerms = rbac_recommended_role_permission_codes($allCodes);
 
   foreach ($rolePerms as $roleName => $permCodes) {
     $roleId = rbac_role_id($db, $roleName);
@@ -452,6 +408,50 @@ function rbac_seed_roles_permissions(mysqli $db) {
       }
     }
   }
+}
+
+function rbac_recommended_role_permission_codes(array $allCodes): array {
+  $allRolesRead = ['module1.read', 'module2.read', 'module3.read', 'module4.read', 'module5.read'];
+  return [
+    'SuperAdmin' => $allCodes,
+    'Admin / Transport Officer' => [
+      'dashboard.view','analytics.view','analytics.train','reports.export','settings.manage',
+      'module1.read','module1.write','module1.delete','module1.link_vehicle','module1.route_manage',
+      'module2.read','module2.apply','module2.endorse','module2.approve','module2.history',
+      'module3.read','module3.issue','module3.settle','module3.analytics',
+      'module4.read','module4.schedule','module4.inspect','module4.certify',
+      'module5.read','module5.manage_terminal','module5.assign_vehicle','module5.parking_fees',
+    ],
+    'Franchise Officer' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view','reports.export',
+      'module2.apply','module2.endorse','module2.history'
+    ]))),
+    'Encoder' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+      'module1.write','module1.link_vehicle',
+      'module2.apply',
+    ]))),
+    'Inspector' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+      'module4.schedule','module4.inspect','module4.certify',
+    ]))),
+    'Traffic Enforcer' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+      'module3.issue',
+    ]))),
+    'Treasurer / Cashier' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+      'module3.settle',
+      'module5.parking_fees',
+    ]))),
+    'Terminal Manager' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+      'module5.manage_terminal','module5.assign_vehicle',
+    ]))),
+    'Viewer' => array_values(array_unique(array_merge($allRolesRead, [
+      'dashboard.view',
+    ]))),
+  ];
 }
 
 function rbac_ensure_compat_views(mysqli $db): void {
