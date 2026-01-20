@@ -152,9 +152,9 @@ if (!empty($_SESSION['user_id'])) {
                         <div class="mt-1 text-sm text-slate-600">Citizen services for commuters. No plate number
                             required.</div>
                         <div class="mt-5 flex items-center justify-center gap-4">
-                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=commuter"
+                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
                                 class="inline-flex items-center justify-center gap-2 text-custom-secondary font-semibold hover:underline">
-                                Access System <i class="fas fa-arrow-right text-xs"></i>
+                                Access Portal <i class="fas fa-arrow-right text-xs"></i>
                             </a>
                             <button type="button" id="showRegister"
                                 class="text-custom-secondary font-semibold hover:underline">Register</button>
