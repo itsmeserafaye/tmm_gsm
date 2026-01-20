@@ -5,7 +5,8 @@ require_once __DIR__ . '/../../../includes/rbac.php';
 
 header('Content-Type: application/json');
 
-function cu_fail(string $msg, int $code = 400): void {
+function cu_fail(string $msg, int $code = 400): void
+{
   http_response_code($code);
   echo json_encode(['ok' => false, 'error' => $msg]);
   exit;
@@ -20,15 +21,20 @@ try {
   }
 
   $input = json_decode(file_get_contents('php://input'), true);
-  if (!is_array($input)) cu_fail('invalid_json');
+  if (!is_array($input))
+    cu_fail('invalid_json');
 
-  $email = trim((string)($input['email'] ?? ''));
-  $firstName = trim((string)($input['first_name'] ?? ''));
-  $lastName = trim((string)($input['last_name'] ?? ''));
+  $email = trim((string) ($input['email'] ?? ''));
+  // Auto-format names: Title Case
+  $firstName = ucwords(strtolower(trim((string) ($input['first_name'] ?? ''))));
+  $lastName = ucwords(strtolower(trim((string) ($input['last_name'] ?? ''))));
   $roleIds = $input['roles'] ?? []; // Array of role IDs
 
   if ($email === '' || $firstName === '' || $lastName === '') {
     cu_fail('missing_required_fields');
+  }
+  if (strlen($firstName) < 2 || strlen($lastName) < 2) {
+    cu_fail('names_too_short');
   }
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     cu_fail('invalid_email_format');
@@ -51,11 +57,12 @@ try {
     // Generate temp password
     $tempPass = substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789!@#$%'), 0, 10);
     $hash = password_hash($tempPass, PASSWORD_DEFAULT);
-    
-    $empNo = trim((string)($input['employee_no'] ?? ''));
-    $dept = trim((string)($input['department'] ?? ''));
-    $title = trim((string)($input['position_title'] ?? ''));
-    
+
+    // Auto-format details
+    $empNo = strtoupper(trim((string) ($input['employee_no'] ?? '')));
+    $dept = trim((string) ($input['department'] ?? ''));
+    $title = ucwords(strtolower(trim((string) ($input['position_title'] ?? ''))));
+
     $stmt = $db->prepare("INSERT INTO rbac_users (email, password_hash, first_name, last_name, employee_no, department, position_title, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', NOW())");
     $stmt->bind_param('sssssss', $email, $hash, $firstName, $lastName, $empNo, $dept, $title);
     if (!$stmt->execute()) {
@@ -68,7 +75,7 @@ try {
     if (is_array($roleIds) && !empty($roleIds)) {
       $roleStmt = $db->prepare("INSERT IGNORE INTO rbac_user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())");
       foreach ($roleIds as $rid) {
-        $rid = (int)$rid;
+        $rid = (int) $rid;
         if ($rid > 0) {
           $roleStmt->bind_param('ii', $userId, $rid);
           $roleStmt->execute();
@@ -78,7 +85,7 @@ try {
     }
 
     $db->commit();
-    
+
     echo json_encode([
       'ok' => true,
       'message' => 'User created successfully',

@@ -20,10 +20,12 @@ if (current_user_role() !== 'SuperAdmin') {
         </div>
         Accounts & Roles
       </h1>
-      <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">City Government RBAC management for system access.</p>
+      <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">City Government RBAC management for system
+        access.</p>
     </div>
     <div class="flex items-center gap-3">
-      <button id="btnOpenCreate" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2">
+      <button id="btnOpenCreate"
+        class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2">
         <i data-lucide="user-plus" class="w-4 h-4"></i>
         Create Account
       </button>
@@ -32,66 +34,86 @@ if (current_user_role() !== 'SuperAdmin') {
 
   <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
     <div class="inline-flex rounded-2xl bg-slate-100 dark:bg-slate-900/30 p-1 gap-1">
-      <button id="tabBtnStaff" type="button" class="px-4 py-2 rounded-xl text-sm font-black bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm">Staff Accounts</button>
-      <button id="tabBtnCommuters" type="button" class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Citizen Accounts</button>
-      <button id="tabBtnOperators" type="button" class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Operator Accounts</button>
+      <button id="tabBtnStaff" type="button"
+        class="px-4 py-2 rounded-xl text-sm font-black bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm">Staff
+        Accounts</button>
+      <button id="tabBtnCommuters" type="button"
+        class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Citizen
+        Accounts</button>
+      <button id="tabBtnOperators" type="button"
+        class="px-4 py-2 rounded-xl text-sm font-black text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60">Operator
+        Accounts</button>
     </div>
   </div>
 
   <div id="tabStaff">
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-slate-100 dark:bg-slate-900/30 rounded-xl">
-          <i data-lucide="search" class="w-5 h-5 text-slate-500 dark:text-slate-300"></i>
+    <div
+      class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div
+        class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-slate-100 dark:bg-slate-900/30 rounded-xl">
+            <i data-lucide="search" class="w-5 h-5 text-slate-500 dark:text-slate-300"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-slate-800 dark:text-white">User Directory</h2>
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Accounts issued by ICTO</p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-lg font-black text-slate-800 dark:text-white">User Directory</h2>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Accounts issued by ICTO</p>
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <input id="q" type="text" placeholder="Search email, name, employee no..."
+            class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+          <select id="statusFilter"
+            class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+            <option value="">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Locked">Locked</option>
+          </select>
+          <button id="btnRefresh"
+            class="rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            Refresh
+          </button>
+          <button id="btnRepair"
+            class="rounded-md bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2"
+            title="Fix database duplicates">
+            <i data-lucide="wrench" class="w-4 h-4"></i>
+          </button>
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-        <input id="q" type="text" placeholder="Search email, name, employee no..." class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
-        <select id="statusFilter" class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
-          <option value="">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Locked">Locked</option>
-        </select>
-        <button id="btnRefresh" class="rounded-md bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-          Refresh
-        </button>
-        <button id="btnRepair" class="rounded-md bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2" title="Fix database duplicates">
-          <i data-lucide="wrench" class="w-4 h-4"></i>
-        </button>
+
+      <div class="p-6">
+        <div id="usersError"
+          class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+        </div>
+        <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+            <thead class="bg-slate-50 dark:bg-slate-900/30">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">User</th>
+                <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Department
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Roles</th>
+                <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Last Login
+                </th>
+                <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+            </tbody>
+          </table>
+        </div>
+        <div id="usersMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
       </div>
     </div>
-
-    <div class="p-6">
-      <div id="usersError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
-      <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
-        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-          <thead class="bg-slate-50 dark:bg-slate-900/30">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">User</th>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Department</th>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Roles</th>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Last Login</th>
-              <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usersBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
-        </table>
-      </div>
-      <div id="usersMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
-    </div>
-  </div>
   </div>
 
-  <div id="tabCommuters" class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div id="tabCommuters"
+    class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div
+      class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-emerald-500/10 rounded-xl">
           <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
@@ -102,22 +124,29 @@ if (current_user_role() !== 'SuperAdmin') {
         </div>
       </div>
       <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-        <input id="commuterQ" type="text" placeholder="Search name, email, mobile..." class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
-        <select id="commuterStatusFilter" class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+        <input id="commuterQ" type="text" placeholder="Search name, email, mobile..."
+          class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+        <select id="commuterStatusFilter"
+          class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
           <option value="">All Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
           <option value="Locked">Locked</option>
         </select>
-        <button id="commuterRefresh" class="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
+        <button id="commuterRefresh"
+          class="rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
           Refresh
         </button>
       </div>
     </div>
     <div class="p-6">
-      <div id="commuterError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
-      <div id="commuterSuccess" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"></div>
+      <div id="commuterError"
+        class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+      </div>
+      <div id="commuterSuccess"
+        class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+      </div>
       <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
         <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead class="bg-slate-50 dark:bg-slate-900/30">
@@ -130,15 +159,18 @@ if (current_user_role() !== 'SuperAdmin') {
               <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody id="commuterBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+          <tbody id="commuterBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+          </tbody>
         </table>
       </div>
       <div id="commuterMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
     </div>
   </div>
 
-  <div id="tabOperators" class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div id="tabOperators"
+    class="hidden bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div
+      class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-amber-500/10 rounded-xl">
           <i data-lucide="briefcase" class="w-5 h-5 text-amber-600"></i>
@@ -149,34 +181,43 @@ if (current_user_role() !== 'SuperAdmin') {
         </div>
       </div>
       <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-        <input id="operatorQ" type="text" placeholder="Search name, email, plates..." class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-amber-500 transition-all">
-        <select id="operatorStatusFilter" class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-amber-500 transition-all">
+        <input id="operatorQ" type="text" placeholder="Search name, email, plates..."
+          class="w-full sm:w-80 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-amber-500 transition-all">
+        <select id="operatorStatusFilter"
+          class="w-full sm:w-44 rounded-md border-0 bg-white dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-amber-500 transition-all">
           <option value="">All Status</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
           <option value="Locked">Locked</option>
         </select>
-        <button id="operatorRefresh" class="rounded-md bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
+        <button id="operatorRefresh"
+          class="rounded-md bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 px-4 transition-all flex items-center justify-center gap-2">
           <i data-lucide="refresh-cw" class="w-4 h-4"></i>
           Refresh
         </button>
       </div>
     </div>
     <div class="p-6">
-      <div id="operatorError" class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700"></div>
-      <div id="operatorSuccess" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"></div>
+      <div id="operatorError"
+        class="hidden mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+      </div>
+      <div id="operatorSuccess"
+        class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+      </div>
       <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
         <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
           <thead class="bg-slate-50 dark:bg-slate-900/30">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Operator</th>
-              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Association</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Association
+              </th>
               <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Vehicles</th>
               <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
               <th class="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody id="operatorBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+          <tbody id="operatorBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+          </tbody>
         </table>
       </div>
       <div id="operatorMeta" class="mt-3 text-xs font-bold text-slate-500"></div>
@@ -186,19 +227,24 @@ if (current_user_role() !== 'SuperAdmin') {
 </div>
 
 <!-- Activity Modal -->
-<div id="activityBackdrop" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-  <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 flex flex-col max-h-[80vh]">
+<div id="activityBackdrop"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+  <div
+    class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 flex flex-col max-h-[80vh]">
     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-6 py-4">
       <div>
         <h3 id="activityTitle" class="text-lg font-black text-slate-800 dark:text-white">Login Activity</h3>
-        <p id="activitySubtitle" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Recent sign-in attempts</p>
+        <p id="activitySubtitle" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Recent sign-in
+          attempts</p>
       </div>
-      <button id="btnCloseActivity" class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 transition-colors">
+      <button id="btnCloseActivity"
+        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 transition-colors">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
     </div>
     <div class="flex-1 overflow-y-auto p-0">
-      <div id="activityError" class="hidden m-4 rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm font-bold text-rose-600"></div>
+      <div id="activityError"
+        class="hidden m-4 rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm font-bold text-rose-600"></div>
       <table class="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
         <thead class="bg-slate-50 dark:bg-slate-900/30 sticky top-0">
           <tr>
@@ -210,13 +256,17 @@ if (current_user_role() !== 'SuperAdmin') {
         <tbody id="activityBody" class="divide-y divide-slate-100 dark:divide-slate-700"></tbody>
       </table>
     </div>
-    <div id="activityMeta" class="px-6 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-slate-500 text-right"></div>
+    <div id="activityMeta"
+      class="px-6 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 text-xs font-bold text-slate-500 text-right">
+    </div>
   </div>
 </div>
 
 <!-- Create/Edit User Modal (Unified) -->
-<div id="userModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-  <div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 flex flex-col max-h-[90vh]">
+<div id="userModal"
+  class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
+  <div
+    class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 flex flex-col max-h-[90vh]">
     <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-6 py-4">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-indigo-50 rounded-xl">
@@ -227,42 +277,53 @@ if (current_user_role() !== 'SuperAdmin') {
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">HR-based access provisioning</p>
         </div>
       </div>
-      <button onclick="closeModal()" class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 transition-colors">
+      <button onclick="closeModal()"
+        class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 transition-colors">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
     </div>
     <form id="formUser" class="flex-1 overflow-y-auto p-6 space-y-6">
       <input type="hidden" name="id" id="userId">
-      <div id="modalError" class="hidden rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm font-bold text-rose-600 flex items-start gap-2">
+      <div id="modalError"
+        class="hidden rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm font-bold text-rose-600 flex items-start gap-2">
         <i data-lucide="alert-circle" class="w-5 h-5 shrink-0"></i>
         <span id="modalErrorText"></span>
       </div>
-      <div id="modalSuccess" class="hidden rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm font-bold text-emerald-600 flex items-start gap-2">
+      <div id="modalSuccess"
+        class="hidden rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm font-bold text-emerald-600 flex items-start gap-2">
         <i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i>
         <span id="modalSuccessText"></span>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="space-y-1">
-          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span class="text-rose-500">*</span></label>
-          <input type="text" name="first_name" required class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">First Name <span
+              class="text-rose-500">*</span></label>
+          <input type="text" name="first_name" required minlength="2" maxlength="80"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
-          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Last Name <span class="text-rose-500">*</span></label>
-          <input type="text" name="last_name" required class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Last Name <span
+              class="text-rose-500">*</span></label>
+          <input type="text" name="last_name" required minlength="2" maxlength="80"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="md:col-span-2 space-y-1">
-          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Email Address <span class="text-rose-500">*</span></label>
-          <input type="email" name="email" required class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Email Address <span
+              class="text-rose-500">*</span></label>
+          <input type="email" name="email" required
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Employee No.</label>
-          <input type="text" name="employee_no" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <input type="text" name="employee_no" maxlength="32"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 uppercase">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Department</label>
-          <select name="department" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <select name="department"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
             <option value="">Select Department</option>
             <option value="City ICT Office">City ICT Office</option>
             <option value="Traffic Management Office">Traffic Management Office</option>
@@ -273,11 +334,13 @@ if (current_user_role() !== 'SuperAdmin') {
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Position Title</label>
-          <input type="text" name="position_title" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <input type="text" name="position_title" maxlength="120"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500 capitalize">
         </div>
         <div class="space-y-1">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Status</label>
-          <select name="status" class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
+          <select name="status"
+            class="w-full rounded-xl border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-indigo-500 focus:ring-indigo-500">
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
             <option value="Locked">Locked</option>
@@ -287,7 +350,8 @@ if (current_user_role() !== 'SuperAdmin') {
       <div class="space-y-3 pt-2 border-t border-slate-100">
         <div class="flex items-center justify-between">
           <label class="text-xs font-black text-slate-500 uppercase tracking-wider">Assigned Roles</label>
-          <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Select at least one</span>
+          <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Select at least
+            one</span>
         </div>
         <div id="rolesContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="text-sm text-slate-500 italic">Loading roles...</div>
@@ -295,8 +359,10 @@ if (current_user_role() !== 'SuperAdmin') {
       </div>
     </form>
     <div class="border-t border-slate-100 dark:border-slate-700 px-6 py-4 bg-slate-50/50 flex justify-end gap-3">
-      <button onclick="closeModal()" type="button" class="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancel</button>
-      <button onclick="saveUser()" type="button" id="btnSaveUser" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+      <button onclick="closeModal()" type="button"
+        class="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancel</button>
+      <button onclick="saveUser()" type="button" id="btnSaveUser"
+        class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
         <i data-lucide="save" class="w-4 h-4"></i>
         <span>Save Account</span>
       </button>
@@ -358,10 +424,10 @@ if (current_user_role() !== 'SuperAdmin') {
     var statusEl = document.getElementById('statusFilter');
 
     if (btnOpenCreate) btnOpenCreate.addEventListener('click', function () { openUserModal(null); });
-    if (btnRefresh) btnRefresh.addEventListener('click', function () { loadUsers().catch(function () {}); });
-    if (btnRepair) btnRepair.addEventListener('click', function () { runRepair().catch(function () {}); });
-    if (qEl) qEl.addEventListener('input', debounce(function () { loadUsers().catch(function () {}); }, 250));
-    if (statusEl) statusEl.addEventListener('change', function () { loadUsers().catch(function () {}); });
+    if (btnRefresh) btnRefresh.addEventListener('click', function () { loadUsers().catch(function () { }); });
+    if (btnRepair) btnRepair.addEventListener('click', function () { runRepair().catch(function () { }); });
+    if (qEl) qEl.addEventListener('input', debounce(function () { loadUsers().catch(function () { }); }, 250));
+    if (statusEl) statusEl.addEventListener('change', function () { loadUsers().catch(function () { }); });
 
     var modalBackdrop = document.getElementById('userModal');
     if (modalBackdrop) {
@@ -376,6 +442,37 @@ if (current_user_role() !== 'SuperAdmin') {
         closeActivityModal();
       }
     });
+
+    // Auto-Formatting Listers
+    const formUser = document.getElementById('formUser');
+    if (formUser) {
+      ['first_name', 'last_name', 'position_title'].forEach(name => {
+        const el = formUser.querySelector(`[name="${name}"]`);
+        if (el) {
+          el.addEventListener('input', function () {
+            // Title Case Logic
+            let val = this.value;
+            if (val.length > 0) {
+              // Simple title case for typing (visual)
+              this.value = val.replace(/\b\w/g, c => c.toUpperCase());
+            }
+          });
+          el.addEventListener('blur', function () {
+            // Strict cleanup on blur
+            if (this.value.length < 2 && this.hasAttribute('required')) {
+              // Let browser validation handle it, but we force trim
+            }
+            this.value = this.value.trim();
+          });
+        }
+      });
+      const empEl = formUser.querySelector('[name="employee_no"]');
+      if (empEl) {
+        empEl.addEventListener('input', function () {
+          this.value = this.value.toUpperCase();
+        });
+      }
+    }
   });
 
   // Helpers
@@ -393,7 +490,7 @@ if (current_user_role() !== 'SuperAdmin') {
   }
   function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
       clearTimeout(timeout);
       timeout = setTimeout(() => func.apply(this, args), wait);
     };
@@ -404,8 +501,8 @@ if (current_user_role() !== 'SuperAdmin') {
     if (s === 'Locked') return '<span class="px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700">Locked</span>';
     return '<span class="px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-700">Inactive</span>';
   }
-  function show(el, v) { if(el) { if(v) el.classList.remove('hidden'); else el.classList.add('hidden'); } }
-  function setText(el, t) { if(el) el.textContent = t; }
+  function show(el, v) { if (el) { if (v) el.classList.remove('hidden'); else el.classList.add('hidden'); } }
+  function setText(el, t) { if (el) el.textContent = t; }
 
   function apiUsersUrl(path) {
     return basePrefix + '/admin/api/users/' + path;
@@ -450,27 +547,27 @@ if (current_user_role() !== 'SuperAdmin') {
     const meta = document.getElementById('usersMeta');
     const q = document.getElementById('q').value;
     const status = document.getElementById('statusFilter').value;
-    
+
     tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">Loading...</td></tr>';
-    
+
     try {
       const params = new URLSearchParams({ q, status });
       const res = await fetch(`${API_BASE}rbac_users.php?${params}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Failed');
-      
+
       const users = data.users || [];
-      if(!users.length) {
+      if (!users.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-slate-500">No staff accounts found.</td></tr>';
         meta.textContent = '0 results';
         return;
       }
-      
+
       tbody.innerHTML = users.map(u => {
-        const roleBadges = (u.roles && u.roles.length) 
+        const roleBadges = (u.roles && u.roles.length)
           ? u.roles.map(r => `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">${escapeHtml(r.name)}</span>`).join(' ')
           : '<span class="text-xs text-slate-400 italic">No roles</span>';
-        
+
         return `
           <tr class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-4 py-3">
@@ -493,7 +590,7 @@ if (current_user_role() !== 'SuperAdmin') {
         `;
       }).join('');
       meta.textContent = `${users.length} staff member(s)`;
-      if(window.lucide) lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-sm font-bold text-rose-500">Error: ${e.message}</td></tr>`;
     }
@@ -506,9 +603,9 @@ if (current_user_role() !== 'SuperAdmin') {
     try {
       const res = await fetch(`${API_BASE}rbac_repair.php`, { method: 'POST' });
       const data = await res.json();
-      if (data.ok) { alert('Success: ' + data.message); loadUsers(); loadRoles(); } 
+      if (data.ok) { alert('Success: ' + data.message); loadUsers(); loadRoles(); }
       else { alert('Repair Failed: ' + (data.error || 'Unknown error')); }
-    } catch (e) { alert('Repair Error: ' + e.message); } 
+    } catch (e) { alert('Repair Error: ' + e.message); }
     finally { btn.classList.remove('opacity-50', 'pointer-events-none'); }
   }
 
@@ -552,36 +649,36 @@ if (current_user_role() !== 'SuperAdmin') {
     commuterBody.innerHTML = users.map(function (u) {
       var actions = '' +
         '<div class="flex items-center justify-end gap-2">' +
-          '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
-            '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
-            '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
-            '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
-          '</select>' +
-          '<button data-action="activity" data-id="' + u.id + '" data-email="' + escapeHtml(u.email) + '" class="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 text-xs font-black">Activity</button>' +
-          '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
-          '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
+        '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
+        '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
+        '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
+        '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
+        '</select>' +
+        '<button data-action="activity" data-id="' + u.id + '" data-email="' + escapeHtml(u.email) + '" class="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 text-xs font-black">Activity</button>' +
+        '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
+        '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
         '</div>';
       return '' +
         '<tr>' +
-          '<td class="px-4 py-3">' +
-            '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.name) + '</div>' +
-            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
-          '</td>' +
-          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.mobile || '—') + '</td>' +
-          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.barangay || '—') + '</td>' +
-          '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
-          '<td class="px-4 py-3 text-xs font-bold text-slate-500">' + escapeHtml(u.last_login_at || '—') + '</td>' +
-          '<td class="px-4 py-3">' + actions + '</td>' +
+        '<td class="px-4 py-3">' +
+        '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.name) + '</div>' +
+        '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
+        '</td>' +
+        '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.mobile || '—') + '</td>' +
+        '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.barangay || '—') + '</td>' +
+        '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
+        '<td class="px-4 py-3 text-xs font-bold text-slate-500">' + escapeHtml(u.last_login_at || '—') + '</td>' +
+        '<td class="px-4 py-3">' + actions + '</td>' +
         '</tr>';
     }).join('');
     setText(commuterMeta, users.length + ' result(s)');
     if (window.lucide) window.lucide.createIcons();
   }
 
-  if (commuterRefresh) commuterRefresh.addEventListener('click', function () { loadCommuters().catch(function () {}); });
-  if (commuterQ) commuterQ.addEventListener('input', function () { clearTimeout(window.__cq); window.__cq = setTimeout(function () { loadCommuters().catch(function () {}); }, 250); });
-  if (commuterStatusFilter) commuterStatusFilter.addEventListener('change', function () { loadCommuters().catch(function () {}); });
-  
+  if (commuterRefresh) commuterRefresh.addEventListener('click', function () { loadCommuters().catch(function () { }); });
+  if (commuterQ) commuterQ.addEventListener('input', function () { clearTimeout(window.__cq); window.__cq = setTimeout(function () { loadCommuters().catch(function () { }); }, 250); });
+  if (commuterStatusFilter) commuterStatusFilter.addEventListener('change', function () { loadCommuters().catch(function () { }); });
+
   if (commuterBody) {
     commuterBody.addEventListener('change', function (e) {
       var sel = e.target;
@@ -590,7 +687,7 @@ if (current_user_role() !== 'SuperAdmin') {
       var st = sel.value;
       commutersPost({ action: 'set_status', user_id: userId, status: st }).then(function (res) {
         if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to update status.'); }
-        loadCommuters().catch(function () {});
+        loadCommuters().catch(function () { });
       });
     });
     commuterBody.addEventListener('click', function (e) {
@@ -602,7 +699,7 @@ if (current_user_role() !== 'SuperAdmin') {
         if (!confirm('Delete this commuter account?')) return;
         commutersPost({ action: 'delete', user_id: userId }).then(function (res) {
           if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to delete account.'); }
-          loadCommuters().catch(function () {});
+          loadCommuters().catch(function () { });
         });
         return;
       }
@@ -612,7 +709,7 @@ if (current_user_role() !== 'SuperAdmin') {
           if (!res || res.ok !== true) { show(commuterError, true); setText(commuterError, 'Failed to reset password.'); return; }
           show(commuterSuccess, true);
           setText(commuterSuccess, 'Temporary password: ' + (res.temporary_password || ''));
-          loadCommuters().catch(function () {});
+          loadCommuters().catch(function () { });
         });
         return;
       }
@@ -633,7 +730,7 @@ if (current_user_role() !== 'SuperAdmin') {
               '<td class="px-4 py-3">' + ok + '</td>' +
               '<td class="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">' + escapeHtml(it.ip || '—') + '</td>' +
               '<td class="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300">' + escapeHtml(it.created_at || '—') + '</td>' +
-            '</tr>';
+              '</tr>';
           }).join('');
           setText(activityMeta, items.length + ' events');
         });
@@ -681,35 +778,35 @@ if (current_user_role() !== 'SuperAdmin') {
     operatorBody.innerHTML = users.map(function (u) {
       var actions = '' +
         '<div class="flex items-center justify-end gap-2">' +
-          '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
-            '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
-            '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
-            '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
-          '</select>' +
-          '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
-          '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
+        '<select data-action="status" data-id="' + u.id + '" class="rounded-lg bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs font-black">' +
+        '<option value="Active"' + (u.status === 'Active' ? ' selected' : '') + '>Active</option>' +
+        '<option value="Inactive"' + (u.status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
+        '<option value="Locked"' + (u.status === 'Locked' ? ' selected' : '') + '>Locked</option>' +
+        '</select>' +
+        '<button data-action="reset" data-id="' + u.id + '" class="rounded-lg bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 text-xs font-black">Reset</button>' +
+        '<button data-action="delete" data-id="' + u.id + '" class="rounded-lg bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 text-xs font-black">Delete</button>' +
         '</div>';
       return '' +
         '<tr>' +
-          '<td class="px-4 py-3">' +
-            '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.full_name || '—') + '</div>' +
-            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
-            '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.contact_info || '') + '</div>' +
-          '</td>' +
-          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.association_name || '—') + '</td>' +
-          '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.plates || '—') + '</td>' +
-          '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
-          '<td class="px-4 py-3">' + actions + '</td>' +
+        '<td class="px-4 py-3">' +
+        '<div class="font-black text-slate-900 dark:text-white">' + escapeHtml(u.full_name || '—') + '</div>' +
+        '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.email) + '</div>' +
+        '<div class="text-xs font-bold text-slate-500">' + escapeHtml(u.contact_info || '') + '</div>' +
+        '</td>' +
+        '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.association_name || '—') + '</td>' +
+        '<td class="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(u.plates || '—') + '</td>' +
+        '<td class="px-4 py-3">' + statusBadgeHtml(u.status) + '</td>' +
+        '<td class="px-4 py-3">' + actions + '</td>' +
         '</tr>';
     }).join('');
     setText(operatorMeta, users.length + ' result(s)');
     if (window.lucide) window.lucide.createIcons();
   }
 
-  if (operatorRefresh) operatorRefresh.addEventListener('click', function () { loadOperators().catch(function () {}); });
-  if (operatorQ) operatorQ.addEventListener('input', function () { clearTimeout(window.__oq); window.__oq = setTimeout(function () { loadOperators().catch(function () {}); }, 250); });
-  if (operatorStatusFilter) operatorStatusFilter.addEventListener('change', function () { loadOperators().catch(function () {}); });
-  
+  if (operatorRefresh) operatorRefresh.addEventListener('click', function () { loadOperators().catch(function () { }); });
+  if (operatorQ) operatorQ.addEventListener('input', function () { clearTimeout(window.__oq); window.__oq = setTimeout(function () { loadOperators().catch(function () { }); }, 250); });
+  if (operatorStatusFilter) operatorStatusFilter.addEventListener('change', function () { loadOperators().catch(function () { }); });
+
   if (operatorBody) {
     operatorBody.addEventListener('change', function (e) {
       var sel = e.target;
@@ -718,7 +815,7 @@ if (current_user_role() !== 'SuperAdmin') {
       var st = sel.value;
       operatorsPost({ action: 'set_status', user_id: userId, status: st }).then(function (res) {
         if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to update status.'); }
-        loadOperators().catch(function () {});
+        loadOperators().catch(function () { });
       });
     });
     operatorBody.addEventListener('click', function (e) {
@@ -730,7 +827,7 @@ if (current_user_role() !== 'SuperAdmin') {
         if (!confirm('Delete this operator account?')) return;
         operatorsPost({ action: 'delete', user_id: userId }).then(function (res) {
           if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to delete account.'); }
-          loadOperators().catch(function () {});
+          loadOperators().catch(function () { });
         });
         return;
       }
@@ -740,7 +837,7 @@ if (current_user_role() !== 'SuperAdmin') {
           if (!res || res.ok !== true) { show(operatorError, true); setText(operatorError, 'Failed to reset password.'); return; }
           show(operatorSuccess, true);
           setText(operatorSuccess, 'Temporary password: ' + (res.temporary_password || ''));
-          loadOperators().catch(function () {});
+          loadOperators().catch(function () { });
         });
       }
     });
@@ -781,11 +878,11 @@ if (current_user_role() !== 'SuperAdmin') {
     const title = document.getElementById('modalTitle');
     const errorDiv = document.getElementById('modalError');
     const successDiv = document.getElementById('modalSuccess');
-    
+
     form.reset();
     errorDiv.classList.add('hidden');
     successDiv.classList.add('hidden');
-    
+
     if (user) {
       title.textContent = 'Edit Account';
       document.getElementById('userId').value = user.id;
@@ -803,7 +900,7 @@ if (current_user_role() !== 'SuperAdmin') {
       document.getElementById('userId').value = '';
       renderRoleCheckboxes([]);
     }
-    
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
@@ -821,21 +918,21 @@ if (current_user_role() !== 'SuperAdmin') {
     const errorText = document.getElementById('modalErrorText');
     const successDiv = document.getElementById('modalSuccess');
     const successText = document.getElementById('modalSuccessText');
-    
+
     if (!form.checkValidity()) { form.reportValidity(); return; }
-    
+
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
     const roleCheckboxes = form.querySelectorAll('input[name="roles[]"]:checked');
     payload.roles = Array.from(roleCheckboxes).map(cb => parseInt(cb.value));
     delete payload['roles[]'];
-    
+
     const isEdit = !!userId;
     const endpoint = isEdit ? 'rbac_user_update.php' : 'rbac_user_create.php';
-    
+
     errorDiv.classList.add('hidden');
     successDiv.classList.add('hidden');
-    
+
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
@@ -844,7 +941,7 @@ if (current_user_role() !== 'SuperAdmin') {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'Operation failed');
-      
+
       if (isEdit) {
         successText.textContent = 'Account updated successfully.';
         successDiv.classList.remove('hidden');
