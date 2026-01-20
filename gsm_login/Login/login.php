@@ -156,11 +156,11 @@ if ($action === 'login_otp_resend') {
   $purpose = (string) ($pending['purpose'] ?? '');
   if ($pEmail === '' || $purpose === '')
     gsm_send(false, 'No pending OTP request.', null, 400);
-  $sent = otp_send($db, $pEmail, $purpose, 180);
+  $sent = otp_send($db, $pEmail, $purpose, 120);
   if (!($sent['ok'] ?? false))
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), $sent['data'] ?? null, 500);
   gsm_send(true, (string) ($sent['message'] ?? 'OTP sent.'), [
-    'expires_in' => (int) (($sent['data']['expires_in'] ?? 180)),
+    'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
   ]);
 }
 
@@ -292,14 +292,14 @@ if ($action === 'operator_login') {
     'plate_number' => $plateNumber,
     'device_hash' => $deviceHash,
   ];
-  $sent = otp_send($db, $email, 'login_operator', 180);
+  $sent = otp_send($db, $email, 'login_operator', 120);
   if (!($sent['ok'] ?? false)) {
     unset($_SESSION['pending_login']);
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
   }
   gsm_send(true, 'OTP required', [
     'otp_required' => true,
-    'expires_in' => (int) (($sent['data']['expires_in'] ?? 180)),
+    'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
     'otp_trust_days' => 10,
   ]);
 }
@@ -337,14 +337,14 @@ if (!td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
     'user_id' => $userId,
     'device_hash' => $deviceHash,
   ];
-  $sent = otp_send($db, $email, 'login_rbac', 180);
+  $sent = otp_send($db, $email, 'login_rbac', 120);
   if (!($sent['ok'] ?? false)) {
     unset($_SESSION['pending_login']);
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
   }
   gsm_send(true, 'OTP required', [
     'otp_required' => true,
-    'expires_in' => (int) (($sent['data']['expires_in'] ?? 180)),
+    'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
     'otp_trust_days' => 10,
   ]);
 }
