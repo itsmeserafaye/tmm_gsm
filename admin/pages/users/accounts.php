@@ -410,7 +410,8 @@ async function saveUser() {
                 // If no roles checked, we should probably send something or the API handles it (errors out)
                 if (checkedRoles.length === 0) {
                      // The API expects at least one role usually, or it throws 'no_roles'
-                     // Let's allow it to error if that's the logic, or handle it gracefully
+                     // We can prevent the request here
+                     throw new Error('Please select at least one role.');
                 }
 
                 const roleRes = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/rbac_user_set_roles.php', {
