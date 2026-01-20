@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/mailer.php';
 
-function otp_ensure_schema(mysqli $db): void {
-  $db->query("CREATE TABLE IF NOT EXISTS email_otps (
+function otp_ensure_schema(mysqli $db): bool {
+  $ok = $db->query("CREATE TABLE IF NOT EXISTS email_otps (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(190) NOT NULL,
     purpose VARCHAR(40) NOT NULL,
@@ -17,14 +17,31 @@ function otp_ensure_schema(mysqli $db): void {
     INDEX idx_expires (expires_at),
     INDEX idx_consumed (consumed_at)
   ) ENGINE=InnoDB");
+  return (bool)$ok;
 }
 
 function otp_generate_code(): string {
   return str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 }
 
+function otp_str_limit(?string $v, int $max): string {
+  $s = (string)($v ?? '');
+  if ($max <= 0) return '';
+  if (strlen($s) <= $max) return $s;
+  return substr($s, 0, $max);
+}
+
+function otp_log_db_error(mysqli $db, string $context): void {
+  $errno = (int)($db->errno ?? 0);
+  $err = (string)($db->error ?? '');
+  @error_log('[TMM][OTP][' . $context . '] mysql_errno=' . $errno . ' mysql_error=' . $err);
+}
+
 function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 180): array {
-  otp_ensure_schema($db);
+  if (!otp_ensure_schema($db)) {
+    otp_log_db_error($db, 'ensure_schema');
+    return ['ok' => false, 'message' => 'OTP storage is not available.'];
+  }
 
   $email = strtolower(trim($email));
   $purpose = trim($purpose);
@@ -34,6 +51,8 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
   if ($purpose === '') {
     return ['ok' => false, 'message' => 'Invalid request.'];
   }
+  $email = otp_str_limit($email, 190);
+  $purpose = otp_str_limit($purpose, 40);
 
   $code = otp_generate_code();
   $hash = password_hash($code, PASSWORD_DEFAULT);
@@ -42,19 +61,21 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
   }
 
   $expiresAt = date('Y-m-d H:i:s', time() + max(30, $ttlSeconds));
-  $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-  $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
+  $ip = otp_str_limit((string)($_SERVER['REMOTE_ADDR'] ?? ''), 64);
+  $ua = otp_str_limit((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 255);
 
   $stmt = $db->prepare("INSERT INTO email_otps(email, purpose, otp_hash, expires_at, request_ip, user_agent) VALUES(?,?,?,?,?,?)");
   if (!$stmt) {
-    return ['ok' => false, 'message' => 'OTP generation failed.'];
+    otp_log_db_error($db, 'insert_prepare');
+    return ['ok' => false, 'message' => 'OTP storage failed.'];
   }
   $stmt->bind_param('ssssss', $email, $purpose, $hash, $expiresAt, $ip, $ua);
   $ok = $stmt->execute();
   $otpId = (int)$stmt->insert_id;
   $stmt->close();
   if (!$ok) {
-    return ['ok' => false, 'message' => 'OTP generation failed.'];
+    otp_log_db_error($db, 'insert_execute');
+    return ['ok' => false, 'message' => 'OTP storage failed.'];
   }
 
   $subject = 'Your GoServePH OTP Code';
@@ -75,6 +96,7 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
     $mail->addAddress($email);
     $mail->send();
   } catch (Throwable $e) {
+    @error_log('[TMM][OTP][mail_send] ' . $e->getMessage());
     return ['ok' => false, 'message' => 'Failed to send OTP email.', 'data' => ['otp_id' => $otpId, 'expires_in' => max(30, $ttlSeconds)]];
   }
 
@@ -82,7 +104,10 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
 }
 
 function otp_verify(mysqli $db, string $email, string $purpose, string $code): array {
-  otp_ensure_schema($db);
+  if (!otp_ensure_schema($db)) {
+    otp_log_db_error($db, 'ensure_schema');
+    return ['ok' => false, 'message' => 'Verification failed.'];
+  }
 
   $email = strtolower(trim($email));
   $purpose = trim($purpose);
@@ -93,9 +118,14 @@ function otp_verify(mysqli $db, string $email, string $purpose, string $code): a
   if ($purpose === '' || strlen($code) !== 6) {
     return ['ok' => false, 'message' => 'Invalid OTP.'];
   }
+  $email = otp_str_limit($email, 190);
+  $purpose = otp_str_limit($purpose, 40);
 
   $stmt = $db->prepare("SELECT id, otp_hash, expires_at, attempts FROM email_otps WHERE email=? AND purpose=? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1");
-  if (!$stmt) return ['ok' => false, 'message' => 'Verification failed.'];
+  if (!$stmt) {
+    otp_log_db_error($db, 'verify_prepare');
+    return ['ok' => false, 'message' => 'Verification failed.'];
+  }
   $stmt->bind_param('ss', $email, $purpose);
   $stmt->execute();
   $row = $stmt->get_result()->fetch_assoc();
