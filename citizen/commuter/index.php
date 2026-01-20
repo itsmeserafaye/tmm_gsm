@@ -410,6 +410,23 @@ $userName = $_SESSION['name'] ?? 'Commuter';
             }
         }
 
+        async function populateRouteOptions() {
+            try {
+                const res = await fetch(`${API_URL}?action=get_routes`);
+                const data = await res.json();
+                const select = document.getElementById('complaint-route-select');
+                
+                if(data.ok && data.data.length > 0) {
+                    // Keep the default options
+                    let opts = '<option value="">Select Route...</option><option value="Other">Other / Not Listed</option>';
+                    opts += data.data.map(r => `<option value="${r.route_id}">${r.route_name}</option>`).join('');
+                    select.innerHTML = opts;
+                }
+            } catch (e) {
+                console.error("Failed to load routes for dropdown", e);
+            }
+        }
+
         async function loadRoutes() {
             const tbody = document.getElementById('routes-table-body');
             if(tbody.getAttribute('data-loaded') === 'true') return;

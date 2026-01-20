@@ -26,7 +26,7 @@ header('Access-Control-Allow-Origin: *');
 
 $db = get_db();
 
-// Ensure commuter_complaints table exists
+// Ensure commuter_complaints table exists with Admin-compatible columns
 $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ref_number VARCHAR(64) UNIQUE,
@@ -38,6 +38,19 @@ $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
     ai_tags VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB");
+
+// Add linkage columns if they don't exist (to match Admin schema)
+$cols = $db->query("SHOW COLUMNS FROM commuter_complaints");
+$hasRouteId = false;
+$hasPlateNumber = false;
+if ($cols) {
+    while ($c = $cols->fetch_assoc()) {
+        if ($c['Field'] === 'route_id') $hasRouteId = true;
+        if ($c['Field'] === 'plate_number') $hasPlateNumber = true;
+    }
+}
+if (!$hasRouteId) { $db->query("ALTER TABLE commuter_complaints ADD COLUMN route_id VARCHAR(64) DEFAULT NULL"); }
+if (!$hasPlateNumber) { $db->query("ALTER TABLE commuter_complaints ADD COLUMN plate_number VARCHAR(32) DEFAULT NULL"); }
 
 $action = $_REQUEST['action'] ?? '';
 
@@ -66,9 +79,10 @@ if ($action === 'check_session') {
 // ----------------------------------------------------------------------
 
 if ($action === 'get_routes') {
-    // Fetches list of authorized routes
+    // Fetches list of authorized routes (Matches Admin 'routes' table)
     $routes = [];
-    $res = $db->query("SELECT * FROM routes ORDER BY route_name ASC");
+    // Only show Active routes to commuters
+    $res = $db->query("SELECT route_id, route_name, origin, destination, fare, status FROM routes WHERE status='Active' ORDER BY route_name ASC");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $routes[] = $row;
@@ -79,9 +93,9 @@ if ($action === 'get_routes') {
 }
 
 if ($action === 'get_terminals') {
-    // Fetches list of terminals
+    // Fetches list of terminals (Matches Admin 'terminals' table)
     $terminals = [];
-    $res = $db->query("SELECT * FROM terminals ORDER BY name ASC");
+    $res = $db->query("SELECT id, name, location, capacity, city, address FROM terminals ORDER BY name ASC");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $terminals[] = $row;
@@ -92,9 +106,9 @@ if ($action === 'get_terminals') {
 }
 
 if ($action === 'get_advisories') {
-    // Fetches public advisories
+    // Fetches public advisories (Matches Admin 'public_advisories' table)
     $advisories = [];
-    $res = $db->query("SELECT * FROM public_advisories ORDER BY posted_at DESC LIMIT 20");
+    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories WHERE is_active=1 ORDER BY posted_at DESC LIMIT 20");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $advisories[] = $row;
@@ -105,10 +119,9 @@ if ($action === 'get_advisories') {
 }
 
 if ($action === 'get_fares') {
-    // Fetches fare matrix information (can be from routes or dedicated table)
-    // For now, we extract fare info from routes
+    // Fetches fare matrix information (Matches Admin 'routes' table)
     $fares = [];
-    $res = $db->query("SELECT route_name, fare, origin, destination FROM routes ORDER BY route_name ASC");
+    $res = $db->query("SELECT route_name, fare, origin, destination FROM routes WHERE status='Active' ORDER BY route_name ASC");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $fares[] = $row;
@@ -175,7 +188,7 @@ if ($action === 'get_travel_info') {
 if ($action === 'submit_complaint') {
     $type = $_POST['type'] ?? '';
     $desc = $_POST['description'] ?? '';
-    $route = $_POST['route'] ?? '';
+    $routeId = $_POST['route_id'] ?? null; // ID from Admin routes
     $plate = $_POST['plate_number'] ?? '';
     $location = $_POST['location'] ?? '';
     
@@ -205,14 +218,13 @@ if ($action === 'submit_complaint') {
 
     $ref = 'COM-' . strtoupper(uniqid());
     
-    // We append extra details to description for now since table schema is simple, 
-    // or we could add columns. For safety, let's just append to description if columns don't exist.
-    // Ideally we should alter table, but let's stick to existing schema + new fields in description for simplicity unless we want to run ALTER.
+    // Store full description including location if not separate
+    // $fullDesc = "Location: $location\n\n$desc"; 
+    // We now have a dedicated location column, but we'll keep it in description for backward compatibility if needed, 
+    // or just store it separately. Let's store separately.
     
-    $fullDesc = "Route: $route\nPlate: $plate\nLocation: $location\n\n$desc";
-
-    $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('sissss', $ref, $userId, $type, $fullDesc, $mediaPath, $aiTagsStr);
+    $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags, route_id, plate_number, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('sisssssss', $ref, $userId, $type, $desc, $mediaPath, $aiTagsStr, $routeId, $plate, $location);
     
     if ($stmt->execute()) {
         echo json_encode(['ok' => true, 'ref_number' => $ref, 'ai_tags' => $aiTags]);

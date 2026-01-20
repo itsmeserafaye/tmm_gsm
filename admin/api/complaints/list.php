@@ -21,11 +21,14 @@ try {
     ) ENGINE=InnoDB");
 
     $statusFilter = $_GET['status'] ?? '';
-    $sql = "SELECT * FROM commuter_complaints";
+    
+    // Join with routes table to get route details
+    $sql = "SELECT c.*, r.route_name FROM commuter_complaints c LEFT JOIN routes r ON c.route_id = r.route_id";
+    
     if ($statusFilter) {
-        $sql .= " WHERE status = '" . $db->real_escape_string($statusFilter) . "'";
+        $sql .= " WHERE c.status = '" . $db->real_escape_string($statusFilter) . "'";
     }
-    $sql .= " ORDER BY created_at DESC";
+    $sql .= " ORDER BY c.created_at DESC";
 
     $res = $db->query($sql);
     $items = [];
@@ -39,7 +42,11 @@ try {
             'status' => $row['status'],
             'ai_tags' => $row['ai_tags'],
             'created_at' => $row['created_at'],
-            'media_url' => $row['media_path'] ? '/tmm/citizen/commuter/' . $row['media_path'] : null
+            'media_url' => $row['media_path'] ? '/tmm/citizen/commuter/' . $row['media_path'] : null,
+            // Integrated data
+            'route_name' => $row['route_name'] ?? 'N/A',
+            'plate_number' => $row['plate_number'] ?? '',
+            'location' => $row['location'] ?? ''
         ];
     }
 
