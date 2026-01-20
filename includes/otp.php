@@ -40,10 +40,26 @@ function otp_log_db_error(mysqli $db, string $context): void {
   @error_log('[TMM][OTP][' . $context . '] mysql_errno=' . $errno . ' mysql_error=' . $err);
 }
 
+function otp_debug_enabled(): bool {
+  $v = strtolower(trim((string)getenv('TMM_DEBUG')));
+  return $v === '1' || $v === 'true' || $v === 'yes';
+}
+
+function otp_debug_data(mysqli $db, string $context): array {
+  return [
+    'context' => $context,
+    'mysql_errno' => (int)($db->errno ?? 0),
+    'mysql_error' => otp_str_limit((string)($db->error ?? ''), 240),
+  ];
+}
+
 function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 180): array {
   if (!otp_ensure_schema($db)) {
     otp_log_db_error($db, 'ensure_schema');
-    return ['ok' => false, 'message' => 'OTP storage is not available.'];
+    $data = otp_debug_enabled() ? otp_debug_data($db, 'ensure_schema') : null;
+    $msg = 'OTP storage is not available.';
+    if (otp_debug_enabled() && !empty($data['mysql_errno'])) $msg .= ' (errno ' . (int)$data['mysql_errno'] . ')';
+    return ['ok' => false, 'message' => $msg, 'data' => $data];
   }
 
   $email = strtolower(trim($email));
@@ -70,7 +86,10 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
   $stmt = $db->prepare("INSERT INTO email_otps(email, purpose, otp_hash, expires_at, request_ip, user_agent) VALUES(?,?,?,?,?,?)");
   if (!$stmt) {
     otp_log_db_error($db, 'insert_prepare');
-    return ['ok' => false, 'message' => 'OTP storage failed.'];
+    $data = otp_debug_enabled() ? otp_debug_data($db, 'insert_prepare') : null;
+    $msg = 'OTP storage failed.';
+    if (otp_debug_enabled() && !empty($data['mysql_errno'])) $msg .= ' (errno ' . (int)$data['mysql_errno'] . ')';
+    return ['ok' => false, 'message' => $msg, 'data' => $data];
   }
   $stmt->bind_param('ssssss', $email, $purpose, $hash, $expiresAt, $ip, $ua);
   $ok = $stmt->execute();
@@ -78,7 +97,10 @@ function otp_send(mysqli $db, string $email, string $purpose, int $ttlSeconds = 
   $stmt->close();
   if (!$ok) {
     otp_log_db_error($db, 'insert_execute');
-    return ['ok' => false, 'message' => 'OTP storage failed.'];
+    $data = otp_debug_enabled() ? otp_debug_data($db, 'insert_execute') : null;
+    $msg = 'OTP storage failed.';
+    if (otp_debug_enabled() && !empty($data['mysql_errno'])) $msg .= ' (errno ' . (int)$data['mysql_errno'] . ')';
+    return ['ok' => false, 'message' => $msg, 'data' => $data];
   }
 
   $subject = 'Your GoServePH OTP Code';
