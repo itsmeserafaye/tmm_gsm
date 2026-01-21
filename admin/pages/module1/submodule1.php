@@ -6,16 +6,17 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM operators")->fetch_assoc()['c'] ?? 0);
-$statVerified = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Verified'")->fetch_assoc()['c'] ?? 0);
-$statDraft = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Draft'")->fetch_assoc()['c'] ?? 0);
-$statInactive = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Inactive'")->fetch_assoc()['c'] ?? 0);
+$statActive = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE workflow_status='Active'")->fetch_assoc()['c'] ?? 0);
+$statPending = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE workflow_status='Pending Validation'")->fetch_assoc()['c'] ?? 0);
+$statDraft = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE workflow_status='Draft'")->fetch_assoc()['c'] ?? 0);
+$statInactive = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE workflow_status='Inactive'")->fetch_assoc()['c'] ?? 0);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $type = trim((string)($_GET['operator_type'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $highlightId = (int)($_GET['highlight_operator_id'] ?? 0);
 
-$sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, address, contact_no, email, verification_status, created_at
+$sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, address, contact_no, email, workflow_status, created_at
         FROM operators";
 $conds = [];
 $params = [];
@@ -34,7 +35,7 @@ if ($type !== '' && $type !== 'Type') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "verification_status=?";
+  $conds[] = "workflow_status=?";
   $params[] = $status;
   $types .= 's';
 }
@@ -92,14 +93,18 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total</div>
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($statTotal); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Verified</div>
-      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($statVerified); ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active</div>
+      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($statActive); ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Validation</div>
+      <div class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"><?php echo number_format($statPending); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Draft</div>
@@ -128,10 +133,10 @@ if ($rootUrl === '/') $rootUrl = '';
           </select>
           <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>
-        <div class="relative w-full sm:w-44">
+        <div class="relative w-full sm:w-56">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Draft','Verified','Inactive'] as $s): ?>
+            <?php foreach (['Draft','Pending Validation','Active','Returned','Rejected','Inactive'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -170,10 +175,13 @@ if ($rootUrl === '/') $rootUrl = '';
               <?php
                 $rid = (int)($row['id'] ?? 0);
                 $isHighlight = $highlightId > 0 && $highlightId === $rid;
-                $st = (string)($row['verification_status'] ?? '');
+                $st = (string)($row['workflow_status'] ?? '');
                 $badge = match($st) {
-                  'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Draft' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Draft' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
+                  'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
+                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };

@@ -13,6 +13,7 @@ $statMissingOrcr = max(0, $statTotalVeh - $statWithOrcr);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $vehicleType = trim((string)($_GET['vehicle_type'] ?? ''));
+$recordStatus = trim((string)($_GET['record_status'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $highlightPlate = strtoupper(trim((string)($_GET['highlight_plate'] ?? '')));
 
@@ -22,7 +23,7 @@ $sql = "SELECT v.id AS vehicle_id,
                v.operator_id,
                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
-               v.status, v.created_at,
+               v.record_status, v.status, v.created_at,
                (SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.vehicle_id=v.id AND vd.doc_type='ORCR') AS has_orcr
         FROM vehicles v
         LEFT JOIN operators o ON o.id=v.operator_id";
@@ -41,6 +42,11 @@ if ($q !== '') {
 if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
   $conds[] = "v.vehicle_type=?";
   $params[] = $vehicleType;
+  $types .= 's';
+}
+if ($recordStatus !== '' && $recordStatus !== 'Record status') {
+  $conds[] = "v.record_status=?";
+  $params[] = $recordStatus;
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
@@ -74,7 +80,7 @@ $typesList = vehicle_types();
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Vehicles</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Register vehicle master records in the PUV Database. Vehicles can be created first, then linked to an operator later.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Register vehicle master records in the PUV Database (pre-franchise allowed). Linking a vehicle to an operator does not mean it is allowed to operate—activation depends on franchise approval, OR/CR recording, and a passed inspection.</p>
     </div>
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
       <a href="?page=module1/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -86,7 +92,7 @@ $typesList = vehicle_types();
         Link Operator
       </a>
       <?php if (has_permission('reports.export')): ?>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_vehicles_csv.php?<?php echo http_build_query(['q'=>$q,'status'=>$status]); ?>"
+        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_vehicles_csv.php?<?php echo http_build_query(['q'=>$q,'record_status'=>$recordStatus,'status'=>$status]); ?>"
           class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           <i data-lucide="download" class="w-4 h-4"></i>
           Export CSV
@@ -143,6 +149,15 @@ $typesList = vehicle_types();
           </select>
           <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>
+        <div class="relative w-full sm:w-52">
+          <select name="record_status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+            <option value="">All Record Status</option>
+            <?php foreach (['Encoded','Linked','Archived'] as $s): ?>
+              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $recordStatus === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
         <div class="relative w-full sm:w-44">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
@@ -174,7 +189,7 @@ $typesList = vehicle_types();
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Type</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Docs</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Status</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Record</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Created</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
@@ -186,12 +201,23 @@ $typesList = vehicle_types();
                 $plate = (string)($row['plate_number'] ?? '');
                 $plateUp = strtoupper($plate);
                 $isHighlight = $highlightPlate !== '' && $highlightPlate === $plateUp;
+                $rs = (string)($row['record_status'] ?? '');
+                if ($rs === '') {
+                  $opId = (int)($row['operator_id'] ?? 0);
+                  $rs = $opId > 0 ? 'Linked' : 'Encoded';
+                }
                 $st = (string)($row['status'] ?? '');
-                $badge = match($st) {
+                $badgeRs = match($rs) {
+                  'Linked' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/20',
+                  'Archived' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  'Encoded' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
+                };
+                $badgeSt = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Linked' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/20',
                   'Unlinked' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                  'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
                 $hasOrcr = (int)($row['has_orcr'] ?? 0) > 0;
@@ -216,7 +242,10 @@ $typesList = vehicle_types();
                   </span>
                 </td>
                 <td class="py-4 px-4">
-                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeRs; ?>"><?php echo htmlspecialchars($rs); ?></span>
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeSt; ?>"><?php echo htmlspecialchars($st); ?></span>
+                  </div>
                 </td>
                 <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">
                   <?php echo htmlspecialchars(date('M d, Y', strtotime((string)($row['created_at'] ?? 'now')))); ?>

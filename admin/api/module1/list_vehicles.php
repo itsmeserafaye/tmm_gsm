@@ -5,11 +5,13 @@ $db = db();
 require_any_permission(['module1.view','module1.vehicles.write']);
 $q = trim($_GET['q'] ?? '');
 $status = trim($_GET['status'] ?? '');
-$sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operator_name, coop_name, franchise_id, route_id, engine_no, chassis_no, make, model, year_model, fuel_type, status, created_at FROM vehicles";
+$recordStatus = trim($_GET['record_status'] ?? '');
+$sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operator_name, coop_name, franchise_id, route_id, engine_no, chassis_no, make, model, year_model, fuel_type, record_status, status, created_at FROM vehicles";
 $conds = [];
 $params = [];
 $types = '';
 if ($q !== '') { $conds[] = "(plate_number LIKE ? OR operator_name LIKE ?)"; $params[] = "%$q%"; $params[] = "%$q%"; $types .= 'ss'; }
+if ($recordStatus !== '') { $conds[] = "record_status=?"; $params[] = $recordStatus; $types .= 's'; }
 if ($status !== '') { $conds[] = "status=?"; $params[] = $status; $types .= 's'; }
 if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }
 $sql .= " ORDER BY created_at DESC";

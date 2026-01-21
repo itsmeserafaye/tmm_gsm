@@ -51,6 +51,7 @@ function db() {
     coop_name VARCHAR(128) DEFAULT NULL,
     franchise_id VARCHAR(64) DEFAULT NULL,
     route_id VARCHAR(64) DEFAULT NULL,
+    record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded',
     status VARCHAR(32) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -84,6 +85,11 @@ function db() {
   if (!isset($vehCols['model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) DEFAULT NULL"); }
   if (!isset($vehCols['year_model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL"); }
   if (!isset($vehCols['fuel_type'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($vehCols['record_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'"); }
+  $conn->query("UPDATE vehicles SET record_status=CASE
+    WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status
+    WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
+    ELSE 'Encoded' END");
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -393,6 +399,8 @@ function db() {
   if (!isset($opsCols['email'])) { $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL"); }
   if (!isset($opsCols['status'])) { $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'"); }
   if (!isset($opsCols['verification_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft'"); }
+  if (!isset($opsCols['workflow_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN workflow_status ENUM('Draft','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'"); }
+  if (!isset($opsCols['workflow_remarks'])) { $conn->query("ALTER TABLE operators ADD COLUMN workflow_remarks TEXT DEFAULT NULL"); }
   if (!isset($opsCols['updated_at'])) { $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL"); }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
   $conn->query("UPDATE operators SET registered_name=COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) WHERE (registered_name IS NULL OR registered_name='') AND (COALESCE(NULLIF(name,''), full_name) IS NOT NULL)");
@@ -401,6 +409,11 @@ function db() {
     WHEN status='Approved' THEN 'Verified'
     WHEN status='Inactive' THEN 'Inactive'
     ELSE 'Draft' END");
+  $conn->query("UPDATE operators SET workflow_status=CASE
+    WHEN COALESCE(NULLIF(workflow_status,''),'')<>'' THEN workflow_status
+    WHEN verification_status='Verified' THEN 'Active'
+    WHEN verification_status='Inactive' THEN 'Inactive'
+    ELSE 'Draft' END");
 
   $conn->query("CREATE TABLE IF NOT EXISTS operator_documents (
     doc_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -408,6 +421,8 @@ function db() {
     doc_type ENUM('GovID','CDA','SEC','BarangayCert','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
+    remarks TEXT DEFAULT NULL,
     is_verified TINYINT(1) NOT NULL DEFAULT 0,
     verified_by INT DEFAULT NULL,
     verified_at DATETIME DEFAULT NULL,
@@ -425,6 +440,9 @@ function db() {
   if (!isset($opDocCols['is_verified'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
   if (!isset($opDocCols['verified_by'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
   if (!isset($opDocCols['verified_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }
+  if (!isset($opDocCols['doc_status'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending'"); }
+  if (!isset($opDocCols['remarks'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN remarks TEXT DEFAULT NULL"); }
+  $conn->query("UPDATE operator_documents SET doc_status=CASE WHEN is_verified=1 THEN 'Verified' ELSE COALESCE(NULLIF(doc_status,''),'Pending') END");
   $conn->query("UPDATE operator_documents SET doc_type=CASE
     WHEN LOWER(COALESCE(doc_type,'')) IN ('id','govid','valid id','validid') THEN 'GovID'
     WHEN COALESCE(doc_type,'') IN ('GovID','CDA','SEC','BarangayCert','Others') THEN doc_type

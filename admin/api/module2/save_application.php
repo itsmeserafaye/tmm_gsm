@@ -22,7 +22,7 @@ if ($operator_id <= 0 || $route_id <= 0 || $vehicle_count <= 0) {
 }
 
 try {
-    $stmtO = $db->prepare("SELECT id, operator_type, status, verification_status FROM operators WHERE id=? LIMIT 1");
+    $stmtO = $db->prepare("SELECT id, operator_type, status, verification_status, workflow_status FROM operators WHERE id=? LIMIT 1");
     if (!$stmtO) throw new Exception('db_prepare_failed');
     $stmtO->bind_param('i', $operator_id);
     $stmtO->execute();
@@ -32,7 +32,8 @@ try {
         echo json_encode(['ok' => false, 'error' => 'operator_not_found']);
         exit;
     }
-    if (($op['verification_status'] ?? '') !== 'Verified') {
+    $okOperator = (($op['workflow_status'] ?? '') === 'Active') || (($op['verification_status'] ?? '') === 'Verified');
+    if (!$okOperator) {
         echo json_encode(['ok' => false, 'error' => 'operator_not_verified']);
         exit;
     }

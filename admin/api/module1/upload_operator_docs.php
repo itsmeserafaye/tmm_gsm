@@ -49,6 +49,7 @@ $fields = [
   'id_doc' => 'GovID',
   'cda_doc' => 'CDA',
   'sec_doc' => 'SEC',
+  'barangay_doc' => 'BarangayCert',
   'others_doc' => 'Others',
 ];
 
@@ -74,7 +75,7 @@ foreach ($fields as $field => $docType) {
     continue;
   }
 
-  $stmt = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path) VALUES (?, ?, ?)");
+  $stmt = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, is_verified) VALUES (?, ?, ?, 'Pending', 0)");
   if (!$stmt) {
     if (is_file($dest)) @unlink($dest);
     $errors[] = "$field: db_prepare_failed";
@@ -96,6 +97,15 @@ if ($errors) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'upload_failed', 'details' => $errors, 'files' => $uploaded]);
   exit;
+}
+
+if ($uploaded) {
+  $stmtS = $db->prepare("UPDATE operators SET workflow_status=CASE WHEN workflow_status='Draft' THEN 'Pending Validation' ELSE workflow_status END WHERE id=? AND workflow_status<>'Inactive'");
+  if ($stmtS) {
+    $stmtS->bind_param('i', $operatorId);
+    $stmtS->execute();
+    $stmtS->close();
+  }
 }
 
 echo json_encode(['ok' => true, 'operator_id' => $operatorId, 'files' => $uploaded]);

@@ -48,7 +48,7 @@ if ($resolvedId > 0) {
 }
 
 $resolvedIdBind = $resolvedId > 0 ? $resolvedId : null;
-$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, status='Linked' WHERE plate_number=?");
+$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, record_status='Linked', status='Linked' WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmt->bind_param('iss', $resolvedIdBind, $resolvedName, $plate);
 $ok = $stmt->execute();

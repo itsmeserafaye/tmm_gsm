@@ -19,7 +19,7 @@ $sql = "SELECT
   o.id,
   o.operator_type,
   COALESCE(NULLIF(o.registered_name,''), NULLIF(o.name,''), o.full_name) AS display_name,
-  o.verification_status,
+  o.workflow_status,
   o.created_at,
   MAX(CASE WHEN d.doc_type='GovID' THEN d.is_verified ELSE 0 END) AS govid_verified,
   MAX(CASE WHEN d.doc_type='CDA' THEN d.is_verified ELSE 0 END) AS cda_verified,
@@ -46,7 +46,7 @@ if ($type !== '' && $type !== 'Type') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $sql .= " AND o.verification_status=?";
+  $sql .= " AND o.workflow_status=?";
   $params[] = $status;
   $types .= 's';
 }
@@ -96,10 +96,10 @@ function tmm_required_doc_list(string $operatorType): array {
           </select>
           <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>
-        <div class="relative w-full sm:w-44">
+        <div class="relative w-full sm:w-56">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Draft','Verified','Inactive'] as $s): ?>
+            <?php foreach (['Draft','Pending Validation','Active','Returned','Rejected','Inactive'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -137,10 +137,12 @@ function tmm_required_doc_list(string $operatorType): array {
               <?php
                 $rid = (int)($row['id'] ?? 0);
                 $opType = (string)($row['operator_type'] ?? 'Individual');
-                $st = (string)($row['verification_status'] ?? 'Draft');
+                $st = (string)($row['workflow_status'] ?? 'Draft');
                 $badge = match($st) {
-                  'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Draft' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
+                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
@@ -246,20 +248,25 @@ function tmm_required_doc_list(string $operatorType): array {
       const res = await fetch(rootUrl + '/admin/api/module1/list_operator_documents.php?operator_id=' + encodeURIComponent(operatorId));
       const data = await res.json();
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-      return Array.isArray(data.data) ? data.data : [];
+      return { operator: (data.operator || null), rows: Array.isArray(data.data) ? data.data : [] };
     }
 
-    function renderDocs(operatorId, operatorName, rows) {
+    function renderDocs(operatorId, operatorName, payload) {
+      const rows = (payload && payload.rows) ? payload.rows : [];
       const listHtml = rows.length ? `
         <div class="space-y-3">
           ${rows.map((d) => {
             const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
             const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
             const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
-            const verified = (Number(d.is_verified || 0) === 1);
-            const badge = verified
+            const st = String(d.doc_status || (Number(d.is_verified || 0) === 1 ? 'Verified' : 'Pending'));
+            const isVerified = st === 'Verified';
+            const isRejected = st === 'Rejected';
+            const badge = isVerified
               ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
-              : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
+              : (isRejected
+                ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
+                : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20');
             return `
               <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                 <div class="flex items-center gap-3 min-w-0">
@@ -269,11 +276,13 @@ function tmm_required_doc_list(string $operatorType): array {
                   <div class="min-w-0">
                     <div class="text-sm font-black text-slate-800 dark:text-white">${String(d.doc_type || '')}</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${date}</div>
+                    ${isRejected && d.remarks ? `<div class="text-xs font-semibold text-rose-600 mt-1">Remarks: ${String(d.remarks)}</div>` : ``}
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge}">${verified ? 'Verified' : 'Pending'}</span>
-                  <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-verify="1" data-doc-id="${String(d.doc_id || '')}" data-verify="${verified ? '0' : '1'}">${verified ? 'Unverify' : 'Verify'}</button>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge}">${st}</span>
+                  <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-set="1" data-doc-id="${String(d.doc_id || '')}" data-doc-status="${isVerified ? 'Pending' : 'Verified'}">${isVerified ? 'Mark Pending' : 'Verify'}</button>
+                  <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors" data-doc-reject="1" data-doc-id="${String(d.doc_id || '')}">Reject</button>
                   <a href="${href}" target="_blank" class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 transition-colors" title="Open">
                     <i data-lucide="external-link" class="w-4 h-4"></i>
                   </a>
@@ -304,6 +313,10 @@ function tmm_required_doc_list(string $operatorType): array {
                 <input name="sec_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
               </div>
               <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay Certificate</label>
+                <input name="barangay_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
                 <input name="others_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
               </div>
@@ -318,18 +331,39 @@ function tmm_required_doc_list(string $operatorType): array {
       body.innerHTML = `<div>${listHtml}${uploadHtml}</div>`;
       if (window.lucide) window.lucide.createIcons();
 
-      body.querySelectorAll('[data-doc-verify="1"]').forEach((b) => {
+      body.querySelectorAll('[data-doc-set="1"]').forEach((b) => {
         b.addEventListener('click', async () => {
           const docId = b.getAttribute('data-doc-id');
-          const verify = b.getAttribute('data-verify') === '1' ? 1 : 0;
+          const next = b.getAttribute('data-doc-status') || 'Pending';
           try {
             const fd = new FormData();
             fd.append('doc_id', String(docId || ''));
-            fd.append('is_verified', String(verify));
+            fd.append('doc_status', String(next));
             const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
             const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'verify_failed');
-            showToast(verify ? 'Document verified.' : 'Document marked pending.');
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
+            showToast(next === 'Verified' ? 'Document verified.' : 'Document marked pending.');
+            const latest = await loadOperatorDocs(operatorId);
+            renderDocs(operatorId, operatorName, latest);
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+          }
+        });
+      });
+      body.querySelectorAll('[data-doc-reject="1"]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const docId = b.getAttribute('data-doc-id');
+          const remark = (prompt('Reject remarks (required):') || '').trim();
+          if (!remark) { showToast('Remarks required for rejection.', 'error'); return; }
+          try {
+            const fd = new FormData();
+            fd.append('doc_id', String(docId || ''));
+            fd.append('doc_status', 'Rejected');
+            fd.append('remarks', remark);
+            const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'reject_failed');
+            showToast('Document rejected.');
             const latest = await loadOperatorDocs(operatorId);
             renderDocs(operatorId, operatorName, latest);
           } catch (err) {
@@ -344,7 +378,7 @@ function tmm_required_doc_list(string $operatorType): array {
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           const fd = new FormData(form);
-          const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
+          const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('barangay_doc') && fd.get('barangay_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
           if (!hasDocs) { showToast('Select at least one file to upload.', 'error'); return; }
           const orig = btn.textContent;
           btn.disabled = true;
@@ -371,8 +405,8 @@ function tmm_required_doc_list(string $operatorType): array {
         const name = btn.getAttribute('data-operator-name') || 'Operator';
         openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Review • ' + name);
         try {
-          const rows = await loadOperatorDocs(id);
-          renderDocs(id, name, rows);
+          const payload = await loadOperatorDocs(id);
+          renderDocs(id, name, payload);
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
         }

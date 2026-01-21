@@ -23,7 +23,16 @@ if ($type !== '') {
   elseif ($t === 'others' || $t === 'other') $type = 'Others';
 }
 
-$sql = "SELECT doc_id, doc_type, file_path, uploaded_at, is_verified, verified_by, verified_at FROM operator_documents WHERE operator_id=?";
+$opRow = null;
+$stmtOp = $db->prepare("SELECT id, operator_type, workflow_status, workflow_remarks FROM operators WHERE id=? LIMIT 1");
+if ($stmtOp) {
+  $stmtOp->bind_param('i', $operatorId);
+  $stmtOp->execute();
+  $opRow = $stmtOp->get_result()->fetch_assoc();
+  $stmtOp->close();
+}
+
+$sql = "SELECT doc_id, doc_type, file_path, uploaded_at, doc_status, remarks, is_verified, verified_by, verified_at FROM operator_documents WHERE operator_id=?";
 $params = [$operatorId];
 $types = 'i';
 if ($type !== '') {
@@ -46,4 +55,4 @@ $rows = [];
 while ($row = $res->fetch_assoc()) $rows[] = $row;
 $stmt->close();
 
-echo json_encode(['ok' => true, 'data' => $rows]);
+echo json_encode(['ok' => true, 'operator' => $opRow, 'data' => $rows]);

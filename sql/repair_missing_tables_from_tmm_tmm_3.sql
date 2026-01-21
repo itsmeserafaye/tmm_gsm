@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS operators (
   email VARCHAR(128) DEFAULT NULL,
   status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved',
   verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft',
+  workflow_status ENUM('Draft','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft',
+  workflow_remarks TEXT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT NULL
 ) ENGINE=InnoDB;
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   inspection_status VARCHAR(20) DEFAULT 'Pending',
   inspection_cert_ref VARCHAR(64) DEFAULT NULL,
   inspection_passed_at DATETIME DEFAULT NULL,
+  record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded',
   status VARCHAR(32) DEFAULT 'Active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -137,6 +140,8 @@ CREATE TABLE IF NOT EXISTS operator_documents (
   doc_type ENUM('GovID','CDA','SEC','BarangayCert','Others') DEFAULT 'Others',
   file_path VARCHAR(255) NOT NULL,
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
+  remarks TEXT DEFAULT NULL,
   is_verified TINYINT(1) NOT NULL DEFAULT 0,
   verified_by INT DEFAULT NULL,
   verified_at DATETIME DEFAULT NULL,

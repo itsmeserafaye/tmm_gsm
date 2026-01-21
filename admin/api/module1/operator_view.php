@@ -24,7 +24,7 @@ if ($operatorId <= 0) {
     exit;
 }
 
-$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, created_at FROM operators WHERE id=? LIMIT 1");
+$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, workflow_status, created_at FROM operators WHERE id=? LIMIT 1");
 if (!$stmt) {
     echo '<div class="text-sm text-slate-600">Database error.</div>';
     exit;
@@ -39,11 +39,14 @@ if (!$op) {
     exit;
 }
 
-$st = (string) ($op['verification_status'] ?? '');
+$st = (string) ($op['workflow_status'] ?? ($op['verification_status'] ?? 'Draft'));
 $badge = match ($st) {
-    'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-    'Draft' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+    'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+    'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+    'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
+    'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
     'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+    'Draft' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
     default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
 };
 
@@ -57,7 +60,7 @@ $displayContact .= $emailLine;
 $displayContact = trim($displayContact) !== '' ? $displayContact : '-';
 
 $docs = [];
-$stmtD = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at FROM operator_documents WHERE operator_id=? ORDER BY uploaded_at DESC");
+$stmtD = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY uploaded_at DESC");
 if ($stmtD) {
     $stmtD->bind_param('i', $operatorId);
     $stmtD->execute();
@@ -127,6 +130,13 @@ if ($stmtV) {
                         <?php
                         $href = $rootUrl . '/admin/uploads/' . rawurlencode((string) ($d['file_path'] ?? ''));
                         $dt = $d['uploaded_at'] ? date('M d, Y g:i A', strtotime((string) $d['uploaded_at'])) : '';
+                        $dst = (string)($d['doc_status'] ?? '');
+                        if ($dst === '') $dst = 'Pending';
+                        $docBadge = $dst === 'Verified'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : ($dst === 'Rejected'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400');
                         ?>
                         <a href="<?php echo htmlspecialchars($href, ENT_QUOTES); ?>" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
                             <div class="flex items-center gap-3">
@@ -134,8 +144,14 @@ if ($stmtV) {
                                     <i data-lucide="file" class="w-4 h-4"></i>
                                 </div>
                                 <div>
-                                    <div class="text-sm font-black text-slate-800 dark:text-white"><?php echo htmlspecialchars((string) ($d['doc_type'] ?? '')); ?></div>
+                                    <div class="flex items-center gap-2">
+                                      <div class="text-sm font-black text-slate-800 dark:text-white"><?php echo htmlspecialchars((string) ($d['doc_type'] ?? '')); ?></div>
+                                      <span class="text-[10px] font-black px-2 py-0.5 rounded-full <?php echo $docBadge; ?>"><?php echo htmlspecialchars($dst); ?></span>
+                                    </div>
                                     <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($dt); ?></div>
+                                    <?php if ($dst === 'Rejected' && trim((string)($d['remarks'] ?? '')) !== ''): ?>
+                                      <div class="text-xs font-semibold text-rose-600 mt-1">Remarks: <?php echo htmlspecialchars((string)($d['remarks'] ?? '')); ?></div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             <div class="text-slate-400"><i data-lucide="external-link" class="w-4 h-4"></i></div>

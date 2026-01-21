@@ -38,7 +38,7 @@ if ($newOpId > 0) {
 }
 
 $newOpIdBind = $newOpId > 0 ? $newOpId : null;
-$stmt1 = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, status='Linked' WHERE plate_number=?");
+$stmt1 = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, record_status='Linked', status='Linked' WHERE plate_number=?");
 $stmt1->bind_param('iss', $newOpIdBind, $resolvedName, $plate);
 $stmt1->execute();
 $stmt2 = $db->prepare("INSERT INTO ownership_transfers(plate_number, new_operator_name, deed_ref) VALUES(?,?,?)");

@@ -12,6 +12,7 @@ $contactNo = trim((string)($_POST['contact_no'] ?? ''));
 $email = trim((string)($_POST['email'] ?? ''));
 $status = trim((string)($_POST['status'] ?? ''));
 $contactLegacy = trim((string)($_POST['contact_info'] ?? ''));
+$_workflow = trim((string)($_POST['workflow_status'] ?? ''));
 
 if ($name === '' || strlen($name) < 3) {
     http_response_code(400);
@@ -34,6 +35,8 @@ foreach ($allowedStatus as $s) {
     if (strcasecmp($status, $s) === 0) { $status = $s; $statusOk = true; break; }
 }
 if (!$statusOk) $status = 'Pending';
+if (strcasecmp($status, 'Inactive') === 0) $status = 'Inactive';
+else $status = 'Pending';
 
 if ($contactNo === '' && $email === '' && $contactLegacy !== '') {
     if (strpos($contactLegacy, '@') !== false) $email = $contactLegacy;
@@ -47,8 +50,9 @@ if ($email !== '' && !preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
 
 $now = date('Y-m-d H:i:s');
 $verificationStatus = 'Draft';
-$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+$workflowStatus = 'Draft';
+$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                       ON DUPLICATE KEY UPDATE
                         contact_info=VALUES(contact_info),
                         operator_type=VALUES(operator_type),
@@ -59,6 +63,7 @@ $stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_t
                         email=VALUES(email),
                         status=VALUES(status),
                         verification_status=IF(verification_status='Inactive','Inactive',verification_status),
+                        workflow_status=IF(workflow_status='Inactive','Inactive',workflow_status),
                         updated_at=VALUES(updated_at)");
 if (!$stmt) {
     http_response_code(500);
@@ -66,7 +71,7 @@ if (!$stmt) {
     exit;
 }
 $contactInfo = trim(($contactNo !== '' ? $contactNo : '') . (($contactNo !== '' && $email !== '') ? ' / ' : '') . ($email !== '' ? $email : ''));
-$stmt->bind_param('sssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $contactNo, $email, $status, $verificationStatus, $now);
+$stmt->bind_param('ssssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $contactNo, $email, $status, $verificationStatus, $workflowStatus, $now);
 if ($stmt->execute()) {
     $id = (int)($db->insert_id ?: ($stmt->insert_id ?? 0));
     if ($id <= 0) {
