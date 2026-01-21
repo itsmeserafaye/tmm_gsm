@@ -482,11 +482,15 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         async function loadAdvisories() {
             try {
-                const res = await fetch(`${API_URL}?action=get_advisories`);
+                console.log('[Advisories] Fetching from API...');
+                const res = await fetch(`${API_URL}?action=get_advisories&debug=1`);
                 const data = await res.json();
+                console.log('[Advisories] API Response:', data);
+
                 const container = document.getElementById('advisories-container');
 
                 if (data.ok && data.data.length > 0) {
+                    console.log('[Advisories] Rendering', data.data.length, 'advisories');
                     container.innerHTML = data.data.map(item => {
                         // Determine icon based on title
                         let icon = '📊';
@@ -518,13 +522,21 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     // Update last updated timestamp
                     lastAdvisoryUpdate = new Date();
                     updateLastUpdatedTime();
+                    console.log('[Advisories] Render complete');
                 } else if (!data.ok) {
+                    console.error('[Advisories] API error:', data.error);
                     container.innerHTML = `<div class="text-center py-8 text-red-400 italic">Error: ${data.error || 'Failed to load advisories'}</div>`;
                 } else {
+                    console.warn('[Advisories] No data returned');
                     container.innerHTML = `<div class="text-center py-8 text-slate-400 italic">No active advisories at the moment.</div>`;
                 }
+
+                // Show debug errors if present
+                if (data.debug_errors && data.debug_errors.length > 0) {
+                    console.warn('[Advisories] Debug errors:', data.debug_errors);
+                }
             } catch (e) {
-                console.error(e);
+                console.error('[Advisories] Exception:', e);
                 document.getElementById('advisories-container').innerHTML = `<div class="text-center py-8 text-red-400 italic">Connection Failed. Please check network.</div>`;
             }
         }

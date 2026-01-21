@@ -128,6 +128,7 @@ if ($action === 'get_terminals') {
 if ($action === 'get_advisories') {
     // Fetch AI-powered advisories from admin's demand insights API
     $advisories = [];
+    $errors = []; // For debugging
 
     try {
         // Call admin's demand insights API
@@ -139,7 +140,11 @@ if ($action === 'get_advisories') {
             $_GET = ['area_type' => 'terminal', 'hours' => '24'];
 
             ob_start();
-            include $insightsUrl;
+            try {
+                include $insightsUrl;
+            } catch (Exception $e) {
+                $errors[] = 'Include error: ' . $e->getMessage();
+            }
             $raw = ob_get_clean();
 
             // Restore GET params
@@ -223,7 +228,11 @@ if ($action === 'get_advisories') {
                         break; // Only show one weather advisory
                     }
                 }
+            } else {
+                $errors[] = 'Insights API returned: ' . ($insights['error'] ?? 'Invalid response');
             }
+        } else {
+            $errors[] = 'Insights file not found: ' . $insightsUrl;
         }
 
         // Fallback: Also fetch manual advisories from public_advisories table
@@ -246,6 +255,8 @@ if ($action === 'get_advisories') {
         }
 
     } catch (Exception $e) {
+        $errors[] = 'Exception: ' . $e->getMessage();
+
         // On error, try to fetch manual advisories only
         $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 10");
         if ($res) {
@@ -253,9 +264,26 @@ if ($action === 'get_advisories') {
                 $advisories[] = $row;
             }
         }
+
+        // If still empty, add default
+        if (empty($advisories)) {
+            $advisories[] = [
+                'id' => 'default',
+                'title' => '✅ All Systems Normal',
+                'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
+                'type' => 'info',
+                'posted_at' => date('Y-m-d H:i:s')
+            ];
+        }
     }
 
-    echo json_encode(['ok' => true, 'data' => $advisories]);
+    // Include debug info in development (remove in production)
+    $response = ['ok' => true, 'data' => $advisories];
+    if (!empty($errors) && ($_GET['debug'] ?? '') === '1') {
+        $response['debug_errors'] = $errors;
+    }
+
+    echo json_encode($response);
     exit;
 }
 
