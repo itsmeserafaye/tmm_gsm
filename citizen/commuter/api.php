@@ -14,9 +14,9 @@ function get_db()
         return $conn;
 
     $host = getenv('TMM_DB_HOST') ?: 'localhost';
-    $user = getenv('TMM_DB_USER') ?: 'root';
-    $pass = getenv('TMM_DB_PASS') ?: '';
-    $name = getenv('TMM_DB_NAME') ?: 'tmm';
+    $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';
+    $pass = getenv('TMM_DB_PASS') ?: 'Vy6QxSxoF5Q9F';
+    $name = getenv('TMM_DB_NAME') ?: 'tmm_tmm';
 
     $lastErr = '';
     try {
