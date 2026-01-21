@@ -139,6 +139,10 @@ function has_permission(string $p): bool {
       if (in_array($alias, $my, true)) return true;
     }
   }
+  foreach ($aliases as $canonical => $legacyList) {
+    if (!is_array($legacyList) || $legacyList === []) continue;
+    if (in_array($p, $legacyList, true) && in_array($canonical, $my, true)) return true;
+  }
   return false;
 }
 

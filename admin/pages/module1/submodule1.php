@@ -196,6 +196,9 @@ if ($rootUrl === '/') $rootUrl = '';
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-view="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Operator">
+                      <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-docs="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Documents">
                       <i data-lucide="folder-open" class="w-4 h-4"></i>
                     </button>
@@ -445,6 +448,22 @@ if ($rootUrl === '/') $rootUrl = '';
           if (window.lucide) window.lucide.createIcons();
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-op-view="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-operator-id');
+        const name = btn.getAttribute('data-operator-name') || 'Operator';
+        openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Operator • ' + name);
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module1/operator_view.php?operator_id=' + encodeURIComponent(id));
+          const html = await res.text();
+          body.innerHTML = html || `<div class="text-sm text-slate-500 dark:text-slate-400">No details.</div>`;
+          if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+          body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load operator details'}</div>`;
         }
       });
     });
