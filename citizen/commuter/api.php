@@ -14,21 +14,30 @@ function get_db()
         return $conn;
 
     $host = getenv('TMM_DB_HOST') ?: 'localhost';
-    $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';
-    $pass = getenv('TMM_DB_PASS') ?: 'lVy6QxSxoF5Q9F';
-    $name = getenv('TMM_DB_NAME') ?: 'tmm_tmm';
+    $user = getenv('TMM_DB_USER') ?: 'root';
+    $pass = getenv('TMM_DB_PASS') ?: '';
+    $name = getenv('TMM_DB_NAME') ?: 'tmm';
 
-    // Try primary connection
-    $conn = @new mysqli($host, $user, $pass, $name);
-
-    // If primary fails, try standard local fallback (root/empty) often used in dev
-    if ($conn->connect_error) {
-        $conn = @new mysqli('localhost', 'root', '', 'tmm');
+    $lastErr = '';
+    try {
+        $conn = @new mysqli($host, $user, $pass, $name);
+    } catch (Throwable $e) {
+        $conn = null;
+        $lastErr = $e->getMessage();
     }
 
-    if ($conn->connect_error) {
-        // Return JSON error so frontend can see it
-        die(json_encode(['ok' => false, 'error' => 'DB Connection Error: ' . $conn->connect_error]));
+    if (!$conn || $conn->connect_error) {
+        try {
+            $conn = @new mysqli('localhost', 'root', '', 'tmm');
+        } catch (Throwable $e) {
+            $conn = null;
+            $lastErr = $e->getMessage();
+        }
+    }
+
+    if (!$conn || $conn->connect_error) {
+        $err = $conn && $conn->connect_error ? (string) $conn->connect_error : $lastErr;
+        die(json_encode(['ok' => false, 'error' => 'DB Connection Error: ' . $err]));
     }
 
     $conn->set_charset('utf8mb4');
@@ -57,12 +66,15 @@ $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
 $cols = $db->query("SHOW COLUMNS FROM commuter_complaints");
 $hasRouteId = false;
 $hasPlateNumber = false;
+$hasLocation = false;
 if ($cols) {
     while ($c = $cols->fetch_assoc()) {
         if ($c['Field'] === 'route_id')
             $hasRouteId = true;
         if ($c['Field'] === 'plate_number')
             $hasPlateNumber = true;
+        if ($c['Field'] === 'location')
+            $hasLocation = true;
     }
 }
 if (!$hasRouteId) {
@@ -70,6 +82,9 @@ if (!$hasRouteId) {
 }
 if (!$hasPlateNumber) {
     $db->query("ALTER TABLE commuter_complaints ADD COLUMN plate_number VARCHAR(32) DEFAULT NULL");
+}
+if (!$hasLocation) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN location VARCHAR(255) DEFAULT NULL");
 }
 
 $action = $_REQUEST['action'] ?? '';
@@ -126,10 +141,8 @@ if ($action === 'get_terminals') {
 }
 
 if ($action === 'get_advisories') {
-    // Fetch advisories - Primary from manual table, Secondary from insights if available
     $advisories = [];
 
-    // Ensure public_advisories table exists
     $db->query("CREATE TABLE IF NOT EXISTS public_advisories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
@@ -139,61 +152,175 @@ if ($action === 'get_advisories') {
         posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB");
 
-    // PRIMARY: Fetch manually created advisories from public_advisories table
-    // These are managed by admin and are RELIABLE
-    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories WHERE is_active=1 ORDER BY posted_at DESC LIMIT 10");
+    $typeMap = function ($t) {
+        $t = strtolower(trim((string) $t));
+        if ($t === 'alert' || $t === 'warning' || $t === 'info')
+            return $t;
+        if ($t === 'urgent')
+            return 'alert';
+        if ($t === 'route update')
+            return 'warning';
+        return 'info';
+    };
+
+    $hasIsActive = false;
+    $col = $db->query("SHOW COLUMNS FROM public_advisories LIKE 'is_active'");
+    if ($col && $col->num_rows > 0) {
+        $hasIsActive = true;
+    }
+
+    $manualSql = "SELECT id, title, content, type, posted_at FROM public_advisories";
+    if ($hasIsActive) {
+        $manualSql .= " WHERE is_active=1";
+    }
+    $manualSql .= " ORDER BY posted_at DESC LIMIT 10";
+    $res = $db->query($manualSql);
     if ($res) {
         while ($row = $res->fetch_assoc()) {
+            $row['type'] = $typeMap($row['type'] ?? '');
             $advisories[] = $row;
         }
     }
 
-    // SECONDARY: Try to fetch AI-powered insights only as supplementary content
-    // Don't fail if this doesn't work - we already have manual advisories
-    $insightsUrl = __DIR__ . '/../../admin/api/analytics/demand_insights.php';
-    if (file_exists($insightsUrl) && empty($advisories)) {
-        // Only attempt if we have no manual advisories
-        @$savedGet = $_GET;
-        $_GET = ['area_type' => 'terminal', 'hours' => '24'];
+    $hours = (int) ($_GET['hours'] ?? 24);
+    if ($hours < 6)
+        $hours = 6;
+    if ($hours > 72)
+        $hours = 72;
 
-        ob_start();
-        @include_once $insightsUrl;
-        $raw = ob_get_clean();
-        $_GET = $savedGet;
+    $predictive = [];
+    $tbl = $db->query("SELECT COUNT(*) AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='puv_demand_observations'");
+    $hasObs = $tbl && ((int) ($tbl->fetch_assoc()['c'] ?? 0) > 0);
 
-        if (!empty($raw)) {
-            $insights = @json_decode($raw, true);
-            if (is_array($insights) && ($insights['ok'] ?? false)) {
-                $playbook = $insights['playbook'] ?? [];
-                $overDemand = $playbook['over_demand'] ?? [];
-
-                foreach ($overDemand as $insight) {
-                    $type = 'info';
-                    $title = '📊 Travel Advisory';
-
-                    if (stripos($insight, 'CRITICAL') !== false) {
-                        $type = 'alert';
-                        $title = '🚨 High Demand Alert';
-                    } elseif (stripos($insight, 'High Demand') !== false || stripos($insight, 'Heavy') !== false) {
-                        $type = 'warning';
-                        $title = '⚠️ Traffic & Demand Update';
-                    }
-
-                    $content = str_replace(['**', 'route-compliant reserve units', 'dispatch headways'], ['', 'additional vehicles', 'wait times'], $insight);
-
-                    $advisories[] = [
-                        'id' => 'ai_' . md5($insight),
-                        'title' => $title,
-                        'content' => $content,
-                        'type' => $type,
-                        'posted_at' => date('Y-m-d H:i:s')
-                    ];
+    $buildPredictive = function (string $areaType, string $labelKind) use ($db, $hours) {
+        $since = date('Y-m-d H:i:s', time() - 7 * 86400);
+        $labels = [];
+        if ($areaType === 'terminal') {
+            $res = $db->query("SELECT id AS ref, name AS label FROM terminals ORDER BY name ASC");
+        } else {
+            $res = $db->query("SELECT route_id AS ref, route_name AS label FROM routes WHERE status='Active' ORDER BY route_name ASC");
+        }
+        if ($res) {
+            while ($r = $res->fetch_assoc()) {
+                $ref = (string) ($r['ref'] ?? '');
+                if ($ref !== '') {
+                    $labels[$ref] = (string) ($r['label'] ?? $ref);
                 }
             }
         }
+        if (empty($labels)) {
+            return [];
+        }
+
+        $avgAll = [];
+        $stmtAll = $db->prepare("SELECT area_ref, AVG(demand_count) AS avg_demand FROM puv_demand_observations WHERE area_type=? AND observed_at >= ? GROUP BY area_ref");
+        if ($stmtAll) {
+            $stmtAll->bind_param('ss', $areaType, $since);
+            $stmtAll->execute();
+            $rs = $stmtAll->get_result();
+            while ($row = $rs->fetch_assoc()) {
+                $avgAll[(string) ($row['area_ref'] ?? '')] = (float) ($row['avg_demand'] ?? 0);
+            }
+            $stmtAll->close();
+        }
+
+        $avgByHour = [];
+        $stmtH = $db->prepare("SELECT area_ref, HOUR(observed_at) AS h, AVG(demand_count) AS avg_demand FROM puv_demand_observations WHERE area_type=? AND observed_at >= ? GROUP BY area_ref, HOUR(observed_at)");
+        if ($stmtH) {
+            $stmtH->bind_param('ss', $areaType, $since);
+            $stmtH->execute();
+            $rs = $stmtH->get_result();
+            while ($row = $rs->fetch_assoc()) {
+                $ref = (string) ($row['area_ref'] ?? '');
+                $h = (int) ($row['h'] ?? -1);
+                if ($ref === '' || $h < 0 || $h > 23)
+                    continue;
+                if (!isset($avgByHour[$ref]))
+                    $avgByHour[$ref] = [];
+                $avgByHour[$ref][$h] = (float) ($row['avg_demand'] ?? 0);
+            }
+            $stmtH->close();
+        }
+
+        $candidates = [];
+        $now = time();
+        foreach ($labels as $ref => $label) {
+            $baseline = (float) ($avgAll[$ref] ?? 0);
+            if ($baseline <= 0)
+                continue;
+            $bestPred = 0.0;
+            $bestTs = null;
+            for ($i = 0; $i < $hours; $i++) {
+                $t = $now + ($i * 3600);
+                $h = (int) date('G', $t);
+                $pred = (float) (($avgByHour[$ref][$h] ?? $baseline));
+                if ($pred > $bestPred) {
+                    $bestPred = $pred;
+                    $bestTs = $t;
+                }
+            }
+            if ($bestTs === null)
+                continue;
+            $ratio = $baseline > 0 ? ($bestPred / $baseline) : 0;
+            if ($ratio < 1.25 && ($bestPred - $baseline) < 8)
+                continue;
+
+            $sev = 'medium';
+            if ($ratio >= 2.0)
+                $sev = 'critical';
+            elseif ($ratio >= 1.6)
+                $sev = 'high';
+
+            $candidates[] = [
+                'ref' => $ref,
+                'label' => $label,
+                'baseline' => $baseline,
+                'predicted' => $bestPred,
+                'peak_ts' => $bestTs,
+                'severity' => $sev,
+                'ratio' => $ratio,
+            ];
+        }
+
+        usort($candidates, function ($a, $b) {
+            $sevRank = ['critical' => 3, 'high' => 2, 'medium' => 1];
+            $sa = $sevRank[$a['severity']] ?? 0;
+            $sb = $sevRank[$b['severity']] ?? 0;
+            if ($sa !== $sb)
+                return $sb <=> $sa;
+            return ($b['ratio'] ?? 0) <=> ($a['ratio'] ?? 0);
+        });
+
+        $out = [];
+        foreach (array_slice($candidates, 0, 3) as $c) {
+            $type = $c['severity'] === 'critical' ? 'alert' : ($c['severity'] === 'high' ? 'warning' : 'info');
+            $when = date('M d, g:i A', (int) $c['peak_ts']);
+            $title = $type === 'alert' ? "High Crowd Alert: {$c['label']}" : ($type === 'warning' ? "Crowd Advisory: {$c['label']}" : "Travel Advisory: {$c['label']}");
+            $content = "{$labelKind} demand is expected to be higher than usual around {$when}. Expect longer queues and wait times. Consider traveling before/after peak if possible.";
+            $out[] = [
+                'id' => 'ai_' . $areaType . '_' . md5($c['ref'] . '|' . $c['peak_ts'] . '|' . $c['severity']),
+                'title' => $title,
+                'content' => $content,
+                'type' => $type,
+                'posted_at' => date('Y-m-d H:i:s'),
+            ];
+        }
+        return $out;
+    };
+
+    if ($hasObs) {
+        foreach ($buildPredictive('terminal', 'Terminal') as $p) {
+            $predictive[] = $p;
+        }
+        foreach ($buildPredictive('route', 'Route') as $p) {
+            $predictive[] = $p;
+        }
     }
 
-    // FALLBACK: If still no advisories, show default message
+    foreach ($predictive as $p) {
+        $advisories[] = $p;
+    }
+
     if (empty($advisories)) {
         $advisories[] = [
             'id' => 'default',
@@ -203,6 +330,10 @@ if ($action === 'get_advisories') {
             'posted_at' => date('Y-m-d H:i:s')
         ];
     }
+
+    usort($advisories, function ($a, $b) {
+        return strcmp((string) ($b['posted_at'] ?? ''), (string) ($a['posted_at'] ?? ''));
+    });
 
     echo json_encode(['ok' => true, 'data' => $advisories]);
     exit;
