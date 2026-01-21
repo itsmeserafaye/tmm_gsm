@@ -90,6 +90,7 @@ function db() {
     WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
     ELSE 'Encoded' END");
+  $conn->query("UPDATE vehicles SET status='Active' WHERE status IN ('Linked','Unlinked') OR status IS NULL OR status=''");
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -296,15 +297,15 @@ function db() {
     operator_id INT NOT NULL,
     coop_id INT,
     vehicle_count INT DEFAULT 1,
-    status ENUM('Pending', 'Under Review', 'Endorsed', 'Rejected') DEFAULT 'Pending',
+    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
   $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
   $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
   if ($statusCol && ($row = $statusCol->fetch_assoc())) {
     $t = (string)($row['Type'] ?? '');
-    if (stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
-      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','Approved','Rejected') DEFAULT 'Submitted'");
+    if (stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted'");
     }
   }
   $faCols = [
@@ -799,11 +800,18 @@ function db() {
     vehicle_id INT NOT NULL,
     orcr_no VARCHAR(64) NOT NULL,
     orcr_date DATE NOT NULL,
-    registration_status ENUM('Pending','Registered','Expired') DEFAULT 'Registered',
+    registration_status ENUM('Pending','Recorded','Registered','Expired') DEFAULT 'Registered',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX (vehicle_id),
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $colReg = $conn->query("SHOW COLUMNS FROM vehicle_registrations LIKE 'registration_status'");
+  if ($colReg && ($row = $colReg->fetch_assoc())) {
+    $t = (string)($row['Type'] ?? '');
+    if (stripos($t, 'recorded') === false) {
+      $conn->query("ALTER TABLE vehicle_registrations MODIFY COLUMN registration_status ENUM('Pending','Recorded','Registered','Expired') DEFAULT 'Registered'");
+    }
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS inspections (
     inspection_id INT AUTO_INCREMENT PRIMARY KEY,

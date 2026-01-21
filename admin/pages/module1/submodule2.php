@@ -50,9 +50,15 @@ if ($recordStatus !== '' && $recordStatus !== 'Record status') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "v.status=?";
-  $params[] = $status;
-  $types .= 's';
+  if ($status === 'Linked') {
+    $conds[] = "v.record_status='Linked'";
+  } elseif ($status === 'Unlinked') {
+    $conds[] = "v.record_status='Encoded'";
+  } else {
+    $conds[] = "v.status=?";
+    $params[] = $status;
+    $types .= 's';
+  }
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY v.created_at DESC LIMIT 300";

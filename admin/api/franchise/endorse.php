@@ -30,7 +30,7 @@ if ($row = $res->fetch_assoc()) {
     $realAppId = $row['application_id'];
     $currentStatus = (string)($row['status'] ?? '');
     
-    if (strcasecmp($currentStatus, 'Endorsed') === 0) {
+    if (strcasecmp($currentStatus, 'Endorsed') === 0 || strcasecmp($currentStatus, 'LGU-Endorsed') === 0) {
         $stmtEx = $db->prepare("SELECT endorsement_id, permit_number FROM endorsement_records WHERE application_id=? ORDER BY endorsement_id DESC LIMIT 1");
         $endorsementId = 0;
         $permit = '';
@@ -69,7 +69,7 @@ if ($row = $res->fetch_assoc()) {
         }
         
         // Update Application Status
-        $db->query("UPDATE franchise_applications SET status = 'Endorsed' WHERE application_id = $realAppId");
+        $db->query("UPDATE franchise_applications SET status = 'LGU-Endorsed' WHERE application_id = $realAppId");
         $db->commit();
         
         echo json_encode(['ok' => true, 'endorsement_id' => $endorsementId, 'message' => 'Endorsement generated successfully']);

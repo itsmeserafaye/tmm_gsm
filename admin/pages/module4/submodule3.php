@@ -10,7 +10,7 @@ $prefillVehicleId = (int)($_GET['vehicle_id'] ?? 0);
 $vehicles = [];
 $resV = $db->query("SELECT v.id, v.plate_number
                     FROM vehicles v
-                    JOIN vehicle_registrations vr ON vr.vehicle_id=v.id AND vr.registration_status='Registered'
+                    JOIN vehicle_registrations vr ON vr.vehicle_id=v.id AND vr.registration_status IN ('Registered','Recorded')
                     ORDER BY v.plate_number ASC LIMIT 1200");
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
@@ -29,7 +29,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Schedule Inspection</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with Registered OR/CR can be scheduled.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with recorded OR/CR can be scheduled.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module4/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">

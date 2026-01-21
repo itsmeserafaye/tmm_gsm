@@ -47,7 +47,7 @@ try {
         exit;
     }
 
-    $vehicleStatus = ($operatorId > 0 || $operatorName !== '') ? 'Linked' : 'Unlinked';
+    $vehicleStatus = 'Active';
     $recordStatus = ($operatorId > 0 || $operatorName !== '') ? 'Linked' : 'Encoded';
 
     $opNameResolved = '';
@@ -83,7 +83,7 @@ try {
                             year_model=VALUES(year_model),
                             fuel_type=VALUES(fuel_type),
                             record_status=VALUES(record_status),
-                            status=VALUES(status),
+                            status=CASE WHEN status IS NULL OR status='' OR status IN ('Linked','Unlinked') THEN VALUES(status) ELSE status END,
                             inspection_status=COALESCE(NULLIF(inspection_status,''), VALUES(inspection_status))");
     if (!$stmt) {
         http_response_code(500);

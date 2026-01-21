@@ -23,7 +23,12 @@ if ($chassisNo !== '' && !preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $chassisNo)) { h
 $sets = [];
 $params = [];
 $types = '';
-if ($status !== '' && $status !== 'Status') { $sets[] = "status=?"; $params[] = $status; $types .= 's'; }
+if ($status !== '' && $status !== 'Status') {
+  if (!in_array($status, ['Active','Inactive'], true)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_status']); exit; }
+  $sets[] = "status=?";
+  $params[] = $status;
+  $types .= 's';
+}
 if ($type !== '' && $type !== 'Select vehicle type') { $sets[] = "vehicle_type=?"; $params[] = $type; $types .= 's'; }
 if ($engineNo !== '') { $sets[] = "engine_no=?"; $params[] = $engineNo; $types .= 's'; }
 if ($chassisNo !== '') { $sets[] = "chassis_no=?"; $params[] = $chassisNo; $types .= 's'; }

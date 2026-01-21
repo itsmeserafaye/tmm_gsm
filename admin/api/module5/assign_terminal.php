@@ -63,7 +63,8 @@ if ($hasReg && $hasReg->fetch_row()) {
     $stmtR->execute();
     $r = $stmtR->get_result()->fetch_assoc();
     $stmtR->close();
-    $orcrOk = ($r && (($r['registration_status'] ?? '') === 'Registered') && trim((string)($r['orcr_no'] ?? '')) !== '' && !empty($r['orcr_date']));
+    $rs = (string)($r['registration_status'] ?? '');
+    $orcrOk = ($r && in_array($rs, ['Registered','Recorded'], true) && trim((string)($r['orcr_no'] ?? '')) !== '' && !empty($r['orcr_date']));
   }
 }
 if (!$orcrOk) {
@@ -79,7 +80,7 @@ if ($hasFranchises && $hasFranchises->fetch_row() && $hasFa && $hasFa->fetch_row
   $stmtF = $db->prepare("SELECT f.franchise_id
                          FROM franchises f
                          JOIN franchise_applications a ON a.application_id=f.application_id
-                         WHERE a.operator_id=? AND a.status='Approved'
+                         WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved')
                            AND f.status='Active'
                            AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
                          LIMIT 1");

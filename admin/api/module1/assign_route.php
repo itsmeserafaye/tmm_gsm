@@ -44,7 +44,7 @@ if ($inspection !== 'passed') {
 $vehicleId = (int)($veh['id'] ?? 0);
 $hasOrcr = false;
 if ($vehicleId > 0) {
-    $stmtDoc = $db->prepare("SELECT doc_id FROM vehicle_documents WHERE vehicle_id=? AND doc_type='ORCR' LIMIT 1");
+    $stmtDoc = $db->prepare("SELECT doc_id FROM vehicle_documents WHERE vehicle_id=? AND doc_type='ORCR' AND COALESCE(is_verified,0)=1 LIMIT 1");
     if ($stmtDoc) {
         $stmtDoc->bind_param('i', $vehicleId);
         $stmtDoc->execute();
@@ -79,7 +79,7 @@ if ($operatorId <= 0) {
     exit;
 }
 
-$stmtF = $db->prepare("SELECT application_id FROM franchise_applications WHERE operator_id=? AND status='Approved' ORDER BY application_id DESC LIMIT 1");
+$stmtF = $db->prepare("SELECT application_id FROM franchise_applications WHERE operator_id=? AND status IN ('Approved','LTFRB-Approved') ORDER BY application_id DESC LIMIT 1");
 if ($stmtF) {
     $stmtF->bind_param('i', $operatorId);
     $stmtF->execute();

@@ -7,8 +7,8 @@ $db = db();
 
 $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications")->fetch_assoc()['c'] ?? 0);
 $statSubmitted = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Submitted'")->fetch_assoc()['c'] ?? 0);
-$statEndorsed = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Endorsed'")->fetch_assoc()['c'] ?? 0);
-$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Approved'")->fetch_assoc()['c'] ?? 0);
+$statEndorsed = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Endorsed','LGU-Endorsed')")->fetch_assoc()['c'] ?? 0);
+$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Approved','LTFRB-Approved')")->fetch_assoc()['c'] ?? 0);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -37,9 +37,15 @@ if ($q !== '') {
   $types .= 'sssss';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "fa.status=?";
-  $params[] = $status;
-  $types .= 's';
+  if ($status === 'LGU-Endorsed' || $status === 'Endorsed') {
+    $conds[] = "fa.status IN ('LGU-Endorsed','Endorsed')";
+  } elseif ($status === 'LTFRB-Approved' || $status === 'Approved') {
+    $conds[] = "fa.status IN ('LTFRB-Approved','Approved')";
+  } else {
+    $conds[] = "fa.status=?";
+    $params[] = $status;
+    $types .= 's';
+  }
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY fa.submitted_at DESC LIMIT 300";
@@ -64,7 +70,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Applications</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → Endorsed → Approved.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → LGU-Endorsed → LTFRB-Approved.</p>
     </div>
     <div class="flex items-center gap-3">
       <?php if (has_permission('reports.export')): ?>
@@ -104,14 +110,14 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Endorsed</div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">LGU-Endorsed</div>
         <i data-lucide="check-circle-2" class="w-4 h-4 text-violet-600 dark:text-violet-400"></i>
       </div>
       <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statEndorsed; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Approved</div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">LTFRB-Approved</div>
         <i data-lucide="badge-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
       </div>
       <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statApproved; ?></div>
@@ -129,7 +135,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="relative w-full sm:w-52">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Submitted','Endorsed','Approved','Rejected'] as $s): ?>
+            <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -147,7 +153,7 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
-      <?php foreach (['Submitted','Endorsed','Approved','Rejected'] as $chip): ?>
+      <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected'] as $chip): ?>
         <a href="?<?php echo http_build_query(['page'=>'module2/submodule1','q'=>$q,'status'=>$chip]); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>
@@ -178,8 +184,8 @@ if ($rootUrl === '/') $rootUrl = '';
                 $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
                 $st = (string)($row['status'] ?? '');
                 $badge = match($st) {
-                  'Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Endorsed' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
+                  'Approved', 'LTFRB-Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Endorsed', 'LGU-Endorsed' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                   'Submitted' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
@@ -223,7 +229,7 @@ if ($rootUrl === '/') $rootUrl = '';
                         <i data-lucide="check-circle-2" class="w-4 h-4"></i>
                       </button>
                     <?php endif; ?>
-                    <?php if (has_permission('module2.franchises.manage') && ($st === 'Endorsed' || $st === 'Approved')): ?>
+                    <?php if (has_permission('module2.franchises.manage') && ($st === 'Endorsed' || $st === 'LGU-Endorsed' || $st === 'Approved' || $st === 'LTFRB-Approved')): ?>
                       <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-app-approve="1" data-app-id="<?php echo (int)$appId; ?>" title="LTFRB Approval Entry">
                         <i data-lucide="badge-check" class="w-4 h-4"></i>
                       </button>
@@ -369,11 +375,11 @@ if ($rootUrl === '/') $rootUrl = '';
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.submitted_at)}</div>
                     </div>
                     <div>
-                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Endorsed</div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LGU-Endorsed</div>
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.endorsed_at)}</div>
                     </div>
                     <div>
-                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved</div>
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB-Approved</div>
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.approved_at)}</div>
                     </div>
                     <div>

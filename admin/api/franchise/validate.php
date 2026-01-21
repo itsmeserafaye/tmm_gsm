@@ -22,14 +22,16 @@ $stmt->execute();
 $res = $stmt->get_result();
 
 if ($row = $res->fetch_assoc()) {
+    $st = (string)($row['status'] ?? '');
+    $valid = in_array($st, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'], true);
     echo json_encode([
         'ok' => true,
-        'valid' => $row['status'] === 'Endorsed',
+        'valid' => $valid,
         'franchise_id' => $row['franchise_ref_number'],
         'operator' => $row['operator'],
         'coop' => $row['coop_name'] ?? 'N/A',
         'valid_until' => '2025-12-31', // Placeholder logic
-        'status' => $row['status']
+        'status' => $st
     ]);
 } else {
     // If not found, return empty/invalid

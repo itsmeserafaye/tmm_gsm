@@ -221,7 +221,8 @@ if ($itemStmt) {
           $stmtF->execute();
           $fr = $stmtF->get_result()->fetch_assoc();
           $stmtF->close();
-          $frOk = ($fr && (($fr['status'] ?? '') === 'Approved'));
+          $frSt = (string)($fr['status'] ?? '');
+          $frOk = (bool)$fr && in_array($frSt, ['Approved','LTFRB-Approved'], true);
         }
       }
       $regOk = false;
@@ -232,7 +233,8 @@ if ($itemStmt) {
           $stmtR->execute();
           $rr = $stmtR->get_result()->fetch_assoc();
           $stmtR->close();
-          $regOk = ($rr && (($rr['registration_status'] ?? '') === 'Registered') && trim((string)($rr['orcr_no'] ?? '')) !== '' && !empty($rr['orcr_date']));
+          $rs = (string)($rr['registration_status'] ?? '');
+          $regOk = ($rr && in_array($rs, ['Registered','Recorded'], true) && trim((string)($rr['orcr_no'] ?? '')) !== '' && !empty($rr['orcr_date']));
         }
       }
       $vehOperationalStatus = ($frOk && $regOk) ? 'Active' : null;

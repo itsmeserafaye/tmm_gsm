@@ -46,6 +46,23 @@ if ($vehicleId > 0) {
     exit;
   }
 }
+
+if ($vehicleId > 0) {
+  $stmtR = $db->prepare("SELECT registration_status, orcr_no, orcr_date FROM vehicle_registrations WHERE vehicle_id=? LIMIT 1");
+  if ($stmtR) {
+    $stmtR->bind_param('i', $vehicleId);
+    $stmtR->execute();
+    $reg = $stmtR->get_result()->fetch_assoc();
+    $stmtR->close();
+    $rs = (string)($reg['registration_status'] ?? '');
+    $okReg = $reg && in_array($rs, ['Registered','Recorded'], true) && trim((string)($reg['orcr_no'] ?? '')) !== '' && !empty($reg['orcr_date']);
+    if (!$okReg) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'vehicle_not_registered']);
+      exit;
+    }
+  }
+}
 $allowedTypes = ['Annual','Reinspection','Compliance','Special'];
 if (!in_array($inspectionType, $allowedTypes, true)) {
   $inspectionType = 'Annual';

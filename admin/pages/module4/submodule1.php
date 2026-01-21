@@ -11,7 +11,7 @@ $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 
-$statRegistered = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Registered'")->fetch_assoc()['c'] ?? 0);
+$statRegistered = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status IN ('Registered','Recorded')")->fetch_assoc()['c'] ?? 0);
 $statScheduled = (int)($db->query("SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Scheduled'")->fetch_assoc()['c'] ?? 0);
 $statCompleted = (int)($db->query("SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Completed'")->fetch_assoc()['c'] ?? 0);
 $statPassed = (int)($db->query("SELECT COUNT(*) AS c FROM inspections WHERE result='Passed'")->fetch_assoc()['c'] ?? 0);
@@ -29,7 +29,7 @@ if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $conds[] = "(v.plate_number LIKE '%$qv%')";
 }
-if ($status !== '' && in_array($status, ['Registered','Pending','Expired'], true)) {
+if ($status !== '' && in_array($status, ['Registered','Recorded','Pending','Expired'], true)) {
   $sv = $db->real_escape_string($status);
   $conds[] = "vr.registration_status='$sv'";
 }
@@ -97,7 +97,7 @@ $res = $db->query($sql);
         <div class="relative w-full sm:w-60">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Registration Status</option>
-            <?php foreach (['Registered','Pending','Expired'] as $s): ?>
+            <?php foreach (['Registered','Recorded','Pending','Expired'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -115,7 +115,7 @@ $res = $db->query($sql);
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
-      <?php foreach (['Registered','Pending','Expired'] as $chip): ?>
+    <?php foreach (['Registered','Recorded','Pending','Expired'] as $chip): ?>
         <a href="?<?php echo http_build_query(['page'=>'module4/submodule1','q'=>$q,'status'=>$chip]); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>
@@ -142,7 +142,7 @@ $res = $db->query($sql);
               <?php
                 $reg = (string)($row['registration_status'] ?? '');
                 $badge = match($reg) {
-                  'Registered' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Registered', 'Recorded' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
                   'Expired' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Pending' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'

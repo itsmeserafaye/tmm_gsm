@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS franchise_applications (
   operator_id INT NOT NULL,
   coop_id INT,
   vehicle_count INT DEFAULT 1,
-  status ENUM('Submitted','Pending','Under Review','Endorsed','Approved','Rejected') DEFAULT 'Submitted',
+  status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted',
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   route_id INT DEFAULT NULL,
   route_ids VARCHAR(255),
@@ -363,7 +363,7 @@ CREATE TABLE IF NOT EXISTS vehicle_registrations (
   vehicle_id INT NOT NULL,
   orcr_no VARCHAR(64) NOT NULL,
   orcr_date DATE NOT NULL,
-  registration_status ENUM('Pending','Registered','Expired') DEFAULT 'Registered',
+  registration_status ENUM('Pending','Recorded','Registered','Expired') DEFAULT 'Registered',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   INDEX (vehicle_id),
   FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE

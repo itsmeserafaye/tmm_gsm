@@ -36,12 +36,13 @@ try {
         exit;
     }
 
-    if (($app['status'] ?? '') === 'Endorsed') {
+    $curStatus = (string)($app['status'] ?? '');
+    if ($curStatus === 'Endorsed' || $curStatus === 'LGU-Endorsed') {
         $db->commit();
         echo json_encode(['ok' => true, 'message' => 'Application already endorsed']);
         exit;
     }
-    if (($app['status'] ?? '') !== 'Submitted') {
+    if ($curStatus !== 'Submitted') {
         $db->rollback();
         echo json_encode(['ok' => false, 'error' => 'invalid_status']);
         exit;
@@ -86,7 +87,7 @@ try {
         }
         $cap = (int)($route['authorized_units'] ?? 0);
         if ($cap > 0) {
-            $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c FROM franchise_applications WHERE route_id=? AND status IN ('Endorsed','Approved')");
+            $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c FROM franchise_applications WHERE route_id=? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')");
             if (!$stmtC) throw new Exception('db_prepare_failed');
             $stmtC->bind_param('i', $routeId);
             $stmtC->execute();
@@ -111,7 +112,7 @@ try {
     if (!$stmtIns->execute()) throw new Exception('insert_failed');
     $stmtIns->close();
 
-    $stmtU = $db->prepare("UPDATE franchise_applications SET status='Endorsed', endorsed_at=NOW(), remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END WHERE application_id=?");
+    $stmtU = $db->prepare("UPDATE franchise_applications SET status='LGU-Endorsed', endorsed_at=NOW(), remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END WHERE application_id=?");
     if (!$stmtU) throw new Exception('db_prepare_failed');
     $stmtU->bind_param('ssi', $notes, $notes, $app_id);
     $stmtU->execute();

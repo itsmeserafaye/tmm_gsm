@@ -18,7 +18,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Endorsement & LTFRB Approval</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Endorse Submitted applications and record LTFRB approval to mark them as Approved.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Endorse Submitted applications and record LTFRB approval to mark them as LTFRB-Approved.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -129,7 +129,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function setEnabled() {
       btnEndorse.disabled = currentStatus !== 'Submitted';
-      btnApprove.disabled = !(currentStatus === 'Endorsed' || currentStatus === 'Approved');
+      btnApprove.disabled = !(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'].includes(currentStatus));
     }
 
     async function loadApp(appId) {
@@ -204,7 +204,7 @@ if ($rootUrl === '/') $rootUrl = '';
       formApprove.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentAppId) return;
-        if (!(currentStatus === 'Endorsed' || currentStatus === 'Approved')) { showToast('Endorse the application first.', 'error'); return; }
+        if (!(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'].includes(currentStatus))) { showToast('Endorse the application first.', 'error'); return; }
         if (!formApprove.checkValidity()) { formApprove.reportValidity(); return; }
         btnApprove.disabled = true;
         btnApprove.textContent = 'Saving...';

@@ -74,7 +74,7 @@ if (!$ok) {
 }
 
 $mappedAppStatus = null;
-if ($status === 'APPROVED') $mappedAppStatus = 'Endorsed';
+if ($status === 'APPROVED') $mappedAppStatus = 'LTFRB-Approved';
 elseif ($status === 'REJECTED' || $status === 'CANCELLED' || $status === 'REVOKED') $mappedAppStatus = 'Rejected';
 elseif ($status === 'UNDER_REVIEW' || $status === 'RECEIVED' || $status === 'FOR_PAYMENT' || $status === 'ON_HOLD') $mappedAppStatus = 'Under Review';
 
@@ -110,16 +110,6 @@ if ($endorsementId > 0) {
     $stmtEI->bind_param('issssss', $applicationId, $issuedDate, $permitNumber, $permitsCaseId, $expiryDate, $status, $remarks);
     $stmtEI->execute();
     $stmtEI->close();
-  }
-}
-
-if ($frRef !== '') {
-  if ($status === 'APPROVED') {
-    $stmtV = $db->prepare("UPDATE vehicles SET status='Active' WHERE franchise_id=? AND (status IS NULL OR status='' OR status='Suspended')");
-    if ($stmtV) { $stmtV->bind_param('s', $frRef); $stmtV->execute(); $stmtV->close(); }
-  } elseif ($status === 'REJECTED' || $status === 'CANCELLED' || $status === 'REVOKED' || $status === 'SUSPENDED' || $status === 'ON_HOLD') {
-    $stmtV = $db->prepare("UPDATE vehicles SET status='Suspended' WHERE franchise_id=? AND status='Active'");
-    if ($stmtV) { $stmtV->bind_param('s', $frRef); $stmtV->execute(); $stmtV->close(); }
   }
 }
 

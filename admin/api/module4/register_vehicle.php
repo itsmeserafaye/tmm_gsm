@@ -38,16 +38,47 @@ if (!$veh) {
   echo json_encode(['ok' => false, 'error' => 'vehicle_not_found']);
   exit;
 }
-if ((int)($veh['operator_id'] ?? 0) <= 0) {
+$operatorId = (int)($veh['operator_id'] ?? 0);
+if ($operatorId <= 0) {
   echo json_encode(['ok' => false, 'error' => 'vehicle_not_linked_to_operator']);
   exit;
+}
+
+$stmtDoc = $db->prepare("SELECT doc_id FROM vehicle_documents WHERE vehicle_id=? AND doc_type='ORCR' AND COALESCE(is_verified,0)=1 LIMIT 1");
+if ($stmtDoc) {
+  $stmtDoc->bind_param('i', $vehicleId);
+  $stmtDoc->execute();
+  $d = $stmtDoc->get_result()->fetch_assoc();
+  $stmtDoc->close();
+  if (!$d) {
+    echo json_encode(['ok' => false, 'error' => 'orcr_document_not_verified']);
+    exit;
+  }
+}
+
+$stmtF = $db->prepare("SELECT f.franchise_id
+                       FROM franchises f
+                       JOIN franchise_applications a ON a.application_id=f.application_id
+                       WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved')
+                         AND f.status='Active'
+                         AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
+                       LIMIT 1");
+if ($stmtF) {
+  $stmtF->bind_param('i', $operatorId);
+  $stmtF->execute();
+  $fr = $stmtF->get_result()->fetch_assoc();
+  $stmtF->close();
+  if (!$fr) {
+    echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
+    exit;
+  }
 }
 
 $db->begin_transaction();
 try {
   $stmtUp = $db->prepare("INSERT INTO vehicle_registrations (vehicle_id, orcr_no, orcr_date, registration_status, created_at)
-                          VALUES (?, ?, ?, 'Registered', NOW())
-                          ON DUPLICATE KEY UPDATE orcr_no=VALUES(orcr_no), orcr_date=VALUES(orcr_date), registration_status='Registered'");
+                          VALUES (?, ?, ?, 'Recorded', NOW())
+                          ON DUPLICATE KEY UPDATE orcr_no=VALUES(orcr_no), orcr_date=VALUES(orcr_date), registration_status='Recorded'");
   if (!$stmtUp) throw new Exception('db_prepare_failed');
   $stmtUp->bind_param('iss', $vehicleId, $orcrNo, $orcrDate);
   if (!$stmtUp->execute()) throw new Exception('insert_failed');
