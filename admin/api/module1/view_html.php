@@ -188,7 +188,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Year Model</label>
-                                    <input name="year_model" maxlength="8" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2023">
+                                    <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2023">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Fuel Type</label>
@@ -283,7 +283,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
                 <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
                     <h4 class="text-xs font-bold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">Upload New Documents</h4>
-                    <form id="formUpload" class="space-y-3" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/upload_docs.php">
+                    <form id="formUpload" class="space-y-3" method="POST" enctype="multipart/form-data" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/upload_docs.php">
                         <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                         
                         <div class="grid grid-cols-4 gap-2">
@@ -291,28 +291,28 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
                                     <span class="text-[10px] font-medium text-slate-500">OR</span>
-                                    <input name="or" type="file" class="hidden">
+                                    <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
                                 </label>
                             </div>
                             <div class="relative group">
                                 <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
                                     <span class="text-[10px] font-medium text-slate-500">CR</span>
-                                    <input name="cr" type="file" class="hidden">
+                                    <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
                                 </label>
                             </div>
                             <div class="relative group">
                                 <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
                                     <span class="text-[10px] font-medium text-slate-500">Deed</span>
-                                    <input name="deed" type="file" class="hidden">
+                                    <input name="deed" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
                                 </label>
                             </div>
                             <div class="relative group">
                                 <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
                                     <span class="text-[10px] font-medium text-slate-500">Emission</span>
-                                    <input name="emission" type="file" class="hidden">
+                                    <input name="emission" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
                                 </label>
                             </div>
                         </div>

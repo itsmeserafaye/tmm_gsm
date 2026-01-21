@@ -346,7 +346,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567 or +639171234567">
+                <input name="contact_no" type="tel" inputmode="numeric" minlength="7" maxlength="20" pattern="^[0-9]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
@@ -372,6 +372,12 @@ if ($rootUrl === '/') $rootUrl = '';
         const form = document.getElementById('formAddOperator');
         const btn = document.getElementById('btnSaveOperator');
         if (!form || !btn) return;
+        const contactInput = form.querySelector('input[name="contact_no"]');
+        const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
+        if (contactInput) {
+          contactInput.addEventListener('input', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+          contactInput.addEventListener('blur', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+        }
 
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -458,7 +464,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567 or +639171234567" value="${escAttr(contact)}">
+                <input name="contact_no" type="tel" inputmode="numeric" minlength="7" maxlength="20" pattern="^[0-9]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567" value="${escAttr(contact)}">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
@@ -483,6 +489,12 @@ if ($rootUrl === '/') $rootUrl = '';
         const form = document.getElementById('formEditOperator');
         const btnSubmit = document.getElementById('btnUpdateOperator');
         if (!form || !btnSubmit) return;
+        const contactInput = form.querySelector('input[name="contact_no"]');
+        const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
+        if (contactInput) {
+          contactInput.addEventListener('input', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+          contactInput.addEventListener('blur', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+        }
 
         form.addEventListener('submit', async (e) => {
           e.preventDefault();

@@ -503,7 +503,7 @@ $typesList = vehicle_types();
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
-                <input name="year_model" type="number" inputmode="numeric" min="1980" max="2100" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2018">
+                <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2018">
               </div>
             </div>
 
@@ -548,6 +548,12 @@ $typesList = vehicle_types();
         if (plateInput) {
           plateInput.addEventListener('input', () => { plateInput.value = normalizePlate(plateInput.value); });
           plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
+        }
+        const yearInput = form.querySelector('input[name="year_model"]');
+        const normalizeYear = (value) => (value || '').toString().replace(/\D+/g, '').slice(0, 4);
+        if (yearInput) {
+          yearInput.addEventListener('input', () => { yearInput.value = normalizeYear(yearInput.value); });
+          yearInput.addEventListener('blur', () => { yearInput.value = normalizeYear(yearInput.value); });
         }
 
         form.addEventListener('submit', async (e) => {

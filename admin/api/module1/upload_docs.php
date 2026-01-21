@@ -41,6 +41,27 @@ if (!is_dir($uploads_dir)) {
 $uploaded = [];
 $errors = [];
 
+function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, string $field): bool {
+    $candidates = [
+        ["INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, is_verified) VALUES (?, ?, ?, 0)", 'iss', [$vehicleId, $docType, $filename]],
+        ["INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path) VALUES (?, ?, ?)", 'iss', [$vehicleId, $docType, $filename]],
+        ["INSERT INTO vehicle_documents (vehicle_id, document_type, file_path) VALUES (?, ?, ?)", 'iss', [$vehicleId, $docType, $filename]],
+        ["INSERT INTO vehicle_documents (plate_number, doc_type, file_path) VALUES (?, ?, ?)", 'sss', [$plate, $docType, $filename]],
+        ["INSERT INTO vehicle_documents (plate_number, document_type, file_path) VALUES (?, ?, ?)", 'sss', [$plate, $docType, $filename]],
+    ];
+    foreach ($candidates as $cand) {
+        [$sql, $types, $params] = $cand;
+        $stmt = $db->prepare($sql);
+        if (!$stmt) continue;
+        $stmt->bind_param($types, ...$params);
+        $ok = $stmt->execute();
+        $stmt->close();
+        if ($ok) return true;
+    }
+    $errors[] = "$field: DB insert failed";
+    return false;
+}
+
 foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
@@ -72,14 +93,10 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
         elseif ($field === 'emission') { $docType = 'Emission'; $legacyType = 'others'; }
         elseif ($field === 'deed') { $docType = 'Others'; $legacyType = 'deed'; }
 
-        $stmt = $db->prepare("INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, is_verified) VALUES (?, ?, ?, 0)");
-        if ($stmt) {
-            $stmt->bind_param('iss', $vehicleId, $docType, $filename);
-            if (!$stmt->execute()) {
-                if (is_file($dest)) { @unlink($dest); }
-                $errors[] = "$field: DB insert failed";
-                continue;
-            }
+        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $field);
+        if (!$okInsert) {
+            if (is_file($dest)) { @unlink($dest); }
+            continue;
         }
 
         $stmtLegacy = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
