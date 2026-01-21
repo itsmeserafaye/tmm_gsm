@@ -431,6 +431,22 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         // Initialize Icons
         lucide.createIcons();
 
+        async function fetchJsonSafe(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            const text = await res.text();
+            let data = null;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                const snippet = (text || '').slice(0, 300);
+                throw new Error(`Non-JSON response (${res.status}). ${snippet}`);
+            }
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}. ${(data && (data.error || data.message)) ? (data.error || data.message) : 'Request failed.'}`);
+            }
+            return data;
+        }
+
         // Initial Load
         loadAdvisories();
         populateRouteOptions();
@@ -497,8 +513,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 console.log('[Advisories] Fetching from API...');
                 document.getElementById('last-updated').textContent = 'Updating...';
                 const ts = Date.now();
-                const res = await fetch(`${API_URL}?action=get_advisories&hours=24&_ts=${ts}`, { cache: 'no-store' });
-                const data = await res.json();
+                const data = await fetchJsonSafe(`${API_URL}?action=get_advisories&hours=24&_ts=${ts}`);
                 console.log('[Advisories] API Response:', data);
 
                 const container = document.getElementById('advisories-container');
@@ -563,7 +578,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 }
             } catch (e) {
                 console.error('[Advisories] Exception:', e);
-                document.getElementById('advisories-container').innerHTML = `<div class="text-center py-8 text-red-400 italic">Connection Failed. Please check network.</div>`;
+                document.getElementById('advisories-container').innerHTML = `<div class="text-center py-8 text-red-500 font-semibold">Failed to load advisories.</div><div class="text-center text-xs text-slate-500 mt-2">${String(e && e.message ? e.message : e)}</div>`;
             }
         }
 
@@ -594,8 +609,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         async function populateRouteOptions() {
             try {
                 const ts = Date.now();
-                const res = await fetch(`${API_URL}?action=get_routes&_ts=${ts}`, { cache: 'no-store' });
-                const data = await res.json();
+                const data = await fetchJsonSafe(`${API_URL}?action=get_routes&_ts=${ts}`);
                 const select = document.getElementById('complaint-route-select');
 
                 if (data.ok && data.data.length > 0) {
@@ -617,8 +631,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
             try {
                 const ts = Date.now();
-                const res = await fetch(`${API_URL}?action=get_routes&_ts=${ts}`, { cache: 'no-store' });
-                const data = await res.json();
+                const data = await fetchJsonSafe(`${API_URL}?action=get_routes&_ts=${ts}`);
 
                 if (data.ok && data.data.length > 0) {
                     tbody.innerHTML = data.data.map(r => `
@@ -645,7 +658,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No routes found.</td></tr>`;
                 }
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Failed to load routes.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-500 font-semibold">Failed to load routes.</td></tr><tr><td colspan="4" class="px-6 pb-8 text-center text-xs text-slate-500">${String(e && e.message ? e.message : e)}</td></tr>`;
             }
         }
 
@@ -655,8 +668,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
             try {
                 const ts = Date.now();
-                const res = await fetch(`${API_URL}?action=get_terminals&_ts=${ts}`, { cache: 'no-store' });
-                const data = await res.json();
+                const data = await fetchJsonSafe(`${API_URL}?action=get_terminals&_ts=${ts}`);
 
                 if (data.ok && data.data.length > 0) {
                     grid.innerHTML = data.data.map(t => `
@@ -686,7 +698,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 }
             } catch (e) {
                 console.error(e);
-                grid.innerHTML = `<div class="col-span-full text-center py-12 text-red-400 italic">Failed to load terminals.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-red-500 font-semibold">Failed to load terminals.</div><div class="col-span-full text-center text-xs text-slate-500">${String(e && e.message ? e.message : e)}</div>`;
             }
         }
 

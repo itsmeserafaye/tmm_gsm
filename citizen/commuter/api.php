@@ -13,24 +13,38 @@ function get_db()
     if ($conn)
         return $conn;
 
-    $host = getenv('TMM_DB_HOST') ?: 'localhost';
-    $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';
-    $pass = getenv('TMM_DB_PASS') ?: 'Vy6QxSxoF5Q9F';
-    $name = getenv('TMM_DB_NAME') ?: 'tmm_tmm';
+    $host = trim((string) getenv('TMM_DB_HOST'));
+    $user = trim((string) getenv('TMM_DB_USER'));
+    $pass = (string) getenv('TMM_DB_PASS');
+    $name = trim((string) getenv('TMM_DB_NAME'));
 
-    $lastErr = '';
-    try {
-        $conn = @new mysqli($host, $user, $pass, $name);
-    } catch (Throwable $e) {
-        $conn = null;
-        $lastErr = $e->getMessage();
+    if ($host === '')
+        $host = 'localhost';
+    if ($user === '')
+        $user = 'tmm_tmmgosergfvx';
+    if ($name === '')
+        $name = 'tmm_tmm';
+
+    $candidates = [
+        [$host, $user, $pass, $name],
+    ];
+    if (strtolower($host) === 'localhost') {
+        $candidates[] = [$host, 'root', '', $name];
+        $candidates[] = [$host, 'root', '', 'tmm'];
+        $candidates[] = [$host, 'root', '', 'tmm_tmm'];
     }
 
-    if (!$conn || $conn->connect_error) {
+    $lastErr = '';
+    foreach ($candidates as $c) {
+        [$h, $u, $p, $n] = $c;
         try {
-            $conn = @new mysqli('localhost', 'root', '', 'tmm');
+            $try = @new mysqli($h, $u, $p, $n);
+            if (!$try->connect_error) {
+                $conn = $try;
+                break;
+            }
+            $lastErr = (string) $try->connect_error;
         } catch (Throwable $e) {
-            $conn = null;
             $lastErr = $e->getMessage();
         }
     }
