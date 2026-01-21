@@ -12,8 +12,9 @@ $sidebarItems = [
     'label' => 'PUV Database',
     'icon' => 'bus',
     'subItems' => [
-      ['id' => 'submodule1', 'label' => 'Operators', 'path' => '/module1/submodule1', 'anyPermissions' => ['module1.read','module1.write']],
-      ['id' => 'submodule2', 'label' => 'Vehicles', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule1', 'label' => 'Operator Encoding', 'path' => '/module1/submodule1', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule2', 'label' => 'Vehicle Encoding', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule3', 'label' => 'Operator Document Validation', 'path' => '/module1/submodule3', 'anyPermissions' => ['module1.write']],
       ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
     ],
   ],
@@ -29,17 +30,17 @@ $sidebarItems = [
   ],
   [
     'id' => 'module3',
-    'label' => 'Traffic Violation Monitoring',
+    'label' => 'Traffic Violation & Ticketing',
     'icon' => 'ticket',
     'subItems' => [
       ['id' => 'submodule1', 'label' => 'Issue Ticket', 'path' => '/module3/submodule1', 'anyPermissions' => ['module3.issue','module3.read']],
-      ['id' => 'submodule2', 'label' => 'Payment', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.settle']],
+      ['id' => 'submodule2', 'label' => 'Treasury Payment', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.settle']],
       ['id' => 'submodule3', 'label' => 'Analytics & Reports', 'path' => '/module3/submodule3', 'anyPermissions' => ['module3.analytics']],
     ],
   ],
   [
     'id' => 'module4',
-    'label' => 'Vehicle Inspection & Registration',
+    'label' => 'Vehicle Registration & Inspection',
     'icon' => 'clipboard-check',
     'subItems' => [
       ['id' => 'submodule1', 'label' => 'Vehicle Registration List', 'path' => '/module4/submodule1', 'anyPermissions' => ['module4.read','module4.schedule','module4.inspect','module4.certify']],
@@ -56,7 +57,7 @@ $sidebarItems = [
       ['id' => 'submodule1', 'label' => 'Terminal List', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.manage_terminal','module5.read']],
       ['id' => 'submodule2', 'label' => 'Assign Vehicle to Terminal', 'path' => '/module5/submodule2', 'anyPermissions' => ['module5.assign_vehicle']],
       ['id' => 'submodule3', 'label' => 'Parking Slot Management', 'path' => '/module5/submodule3', 'anyPermissions' => ['module5.manage_terminal']],
-      ['id' => 'submodule4', 'label' => 'Payment', 'path' => '/module5/submodule4', 'anyPermissions' => ['module5.parking_fees']],
+      ['id' => 'submodule4', 'label' => 'Treasury Payment', 'path' => '/module5/submodule4', 'anyPermissions' => ['module5.parking_fees']],
     ],
   ],
   [

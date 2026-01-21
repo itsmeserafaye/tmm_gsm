@@ -237,7 +237,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
-      <div id="modalOpBody" class="p-6"></div>
+      <div id="modalOpBody" class="p-6 max-h-[80vh] overflow-y-auto"></div>
     </div>
   </div>
 </div>
