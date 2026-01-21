@@ -276,12 +276,15 @@ if (!empty($_SESSION['user_id'])) {
                     <div>
                         <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
                         <input type="email" name="regEmail" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            pattern="^(?!.*\.\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="juan.delacruz@email.com">
                     </div>
                     <div>
                         <label class="block text-sm mb-1">Mobile Number<span class="required-asterisk">*</span></label>
-                        <input type="tel" name="mobile" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09XXXXXXXXX">
+                        <input type="tel" name="mobile" required inputmode="tel" minlength="11" maxlength="16"
+                            pattern="^(\+639\d{9}|09\d{9}|(\+63|0)9\d{2}[- ]?\d{3}[- ]?\d{4})$"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567 or +639171234567">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm mb-1">Address<span class="required-asterisk">*</span></label>

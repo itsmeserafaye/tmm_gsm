@@ -118,6 +118,8 @@ require_role(['SuperAdmin']);
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address <span class="text-rose-500">*</span></label>
                             <input type="email" name="email" id="user-email" required
+                                pattern="^(?!.*\.\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
+                                placeholder="user_01@company.ph"
                                 class="block w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 py-2.5 px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500">
                         </div>
                         <div>

@@ -67,6 +67,8 @@ function get_setting($key, $default = '') {
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Support Email</label>
                         <input type="email" name="system_email" value="<?php echo htmlspecialchars(get_setting('system_email', 'admin@tmm.gov.ph')); ?>" 
+                            pattern="^(?!.*\.\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
+                            placeholder="admin@tmm.gov.ph"
                             class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all placeholder:font-medium">
                         <p class="mt-2 text-xs text-slate-400 font-medium">Used for system notifications.</p>
                     </div>

@@ -684,13 +684,17 @@ if (empty($_SESSION['operator_csrf'])) {
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Email Address</label>
                             <input type="email" id="editEmail" name="email"
+                                pattern="^(?!.*\.\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
                                 class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition"
+                                placeholder="juan.delacruz@email.com"
                                 required>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contact Number</label>
-                            <input type="text" id="editContact" name="contact_info"
+                            <input type="tel" id="editContact" name="contact_info" inputmode="tel" minlength="7" maxlength="20"
+                                pattern="^(\+639\d{9}|09\d{9}|(\+63|0)9\d{2}[- ]?\d{3}[- ]?\d{4}|0[2-8]\d{7,8})$"
                                 class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition"
+                                placeholder="09171234567 or +639171234567"
                                 required>
                         </div>
 

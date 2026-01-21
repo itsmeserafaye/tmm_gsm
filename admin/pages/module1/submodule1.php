@@ -509,11 +509,11 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09XXXXXXXXX or +63 9XXXXXXXXX">
+                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567 or +639171234567">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
-                <input name="email" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., name@email.com">
+                <input name="email" type="email" maxlength="120" pattern="^(?!.*\\.\\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[A-Za-z]{2,}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com">
               </div>
             </div>
 
@@ -635,11 +635,11 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(contact)}">
+                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567 or +639171234567" value="${escAttr(contact)}">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
-                <input name="email" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(email)}">
+                <input name="email" type="email" maxlength="120" pattern="^(?!.*\\.\\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[A-Za-z]{2,}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com" value="${escAttr(email)}">
               </div>
             </div>
 
