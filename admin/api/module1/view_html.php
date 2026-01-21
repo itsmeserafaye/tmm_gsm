@@ -169,7 +169,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <div>
-                                <input name="operator_id" class="<?php echo $inputClass; ?>" placeholder="Operator ID (preferred)">
+                                <input name="operator_id" inputmode="numeric" maxlength="10" pattern="^[0-9]{1,10}$" data-tmm-numeric-only="1" class="<?php echo $inputClass; ?>" placeholder="Operator ID (preferred)">
                             </div>
                             <div>
                                 <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name (fallback)" value="<?php echo htmlspecialchars($v['operator_display'] ?? ''); ?>">
