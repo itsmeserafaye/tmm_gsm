@@ -11,7 +11,7 @@ if ($plate === '' || ($operatorId <= 0 && $operatorName === '')) { http_response
 if (!preg_match('/^[A-Z0-9-]{4,16}$/', $plate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_plate']); exit; }
 
 // Ensure vehicle exists
-$stmtV = $db->prepare("SELECT plate_number FROM vehicles WHERE plate_number=?");
+$stmtV = $db->prepare("SELECT plate_number, COALESCE(operator_id,0) AS operator_id FROM vehicles WHERE plate_number=?");
 $stmtV->bind_param('s', $plate);
 $stmtV->execute();
 $exists = $stmtV->get_result()->fetch_assoc();
@@ -20,6 +20,7 @@ if (!$exists) {
     echo json_encode(['ok'=>false,'error'=>'vehicle_not_found']);
     exit;
 }
+$currentOperatorId = (int)($exists['operator_id'] ?? 0);
 
 $resolvedName = $operatorName;
 $resolvedId = $operatorId;
@@ -48,6 +49,17 @@ if ($resolvedId > 0) {
 }
 
 $resolvedIdBind = $resolvedId > 0 ? $resolvedId : null;
+$targetOperatorId = $resolvedId > 0 ? $resolvedId : 0;
+if ($currentOperatorId > 0 && $targetOperatorId > 0 && $currentOperatorId !== $targetOperatorId) {
+    http_response_code(409);
+    echo json_encode(['ok'=>false,'error'=>'already_linked', 'current_operator_id'=>$currentOperatorId]);
+    exit;
+}
+if ($currentOperatorId > 0 && $targetOperatorId === 0) {
+    http_response_code(409);
+    echo json_encode(['ok'=>false,'error'=>'already_linked', 'current_operator_id'=>$currentOperatorId]);
+    exit;
+}
 $stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, record_status='Linked' WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmt->bind_param('iss', $resolvedIdBind, $resolvedName, $plate);

@@ -16,7 +16,6 @@ $sidebarItems = [
       ['id' => 'submodule2', 'label' => 'Vehicle Encoding', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
       ['id' => 'submodule3', 'label' => 'Operator Document Validation', 'path' => '/module1/submodule3', 'anyPermissions' => ['module1.write']],
       ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
-      ['id' => 'schema_status', 'label' => 'Schema Status', 'path' => '/module1/schema_status', 'roles' => ['SuperAdmin']],
     ],
   ],
   [

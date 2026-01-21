@@ -104,7 +104,10 @@ if ($operatorIds) {
 }
 
 $allPlates = [];
-$resP = $db->query("SELECT UPPER(plate_number) AS plate_number, COALESCE(NULLIF(status,''),'') AS status FROM vehicles WHERE COALESCE(plate_number,'')<>'' ORDER BY created_at DESC LIMIT 1000");
+$resP = $db->query("SELECT UPPER(plate_number) AS plate_number, COALESCE(NULLIF(status,''),'') AS status
+                    FROM vehicles
+                    WHERE COALESCE(plate_number,'')<>'' AND (operator_id IS NULL OR operator_id=0)
+                    ORDER BY created_at DESC LIMIT 1000");
 if ($resP) {
   while ($r = $resP->fetch_assoc()) {
     $p = strtoupper(trim((string)($r['plate_number'] ?? '')));
@@ -344,7 +347,11 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
           params.set('highlight_operator_id', String(operatorId));
           window.location.search = params.toString();
         } catch (err) {
-          showToast(err.message || 'Failed to link', 'error');
+          const raw = (err && err.message) ? String(err.message) : '';
+          const msg = raw === 'already_linked'
+            ? 'This plate is already linked to another operator.'
+            : (raw || 'Failed to link');
+          showToast(msg, 'error');
           if (btn) { btn.disabled = false; btn.textContent = orig || 'Link Vehicle'; }
         }
       });

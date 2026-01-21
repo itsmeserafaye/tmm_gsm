@@ -229,9 +229,6 @@ if ($rootUrl === '/') $rootUrl = '';
                       title="Edit Operator">
                       <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
-                    <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-docs="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Documents">
-                      <i data-lucide="folder-open" class="w-4 h-4"></i>
-                    </button>
                     <?php if (has_any_permission(['module1.link_vehicle','module1.write'])): ?>
                       <a href="?page=module1/submodule4&highlight_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center" title="Link Vehicle">
                         <i data-lucide="link-2" class="w-4 h-4"></i>
@@ -289,166 +286,6 @@ if ($rootUrl === '/') $rootUrl = '';
         .replace(/\"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-    }
-
-    async function loadOperatorDocs(operatorId) {
-      const res = await fetch(rootUrl + '/admin/api/module1/list_operator_documents.php?operator_id=' + encodeURIComponent(operatorId));
-      const data = await res.json();
-      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-      return Array.isArray(data.data) ? data.data : [];
-    }
-
-    function renderOperatorDocs(operatorId, operatorName, rows) {
-      const listHtml = rows.length ? `
-        <div class="space-y-3">
-          ${rows.map((d) => {
-            const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
-            const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
-            const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
-            const verified = (Number(d.is_verified || 0) === 1);
-            const badge = verified
-              ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
-              : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
-            return `
-              <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 transition-all">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">
-                    <i data-lucide="file" class="w-4 h-4"></i>
-                  </div>
-                  <div class="min-w-0">
-                    <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || '').toString()}</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${date}</div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge}">${verified ? 'Verified' : 'Pending'}</span>
-                  ${canVerify ? `<button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-verify="1" data-doc-id="${escAttr(d.doc_id)}" data-verify="${verified ? '0' : '1'}">${verified ? 'Unverify' : 'Verify'}</button>` : ``}
-                  <a href="${href}" target="_blank" class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 transition-colors" title="Open">
-                    <i data-lucide="external-link" class="w-4 h-4"></i>
-                  </a>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      ` : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`;
-
-      const uploadHtml = canWrite ? `
-        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Upload Documents</div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">GovID, CDA, SEC, or Others (PDF/JPG/PNG).</div>
-            </div>
-            <button type="button" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-op-docs-refresh="1">
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-              Refresh
-            </button>
-          </div>
-
-          <form id="formUploadOperatorDocs" class="space-y-4" novalidate>
-            <input type="hidden" name="operator_id" value="${escAttr(operatorId)}">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">GovID</label>
-                <input name="id_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CDA</label>
-                <input name="cda_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">SEC</label>
-                <input name="sec_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
-                <input name="others_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-            </div>
-
-            <div class="flex items-center justify-end gap-2">
-              <button id="btnUploadOperatorDocs" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
-            </div>
-          </form>
-        </div>
-      ` : `
-        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
-          <div class="text-xs text-slate-500 dark:text-slate-400">You don't have permission to upload documents.</div>
-        </div>
-      `;
-
-      body.innerHTML = `
-        <div>
-          ${listHtml}
-          ${uploadHtml}
-        </div>
-      `;
-
-      if (window.lucide) window.lucide.createIcons();
-
-      body.querySelectorAll('[data-doc-verify="1"]').forEach((b) => {
-        b.addEventListener('click', async () => {
-          const docId = b.getAttribute('data-doc-id');
-          const verify = b.getAttribute('data-verify') === '1' ? 1 : 0;
-          try {
-            const fd = new FormData();
-            fd.append('doc_id', String(docId || ''));
-            fd.append('is_verified', String(verify));
-            const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'verify_failed');
-            showToast(verify ? 'Document verified.' : 'Document marked pending.');
-            const latest = await loadOperatorDocs(operatorId);
-            renderOperatorDocs(operatorId, operatorName, latest);
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
-          }
-        });
-      });
-
-      const btnRefresh = body.querySelector('[data-op-docs-refresh="1"]');
-      if (btnRefresh) {
-        btnRefresh.addEventListener('click', async () => {
-          openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Documents • ' + operatorName);
-          try {
-            const latest = await loadOperatorDocs(operatorId);
-            renderOperatorDocs(operatorId, operatorName, latest);
-          } catch (err) {
-            body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
-          }
-        });
-      }
-
-      const form = document.getElementById('formUploadOperatorDocs');
-      const btn = document.getElementById('btnUploadOperatorDocs');
-      if (form && btn) {
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const fd = new FormData(form);
-          const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
-          if (!hasDocs) {
-            showToast('Select at least one file to upload.', 'error');
-            return;
-          }
-
-          const orig = btn.textContent;
-          btn.disabled = true;
-          btn.textContent = 'Uploading...';
-          try {
-            const res = await fetch(rootUrl + '/admin/api/module1/upload_operator_docs.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'upload_failed');
-            showToast('Documents uploaded.');
-            const latest = await loadOperatorDocs(operatorId);
-            renderOperatorDocs(operatorId, operatorName, latest);
-          } catch (err) {
-            showToast(err.message || 'Upload failed', 'error');
-            btn.disabled = false;
-            btn.textContent = orig;
-          }
-        });
-      }
     }
 
     const modal = document.getElementById('modalOp');
@@ -567,20 +404,6 @@ if ($rootUrl === '/') $rootUrl = '';
         });
       });
     }
-
-    document.querySelectorAll('[data-op-docs="1"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-operator-id');
-        const name = btn.getAttribute('data-operator-name') || 'Operator';
-        openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Documents • ' + name);
-        try {
-          const rows = await loadOperatorDocs(id);
-          renderOperatorDocs(id, name, rows);
-        } catch (err) {
-          body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
-        }
-      });
-    });
 
     document.querySelectorAll('[data-op-view="1"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
