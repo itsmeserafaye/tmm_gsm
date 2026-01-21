@@ -199,6 +199,19 @@ if ($rootUrl === '/') $rootUrl = '';
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-view="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Operator">
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
+                    <button type="button"
+                      class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                      data-op-edit="1"
+                      data-operator-id="<?php echo (int)$rid; ?>"
+                      data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>"
+                      data-operator-type="<?php echo htmlspecialchars((string)($row['operator_type'] ?? 'Individual'), ENT_QUOTES); ?>"
+                      data-operator-address="<?php echo htmlspecialchars((string)($row['address'] ?? ''), ENT_QUOTES); ?>"
+                      data-operator-contact="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>"
+                      data-operator-email="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>"
+                      data-operator-status="<?php echo htmlspecialchars((string)($row['status'] ?? 'Approved'), ENT_QUOTES); ?>"
+                      title="Edit Operator">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-docs="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Documents">
                       <i data-lucide="folder-open" class="w-4 h-4"></i>
                     </button>
@@ -246,6 +259,13 @@ if ($rootUrl === '/') $rootUrl = '';
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+    function escAttr(v) {
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/\"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     }
 
     const modal = document.getElementById('modalOp');
@@ -465,6 +485,104 @@ if ($rootUrl === '/') $rootUrl = '';
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load operator details'}</div>`;
         }
+      });
+    });
+
+    document.querySelectorAll('[data-op-edit="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-operator-id');
+        const name = btn.getAttribute('data-operator-name') || '';
+        const type = btn.getAttribute('data-operator-type') || 'Individual';
+        const address = btn.getAttribute('data-operator-address') || '';
+        const contact = btn.getAttribute('data-operator-contact') || '';
+        const email = btn.getAttribute('data-operator-email') || '';
+        const status = btn.getAttribute('data-operator-status') || 'Approved';
+
+        openModal(`
+          <form id="formEditOperator" class="space-y-5" novalidate>
+            <input type="hidden" name="operator_id" value="${String(id || '')}">
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type</label>
+                <select name="operator_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option ${type === 'Individual' ? 'selected' : ''}>Individual</option>
+                  <option ${type === 'Cooperative' ? 'selected' : ''}>Cooperative</option>
+                  <option ${type === 'Corporation' ? 'selected' : ''}>Corporation</option>
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
+                <input name="name" required minlength="3" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(name)}">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
+              <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(address)}">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
+                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(contact)}">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
+                <input name="email" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(email)}">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                <select name="status" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option ${status === 'Approved' ? 'selected' : ''}>Approved</option>
+                  <option ${status === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option ${status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <div class="text-xs text-slate-500 dark:text-slate-400">Edits update the existing operator record.</div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-op-cancel="1">Cancel</button>
+              <button id="btnUpdateOperator" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Update</button>
+            </div>
+          </form>
+        `, 'Edit Operator • ' + (name || ''));
+
+        const cancel = body.querySelector('[data-op-cancel="1"]');
+        if (cancel) cancel.addEventListener('click', closeModal);
+
+        const form = document.getElementById('formEditOperator');
+        const btnSubmit = document.getElementById('btnUpdateOperator');
+        if (!form || !btnSubmit) return;
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!form.checkValidity()) { form.reportValidity(); return; }
+          const orig = btnSubmit.textContent;
+          btnSubmit.disabled = true;
+          btnSubmit.textContent = 'Updating...';
+          try {
+            const fd = new FormData(form);
+            const res = await fetch(rootUrl + '/admin/api/module1/update_operator.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
+            showToast('Operator updated successfully.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page', 'module1/submodule1');
+            params.set('highlight_operator_id', String(id || ''));
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = orig;
+          }
+        });
       });
     });
 
