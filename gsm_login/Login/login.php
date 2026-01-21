@@ -68,12 +68,18 @@ function td_ensure_schema(mysqli $db): void
     user_type VARCHAR(20) NOT NULL,
     user_id BIGINT NOT NULL,
     device_hash VARCHAR(64) NOT NULL,
+    user_agent_hash VARCHAR(64) DEFAULT NULL,
     expires_at DATETIME NOT NULL,
     last_used_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uniq_user_device (user_type, user_id, device_hash),
     INDEX idx_expires (expires_at)
   ) ENGINE=InnoDB");
+
+  $cols = $db->query("SHOW COLUMNS FROM trusted_devices LIKE 'user_agent_hash'");
+  if (!$cols || $cols->num_rows === 0) {
+    $db->query("ALTER TABLE trusted_devices ADD COLUMN user_agent_hash VARCHAR(64) DEFAULT NULL AFTER device_hash");
+  }
 }
 
 function td_hash_device(string $deviceId): string
@@ -82,10 +88,17 @@ function td_hash_device(string $deviceId): string
   return hash('sha256', $deviceId);
 }
 
-function td_is_trusted(mysqli $db, string $userType, int $userId, string $deviceHash): bool
+function td_hash_user_agent(): string
+{
+  $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+  return hash('sha256', $ua);
+}
+
+function td_is_trusted(mysqli $db, string $userType, int $userId, string $deviceHash, int $extendDays = 10): bool
 {
   td_ensure_schema($db);
-  $stmt = $db->prepare("SELECT expires_at FROM trusted_devices WHERE user_type=? AND user_id=? AND device_hash=? AND expires_at>NOW() LIMIT 1");
+  $uaHash = td_hash_user_agent();
+  $stmt = $db->prepare("SELECT expires_at, user_agent_hash FROM trusted_devices WHERE user_type=? AND user_id=? AND device_hash=? AND expires_at>NOW() LIMIT 1");
   if (!$stmt)
     return false;
   $stmt->bind_param('sis', $userType, $userId, $deviceHash);
@@ -94,9 +107,14 @@ function td_is_trusted(mysqli $db, string $userType, int $userId, string $device
   $stmt->close();
   if (!$row)
     return false;
-  $stmtU = $db->prepare("UPDATE trusted_devices SET last_used_at=NOW() WHERE user_type=? AND user_id=? AND device_hash=? LIMIT 1");
+  $storedUa = (string)($row['user_agent_hash'] ?? '');
+  if ($storedUa !== '' && !hash_equals($storedUa, $uaHash)) {
+    return false;
+  }
+  $extendDays = max(1, (int)$extendDays);
+  $stmtU = $db->prepare("UPDATE trusted_devices SET last_used_at=NOW(), expires_at=DATE_ADD(NOW(), INTERVAL ? DAY) WHERE user_type=? AND user_id=? AND device_hash=? LIMIT 1");
   if ($stmtU) {
-    $stmtU->bind_param('sis', $userType, $userId, $deviceHash);
+    $stmtU->bind_param('isis', $extendDays, $userType, $userId, $deviceHash);
     $stmtU->execute();
     $stmtU->close();
   }
@@ -107,12 +125,13 @@ function td_trust(mysqli $db, string $userType, int $userId, string $deviceHash,
 {
   td_ensure_schema($db);
   $days = max(1, $days);
-  $stmt = $db->prepare("INSERT INTO trusted_devices(user_type, user_id, device_hash, expires_at, last_used_at)
-    VALUES(?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), NOW())
-    ON DUPLICATE KEY UPDATE expires_at=DATE_ADD(NOW(), INTERVAL ? DAY), last_used_at=NOW()");
+  $uaHash = td_hash_user_agent();
+  $stmt = $db->prepare("INSERT INTO trusted_devices(user_type, user_id, device_hash, user_agent_hash, expires_at, last_used_at)
+    VALUES(?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), NOW())
+    ON DUPLICATE KEY UPDATE user_agent_hash=VALUES(user_agent_hash), expires_at=DATE_ADD(NOW(), INTERVAL ? DAY), last_used_at=NOW()");
   if (!$stmt)
     return;
-  $stmt->bind_param('sisii', $userType, $userId, $deviceHash, $days, $days);
+  $stmt->bind_param('sissii', $userType, $userId, $deviceHash, $uaHash, $days, $days);
   $stmt->execute();
   $stmt->close();
 }

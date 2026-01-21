@@ -246,7 +246,7 @@ if ($rootUrl === '/') $rootUrl = '';
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const canWrite = <?php echo json_encode(has_permission('module1.vehicles.write')); ?>;
+    const canWrite = <?php echo json_encode(has_any_permission(['module1.write','module1.vehicles.write'])); ?>;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -266,6 +266,136 @@ if ($rootUrl === '/') $rootUrl = '';
         .replace(/\"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+    }
+
+    async function loadOperatorDocs(operatorId) {
+      const res = await fetch(rootUrl + '/admin/api/module1/list_operator_documents.php?operator_id=' + encodeURIComponent(operatorId));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return Array.isArray(data.data) ? data.data : [];
+    }
+
+    function renderOperatorDocs(operatorId, operatorName, rows) {
+      const listHtml = rows.length ? `
+        <div class="space-y-3">
+          ${rows.map((d) => {
+            const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
+            const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
+            const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+            return `
+              <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">
+                    <i data-lucide="file" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || '').toString()}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+                  </div>
+                </div>
+                <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
+              </a>
+            `;
+          }).join('')}
+        </div>
+      ` : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`;
+
+      const uploadHtml = canWrite ? `
+        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Upload Documents</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID, CDA, SEC, or Others (PDF/JPG/PNG).</div>
+            </div>
+            <button type="button" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-op-docs-refresh="1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              Refresh
+            </button>
+          </div>
+
+          <form id="formUploadOperatorDocs" class="space-y-4" novalidate>
+            <input type="hidden" name="operator_id" value="${escAttr(operatorId)}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">ID</label>
+                <input name="id_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CDA</label>
+                <input name="cda_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">SEC</label>
+                <input name="sec_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
+                <input name="others_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2">
+              <button id="btnUploadOperatorDocs" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+            </div>
+          </form>
+        </div>
+      ` : `
+        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
+          <div class="text-xs text-slate-500 dark:text-slate-400">You don't have permission to upload documents.</div>
+        </div>
+      `;
+
+      body.innerHTML = `
+        <div>
+          ${listHtml}
+          ${uploadHtml}
+        </div>
+      `;
+
+      if (window.lucide) window.lucide.createIcons();
+
+      const btnRefresh = body.querySelector('[data-op-docs-refresh="1"]');
+      if (btnRefresh) {
+        btnRefresh.addEventListener('click', async () => {
+          openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Documents • ' + operatorName);
+          try {
+            const latest = await loadOperatorDocs(operatorId);
+            renderOperatorDocs(operatorId, operatorName, latest);
+          } catch (err) {
+            body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
+          }
+        });
+      }
+
+      const form = document.getElementById('formUploadOperatorDocs');
+      const btn = document.getElementById('btnUploadOperatorDocs');
+      if (form && btn) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const fd = new FormData(form);
+          const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
+          if (!hasDocs) {
+            showToast('Select at least one file to upload.', 'error');
+            return;
+          }
+
+          const orig = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Uploading...';
+          try {
+            const res = await fetch(rootUrl + '/admin/api/module1/upload_operator_docs.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'upload_failed');
+            showToast('Documents uploaded.');
+            const latest = await loadOperatorDocs(operatorId);
+            renderOperatorDocs(operatorId, operatorName, latest);
+          } catch (err) {
+            showToast(err.message || 'Upload failed', 'error');
+            btn.disabled = false;
+            btn.textContent = orig;
+          }
+        });
+      }
     }
 
     const modal = document.getElementById('modalOp');
@@ -433,39 +563,8 @@ if ($rootUrl === '/') $rootUrl = '';
         const name = btn.getAttribute('data-operator-name') || 'Operator';
         openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Documents • ' + name);
         try {
-          const res = await fetch(rootUrl + '/admin/api/module1/list_operator_documents.php?operator_id=' + encodeURIComponent(id));
-          const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-          const rows = Array.isArray(data.data) ? data.data : [];
-          if (!rows.length) {
-            body.innerHTML = `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`;
-            if (window.lucide) window.lucide.createIcons();
-            return;
-          }
-          body.innerHTML = `
-            <div class="space-y-3">
-              ${rows.map((d) => {
-                const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
-                const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
-                const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
-                return `
-                  <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
-                    <div class="flex items-center gap-3">
-                      <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">
-                        <i data-lucide="file" class="w-4 h-4"></i>
-                      </div>
-                      <div>
-                        <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || '').toString()}</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
-                      </div>
-                    </div>
-                    <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
-                  </a>
-                `;
-              }).join('')}
-            </div>
-          `;
-          if (window.lucide) window.lucide.createIcons();
+          const rows = await loadOperatorDocs(id);
+          renderOperatorDocs(id, name, rows);
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
         }

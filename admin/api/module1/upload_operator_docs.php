@@ -5,7 +5,7 @@ require_once __DIR__ . '/../../includes/security.php';
 
 $db = db();
 header('Content-Type: application/json');
-require_permission('module1.vehicles.write');
+require_any_permission(['module1.vehicles.write', 'module1.write']);
 
 $operatorId = isset($_POST['operator_id']) ? (int)$_POST['operator_id'] : 0;
 if ($operatorId <= 0) {
@@ -99,4 +99,3 @@ if ($errors) {
 }
 
 echo json_encode(['ok' => true, 'operator_id' => $operatorId, 'files' => $uploaded]);
-
