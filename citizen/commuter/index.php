@@ -47,6 +47,15 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                             800: '#5b21b6',
                             900: '#4c1d95',
                         },
+                        accent: {
+                            50: '#fdf4ff', // fuchsia-50
+                            100: '#fae8ff',
+                            200: '#f5d0fe',
+                            300: '#f0abfc',
+                            400: '#e879f9',
+                            500: '#d946ef', // fuchsia-500
+                            600: '#c026d3',
+                        },
                         dark: {
                             900: '#0f172a',
                             800: '#1e293b',
@@ -77,9 +86,9 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         }
 
         .sidebar-active {
-            background: linear-gradient(135deg, #0c8de4 0%, #0270c2 100%);
+            background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%);
             color: white;
-            box-shadow: 0 8px 16px -4px rgba(12, 141, 228, 0.4);
+            box-shadow: 0 8px 16px -4px rgba(124, 58, 237, 0.4);
         }
         
         .sidebar-item:hover:not(.sidebar-active) {
