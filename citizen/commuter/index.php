@@ -3,6 +3,10 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
     @session_start();
 }
 
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // No login required for public portal
 $baseUrl = str_replace('\\', '/', (string) dirname(dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
@@ -16,6 +20,9 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>City Transport Portal - Public Information</title>
     <link rel="icon" type="image/jpeg" href="images/logo.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -71,11 +78,11 @@ $userName = $_SESSION['name'] ?? 'Commuter';
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+<body class="min-h-screen font-sans text-slate-800 bg-[radial-gradient(circle_at_top,#e0f2fe_0%,#f8fafc_35%,#f1f5f9_100%)]">
 
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200">
-        <div class="max-w-5xl mx-auto px-4 py-4">
+    <header class="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div
@@ -146,7 +153,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-5xl mx-auto px-4 py-8 pb-24">
+    <main class="max-w-6xl mx-auto px-4 py-8 pb-24">
 
         <!-- HOME / ADVISORIES -->
         <section id="tab-home" class="fade-in space-y-6">
@@ -169,6 +176,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                 </h3>
                 <div class="flex items-center gap-3">
                     <span id="last-updated" class="text-xs font-medium text-slate-400">Loading...</span>
+                    <span id="build-tag" class="hidden md:inline text-xs font-medium text-slate-400"></span>
                     <span
                         class="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full flex items-center gap-1">
                         <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -279,8 +287,11 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Route / PUV
                                         Type</label>
-                                    <input type="text" name="route" placeholder="e.g. Jeepney Route 12"
-                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <select name="route_id" id="complaint-route-select"
+                                        class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none bg-white">
+                                        <option value="">Select Route...</option>
+                                        <option value="Other">Other / Not Listed</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number
@@ -422,6 +433,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         // Initial Load
         loadAdvisories();
+        populateRouteOptions();
 
         // Navigation
         function switchTab(tabId) {
@@ -483,34 +495,47 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         async function loadAdvisories() {
             try {
                 console.log('[Advisories] Fetching from API...');
-                const res = await fetch(`${API_URL}?action=get_advisories&debug=1`);
+                document.getElementById('last-updated').textContent = 'Updating...';
+                const ts = Date.now();
+                const res = await fetch(`${API_URL}?action=get_advisories&hours=24&_ts=${ts}`, { cache: 'no-store' });
                 const data = await res.json();
                 console.log('[Advisories] API Response:', data);
 
                 const container = document.getElementById('advisories-container');
+                const buildTag = document.getElementById('build-tag');
+                if (buildTag && data.meta && data.meta.api_build) {
+                    buildTag.textContent = `API ${new Date(data.meta.api_build).toLocaleString()}`;
+                    buildTag.classList.remove('hidden');
+                }
 
                 if (data.ok && data.data.length > 0) {
                     console.log('[Advisories] Rendering', data.data.length, 'advisories');
                     container.innerHTML = data.data.map(item => {
-                        // Determine icon based on title
-                        let icon = '📊';
-                        if (item.title.includes('🚨')) icon = '🚨';
-                        else if (item.title.includes('⚠️')) icon = '⚠️';
-                        else if (item.title.includes('🚦')) icon = '🚦';
-                        else if (item.title.includes('🌧️')) icon = '🌧️';
-                        else if (item.title.includes('✅')) icon = '✅';
+                        let icon = 'bell';
+                        if (item.type === 'alert') icon = 'alert-octagon';
+                        else if (item.type === 'warning') icon = 'alert-triangle';
+                        else icon = 'info';
 
-                        // Remove emoji from title since we're showing it separately
-                        const cleanTitle = item.title.replace(/[📊🚨⚠️🚦🌧️✅]/g, '').trim();
+                        const source = (item.source || '').toLowerCase();
+                        const sourceLabel = source === 'predictive' ? 'Forecast' : (source === 'admin' ? 'Admin' : 'System');
+                        const sourceClass = source === 'predictive' ? 'bg-brand-50 text-brand-700' : (source === 'admin' ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700');
+                        const title = item.title || 'Advisory';
 
                         return `
-                        <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 ${item.type === 'alert' ? 'border-red-500' : (item.type === 'warning' ? 'border-amber-500' : 'border-brand-500')} hover:shadow-md transition-shadow">
+                        <div class="bg-white/90 backdrop-blur p-5 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                             <div class="flex items-start gap-4">
-                                <div class="text-3xl shrink-0">${icon}</div>
+                                <div class="w-10 h-10 rounded-xl ${item.type === 'alert' ? 'bg-red-50 text-red-600' : (item.type === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand-700')} flex items-center justify-center shrink-0">
+                                    <i data-lucide="${icon}" class="w-5 h-5"></i>
+                                </div>
                                 <div class="flex-1">
                                     <div class="flex justify-between items-start mb-2">
-                                        <h4 class="font-bold text-lg text-slate-800">${cleanTitle}</h4>
-                                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-slate-100 text-slate-500">${new Date(item.posted_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${sourceClass}">${sourceLabel}</span>
+                                                <h4 class="font-bold text-lg text-slate-800 truncate">${title}</h4>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded bg-slate-100 text-slate-500">${new Date(item.posted_at).toLocaleString()}</span>
                                     </div>
                                     <p class="text-slate-600 text-sm leading-relaxed">${item.content}</p>
                                 </div>
@@ -518,6 +543,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                         </div>
                     `;
                     }).join('');
+                    lucide.createIcons();
 
                     // Update last updated timestamp
                     lastAdvisoryUpdate = new Date();
@@ -567,7 +593,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
 
         async function populateRouteOptions() {
             try {
-                const res = await fetch(`${API_URL}?action=get_routes`);
+                const ts = Date.now();
+                const res = await fetch(`${API_URL}?action=get_routes&_ts=${ts}`, { cache: 'no-store' });
                 const data = await res.json();
                 const select = document.getElementById('complaint-route-select');
 
@@ -589,7 +616,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
             if (tbody.getAttribute('data-loaded') === 'true') return;
 
             try {
-                const res = await fetch(`${API_URL}?action=get_routes`);
+                const ts = Date.now();
+                const res = await fetch(`${API_URL}?action=get_routes&_ts=${ts}`, { cache: 'no-store' });
                 const data = await res.json();
 
                 if (data.ok && data.data.length > 0) {
@@ -626,7 +654,8 @@ $userName = $_SESSION['name'] ?? 'Commuter';
             if (grid.getAttribute('data-loaded') === 'true') return;
 
             try {
-                const res = await fetch(`${API_URL}?action=get_terminals`);
+                const ts = Date.now();
+                const res = await fetch(`${API_URL}?action=get_terminals&_ts=${ts}`, { cache: 'no-store' });
                 const data = await res.json();
 
                 if (data.ok && data.data.length > 0) {

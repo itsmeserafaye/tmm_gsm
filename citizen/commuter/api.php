@@ -46,6 +46,9 @@ function get_db()
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 $db = get_db();
 
@@ -178,6 +181,7 @@ if ($action === 'get_advisories') {
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $row['type'] = $typeMap($row['type'] ?? '');
+            $row['source'] = 'admin';
             $advisories[] = $row;
         }
     }
@@ -302,6 +306,7 @@ if ($action === 'get_advisories') {
                 'title' => $title,
                 'content' => $content,
                 'type' => $type,
+                'source' => 'predictive',
                 'posted_at' => date('Y-m-d H:i:s'),
             ];
         }
@@ -327,6 +332,7 @@ if ($action === 'get_advisories') {
             'title' => '✅ All Systems Normal',
             'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
             'type' => 'info',
+            'source' => 'system',
             'posted_at' => date('Y-m-d H:i:s')
         ];
     }
@@ -335,7 +341,11 @@ if ($action === 'get_advisories') {
         return strcmp((string) ($b['posted_at'] ?? ''), (string) ($a['posted_at'] ?? ''));
     });
 
-    echo json_encode(['ok' => true, 'data' => $advisories]);
+    $meta = [
+        'server_time' => date('c'),
+        'api_build' => date('c', (int) @filemtime(__FILE__)),
+    ];
+    echo json_encode(['ok' => true, 'data' => $advisories, 'meta' => $meta]);
     exit;
 }
 
