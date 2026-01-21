@@ -386,23 +386,49 @@ function db() {
     $conn->query("ALTER TABLE operators ADD PRIMARY KEY (id)");
   }
   if (!isset($opsCols['operator_type'])) { $conn->query("ALTER TABLE operators ADD COLUMN operator_type ENUM('Individual','Cooperative','Corporation') DEFAULT 'Individual'"); }
+  if (!isset($opsCols['registered_name'])) { $conn->query("ALTER TABLE operators ADD COLUMN registered_name VARCHAR(255) DEFAULT NULL"); }
   if (!isset($opsCols['name'])) { $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL"); }
   if (!isset($opsCols['address'])) { $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL"); }
   if (!isset($opsCols['contact_no'])) { $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL"); }
   if (!isset($opsCols['email'])) { $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL"); }
   if (!isset($opsCols['status'])) { $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'"); }
+  if (!isset($opsCols['verification_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft'"); }
   if (!isset($opsCols['updated_at'])) { $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL"); }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
+  $conn->query("UPDATE operators SET registered_name=COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) WHERE (registered_name IS NULL OR registered_name='') AND (COALESCE(NULLIF(name,''), full_name) IS NOT NULL)");
+  $conn->query("UPDATE operators SET verification_status=CASE
+    WHEN COALESCE(NULLIF(verification_status,''),'')<>'' THEN verification_status
+    WHEN status='Approved' THEN 'Verified'
+    WHEN status='Inactive' THEN 'Inactive'
+    ELSE 'Draft' END");
 
   $conn->query("CREATE TABLE IF NOT EXISTS operator_documents (
     doc_id INT AUTO_INCREMENT PRIMARY KEY,
     operator_id INT NOT NULL,
-    doc_type ENUM('ID','CDA','SEC','Others') DEFAULT 'Others',
+    doc_type ENUM('GovID','CDA','SEC','BarangayCert','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_verified TINYINT(1) NOT NULL DEFAULT 0,
+    verified_by INT DEFAULT NULL,
+    verified_at DATETIME DEFAULT NULL,
     INDEX (operator_id),
     FOREIGN KEY (operator_id) REFERENCES operators(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+
+  $colOpDocs = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='operator_documents'");
+  $opDocCols = [];
+  if ($colOpDocs) {
+    while ($c = $colOpDocs->fetch_assoc()) {
+      $opDocCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($opDocCols['is_verified'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
+  if (!isset($opDocCols['verified_by'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
+  if (!isset($opDocCols['verified_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }
+  $conn->query("UPDATE operator_documents SET doc_type=CASE
+    WHEN LOWER(COALESCE(doc_type,'')) IN ('id','govid','valid id','validid') THEN 'GovID'
+    WHEN COALESCE(doc_type,'') IN ('GovID','CDA','SEC','BarangayCert','Others') THEN doc_type
+    ELSE 'Others' END");
 
   $conn->query("CREATE TABLE IF NOT EXISTS vehicle_documents (
     doc_id INT AUTO_INCREMENT PRIMARY KEY,

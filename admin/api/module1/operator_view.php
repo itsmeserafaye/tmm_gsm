@@ -24,7 +24,7 @@ if ($operatorId <= 0) {
     exit;
 }
 
-$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, status, created_at FROM operators WHERE id=? LIMIT 1");
+$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, created_at FROM operators WHERE id=? LIMIT 1");
 if (!$stmt) {
     echo '<div class="text-sm text-slate-600">Database error.</div>';
     exit;
@@ -39,10 +39,10 @@ if (!$op) {
     exit;
 }
 
-$st = (string) ($op['status'] ?? '');
+$st = (string) ($op['verification_status'] ?? '');
 $badge = match ($st) {
-    'Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-    'Pending' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+    'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+    'Draft' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
     'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
     default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
 };

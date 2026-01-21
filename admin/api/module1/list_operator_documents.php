@@ -16,13 +16,14 @@ if ($operatorId <= 0) {
 $type = trim((string)($_GET['type'] ?? ''));
 if ($type !== '') {
   $t = strtolower($type);
-  if ($t === 'id') $type = 'ID';
+  if ($t === 'id' || $t === 'govid') $type = 'GovID';
   elseif ($t === 'cda') $type = 'CDA';
   elseif ($t === 'sec') $type = 'SEC';
+  elseif ($t === 'barangaycert' || $t === 'barangay') $type = 'BarangayCert';
   elseif ($t === 'others' || $t === 'other') $type = 'Others';
 }
 
-$sql = "SELECT doc_id, doc_type, file_path, uploaded_at FROM operator_documents WHERE operator_id=?";
+$sql = "SELECT doc_id, doc_type, file_path, uploaded_at, is_verified, verified_by, verified_at FROM operator_documents WHERE operator_id=?";
 $params = [$operatorId];
 $types = 'i';
 if ($type !== '') {
@@ -46,4 +47,3 @@ while ($row = $res->fetch_assoc()) $rows[] = $row;
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

@@ -13,18 +13,19 @@ $limit = (int)($_GET['limit'] ?? 200);
 if ($limit <= 0) $limit = 200;
 if ($limit > 500) $limit = 500;
 
-$sql = "SELECT id AS operator_id, operator_type, name, address, contact_no, email, status, created_at FROM operators";
+$sql = "SELECT id AS operator_id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS name, address, contact_no, email, verification_status, created_at FROM operators";
 $conds = [];
 $params = [];
 $types = '';
 
 if ($q !== '') {
-  $conds[] = "(name LIKE ? OR full_name LIKE ? OR contact_no LIKE ? OR email LIKE ?)";
+  $conds[] = "(registered_name LIKE ? OR name LIKE ? OR full_name LIKE ? OR contact_no LIKE ? OR email LIKE ?)";
   $params[] = "%$q%";
   $params[] = "%$q%";
   $params[] = "%$q%";
   $params[] = "%$q%";
-  $types .= 'ssss';
+  $params[] = "%$q%";
+  $types .= 'sssss';
 }
 if ($type !== '' && $type !== 'Type') {
   $conds[] = "operator_type=?";
@@ -32,7 +33,7 @@ if ($type !== '' && $type !== 'Type') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "status=?";
+  $conds[] = "verification_status=?";
   $params[] = $status;
   $types .= 's';
 }
@@ -56,4 +57,3 @@ while ($row = $res->fetch_assoc()) $rows[] = $row;
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

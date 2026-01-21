@@ -6,16 +6,16 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM operators")->fetch_assoc()['c'] ?? 0);
-$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE status='Approved'")->fetch_assoc()['c'] ?? 0);
-$statPending = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE status='Pending'")->fetch_assoc()['c'] ?? 0);
-$statInactive = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE status='Inactive'")->fetch_assoc()['c'] ?? 0);
+$statVerified = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Verified'")->fetch_assoc()['c'] ?? 0);
+$statDraft = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Draft'")->fetch_assoc()['c'] ?? 0);
+$statInactive = (int)($db->query("SELECT COUNT(*) AS c FROM operators WHERE verification_status='Inactive'")->fetch_assoc()['c'] ?? 0);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $type = trim((string)($_GET['operator_type'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $highlightId = (int)($_GET['highlight_operator_id'] ?? 0);
 
-$sql = "SELECT id, operator_type, COALESCE(NULLIF(name,''), full_name) AS display_name, address, contact_no, email, status, created_at
+$sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, address, contact_no, email, verification_status, created_at
         FROM operators";
 $conds = [];
 $params = [];
@@ -34,7 +34,7 @@ if ($type !== '' && $type !== 'Type') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "status=?";
+  $conds[] = "verification_status=?";
   $params[] = $status;
   $types .= 's';
 }
@@ -88,12 +88,12 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($statTotal); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Approved</div>
-      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($statApproved); ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Verified</div>
+      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($statVerified); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending</div>
-      <div class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"><?php echo number_format($statPending); ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Draft</div>
+      <div class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"><?php echo number_format($statDraft); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inactive</div>
@@ -121,7 +121,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="relative w-full sm:w-44">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Pending','Approved','Inactive'] as $s): ?>
+            <?php foreach (['Draft','Verified','Inactive'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -160,10 +160,10 @@ if ($rootUrl === '/') $rootUrl = '';
               <?php
                 $rid = (int)($row['id'] ?? 0);
                 $isHighlight = $highlightId > 0 && $highlightId === $rid;
-                $st = (string)($row['status'] ?? '');
+                $st = (string)($row['verification_status'] ?? '');
                 $badge = match($st) {
-                  'Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Pending' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Draft' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
@@ -208,7 +208,6 @@ if ($rootUrl === '/') $rootUrl = '';
                       data-operator-address="<?php echo htmlspecialchars((string)($row['address'] ?? ''), ENT_QUOTES); ?>"
                       data-operator-contact="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>"
                       data-operator-email="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>"
-                      data-operator-status="<?php echo htmlspecialchars((string)($row['status'] ?? 'Approved'), ENT_QUOTES); ?>"
                       title="Edit Operator">
                       <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
@@ -247,6 +246,7 @@ if ($rootUrl === '/') $rootUrl = '';
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const canWrite = <?php echo json_encode(has_any_permission(['module1.write','module1.vehicles.write'])); ?>;
+    const canVerify = <?php echo json_encode(has_permission('module1.write')); ?>;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -282,19 +282,29 @@ if ($rootUrl === '/') $rootUrl = '';
             const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
             const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
             const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+            const verified = (Number(d.is_verified || 0) === 1);
+            const badge = verified
+              ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+              : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
             return `
-              <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
-                <div class="flex items-center gap-3">
+              <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 transition-all">
+                <div class="flex items-center gap-3 min-w-0">
                   <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">
                     <i data-lucide="file" class="w-4 h-4"></i>
                   </div>
-                  <div>
+                  <div class="min-w-0">
                     <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || '').toString()}</div>
-                    <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${date}</div>
                   </div>
                 </div>
-                <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
-              </a>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge}">${verified ? 'Verified' : 'Pending'}</span>
+                  ${canVerify ? `<button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-verify="1" data-doc-id="${escAttr(d.doc_id)}" data-verify="${verified ? '0' : '1'}">${verified ? 'Unverify' : 'Verify'}</button>` : ``}
+                  <a href="${href}" target="_blank" class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 transition-colors" title="Open">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                  </a>
+                </div>
+              </div>
             `;
           }).join('')}
         </div>
@@ -305,7 +315,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="flex items-center justify-between gap-3 mb-4">
             <div>
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Upload Documents</div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID, CDA, SEC, or Others (PDF/JPG/PNG).</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">GovID, CDA, SEC, or Others (PDF/JPG/PNG).</div>
             </div>
             <button type="button" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-op-docs-refresh="1">
               <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
@@ -317,7 +327,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <input type="hidden" name="operator_id" value="${escAttr(operatorId)}">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">ID</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">GovID</label>
                 <input name="id_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
               </div>
               <div>
@@ -353,6 +363,26 @@ if ($rootUrl === '/') $rootUrl = '';
       `;
 
       if (window.lucide) window.lucide.createIcons();
+
+      body.querySelectorAll('[data-doc-verify="1"]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const docId = b.getAttribute('data-doc-id');
+          const verify = b.getAttribute('data-verify') === '1' ? 1 : 0;
+          try {
+            const fd = new FormData();
+            fd.append('doc_id', String(docId || ''));
+            fd.append('is_verified', String(verify));
+            const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'verify_failed');
+            showToast(verify ? 'Document verified.' : 'Document marked pending.');
+            const latest = await loadOperatorDocs(operatorId);
+            renderOperatorDocs(operatorId, operatorName, latest);
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+          }
+        });
+      });
 
       const btnRefresh = body.querySelector('[data-op-docs-refresh="1"]');
       if (btnRefresh) {
@@ -464,37 +494,9 @@ if ($rootUrl === '/') $rootUrl = '';
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
-                <select name="status" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <option>Approved</option>
-                  <option>Pending</option>
-                  <option>Inactive</option>
-                </select>
-              </div>
-              <div class="flex items-end">
-                <div class="text-xs text-slate-500 dark:text-slate-400">Upload docs after saving (optional): ID, CDA, SEC, Others.</div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">ID</label>
-                <input name="id_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CDA</label>
-                <input name="cda_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">SEC</label>
-                <input name="sec_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
-                <input name="others_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
+            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Note</div>
+              <div class="text-sm text-slate-700 dark:text-slate-200 mt-1">New operators start as Draft. Upload and validate documents in the Documents screen.</div>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
@@ -522,28 +524,14 @@ if ($rootUrl === '/') $rootUrl = '';
           try {
             const fd = new FormData(form);
             const saveFd = new FormData();
-            ['operator_type','name','address','contact_no','email','status'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
+            ['operator_type','name','address','contact_no','email'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
 
             const res = await fetch(rootUrl + '/admin/api/module1/save_operator.php', { method: 'POST', body: saveFd });
             const data = await res.json();
             if (!data || !data.ok || !data.operator_id) throw new Error((data && data.error) ? data.error : 'save_failed');
 
             const operatorId = Number(data.operator_id);
-            const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
-
-            if (hasDocs) {
-              const docsFd = new FormData();
-              docsFd.append('operator_id', String(operatorId));
-              ['id_doc','cda_doc','sec_doc','others_doc'].forEach((k) => {
-                const f = fd.get(k);
-                if (f && f.name) docsFd.append(k, f);
-              });
-              const res2 = await fetch(rootUrl + '/admin/api/module1/upload_operator_docs.php', { method: 'POST', body: docsFd });
-              const data2 = await res2.json();
-              if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
-            }
-
-            showToast('Operator saved successfully.');
+            showToast('Operator saved as Draft.');
             const params = new URLSearchParams(window.location.search || '');
             params.set('page', 'module1/submodule1');
             params.set('highlight_operator_id', String(operatorId));
@@ -595,7 +583,7 @@ if ($rootUrl === '/') $rootUrl = '';
         const address = btn.getAttribute('data-operator-address') || '';
         const contact = btn.getAttribute('data-operator-contact') || '';
         const email = btn.getAttribute('data-operator-email') || '';
-        const status = btn.getAttribute('data-operator-status') || 'Approved';
+        
 
         openModal(`
           <form id="formEditOperator" class="space-y-5" novalidate>
@@ -632,18 +620,8 @@ if ($rootUrl === '/') $rootUrl = '';
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
-                <select name="status" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <option ${status === 'Approved' ? 'selected' : ''}>Approved</option>
-                  <option ${status === 'Pending' ? 'selected' : ''}>Pending</option>
-                  <option ${status === 'Inactive' ? 'selected' : ''}>Inactive</option>
-                </select>
-              </div>
-              <div class="flex items-end">
-                <div class="text-xs text-slate-500 dark:text-slate-400">Edits update the existing operator record.</div>
-              </div>
+            <div class="flex items-end">
+              <div class="text-xs text-slate-500 dark:text-slate-400">Edits update the encoded operator details. Verification is handled via document validation.</div>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">

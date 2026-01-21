@@ -46,7 +46,7 @@ $uploaded = [];
 $errors = [];
 
 $fields = [
-  'id_doc' => 'ID',
+  'id_doc' => 'GovID',
   'cda_doc' => 'CDA',
   'sec_doc' => 'SEC',
   'others_doc' => 'Others',

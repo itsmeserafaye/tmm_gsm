@@ -13,7 +13,6 @@ $operatorType = trim((string) ($_POST['operator_type'] ?? 'Individual'));
 $address = trim((string) ($_POST['address'] ?? ''));
 $contactNo = trim((string) ($_POST['contact_no'] ?? ''));
 $email = trim((string) ($_POST['email'] ?? ''));
-$status = trim((string) ($_POST['status'] ?? 'Approved'));
 
 if ($operatorId <= 0) {
     http_response_code(400);
@@ -32,18 +31,13 @@ if (!in_array($operatorType, $allowedTypes, true)) {
     $operatorType = 'Individual';
 }
 
-$allowedStatus = ['Approved', 'Pending', 'Inactive'];
-if (!in_array($status, $allowedStatus, true)) {
-    $status = 'Approved';
-}
-
-$stmt = $db->prepare("UPDATE operators SET operator_type=?, name=?, full_name=?, address=?, contact_no=?, email=?, status=?, updated_at=NOW() WHERE id=?");
+$stmt = $db->prepare("UPDATE operators SET operator_type=?, registered_name=?, name=?, full_name=?, address=?, contact_no=?, email=?, updated_at=NOW() WHERE id=?");
 if (!$stmt) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
 }
-$stmt->bind_param('sssssssi', $operatorType, $name, $name, $address, $contactNo, $email, $status, $operatorId);
+$stmt->bind_param('sssssssi', $operatorType, $name, $name, $name, $address, $contactNo, $email, $operatorId);
 $ok = $stmt->execute();
 $errno = (int) ($stmt->errno ?? 0);
 $stmt->close();

@@ -48,7 +48,7 @@ try {
     }
 
     $opId = (int)($app['operator_id'] ?? 0);
-    $stmtO = $db->prepare("SELECT status FROM operators WHERE id=? LIMIT 1");
+    $stmtO = $db->prepare("SELECT status, verification_status FROM operators WHERE id=? LIMIT 1");
     if (!$stmtO) throw new Exception('db_prepare_failed');
     $stmtO->bind_param('i', $opId);
     $stmtO->execute();
@@ -59,9 +59,9 @@ try {
         echo json_encode(['ok' => false, 'error' => 'operator_not_found']);
         exit;
     }
-    if (($op['status'] ?? '') !== 'Approved') {
+    if (($op['verification_status'] ?? '') !== 'Verified') {
         $db->rollback();
-        echo json_encode(['ok' => false, 'error' => 'operator_not_approved']);
+        echo json_encode(['ok' => false, 'error' => 'operator_not_verified']);
         exit;
     }
 
