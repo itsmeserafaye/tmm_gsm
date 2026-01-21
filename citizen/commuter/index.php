@@ -36,16 +36,16 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                     },
                     colors: {
                         brand: {
-                            50: '#f0f7ff',
-                            100: '#e0effe',
-                            200: '#bae0fd',
-                            300: '#7cc5f8',
-                            400: '#36a6f1',
-                            500: '#0c8de4',
-                            600: '#0270c2',
-                            700: '#03599c',
-                            800: '#074c83',
-                            900: '#0c406c',
+                            50: '#f5f3ff', // violet-50
+                            100: '#ede9fe', // violet-100
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6', // violet-500
+                            600: '#7c3aed', // violet-600
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
                         },
                         dark: {
                             900: '#0f172a',
@@ -468,18 +468,35 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                     const border = isAlert ? 'border-red-100' : 'border-brand-100';
                     const time = new Date(item.posted_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-                    return `
-                    <div class="bg-white p-5 rounded-2xl border ${border} shadow-sm flex gap-4 transition-transform hover:scale-[1.01]">
-                        <div class="w-10 h-10 rounded-xl ${color} flex items-center justify-center shrink-0">
-                            <i data-lucide="${icon}" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-start">
-                                <h4 class="font-bold text-slate-900 truncate pr-2">${item.title}</h4>
-                                <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">${time}</span>
+                    let suggestionHtml = '';
+                    if (item.suggestion) {
+                        suggestionHtml = `
+                        <div class="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2">
+                            <div class="bg-brand-50 text-brand-600 p-1.5 rounded-lg shrink-0">
+                                <i data-lucide="lightbulb" class="w-4 h-4"></i>
                             </div>
-                            <p class="text-sm text-slate-600 mt-1 leading-relaxed line-clamp-2">${item.content}</p>
+                            <div>
+                                <span class="block text-[10px] font-bold uppercase text-brand-400 tracking-wider">AI Insight</span>
+                                <p class="text-sm font-medium text-brand-800">${item.suggestion}</p>
+                            </div>
+                        </div>`;
+                    }
+
+                    return `
+                    <div class="bg-white p-5 rounded-2xl border ${border} shadow-sm transition-transform hover:scale-[1.01]">
+                        <div class="flex gap-4">
+                            <div class="w-10 h-10 rounded-xl ${color} flex items-center justify-center shrink-0">
+                                <i data-lucide="${icon}" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start">
+                                    <h4 class="font-bold text-slate-900 truncate pr-2">${item.title}</h4>
+                                    <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">${time}</span>
+                                </div>
+                                <p class="text-sm text-slate-600 mt-1 leading-relaxed line-clamp-2">${item.content}</p>
+                            </div>
                         </div>
+                        ${suggestionHtml}
                     </div>`;
                 }).join('');
             } else {

@@ -180,6 +180,23 @@ if ($action === 'get_advisories') {
         return 'info';
     };
 
+    $getAiSuggestion = function ($title, $content, $type) {
+        $text = strtolower($title . ' ' . $content);
+        if ($type === 'alert' || strpos($text, 'heavy') !== false || strpos($text, 'delay') !== false) {
+            return "Consider finding an alternative route or delaying your trip by 30-60 minutes to avoid congestion.";
+        }
+        if ($type === 'warning' || strpos($text, 'moderate') !== false) {
+            return "Allow extra travel time. Check if nearby terminals have shorter queues.";
+        }
+        if (strpos($text, 'accident') !== false || strpos($text, 'collision') !== false) {
+            return "Expect significant delays in this area. Emergency services may be present.";
+        }
+        if (strpos($text, 'weather') !== false || strpos($text, 'rain') !== false) {
+            return "Roads may be slippery. Please travel safely and bring umbrella/raincoat.";
+        }
+        return "Plan your trip ahead. Monitor this advisory for further updates.";
+    };
+
     $hasIsActive = false;
     $col = $db->query("SHOW COLUMNS FROM public_advisories LIKE 'is_active'");
     if ($col && $col->num_rows > 0) {
@@ -196,6 +213,7 @@ if ($action === 'get_advisories') {
         while ($row = $res->fetch_assoc()) {
             $row['type'] = $typeMap($row['type'] ?? '');
             $row['source'] = 'admin';
+            $row['suggestion'] = $getAiSuggestion($row['title'], $row['content'], $row['type']);
             $advisories[] = $row;
         }
     }
