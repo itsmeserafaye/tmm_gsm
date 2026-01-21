@@ -46,7 +46,7 @@ if ($vehRow && isset($vehRow['id'])) {
 
 $rows = [];
 if ($vehicleId > 0) {
-  $sql = "SELECT doc_id AS id, ? AS plate_number, doc_type AS type, file_path, uploaded_at FROM vehicle_documents WHERE vehicle_id=?";
+  $sql = "SELECT doc_id AS id, ? AS plate_number, doc_type AS type, file_path, uploaded_at, is_verified, verified_by, verified_at FROM vehicle_documents WHERE vehicle_id=?";
   $params = [$plate, $vehicleId];
   $types = 'si';
   if ($type !== '') {

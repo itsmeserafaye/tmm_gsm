@@ -124,7 +124,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="p-4 space-y-3">
             <?php
-              $stmtD = $db->prepare("SELECT doc_type, file_path, uploaded_at FROM vehicle_documents WHERE vehicle_id=? ORDER BY uploaded_at DESC");
+              $stmtD = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at, is_verified FROM vehicle_documents WHERE vehicle_id=? ORDER BY uploaded_at DESC");
               $stmtD->bind_param('i', $v['vehicle_id']);
               $stmtD->execute();
               $resD = $stmtD->get_result();
@@ -143,7 +143,13 @@ if ($rootUrl === '/') $rootUrl = '';
                     <i data-lucide="file" class="w-4 h-4"></i>
                   </div>
                   <div>
-                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"><?php echo htmlspecialchars($d['doc_type']); ?></div>
+                    <div class="flex items-center gap-2">
+                      <div class="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"><?php echo htmlspecialchars($d['doc_type']); ?></div>
+                      <?php $isV = (int)($d['is_verified'] ?? 0) === 1; ?>
+                      <span class="text-[10px] font-black px-2 py-0.5 rounded-full <?php echo $isV ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'; ?>">
+                        <?php echo $isV ? 'Verified' : 'Pending'; ?>
+                      </span>
+                    </div>
                     <div class="text-[10px] text-slate-400"><?php echo date('M d, Y', strtotime($d['uploaded_at'])); ?></div>
                   </div>
                 </div>

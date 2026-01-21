@@ -41,7 +41,7 @@ if (!is_dir($uploads_dir)) {
 $uploaded = [];
 $errors = [];
 
-foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'others'] as $field) {
+foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'])) {
@@ -69,9 +69,10 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'others'] as $field) {
         $legacyType = 'deed';
         if ($field === 'or' || $field === 'cr' || $field === 'orcr') { $docType = 'ORCR'; $legacyType = ($field === 'cr' ? 'cr' : 'or'); }
         elseif ($field === 'insurance') { $docType = 'Insurance'; $legacyType = 'insurance'; }
+        elseif ($field === 'emission') { $docType = 'Emission'; $legacyType = 'others'; }
         elseif ($field === 'deed') { $docType = 'Others'; $legacyType = 'deed'; }
 
-        $stmt = $db->prepare("INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path) VALUES (?, ?, ?)");
+        $stmt = $db->prepare("INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, is_verified) VALUES (?, ?, ?, 0)");
         if ($stmt) {
             $stmt->bind_param('iss', $vehicleId, $docType, $filename);
             if (!$stmt->execute()) {

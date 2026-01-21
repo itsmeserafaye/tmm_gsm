@@ -230,8 +230,8 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                     </h3>
                     <span class="text-xs font-medium px-2 py-1 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                         <?php
-                        $stmtCount = $db->prepare("SELECT COUNT(*) as c FROM documents WHERE plate_number=?");
-                        $stmtCount->bind_param('s', $plate);
+                        $stmtCount = $db->prepare("SELECT COUNT(*) as c FROM vehicle_documents WHERE vehicle_id=?");
+                        $stmtCount->bind_param('i', $v['vehicle_id']);
                         $stmtCount->execute();
                         echo $stmtCount->get_result()->fetch_assoc()['c'];
                         ?>
@@ -240,8 +240,8 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                 
                 <div class="flex-grow p-4 space-y-3 overflow-y-auto max-h-[500px]">
                     <?php
-                    $stmtD = $db->prepare("SELECT type, file_path, uploaded_at FROM documents WHERE plate_number=? ORDER BY uploaded_at DESC");
-                    $stmtD->bind_param('s', $plate);
+                    $stmtD = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at, is_verified FROM vehicle_documents WHERE vehicle_id=? ORDER BY uploaded_at DESC");
+                    $stmtD->bind_param('i', $v['vehicle_id']);
                     $stmtD->execute();
                     $resD = $stmtD->get_result();
                     if ($resD->num_rows === 0):
@@ -259,13 +259,24 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <i data-lucide="file" class="w-4 h-4"></i>
                                 </div>
                                 <div>
-                                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"><?php echo htmlspecialchars($d['type']); ?></div>
+                                    <div class="flex items-center gap-2">
+                                      <div class="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-blue-700 dark:group-hover:text-blue-300"><?php echo htmlspecialchars($d['doc_type']); ?></div>
+                                      <?php $isV = (int)($d['is_verified'] ?? 0) === 1; ?>
+                                      <span class="text-[10px] font-black px-2 py-0.5 rounded-full <?php echo $isV ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'; ?>">
+                                        <?php echo $isV ? 'Verified' : 'Pending'; ?>
+                                      </span>
+                                    </div>
                                     <div class="text-[10px] text-slate-400"><?php echo date('M d, Y', strtotime($d['uploaded_at'])); ?></div>
                                 </div>
                             </div>
-                            <a href="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/<?php echo htmlspecialchars($d['file_path']); ?>" target="_blank" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all" title="View Document">
-                                <i data-lucide="external-link" class="w-4 h-4"></i>
-                            </a>
+                            <div class="flex items-center gap-1.5">
+                              <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all" data-doc-verify="1" data-doc-id="<?php echo (int)($d['doc_id'] ?? 0); ?>" data-doc-verified="<?php echo $isV ? '1' : '0'; ?>" title="<?php echo $isV ? 'Mark Pending' : 'Mark Verified'; ?>">
+                                <i data-lucide="<?php echo $isV ? 'rotate-ccw' : 'check-circle-2'; ?>" class="w-4 h-4"></i>
+                              </button>
+                              <a href="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/uploads/<?php echo htmlspecialchars($d['file_path']); ?>" target="_blank" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all" title="View Document">
+                                  <i data-lucide="external-link" class="w-4 h-4"></i>
+                              </a>
+                            </div>
                         </div>
                     <?php endwhile; endif; ?>
                 </div>
@@ -275,7 +286,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                     <form id="formUpload" class="space-y-3" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/upload_docs.php">
                         <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                         
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-4 gap-2">
                             <div class="relative group">
                                 <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
@@ -295,6 +306,13 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
                                     <span class="text-[10px] font-medium text-slate-500">Deed</span>
                                     <input name="deed" type="file" class="hidden">
+                                </label>
+                            </div>
+                            <div class="relative group">
+                                <label class="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer transition-all h-20">
+                                    <i data-lucide="file-plus" class="w-5 h-5 text-slate-400 mb-1"></i>
+                                    <span class="text-[10px] font-medium text-slate-500">Emission</span>
+                                    <input name="emission" type="file" class="hidden">
                                 </label>
                             </div>
                         </div>
@@ -370,6 +388,21 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
   bind("formAssign");
   bind("formDetails");
   bind("formLink");
+  
+  document.querySelectorAll('[data-doc-verify="1"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-doc-id') || '';
+      const isV = btn.getAttribute('data-doc-verified') === '1';
+      const next = isV ? 0 : 1;
+      try {
+        const fd = new FormData();
+        fd.append('doc_id', id);
+        fd.append('is_verified', String(next));
+        await fetch("<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/verify_vehicle_document.php", { method: "POST", body: fd });
+        refresh();
+      } catch (_) { }
+    });
+  });
   
   var fu=document.getElementById("formUpload");
   if(fu){

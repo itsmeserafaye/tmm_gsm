@@ -433,9 +433,12 @@ function db() {
   $conn->query("CREATE TABLE IF NOT EXISTS vehicle_documents (
     doc_id INT AUTO_INCREMENT PRIMARY KEY,
     vehicle_id INT NOT NULL,
-    doc_type ENUM('ORCR','Insurance','Others') DEFAULT 'Others',
+    doc_type ENUM('ORCR','Insurance','Emission','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_verified TINYINT(1) NOT NULL DEFAULT 0,
+    verified_by INT DEFAULT NULL,
+    verified_at DATETIME DEFAULT NULL,
     INDEX (vehicle_id),
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
@@ -456,11 +459,15 @@ function db() {
     $conn->query("ALTER TABLE vehicle_documents ADD COLUMN vehicle_id INT NULL AFTER doc_id");
     $conn->query("ALTER TABLE vehicle_documents ADD INDEX idx_vehicle_id (vehicle_id)");
   }
+  if (!isset($vehDocCols['is_verified'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
+  if (!isset($vehDocCols['verified_by'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
+  if (!isset($vehDocCols['verified_at'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }
   $conn->query("UPDATE vehicle_documents SET doc_type=CASE
     WHEN LOWER(COALESCE(doc_type,'')) IN ('or','cr','orcr','or/cr') THEN 'ORCR'
     WHEN LOWER(COALESCE(doc_type,''))='insurance' THEN 'Insurance'
+    WHEN LOWER(COALESCE(doc_type,'')) IN ('emission','emissions') THEN 'Emission'
     WHEN LOWER(COALESCE(doc_type,'')) IN ('others','other','deed') THEN 'Others'
-    WHEN COALESCE(doc_type,'') IN ('ORCR','Insurance','Others') THEN doc_type
+    WHEN COALESCE(doc_type,'') IN ('ORCR','Insurance','Emission','Others') THEN doc_type
     ELSE 'Others' END");
   $conn->query("UPDATE vehicle_documents vd JOIN vehicles v ON v.plate_number=vd.plate_number SET vd.vehicle_id=v.id WHERE (vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND COALESCE(vd.plate_number,'')<>''");
   $conn->query("CREATE TABLE IF NOT EXISTS coops (

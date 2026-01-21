@@ -147,9 +147,12 @@ CREATE TABLE IF NOT EXISTS operator_documents (
 CREATE TABLE IF NOT EXISTS vehicle_documents (
   doc_id INT AUTO_INCREMENT PRIMARY KEY,
   vehicle_id INT NOT NULL,
-  doc_type ENUM('ORCR','Insurance','Others') DEFAULT 'Others',
+  doc_type ENUM('ORCR','Insurance','Emission','Others') DEFAULT 'Others',
   file_path VARCHAR(255) NOT NULL,
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  is_verified TINYINT(1) NOT NULL DEFAULT 0,
+  verified_by INT DEFAULT NULL,
+  verified_at DATETIME DEFAULT NULL,
   INDEX (vehicle_id),
   FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -430,4 +433,3 @@ CREATE TABLE IF NOT EXISTS puv_demand_observations (
 ) ENGINE=InnoDB;
 
 SET FOREIGN_KEY_CHECKS=1;
-
