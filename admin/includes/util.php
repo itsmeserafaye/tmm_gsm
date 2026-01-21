@@ -62,3 +62,11 @@ function tmm_public_base_url(): string {
     $root = tmm_root_url_from_script();
     return $scheme . '://' . $host . $root;
 }
+
+function tmm_table_exists(mysqli $db, string $table): bool {
+    $table = trim($table);
+    if ($table === '') return false;
+    $safe = $db->real_escape_string($table);
+    $res = $db->query("SHOW TABLES LIKE '{$safe}'");
+    return $res && $res->num_rows > 0;
+}

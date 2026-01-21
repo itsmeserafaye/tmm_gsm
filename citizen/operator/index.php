@@ -740,7 +740,7 @@ if (empty($_SESSION['operator_csrf'])) {
             <form onsubmit="submitNewVehicle(event)" class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1">Plate Number</label>
-                    <input type="text" name="plate_number" minlength="5" maxlength="12" pattern="^[A-Za-z0-9\-\s]{5,12}$" autocapitalize="characters" data-tmm-mask="plate"
+                    <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
                         class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition uppercase"
                         placeholder="ABC-1234" required>
                 </div>

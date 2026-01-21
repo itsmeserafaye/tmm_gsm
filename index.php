@@ -38,6 +38,7 @@ if (!empty($_SESSION['user_id'])) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js" defer></script>
 </head>
 
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -506,8 +507,8 @@ if (!empty($_SESSION['user_id'])) {
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
                 <div>
                     <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                    <input type="text" id="opLoginPlate" name="plate_number" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="ABC-1234">
+                    <input type="text" id="opLoginPlate" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" placeholder="ABC-1234">
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
@@ -554,8 +555,8 @@ if (!empty($_SESSION['user_id'])) {
             <form id="operatorRegisterForm" class="space-y-4 pt-4">
                 <div>
                     <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                    <input type="text" name="plate_number" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="ABC-1234">
+                    <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" placeholder="ABC-1234">
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>

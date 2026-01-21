@@ -263,7 +263,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
                 <form class="space-y-4" data-link-form="1" data-operator-id="<?php echo (int)$opId; ?>" novalidate>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle (Plate)</label>
-                    <input name="plate_number" list="vehiclePlateList" required minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
+                    <input name="plate_number" list="vehiclePlateList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
                   </div>
                   <div class="flex items-center justify-end gap-2">
                     <button type="submit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold" data-link-btn="1">Link Vehicle</button>
@@ -282,10 +282,11 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const normalizePlate = (value) => {
-      const v = (value || '').toString().toUpperCase().replace(/\\s+/g, '');
-      if (v.includes('-')) return v;
-      if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
-      return v;
+      const v = (value || '').toString().toUpperCase().replace(/\\s+/g, '').replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-');
+      const letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
+      const digits = v.replace(/[^0-9]/g, '').slice(0, 4);
+      if (letters.length < 3) return letters + digits;
+      return letters + '-' + digits;
     };
 
     function showToast(message, type) {

@@ -45,13 +45,10 @@
     var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
     v = v.replace(/[^A-Z0-9-]/g, '');
     v = v.replace(/-+/g, '-');
-    if (v.indexOf('-') !== -1) {
-      var parts = v.split('-').filter(Boolean);
-      v = parts.length ? (parts[0] + (parts.length > 1 ? '-' + parts.slice(1).join('') : '')) : '';
-      return v;
-    }
-    if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
-    return v;
+    var letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
+    var digits = v.replace(/[^0-9]/g, '').slice(0, 4);
+    if (letters.length < 3) return letters + digits;
+    return letters + '-' + digits;
   }
 
   function inferUppercase(el) {
@@ -73,16 +70,57 @@
   }
 
   function inferFilter(el) {
+    if (el.dataset.tmmFilter) {
+      var forced = String(el.dataset.tmmFilter || '').toLowerCase();
+      if (forced === 'phone' || forced === 'tel' || forced === 'phoneish') return 'phoneish';
+      if (forced === 'digits') return 'digits';
+      if (forced === 'digits-dash') return 'digits-dash';
+    }
+
+    var type = (el.getAttribute('type') || '').toLowerCase();
+    var name = (el.getAttribute('name') || '').toLowerCase();
+    if (type === 'tel' || name.indexOf('contact') !== -1 || name.indexOf('phone') !== -1 || name.indexOf('mobile') !== -1) {
+      return 'phoneish';
+    }
+
     var pattern = el.getAttribute('pattern') || '';
     if (!pattern) return '';
     var hasLetters = /[a-z]/i.test(pattern);
     if (hasLetters) return '';
-    if (pattern.indexOf('0-9') !== -1 && (pattern.indexOf('\\s') !== -1 || pattern.indexOf('+') !== -1 || pattern.indexOf('()') !== -1 || pattern.indexOf('\\-') !== -1)) {
+    if (pattern.indexOf('0-9') !== -1 && (pattern.indexOf('\\s') !== -1 || pattern.indexOf('+') !== -1 || pattern.indexOf('(') !== -1 || pattern.indexOf('\\-') !== -1)) {
       return 'phoneish';
     }
     if (pattern.indexOf('0-9') !== -1 && pattern.indexOf('\\-') !== -1 && pattern.indexOf('\\s') === -1) return 'digits-dash';
     if (pattern.indexOf('0-9') !== -1 && pattern.indexOf('\\s') === -1 && pattern.indexOf('\\-') === -1 && pattern.indexOf('+') === -1) return 'digits';
     return '';
+  }
+
+  function capToMaxLength(el, insertedText) {
+    var max = Number(el.getAttribute('maxlength') || 0);
+    if (!(max > 0)) return false;
+
+    var start = typeof el.selectionStart === 'number' ? el.selectionStart : null;
+    var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : null;
+    if (start === null || end === null) return false;
+
+    var existingLen = (el.value || '').length;
+    var selectedLen = Math.max(0, end - start);
+    var nextLenBase = existingLen - selectedLen;
+    var remaining = max - nextLenBase;
+
+    if (remaining <= 0) return true;
+    if (typeof insertedText !== 'string') return false;
+    if (insertedText.length <= remaining) return false;
+
+    var truncated = insertedText.slice(0, remaining);
+    try {
+      el.setRangeText(truncated, start, end, 'end');
+      applyInputTransform(el);
+      setFieldValidityUI(el, false);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function inferNumericOnly(el) {
@@ -162,6 +200,21 @@
     el.dataset.tmmEnhanced = '1';
 
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      el.addEventListener('beforeinput', function (e) {
+        if (!e || e.defaultPrevented) return;
+        var t = String(e.inputType || '');
+        if (t.indexOf('insert') !== 0) return;
+        var inserted = typeof e.data === 'string' ? e.data : null;
+        if (capToMaxLength(el, inserted)) e.preventDefault();
+      });
+      el.addEventListener('paste', function (e) {
+        if (!e || e.defaultPrevented) return;
+        var clip = e.clipboardData;
+        if (!clip || typeof clip.getData !== 'function') return;
+        var text = clip.getData('text');
+        if (typeof text !== 'string' || !text) return;
+        if (capToMaxLength(el, text)) e.preventDefault();
+      });
       el.addEventListener('input', function () {
         el.dataset.tmmTouched = '1';
         applyInputTransform(el);
@@ -251,4 +304,3 @@
     startObserver();
   }
 })();
-

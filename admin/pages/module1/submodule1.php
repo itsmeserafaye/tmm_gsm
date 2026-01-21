@@ -63,7 +63,17 @@ if ($rootUrl === '/') $rootUrl = '';
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Operators</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Register and maintain operator records (Individual, Cooperative, Corporation) as the single source of truth.</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <a href="?page=module1/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="car" class="w-4 h-4"></i>
+        Vehicles
+      </a>
+      <?php if (has_any_permission(['module1.link_vehicle','module1.write'])): ?>
+        <a href="?page=module1/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="link-2" class="w-4 h-4"></i>
+          Link Vehicle
+        </a>
+      <?php endif; ?>
       <?php if (has_permission('reports.export')): ?>
         <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_operators_csv.php?<?php echo http_build_query(['q'=>$q,'operator_type'=>$type,'status'=>$status]); ?>"
           class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -214,6 +224,11 @@ if ($rootUrl === '/') $rootUrl = '';
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-docs="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Documents">
                       <i data-lucide="folder-open" class="w-4 h-4"></i>
                     </button>
+                    <?php if (has_any_permission(['module1.link_vehicle','module1.write'])): ?>
+                      <a href="?page=module1/submodule4&highlight_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center" title="Link Vehicle">
+                        <i data-lucide="link-2" class="w-4 h-4"></i>
+                      </a>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>
@@ -486,7 +501,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09XXXXXXXXX or +63 9XXXXXXXXX">
+                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09XXXXXXXXX or +63 9XXXXXXXXX">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
@@ -612,7 +627,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(contact)}">
+                <input name="contact_no" type="tel" inputmode="tel" minlength="7" maxlength="20" pattern="^[0-9+()\\-\\s]{7,20}$" data-tmm-filter="phone" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(contact)}">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>

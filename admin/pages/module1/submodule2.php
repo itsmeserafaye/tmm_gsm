@@ -434,7 +434,7 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
-                <input name="plate_no" required minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
+                <input name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
@@ -503,10 +503,11 @@ $typesList = vehicle_types();
         if (!form || !btnSave) return;
         const plateInput = form.querySelector('input[name="plate_no"]');
         const normalizePlate = (value) => {
-          const v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
-          if (v.includes('-')) return v;
-          if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
-          return v;
+          const v = (value || '').toString().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-');
+          const letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
+          const digits = v.replace(/[^0-9]/g, '').slice(0, 4);
+          if (letters.length < 3) return letters + digits;
+          return letters + '-' + digits;
         };
         if (plateInput) {
           plateInput.addEventListener('input', () => { plateInput.value = normalizePlate(plateInput.value); });

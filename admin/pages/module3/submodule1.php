@@ -122,7 +122,7 @@ if ($res) {
           
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-            <input id="ticket-plate-input" name="plate_no" required minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
+            <input id="ticket-plate-input" name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
             <div id="ticket-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
           </div>
 
