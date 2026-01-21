@@ -165,6 +165,41 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                     </div>
 
                     <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
+                        <label class="<?php echo $labelClass; ?> mb-3">Update Details</label>
+                        <form id="formDetails" class="space-y-4" method="POST" action="api/module1/update_vehicle.php" novalidate>
+                            <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Engine No</label>
+                                    <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345">
+                                    <div class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Engine number found on engine block or OR/CR</div>
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Chassis No</label>
+                                    <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="17 characters (no I, O, Q)">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Make</label>
+                                    <input name="make" maxlength="100" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>" placeholder="e.g., Toyota">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Model</label>
+                                    <input name="model" maxlength="100" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>" placeholder="e.g., Hiace">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Year Model</label>
+                                    <input name="year_model" maxlength="8" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2023">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Fuel Type</label>
+                                    <input name="fuel_type" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>" placeholder="e.g., Diesel">
+                                </div>
+                            </div>
+                            <button class="<?php echo $btnClass; ?>">Save Details</button>
+                        </form>
+                    </div>
+
+                    <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Link Vehicle to Operator</label>
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
@@ -333,6 +368,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
   bind("formStatus");
   bind("formType");
   bind("formAssign");
+  bind("formDetails");
   bind("formLink");
   
   var fu=document.getElementById("formUpload");

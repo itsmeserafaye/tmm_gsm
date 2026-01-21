@@ -73,6 +73,8 @@
     if (el.dataset.tmmFilter) {
       var forced = String(el.dataset.tmmFilter || '').toLowerCase();
       if (forced === 'phone' || forced === 'tel' || forced === 'phoneish') return 'phoneish';
+      if (forced === 'engine' || forced === 'alnumdash') return 'alnumdash';
+      if (forced === 'vin' || forced === 'chassis') return 'vin';
       if (forced === 'digits') return 'digits';
       if (forced === 'digits-dash') return 'digits-dash';
     }
@@ -146,6 +148,12 @@
     var filter = inferFilter(el);
     if (filter === 'phoneish') {
       v = v.replace(/[^0-9+()\-\s]/g, '');
+    } else if (filter === 'alnumdash') {
+      v = v.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      v = v.replace(/-+/g, '-');
+    } else if (filter === 'vin') {
+      v = v.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      v = v.replace(/[IOQ]/g, '');
     } else if (filter === 'digits-dash') {
       v = v.replace(/[^0-9-]/g, '');
       v = v.replace(/-+/g, '-');

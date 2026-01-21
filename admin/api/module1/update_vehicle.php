@@ -8,14 +8,18 @@ $plate = trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
 $vehicleId = isset($_POST['vehicle_id']) ? (int)$_POST['vehicle_id'] : 0;
 $status = trim((string)($_POST['status'] ?? ''));
 $type = trim((string)($_POST['vehicle_type'] ?? ''));
-$engineNo = trim((string)($_POST['engine_no'] ?? ''));
-$chassisNo = trim((string)($_POST['chassis_no'] ?? ''));
+$engineNo = strtoupper(trim((string)($_POST['engine_no'] ?? '')));
+$chassisNo = strtoupper(trim((string)($_POST['chassis_no'] ?? '')));
 $make = trim((string)($_POST['make'] ?? ''));
 $model = trim((string)($_POST['model'] ?? ''));
 $yearModel = trim((string)($_POST['year_model'] ?? ''));
 $fuelType = trim((string)($_POST['fuel_type'] ?? ''));
 
 if ($vehicleId <= 0 && $plate === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_vehicle']); exit; }
+
+if ($engineNo !== '' && !preg_match('/^[A-Z0-9\-]{5,20}$/', $engineNo)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_engine_no']); exit; }
+if ($chassisNo !== '' && !preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $chassisNo)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_chassis_no']); exit; }
+
 $sets = [];
 $params = [];
 $types = '';

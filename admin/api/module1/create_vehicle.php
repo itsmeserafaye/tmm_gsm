@@ -8,16 +8,21 @@ try {
     $db = db();
     require_permission('module1.vehicles.write');
 
-    $plate = strtoupper(trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''))));
-    if ($plate === '' || !preg_match('/^[A-Z0-9-]{4,16}$/', $plate)) {
+    $plateRaw = (string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''));
+    $plateNorm = strtoupper(preg_replace('/\s+/', '', trim($plateRaw)));
+    $plateNorm = preg_replace('/[^A-Z0-9-]/', '', $plateNorm);
+    $letters = substr(preg_replace('/[^A-Z]/', '', $plateNorm), 0, 3);
+    $digits = substr(preg_replace('/[^0-9]/', '', $plateNorm), 0, 4);
+    $plate = ($letters !== '' && $digits !== '') ? ($letters . '-' . $digits) : $plateNorm;
+    if ($plate === '' || !preg_match('/^[A-Z]{3}\-[0-9]{3,4}$/', $plate)) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'invalid_plate']);
         exit;
     }
 
     $type = trim((string)($_POST['vehicle_type'] ?? ''));
-    $engineNo = trim((string)($_POST['engine_no'] ?? ($_POST['engine_number'] ?? '')));
-    $chassisNo = trim((string)($_POST['chassis_no'] ?? ($_POST['chassis_number'] ?? '')));
+    $engineNo = strtoupper(trim((string)($_POST['engine_no'] ?? ($_POST['engine_number'] ?? ''))));
+    $chassisNo = strtoupper(trim((string)($_POST['chassis_no'] ?? ($_POST['chassis_number'] ?? ''))));
     $make = trim((string)($_POST['make'] ?? ''));
     $model = trim((string)($_POST['model'] ?? ''));
     $yearModel = trim((string)($_POST['year_model'] ?? ''));
@@ -28,6 +33,17 @@ try {
     if ($type === '') {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'missing_vehicle_type']);
+        exit;
+    }
+
+    if ($engineNo !== '' && !preg_match('/^[A-Z0-9\-]{5,20}$/', $engineNo)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_engine_no']);
+        exit;
+    }
+    if ($chassisNo !== '' && !preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $chassisNo)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_chassis_no']);
         exit;
     }
 
