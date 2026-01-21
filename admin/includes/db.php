@@ -375,6 +375,16 @@ function db() {
       $opsCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
+  $idxOpsPk = $conn->query("SHOW INDEX FROM operators WHERE Key_name='PRIMARY'");
+  $opsHasPk = $idxOpsPk && $idxOpsPk->num_rows > 0;
+  if (!isset($opsCols['id'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN id INT NOT NULL AUTO_INCREMENT FIRST");
+    $opsCols['id'] = true;
+    $opsHasPk = false;
+  }
+  if (!$opsHasPk && isset($opsCols['id'])) {
+    $conn->query("ALTER TABLE operators ADD PRIMARY KEY (id)");
+  }
   if (!isset($opsCols['operator_type'])) { $conn->query("ALTER TABLE operators ADD COLUMN operator_type ENUM('Individual','Cooperative','Corporation') DEFAULT 'Individual'"); }
   if (!isset($opsCols['name'])) { $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL"); }
   if (!isset($opsCols['address'])) { $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL"); }
