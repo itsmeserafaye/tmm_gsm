@@ -126,76 +126,60 @@ if ($action === 'get_terminals') {
 }
 
 if ($action === 'get_advisories') {
-    // Fetch AI-powered advisories from admin's demand insights API
+    // Fetch advisories - Primary from manual table, Secondary from insights if available
     $advisories = [];
-    $errors = []; // For debugging
 
     // Ensure public_advisories table exists
     $db->query("CREATE TABLE IF NOT EXISTS public_advisories (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         content TEXT,
-        type ENUM('Normal', 'Urgent', 'Route Update') DEFAULT 'Normal',
+        type ENUM('Normal', 'Urgent', 'Route Update', 'info', 'warning', 'alert') DEFAULT 'Normal',
         is_active TINYINT(1) DEFAULT 1,
         posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB");
 
-    try {
-        // Call admin's demand insights API via direct function call to avoid header/exit issues
-        $insightsUrl = __DIR__ . '/../../admin/api/analytics/demand_insights.php';
+    // PRIMARY: Fetch manually created advisories from public_advisories table
+    // These are managed by admin and are RELIABLE
+    $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories WHERE is_active=1 ORDER BY posted_at DESC LIMIT 10");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $advisories[] = $row;
+        }
+    }
 
-        if (file_exists($insightsUrl)) {
-            // Save current GET params and headers_list
-            $savedGet = $_GET;
-            $_GET = ['area_type' => 'terminal', 'hours' => '24'];
+    // SECONDARY: Try to fetch AI-powered insights only as supplementary content
+    // Don't fail if this doesn't work - we already have manual advisories
+    $insightsUrl = __DIR__ . '/../../admin/api/analytics/demand_insights.php';
+    if (file_exists($insightsUrl) && empty($advisories)) {
+        // Only attempt if we have no manual advisories
+        @$savedGet = $_GET;
+        $_GET = ['area_type' => 'terminal', 'hours' => '24'];
 
-            ob_start();
-            try {
-                // Use include_once to prevent redefinition errors
-                include_once $insightsUrl;
-            } catch (Exception $e) {
-                $errors[] = 'Include error: ' . $e->getMessage();
-            }
-            $raw = ob_get_clean();
+        ob_start();
+        @include_once $insightsUrl;
+        $raw = ob_get_clean();
+        $_GET = $savedGet;
 
-            // Restore GET params
-            $_GET = $savedGet;
-
-            // Try to parse the output
-            $insights = !empty($raw) ? json_decode($raw, true) : null;
-
+        if (!empty($raw)) {
+            $insights = @json_decode($raw, true);
             if (is_array($insights) && ($insights['ok'] ?? false)) {
-                $alerts = $insights['alerts'] ?? [];
                 $playbook = $insights['playbook'] ?? [];
                 $overDemand = $playbook['over_demand'] ?? [];
-                $underDemand = $playbook['under_demand'] ?? [];
 
-                // Transform over-demand insights into advisories
                 foreach ($overDemand as $insight) {
                     $type = 'info';
                     $title = '📊 Travel Advisory';
 
-                    // Detect severity from insight text
                     if (stripos($insight, 'CRITICAL') !== false) {
                         $type = 'alert';
                         $title = '🚨 High Demand Alert';
                     } elseif (stripos($insight, 'High Demand') !== false || stripos($insight, 'Heavy') !== false) {
                         $type = 'warning';
                         $title = '⚠️ Traffic & Demand Update';
-                    } elseif (stripos($insight, 'Traffic Impact') !== false) {
-                        $type = 'warning';
-                        $title = '🚦 Traffic Advisory';
-                    } elseif (stripos($insight, 'Rain') !== false) {
-                        $type = 'warning';
-                        $title = '🌧️ Weather Alert';
                     }
 
-                    // Clean up technical jargon for commuters
-                    $content = $insight;
-                    $content = str_replace('**', '', $content); // Remove markdown bold
-                    $content = str_replace('route-compliant reserve units', 'additional vehicles', $content);
-                    $content = str_replace('dispatch headways', 'wait times', $content);
-                    $content = str_replace('Shorten dispatch headways by 5-10 minutes', 'More vehicles will be deployed to reduce wait times', $content);
+                    $content = str_replace(['**', 'route-compliant reserve units', 'dispatch headways'], ['', 'additional vehicles', 'wait times'], $insight);
 
                     $advisories[] = [
                         'id' => 'ai_' . md5($insight),
@@ -205,97 +189,22 @@ if ($action === 'get_advisories') {
                         'posted_at' => date('Y-m-d H:i:s')
                     ];
                 }
-
-                // Transform under-demand insights (travel tips)
-                foreach ($underDemand as $insight) {
-                    // Only show helpful tips, skip technical optimization messages
-                    if (stripos($insight, 'Low Activity') !== false || stripos($insight, 'minimal demand') !== false) {
-                        $content = str_replace('**', '', $insight);
-                        $content = str_replace('Extend headways to conserve fuel/energy', 'Light traffic - good time to travel!', $content);
-
-                        $advisories[] = [
-                            'id' => 'ai_tip_' . md5($insight),
-                            'title' => '✅ Travel Tip',
-                            'content' => $content,
-                            'type' => 'info',
-                            'posted_at' => date('Y-m-d H:i:s')
-                        ];
-                    }
-                }
-
-                // Add weather-specific advisories from alerts
-                foreach ($alerts as $alert) {
-                    $weather = $alert['weather'] ?? [];
-                    $precipProb = (int) ($weather['precip_prob'] ?? 0);
-
-                    if ($precipProb > 60) {
-                        $loc = $alert['area_label'] ?? 'your area';
-                        $advisories[] = [
-                            'id' => 'weather_' . $alert['area_ref'],
-                            'title' => '🌧️ Weather Advisory',
-                            'content' => "Rain expected at {$loc} ({$precipProb}% chance). Allow extra travel time and bring an umbrella.",
-                            'type' => 'warning',
-                            'posted_at' => date('Y-m-d H:i:s')
-                        ];
-                        break; // Only show one weather advisory
-                    }
-                }
-            } else {
-                $errors[] = 'Insights API returned: ' . ($insights['error'] ?? 'Invalid response');
             }
-        } else {
-            $errors[] = 'Insights file not found: ' . $insightsUrl;
-        }
-
-        // Fallback: Also fetch manual advisories from public_advisories table
-        $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 10");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $advisories[] = $row;
-            }
-        }
-
-        // If no advisories at all, show a default message
-        if (empty($advisories)) {
-            $advisories[] = [
-                'id' => 'default',
-                'title' => '✅ All Systems Normal',
-                'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
-                'type' => 'info',
-                'posted_at' => date('Y-m-d H:i:s')
-            ];
-        }
-
-    } catch (Exception $e) {
-        $errors[] = 'Exception: ' . $e->getMessage();
-
-        // On error, try to fetch manual advisories only
-        $res = $db->query("SELECT id, title, content, type, posted_at FROM public_advisories ORDER BY posted_at DESC LIMIT 10");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) {
-                $advisories[] = $row;
-            }
-        }
-
-        // If still empty, add default
-        if (empty($advisories)) {
-            $advisories[] = [
-                'id' => 'default',
-                'title' => '✅ All Systems Normal',
-                'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
-                'type' => 'info',
-                'posted_at' => date('Y-m-d H:i:s')
-            ];
         }
     }
 
-    // Include debug info in development (remove in production)
-    $response = ['ok' => true, 'data' => $advisories];
-    if (!empty($errors) && ($_GET['debug'] ?? '') === '1') {
-        $response['debug_errors'] = $errors;
+    // FALLBACK: If still no advisories, show default message
+    if (empty($advisories)) {
+        $advisories[] = [
+            'id' => 'default',
+            'title' => '✅ All Systems Normal',
+            'content' => 'No active advisories at the moment. All routes and terminals are operating normally.',
+            'type' => 'info',
+            'posted_at' => date('Y-m-d H:i:s')
+        ];
     }
 
-    echo json_encode($response);
+    echo json_encode(['ok' => true, 'data' => $advisories]);
     exit;
 }
 
