@@ -130,18 +130,29 @@ if ($action === 'get_advisories') {
     $advisories = [];
     $errors = []; // For debugging
 
+    // Ensure public_advisories table exists
+    $db->query("CREATE TABLE IF NOT EXISTS public_advisories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        content TEXT,
+        type ENUM('Normal', 'Urgent', 'Route Update') DEFAULT 'Normal',
+        is_active TINYINT(1) DEFAULT 1,
+        posted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB");
+
     try {
-        // Call admin's demand insights API
+        // Call admin's demand insights API via direct function call to avoid header/exit issues
         $insightsUrl = __DIR__ . '/../../admin/api/analytics/demand_insights.php';
 
         if (file_exists($insightsUrl)) {
-            // Save current GET params
+            // Save current GET params and headers_list
             $savedGet = $_GET;
             $_GET = ['area_type' => 'terminal', 'hours' => '24'];
 
             ob_start();
             try {
-                include $insightsUrl;
+                // Use include_once to prevent redefinition errors
+                include_once $insightsUrl;
             } catch (Exception $e) {
                 $errors[] = 'Include error: ' . $e->getMessage();
             }
@@ -150,7 +161,8 @@ if ($action === 'get_advisories') {
             // Restore GET params
             $_GET = $savedGet;
 
-            $insights = json_decode($raw, true);
+            // Try to parse the output
+            $insights = !empty($raw) ? json_decode($raw, true) : null;
 
             if (is_array($insights) && ($insights['ok'] ?? false)) {
                 $alerts = $insights['alerts'] ?? [];

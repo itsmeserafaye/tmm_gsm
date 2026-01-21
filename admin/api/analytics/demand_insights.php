@@ -2,7 +2,10 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/external_data.php';
 $db = db();
-header('Content-Type: application/json');
+// Only set header if not being included by another API endpoint
+if (php_sapi_name() !== 'cli' && !ob_get_level()) {
+    header('Content-Type: application/json');
+}
 
 $areaType = trim((string)($_GET['area_type'] ?? 'terminal'));
 $areaType = $areaType === 'parking_area' ? 'route' : $areaType;
@@ -23,7 +26,9 @@ $forecast = json_decode((string)$raw, true);
 
 if (!is_array($forecast) || !($forecast['ok'] ?? false)) {
   echo json_encode(['ok' => false, 'error' => 'forecast_unavailable']);
-  exit;
+  if (!ob_get_level() && php_sapi_name() !== 'cli') {
+    exit;
+  }
 }
 
 $spikes = $forecast['spikes'] ?? [];
