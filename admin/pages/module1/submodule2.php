@@ -262,6 +262,11 @@ $typesList = vehicle_types();
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
                     <?php if (has_permission('module1.vehicles.write')): ?>
+                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all" data-veh-edit="1" data-plate="<?php echo htmlspecialchars($plateUp, ENT_QUOTES); ?>" title="Edit Vehicle">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                      </button>
+                    <?php endif; ?>
+                    <?php if (has_permission('module1.vehicles.write')): ?>
                       <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-veh-docs="1" data-vehicle-id="<?php echo (int)($row['vehicle_id'] ?? 0); ?>" data-plate="<?php echo htmlspecialchars($plateUp, ENT_QUOTES); ?>" title="Upload / View Docs">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                       </button>
@@ -354,6 +359,23 @@ $typesList = vehicle_types();
           const html = await res.text();
           body.innerHTML = html;
           if (window.lucide) window.lucide.createIcons();
+        } catch (err) {
+          body.innerHTML = `<div class="text-sm text-rose-600">Failed to load.</div>`;
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-veh-edit="1"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const plate = btn.getAttribute('data-plate') || '';
+        openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Edit Vehicle • ' + plate);
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module1/view_html.php?plate=' + encodeURIComponent(plate));
+          const html = await res.text();
+          body.innerHTML = html;
+          if (window.lucide) window.lucide.createIcons();
+          const details = body.querySelector('#vehUpdateDetails');
+          if (details) details.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">Failed to load.</div>`;
         }

@@ -25,6 +25,14 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiryDate)) {
   echo json_encode(['ok' => false, 'error' => 'invalid_expiry_date']);
   exit;
 }
+if (!preg_match('/^[0-9][0-9\-\/]{2,39}$/', $ltfrbRefNo)) {
+  echo json_encode(['ok' => false, 'error' => 'invalid_ltfrb_ref_no']);
+  exit;
+}
+if (!preg_match('/^[0-9]{3,40}$/', $decisionOrderNo)) {
+  echo json_encode(['ok' => false, 'error' => 'invalid_decision_order_no']);
+  exit;
+}
 
 $db->begin_transaction();
 try {
@@ -40,7 +48,7 @@ try {
     exit;
   }
 
-  $st = (string)($app['status'] ?? '');
+  $st = trim((string)($app['status'] ?? ''));
   if (!in_array($st, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'], true)) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'invalid_status']);

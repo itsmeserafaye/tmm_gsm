@@ -164,7 +164,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         </form>
                     </div>
 
-                    <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <div id="vehUpdateDetails" class="border-t border-slate-100 dark:border-slate-800 pt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Update Details</label>
                         <form id="formDetails" class="space-y-4" method="POST" action="api/module1/update_vehicle.php" novalidate>
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">

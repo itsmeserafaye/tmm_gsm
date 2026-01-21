@@ -82,8 +82,8 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Approval Entry</div>
               <form id="formApprove" class="space-y-4 mt-4" novalidate>
-                <input name="ltfrb_ref_no" required maxlength="40" pattern="^[A-Za-z0-9\\-\\/]{3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LTFRB-2026-0001">
-                <input name="decision_order_no" required maxlength="40" pattern="^[A-Za-z0-9\\-\\/]{3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., DO-2026-001">
+                <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][0-9\\-\\/]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
+                <input name="decision_order_no" required maxlength="40" pattern="^[0-9]{3,40}$" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1002003">
                 <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <input name="remarks" maxlength="200" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Valid until expiry date">
                 <button id="btnApprove" class="w-full px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Save Approval</button>
@@ -141,7 +141,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function render(a) {
       currentAppId = Number(a.application_id || 0);
-      currentStatus = (a.status || '').toString();
+      currentStatus = (a.status || '').toString().trim();
       document.getElementById('appTitle').textContent = 'APP-' + currentAppId;
       document.getElementById('appSub').textContent = (a.franchise_ref_number || '').toString();
       document.getElementById('opName').textContent = (a.operator_name || '').toString();
@@ -201,6 +201,18 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (formApprove) {
+      const ltfrbEl = formApprove.querySelector('input[name="ltfrb_ref_no"]');
+      const doEl = formApprove.querySelector('input[name="decision_order_no"]');
+      if (ltfrbEl) {
+        ltfrbEl.addEventListener('input', () => {
+          ltfrbEl.value = (ltfrbEl.value || '').toString().replace(/[^0-9\/-]+/g, '').slice(0, 40);
+        });
+      }
+      if (doEl) {
+        doEl.addEventListener('input', () => {
+          doEl.value = (doEl.value || '').toString().replace(/\D+/g, '').slice(0, 40);
+        });
+      }
       formApprove.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentAppId) return;
@@ -218,7 +230,17 @@ if ($rootUrl === '/') $rootUrl = '';
           const a = await loadApp(currentAppId);
           render(a);
         } catch (err) {
-          showToast(err.message || 'Failed', 'error');
+          const code = (err && err.message) ? String(err.message) : '';
+          const msg = (function(){
+            if (code === 'orcr_required_for_approval') return 'Approval requires enough verified OR/CR documents for the requested vehicle count.';
+            if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
+            if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
+            if (code === 'invalid_status') return 'Application status is not eligible for approval.';
+            if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
+            if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
+            return code || 'Failed';
+          })();
+          showToast(msg, 'error');
         } finally {
           btnApprove.textContent = 'Save Approval';
           setEnabled();

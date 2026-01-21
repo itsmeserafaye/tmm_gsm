@@ -67,7 +67,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
-            <input name="operator_pick" list="operatorPickList" required minlength="3" pattern="^\\d+\\s*-\\s*.+$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - Juan Dela Cruz">
+            <input name="operator_pick" list="operatorPickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 123 - Juan Dela Cruz)">
             <datalist id="operatorPickList">
               <?php foreach ($operators as $o): ?>
                 <option value="<?php echo htmlspecialchars($o['operator_id'] . ' - ' . $o['display_name'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($o['operator_type'] . ' • ' . $o['status']); ?></option>
@@ -76,7 +76,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route</label>
-            <input name="route_pick" list="routePickList" required minlength="3" pattern="^\\d+\\s*-\\s*.+$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 45 - R_001 • Origin → Destination">
+            <input name="route_pick" list="routePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 45 - R_001 • Origin → Destination)">
             <datalist id="routePickList">
               <?php foreach ($routes as $r): ?>
                 <?php $label = $r['route_code'] . ' • ' . trim($r['origin'] . ' → ' . $r['destination']); ?>
@@ -149,13 +149,32 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (form && btn) {
+      const opEl = form.querySelector('input[name="operator_pick"]');
+      const rtEl = form.querySelector('input[name="route_pick"]');
+      const setPickValidity = (el) => {
+        if (!el) return;
+        const v = (el.value || '').toString();
+        const ok = parseId(v) > 0;
+        el.setCustomValidity(ok ? '' : 'Please select a valid option from the list.');
+      };
+      if (opEl) {
+        opEl.addEventListener('input', () => { opEl.setCustomValidity(''); });
+        opEl.addEventListener('blur', () => { setPickValidity(opEl); });
+      }
+      if (rtEl) {
+        rtEl.addEventListener('input', () => { rtEl.setCustomValidity(''); });
+        rtEl.addEventListener('blur', () => { setPickValidity(rtEl); });
+      }
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!form.checkValidity()) { form.reportValidity(); return; }
         const fd = new FormData(form);
         const operatorId = parseId(fd.get('operator_pick'));
         const routeId = parseId(fd.get('route_pick'));
         const vehicleCount = Number(fd.get('vehicle_count') || 0);
+        if (opEl) setPickValidity(opEl);
+        if (rtEl) setPickValidity(rtEl);
+        if (!form.checkValidity()) { form.reportValidity(); return; }
         if (!operatorId || !routeId || !vehicleCount) { showToast('Missing required fields.', 'error'); return; }
 
         btn.disabled = true;
