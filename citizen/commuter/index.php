@@ -26,7 +26,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
     <title>City Transport Portal - Public Information</title>
     <link rel="icon" type="image/jpeg" href="images/logo.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -428,8 +428,13 @@ $userName = $_SESSION['name'] ?? 'Commuter';
     <script>
         const API_URL = 'api.php';
 
-        // Initialize Icons
-        lucide.createIcons();
+        function safeCreateIcons() {
+            try {
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                }
+            } catch (e) { }
+        }
 
         async function fetchJsonSafe(url) {
             const res = await fetch(url, { cache: 'no-store' });
@@ -448,6 +453,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
         }
 
         // Initial Load
+        safeCreateIcons();
         loadAdvisories();
         populateRouteOptions();
 
@@ -558,7 +564,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                         </div>
                     `;
                     }).join('');
-                    lucide.createIcons();
+                    safeCreateIcons();
 
                     // Update last updated timestamp
                     lastAdvisoryUpdate = new Date();
@@ -651,7 +657,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                         </tr>
                     `).join('');
                     tbody.setAttribute('data-loaded', 'true');
-                    lucide.createIcons();
+                    safeCreateIcons();
                 } else if (!data.ok) {
                     tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400 italic">Error: ${data.error}</td></tr>`;
                 } else {
@@ -690,7 +696,7 @@ $userName = $_SESSION['name'] ?? 'Commuter';
                         </div>
                     `).join('');
                     grid.setAttribute('data-loaded', 'true');
-                    lucide.createIcons();
+                    safeCreateIcons();
                 } else if (!data.ok) {
                     grid.innerHTML = `<div class="col-span-full text-center py-12 text-red-400 italic">Error: ${data.error}</div>`;
                 } else {
