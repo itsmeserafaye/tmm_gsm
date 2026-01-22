@@ -99,6 +99,29 @@ CREATE TABLE IF NOT EXISTS ownership_transfers (
   FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS vehicle_ownership_transfers (
+  transfer_id INT AUTO_INCREMENT PRIMARY KEY,
+  vehicle_id INT NOT NULL,
+  from_operator_id INT DEFAULT NULL,
+  to_operator_id INT DEFAULT NULL,
+  transfer_type ENUM('Sale','Donation','Inheritance','Reassignment') NOT NULL DEFAULT 'Reassignment',
+  lto_reference_no VARCHAR(128) DEFAULT NULL,
+  deed_of_sale_path VARCHAR(255) DEFAULT NULL,
+  orcr_path VARCHAR(255) DEFAULT NULL,
+  status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+  effective_date DATE DEFAULT NULL,
+  reviewed_by INT DEFAULT NULL,
+  reviewed_at DATETIME DEFAULT NULL,
+  remarks TEXT DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_vehicle_id (vehicle_id),
+  INDEX idx_status (status),
+  INDEX idx_created_at (created_at),
+  FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+  FOREIGN KEY (from_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
+  FOREIGN KEY (to_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS terminals (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,

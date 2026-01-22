@@ -87,11 +87,14 @@ function db() {
   if (!isset($vehCols['year_model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL"); }
   if (!isset($vehCols['fuel_type'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL"); }
   if (!isset($vehCols['color'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN color VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($vehCols['current_operator_id'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN current_operator_id INT DEFAULT NULL"); }
+  if (!isset($vehCols['ownership_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN ownership_status ENUM('Active','Transferred') DEFAULT 'Active'"); }
   if (!isset($vehCols['record_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'"); }
   $conn->query("UPDATE vehicles SET record_status=CASE
     WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
     ELSE 'Encoded' END");
+  $conn->query("UPDATE vehicles SET current_operator_id=operator_id WHERE (current_operator_id IS NULL OR current_operator_id=0) AND operator_id IS NOT NULL AND operator_id>0");
   $conn->query("UPDATE vehicles SET status='Active' WHERE status IN ('Linked','Unlinked') OR status IS NULL OR status=''");
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -123,6 +126,29 @@ function db() {
     transferred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX (plate_number),
     FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS vehicle_ownership_transfers (
+    transfer_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    from_operator_id INT DEFAULT NULL,
+    to_operator_id INT DEFAULT NULL,
+    transfer_type ENUM('Sale','Donation','Inheritance','Reassignment') NOT NULL DEFAULT 'Reassignment',
+    lto_reference_no VARCHAR(128) DEFAULT NULL,
+    deed_of_sale_path VARCHAR(255) DEFAULT NULL,
+    orcr_path VARCHAR(255) DEFAULT NULL,
+    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    effective_date DATE DEFAULT NULL,
+    reviewed_by INT DEFAULT NULL,
+    reviewed_at DATETIME DEFAULT NULL,
+    remarks TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vehicle_id (vehicle_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (from_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
+    FOREIGN KEY (to_operator_id) REFERENCES operators(id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
   $conn->query("CREATE TABLE IF NOT EXISTS terminal_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,

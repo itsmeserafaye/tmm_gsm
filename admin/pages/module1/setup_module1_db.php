@@ -222,6 +222,27 @@ $sql = "CREATE TABLE IF NOT EXISTS ownership_transfers (
 if ($db->query($sql)) log_msg("Table 'ownership_transfers' checked/created.\n");
 else log_msg("Error 'ownership_transfers': " . $db->error . "\n");
 
+$sql = "CREATE TABLE IF NOT EXISTS vehicle_ownership_transfers (
+    transfer_id INT AUTO_INCREMENT PRIMARY KEY,
+    vehicle_id INT NOT NULL,
+    from_operator_id INT DEFAULT NULL,
+    to_operator_id INT DEFAULT NULL,
+    transfer_type VARCHAR(32) DEFAULT 'Reassignment',
+    lto_reference_no VARCHAR(128) DEFAULT NULL,
+    deed_of_sale_path VARCHAR(255) DEFAULT NULL,
+    orcr_path VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(20) DEFAULT 'Pending',
+    effective_date DATE DEFAULT NULL,
+    reviewed_by INT DEFAULT NULL,
+    reviewed_at DATETIME DEFAULT NULL,
+    remarks TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (vehicle_id),
+    INDEX (status)
+)";
+if ($db->query($sql)) log_msg("Table 'vehicle_ownership_transfers' checked/created.\n");
+else log_msg("Error 'vehicle_ownership_transfers': " . $db->error . "\n");
+
 // 8. Officers (Module 4 Inspectors & Approvers)
 $sql = "CREATE TABLE IF NOT EXISTS officers (
     officer_id INT AUTO_INCREMENT PRIMARY KEY,

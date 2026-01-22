@@ -1,0 +1,411 @@
+<?php
+require_once __DIR__ . '/../../includes/auth.php';
+require_any_permission(['module1.write','module1.vehicles.write']);
+
+require_once __DIR__ . '/../../includes/db.php';
+$db = db();
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
+
+$canReview = has_permission('module1.write');
+$canCreate = has_any_permission(['module1.vehicles.write','module1.write']);
+
+$vehicles = [];
+$resV = $db->query("SELECT v.id, UPPER(v.plate_number) AS plate_number, v.operator_id, COALESCE(NULLIF(o.registered_name,''), NULLIF(o.name,''), o.full_name, v.operator_name) AS operator_name
+                    FROM vehicles v
+                    LEFT JOIN operators o ON o.id=v.operator_id
+                    WHERE v.operator_id IS NOT NULL AND v.operator_id>0 AND COALESCE(v.plate_number,'')<>''
+                    ORDER BY v.created_at DESC LIMIT 1500");
+if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
+
+$operators = [];
+$resO = $db->query("SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, workflow_status
+                    FROM operators
+                    WHERE COALESCE(NULLIF(workflow_status,''),'Draft') <> 'Inactive'
+                    ORDER BY created_at DESC LIMIT 1500");
+if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
+?>
+
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Ownership Transfer</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Record transfer requests for operational tracking. Legal ownership remains under LTO.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="?page=module1/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="bus" class="w-4 h-4"></i>
+        Vehicle Encoding
+      </a>
+      <a href="?page=module1/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="link-2" class="w-4 h-4"></i>
+        Vehicle–Operator Linking
+      </a>
+    </div>
+  </div>
+
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-700">
+        <div class="text-sm font-black text-slate-900 dark:text-white">Create Transfer Request</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Upload deed/authorization and choose the new operator.</div>
+      </div>
+      <div class="p-5">
+        <?php if (!$canCreate): ?>
+          <div class="text-sm text-slate-500 dark:text-slate-400 italic">You don't have permission to create transfer requests.</div>
+        <?php else: ?>
+          <form id="formCreateTransfer" class="space-y-4" enctype="multipart/form-data" novalidate>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
+              <div class="relative" data-combobox="1" data-kind="vehicle">
+                <input type="hidden" name="vehicle_id" value="" data-combo-id="1">
+                <input required readonly class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer uppercase" placeholder="Select vehicle" data-combo-display="1">
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" data-combo-toggle="1">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div class="absolute left-0 right-0 mt-2 z-[80] hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden" data-combo-panel="1">
+                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                    <input type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search in dropdown..." data-combo-search="1">
+                  </div>
+                  <div class="max-h-72 overflow-auto" data-combo-list="1"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Transfer Type</label>
+                <select name="transfer_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <?php foreach (['Sale','Donation','Inheritance','Reassignment'] as $t): ?>
+                    <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Effective Date (optional)</label>
+                <input name="effective_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">New Operator</label>
+              <div class="relative" data-combobox="1" data-kind="operator">
+                <input type="hidden" name="to_operator_id" value="" data-combo-id="1">
+                <input required readonly class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select operator" data-combo-display="1">
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" data-combo-toggle="1">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div class="absolute left-0 right-0 mt-2 z-[80] hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden" data-combo-panel="1">
+                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                    <input type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search in dropdown..." data-combo-search="1">
+                  </div>
+                  <div class="max-h-72 overflow-auto" data-combo-list="1"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">LTO Reference No (optional)</label>
+                <input name="lto_reference_no" maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LTO-REF-2026-000123">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR (optional)</label>
+                <input name="orcr_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Deed of Sale / Authorization (required)</label>
+              <input name="deed_doc" type="file" required accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+              <button id="btnCreateTransfer" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit Request</button>
+            </div>
+          </form>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div>
+          <div class="text-sm font-black text-slate-900 dark:text-white">Transfer Requests</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Review, approve, or reject requests.</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="qInput" class="w-44 sm:w-56 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/operator">
+          <select id="statusFilter" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="">All</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <button type="button" id="btnReload" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Reload</button>
+        </div>
+      </div>
+      <div class="p-5">
+        <div id="transferList" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const canReview = <?php echo json_encode($canReview); ?>;
+    const vehicles = <?php echo json_encode(array_map(function($v){
+      return [
+        'id' => (int)($v['id'] ?? 0),
+        'plate_number' => (string)($v['plate_number'] ?? ''),
+        'operator_id' => (int)($v['operator_id'] ?? 0),
+        'operator_name' => (string)($v['operator_name'] ?? ''),
+      ];
+    }, $vehicles)); ?>;
+    const operators = <?php echo json_encode(array_map(function($o){
+      return [
+        'id' => (int)($o['id'] ?? 0),
+        'display_name' => (string)($o['display_name'] ?? ''),
+        'operator_type' => (string)($o['operator_type'] ?? ''),
+        'workflow_status' => (string)($o['workflow_status'] ?? ''),
+      ];
+    }, $operators)); ?>;
+
+    function showToast(message, type) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = (type || 'success').toString();
+      const color = t === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold ${color}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
+      setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+    }
+
+    function setupCombo(box, items, renderText) {
+      const idInput = box.querySelector('[data-combo-id="1"]');
+      const displayInput = box.querySelector('[data-combo-display="1"]');
+      const toggleBtn = box.querySelector('[data-combo-toggle="1"]');
+      const panel = box.querySelector('[data-combo-panel="1"]');
+      const search = box.querySelector('[data-combo-search="1"]');
+      const list = box.querySelector('[data-combo-list="1"]');
+      if (!idInput || !displayInput || !panel || !search || !list) return;
+
+      const open = () => {
+        panel.classList.remove('hidden');
+        render(search.value);
+        setTimeout(() => { search.focus(); }, 0);
+        if (window.lucide) window.lucide.createIcons();
+      };
+      const close = () => { panel.classList.add('hidden'); };
+      const render = (q) => {
+        const query = (q || '').toString().trim().toUpperCase();
+        const filtered = items.filter((it) => {
+          const label = renderText(it);
+          return !query || label.toUpperCase().includes(query);
+        });
+        if (!filtered.length) {
+          list.innerHTML = '<div class="p-3 text-sm text-slate-500 dark:text-slate-400 italic">No matches.</div>';
+          return;
+        }
+        list.innerHTML = filtered.map((it) => {
+          const id = String(it.id || '');
+          const label = renderText(it);
+          return `<button type="button" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-item="1" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`;
+        }).join('');
+        list.querySelectorAll('[data-item="1"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            idInput.value = btn.getAttribute('data-id') || '';
+            displayInput.value = (btn.textContent || '').trim();
+            close();
+            search.value = '';
+          });
+        });
+      };
+
+      displayInput.addEventListener('click', () => { panel.classList.contains('hidden') ? open() : close(); });
+      if (toggleBtn) toggleBtn.addEventListener('click', () => { panel.classList.contains('hidden') ? open() : close(); });
+      search.addEventListener('input', () => render(search.value));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target)) close(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    }
+
+    document.querySelectorAll('[data-combobox="1"]').forEach((box) => {
+      const kind = box.getAttribute('data-kind');
+      if (kind === 'vehicle') {
+        setupCombo(box, vehicles, (v) => {
+          const op = v.operator_name ? (' • ' + v.operator_name) : '';
+          return (v.plate_number || '') + op;
+        });
+      } else if (kind === 'operator') {
+        setupCombo(box, operators, (o) => {
+          const t = o.operator_type ? (' • ' + o.operator_type) : '';
+          return (o.display_name || ('Operator #' + (o.id || ''))) + t;
+        });
+      }
+    });
+
+    async function loadTransfers() {
+      const q = (document.getElementById('qInput')?.value || '').toString();
+      const status = (document.getElementById('statusFilter')?.value || '').toString();
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (status) params.set('status', status);
+      const res = await fetch(rootUrl + '/admin/api/module1/ownership_transfer_list.php?' + params.toString());
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return Array.isArray(data.data) ? data.data : [];
+    }
+
+    function badge(status) {
+      const s = String(status || '');
+      if (s === 'Approved') return 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20';
+      if (s === 'Rejected') return 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
+      return 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
+    }
+
+    function renderTransfers(rows) {
+      const el = document.getElementById('transferList');
+      if (!el) return;
+      if (!rows.length) {
+        el.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400 italic">No transfer requests.</div>';
+        return;
+      }
+      el.innerHTML = rows.map((r) => {
+        const id = String(r.transfer_id || '');
+        const plate = String(r.plate_number || '');
+        const from = String(r.from_operator_name || ('#' + (r.from_operator_id || '')));
+        const to = String(r.to_operator_name || ('#' + (r.to_operator_id || '')));
+        const type = String(r.transfer_type || '');
+        const st = String(r.status || 'Pending');
+        const dt = r.created_at ? new Date(r.created_at) : null;
+        const when = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+        const deed = r.deed_of_sale_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.deed_of_sale_path))) : '';
+        const orcr = r.orcr_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.orcr_path))) : '';
+        const actions = (canReview && st === 'Pending') ? `
+          <div class="flex items-center gap-2">
+            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors" data-act="approve" data-id="${escapeHtml(id)}">Approve</button>
+            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors" data-act="reject" data-id="${escapeHtml(id)}">Reject</button>
+          </div>
+        ` : '';
+        return `
+          <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/20">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="text-sm font-black text-slate-900 dark:text-white">${escapeHtml(plate)}</div>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge(st)}">${escapeHtml(st)}</span>
+                  <span class="inline-flex items-center rounded-lg bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700">${escapeHtml(type)}</span>
+                </div>
+                <div class="mt-2 text-sm text-slate-600 dark:text-slate-300 font-semibold">From: ${escapeHtml(from)} → To: ${escapeHtml(to)}</div>
+                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">${escapeHtml(when)}</div>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  ${deed ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(deed)}" target="_blank">Deed</a>` : ``}
+                  ${orcr ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(orcr)}" target="_blank">OR/CR</a>` : ``}
+                </div>
+              </div>
+              ${actions}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      el.querySelectorAll('button[data-act]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const action = btn.getAttribute('data-act');
+          const id = btn.getAttribute('data-id');
+          if (!id) return;
+          let remarks = '';
+          let eff = '';
+          if (action === 'reject') {
+            remarks = (prompt('Reject remarks (required):') || '').trim();
+            if (!remarks) { showToast('Remarks required.', 'error'); return; }
+          } else {
+            eff = (prompt('Effective date (YYYY-MM-DD) optional:', '') || '').trim();
+            if (eff && !/^\d{4}\-\d{2}\-\d{2}$/.test(eff)) { showToast('Invalid date format.', 'error'); return; }
+          }
+          const fd = new FormData();
+          fd.append('transfer_id', id);
+          fd.append('action', action);
+          if (remarks) fd.append('remarks', remarks);
+          if (eff) fd.append('effective_date', eff);
+          try {
+            const res = await fetch(rootUrl + '/admin/api/module1/ownership_transfer_review.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
+            showToast(action === 'approve' ? 'Transfer approved.' : 'Transfer rejected.');
+            await refresh();
+          } catch (err) {
+            const raw = (err && err.message) ? String(err.message) : '';
+            const msg = raw === 'active_violations' ? 'Cannot approve: vehicle has active violations.'
+              : raw === 'orcr_not_valid' ? 'Cannot approve: OR/CR is not valid.'
+              : (raw || 'Failed');
+            showToast(msg, 'error');
+          }
+        });
+      });
+    }
+
+    async function refresh() {
+      try {
+        const rows = await loadTransfers();
+        renderTransfers(rows);
+      } catch (e) {
+        const el = document.getElementById('transferList');
+        if (el) el.innerHTML = '<div class="text-sm text-rose-600">Failed to load requests.</div>';
+      }
+    }
+
+    const btnReload = document.getElementById('btnReload');
+    if (btnReload) btnReload.addEventListener('click', refresh);
+    refresh();
+
+    const form = document.getElementById('formCreateTransfer');
+    const btn = document.getElementById('btnCreateTransfer');
+    if (form && btn) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        const orig = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+        try {
+          const fd = new FormData(form);
+          const res = await fetch(rootUrl + '/admin/api/module1/ownership_transfer_create.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'create_failed');
+          showToast('Transfer request submitted.');
+          form.reset();
+          form.querySelectorAll('[data-combo-id="1"]').forEach((inp) => { inp.value = ''; });
+          form.querySelectorAll('[data-combo-display="1"]').forEach((inp) => { inp.value = ''; });
+          await refresh();
+        } catch (err) {
+          const raw = (err && err.message) ? String(err.message) : '';
+          const msg = raw === 'active_violations' ? 'Cannot create: vehicle has active violations.'
+            : raw === 'orcr_not_valid' ? 'Cannot create: OR/CR is not valid.'
+            : raw === 'franchise_active' ? 'Cannot create: franchise is still active under current operator.'
+            : raw === 'missing_deed_doc' ? 'Deed/authorization document is required.'
+            : (raw || 'Failed');
+          showToast(msg, 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = orig;
+        }
+      });
+    }
+  })();
+</script>
