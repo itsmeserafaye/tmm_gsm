@@ -45,10 +45,12 @@
     var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
     v = v.replace(/[^A-Z0-9-]/g, '');
     v = v.replace(/-+/g, '-');
-    var letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
-    var digits = v.replace(/[^0-9]/g, '').slice(0, 4);
-    if (letters.length < 3) return letters + digits;
-    return letters + '-' + digits;
+    if (v.indexOf('-') !== -1) return v;
+    var mStd = v.match(/^([A-Z]{1,3})(\d{3,4})$/);
+    if (mStd) return mStd[1] + '-' + mStd[2];
+    var mAny = v.match(/^([A-Z0-9]+)(\d{3,4})$/);
+    if (mAny) return mAny[1] + '-' + mAny[2];
+    return v;
   }
 
   function normalizePlateAny(value) {

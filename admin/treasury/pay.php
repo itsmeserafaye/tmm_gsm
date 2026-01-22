@@ -3,7 +3,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/treasury.php';
 
-require_any_permission(['tickets.settle', 'parking.manage']);
+require_any_permission(['module3.settle', 'module5.parking_fees', 'module5.manage_terminal']);
 
 $db = db();
 $kind = strtolower(trim((string)($_GET['kind'] ?? 'ticket')));
@@ -42,4 +42,3 @@ $digitalUrl = tmm_treasury_digital_url();
   </script>
 </body>
 </html>
-

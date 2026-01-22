@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
+require_any_permission(['module3.read','module3.issue','module3.settle']);
 
 $status = trim($_GET['status'] ?? '');
 $q = trim($_GET['q'] ?? '');
@@ -20,11 +20,13 @@ if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escala
   $types .= 's';
 }
 if ($q !== '') {
-  $conds[] = "(t.vehicle_plate LIKE ? OR t.ticket_number LIKE ? OR t.external_ticket_number LIKE ?)";
+  $qNoDash = preg_replace('/[^A-Za-z0-9]/', '', $q);
+  $conds[] = "(t.vehicle_plate LIKE ? OR REPLACE(t.vehicle_plate,'-','') LIKE ? OR t.ticket_number LIKE ? OR t.external_ticket_number LIKE ?)";
+  $params[] = "%$q%";
+  $params[] = "%$qNoDash%";
   $params[] = "%$q%";
   $params[] = "%$q%";
-  $params[] = "%$q%";
-  $types .= 'sss';
+  $types .= 'ssss';
 }
 if ($period === '30d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 30 DAY)"; }
 if ($period === '90d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 90 DAY)"; }

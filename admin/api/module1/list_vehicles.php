@@ -10,7 +10,14 @@ $sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operat
 $conds = [];
 $params = [];
 $types = '';
-if ($q !== '') { $conds[] = "(plate_number LIKE ? OR operator_name LIKE ?)"; $params[] = "%$q%"; $params[] = "%$q%"; $types .= 'ss'; }
+if ($q !== '') {
+  $qNoDash = preg_replace('/[^A-Za-z0-9]/', '', $q);
+  $conds[] = "(plate_number LIKE ? OR REPLACE(plate_number,'-','') LIKE ? OR operator_name LIKE ?)";
+  $params[] = "%$q%";
+  $params[] = "%$qNoDash%";
+  $params[] = "%$q%";
+  $types .= 'sss';
+}
 if ($recordStatus !== '') { $conds[] = "record_status=?"; $params[] = $recordStatus; $types .= 's'; }
 if ($status !== '') { $conds[] = "status=?"; $params[] = $status; $types .= 's'; }
 if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }

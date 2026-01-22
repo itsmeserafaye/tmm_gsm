@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
+require_any_permission(['module3.read','module3.issue','module3.settle']);
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';

@@ -11,6 +11,23 @@ $vehicles = [];
 $resV = $db->query("SELECT id, plate_number FROM vehicles WHERE operator_id IS NOT NULL AND operator_id > 0 ORDER BY plate_number ASC LIMIT 1200");
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
+$prefillVehicleText = '';
+if ($prefillVehicleId > 0) {
+  $stmtPV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
+  if ($stmtPV) {
+    $stmtPV->bind_param('i', $prefillVehicleId);
+    $stmtPV->execute();
+    if ($pv = $stmtPV->get_result()->fetch_assoc()) {
+      $prefillVehicleText = (string)$pv['id'] . ' - ' . (string)$pv['plate_number'];
+    } else {
+      $prefillVehicleText = (string)$prefillVehicleId;
+    }
+    $stmtPV->close();
+  } else {
+    $prefillVehicleText = (string)$prefillVehicleId;
+  }
+}
+
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -39,7 +56,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formRegister" class="space-y-5" novalidate>
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="3" pattern="^\\d+\\s*-\\s*.+$" value="<?php echo $prefillVehicleId > 0 ? htmlspecialchars((string)$prefillVehicleId) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
+          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" pattern="^(?:\\d+\\s*-\\s*.+|\\d+)$" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
           <datalist id="vehiclePickList">
             <?php foreach ($vehicles as $v): ?>
               <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>

@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('tickets.issue');
+require_any_permission(['module5.manage_terminal','module5.parking_fees','module3.issue']);
 
 $hasTicketNoCol = false;
 $resCol = $db->query("SHOW COLUMNS FROM parking_violations LIKE 'traffic_ticket_number'");

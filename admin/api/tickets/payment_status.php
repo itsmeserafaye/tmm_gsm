@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('tickets.settle');
+require_permission('module3.settle');
 
 $ticket = trim((string)($_GET['ticket_number'] ?? ($_GET['q'] ?? '')));
 if ($ticket === '') {
@@ -84,4 +84,3 @@ echo json_encode([
     'external_payment_id' => $externalPaymentId,
   ],
 ]);
-

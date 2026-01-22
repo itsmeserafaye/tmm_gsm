@@ -3,19 +3,27 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('tickets.validate');
+require_any_permission(['module3.issue','module3.settle']);
 
 $ticket = trim($_POST['ticket_number'] ?? '');
-$plate = strtoupper(trim($_POST['vehicle_plate'] ?? ''));
+$plateRaw = strtoupper(trim((string)($_POST['vehicle_plate'] ?? '')));
+$plateRaw = preg_replace('/\s+/', '', $plateRaw);
+$plateNoDash = preg_replace('/[^A-Z0-9]/', '', $plateRaw);
+$plate = $plateRaw;
+if ($plate !== '' && strpos($plate, '-') === false) {
+  if (preg_match('/^([A-Z0-9]+)(\d{3,4})$/', $plateNoDash, $m)) {
+    $plate = $m[1] . '-' . $m[2];
+  }
+}
 
 if ($ticket === '' && $plate === '') {
   echo json_encode(['error' => 'Ticket number or plate required']);
   exit;
 }
 
-$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR external_ticket_number = ? OR vehicle_plate = ? ORDER BY date_issued DESC LIMIT 1");
+$stmt = $db->prepare("SELECT ticket_id, vehicle_plate, status FROM tickets WHERE ticket_number = ? OR external_ticket_number = ? OR vehicle_plate = ? OR REPLACE(vehicle_plate,'-','') = ? ORDER BY date_issued DESC LIMIT 1");
 $ticket2 = $ticket;
-$stmt->bind_param('sss', $ticket, $ticket2, $plate);
+$stmt->bind_param('ssss', $ticket, $ticket2, $plate, $plateNoDash);
 $stmt->execute();
 $res = $stmt->get_result();
 

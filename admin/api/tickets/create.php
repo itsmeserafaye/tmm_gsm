@@ -3,10 +3,17 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_permission('tickets.issue');
+require_permission('module3.issue');
 
 $violation = trim($_POST['violation_code'] ?? '');
-$plate = strtoupper(trim($_POST['vehicle_plate'] ?? ''));
+$plate = strtoupper(trim((string)($_POST['vehicle_plate'] ?? '')));
+$plate = preg_replace('/\s+/', '', $plate);
+$plateNoDash = preg_replace('/[^A-Z0-9]/', '', $plate);
+if ($plate !== '' && strpos($plate, '-') === false) {
+  if (preg_match('/^([A-Z0-9]+)(\d{3,4})$/', $plateNoDash, $m)) {
+    $plate = $m[1] . '-' . $m[2];
+  }
+}
 $driver = trim($_POST['driver_name'] ?? '');
 $location = trim($_POST['location'] ?? '');
 $officer_id = isset($_POST['officer_id']) ? (int)$_POST['officer_id'] : null;

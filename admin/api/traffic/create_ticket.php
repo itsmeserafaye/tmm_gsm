@@ -14,11 +14,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // 1. Get Input
 $violation_code = $db->real_escape_string((string)($_POST['violation_code'] ?? ($_POST['violation_type'] ?? '')));
-$plate_number = $db->real_escape_string((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
+$plate_raw = strtoupper(trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''))));
+$plate_raw = preg_replace('/\s+/', '', $plate_raw);
+$plate_no_dash = preg_replace('/[^A-Z0-9]/', '', $plate_raw);
+$plate_norm = $plate_raw;
+if ($plate_norm !== '' && strpos($plate_norm, '-') === false) {
+    if (preg_match('/^([A-Z0-9]+)(\d{3,4})$/', $plate_no_dash, $m)) {
+        $plate_norm = $m[1] . '-' . $m[2];
+    }
+}
+$plate_number = $db->real_escape_string($plate_norm);
+$plate_no_dash_sql = $db->real_escape_string($plate_no_dash);
 $driver_name = $db->real_escape_string($_POST['driver_name'] ?? '');
 $location = $db->real_escape_string($_POST['location'] ?? '');
 $notes = $db->real_escape_string($_POST['notes'] ?? '');
-$issued_at = $_POST['issued_at'] ?? date('Y-m-d H:i:s');
+$issued_at = (string)($_POST['issued_at'] ?? date('Y-m-d H:i:s'));
+$issued_at = str_replace('T', ' ', $issued_at);
+if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $issued_at)) $issued_at .= ':00';
 $issued_by = 'Officer Admin';
 $issued_by_badge = null;
 $officer_name_input = trim($_POST['officer_name'] ?? '');
@@ -55,7 +67,7 @@ $operator_id = null;
 $status = 'Unpaid';
 
 // Check Vehicle
-$veh_check = $db->query("SELECT * FROM vehicles WHERE plate_number = '$plate_number' LIMIT 1");
+$veh_check = $db->query("SELECT * FROM vehicles WHERE plate_number = '$plate_number' OR REPLACE(plate_number,'-','') = '$plate_no_dash_sql' LIMIT 1");
 if ($veh_check && $veh_check->num_rows > 0) {
     $veh = $veh_check->fetch_assoc();
     $franchise_id = $veh['franchise_id'];

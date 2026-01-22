@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['tickets.issue','tickets.validate','tickets.settle']);
+require_any_permission(['module3.issue','module3.settle']);
 
 $ticket = trim($_POST['ticket_number'] ?? '');
 if ($ticket === '') { echo json_encode(['error' => 'Ticket number required']); exit; }
@@ -16,7 +16,7 @@ $res = $stmt->get_result();
 if (!($row = $res->fetch_assoc())) { echo json_encode(['error' => 'Ticket not found']); exit; }
 $tid = (int)$row['ticket_id'];
 
-$uploads_dir = __DIR__ . '/../../uploads';
+$uploads_dir = __DIR__ . '/../../uploads/evidence';
 if (!is_dir($uploads_dir)) { mkdir($uploads_dir, 0777, true); }
 
 if (!isset($_FILES['evidence']) || $_FILES['evidence']['error'] !== UPLOAD_ERR_OK) {
@@ -42,7 +42,8 @@ if (!$safe) {
 }
 
 $type = in_array($ext, ['mp4','mov']) ? 'video' : ($ext === 'pdf' ? 'pdf' : 'image');
+$dbPath = 'uploads/evidence/' . $filename;
 $stmtE = $db->prepare("INSERT INTO evidence (ticket_id, file_path, file_type) VALUES (?, ?, ?)");
-$stmtE->bind_param('iss', $tid, $filename, $type);
+$stmtE->bind_param('iss', $tid, $dbPath, $type);
 $stmtE->execute();
 echo json_encode(['ok' => true, 'file' => $filename]);

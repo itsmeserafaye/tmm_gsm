@@ -104,9 +104,9 @@ function tmm_permission_aliases(): array {
     'module2.approve' => ['module2.franchises.manage'],
     'module2.history' => ['module2.view'],
 
-    'module3.issue' => ['module3.tickets.issue'],
+    'module3.issue' => ['module3.tickets.issue', 'tickets.issue', 'tickets.validate'],
     'module3.read' => ['module3.view'],
-    'module3.settle' => ['module3.tickets.settle'],
+    'module3.settle' => ['module3.tickets.settle', 'tickets.settle'],
     'module3.analytics' => ['module3.view'],
 
     'module4.schedule' => ['module4.inspections.manage'],
@@ -114,9 +114,9 @@ function tmm_permission_aliases(): array {
     'module4.read' => ['module4.view'],
     'module4.certify' => ['module4.inspections.manage'],
 
-    'module5.manage_terminal' => ['module5.terminals.manage'],
+    'module5.manage_terminal' => ['module5.terminals.manage', 'parking.manage'],
     'module5.assign_vehicle' => ['module5.terminals.manage'],
-    'module5.parking_fees' => ['module5.terminals.manage'],
+    'module5.parking_fees' => ['module5.terminals.manage', 'parking.manage'],
     'module5.read' => ['module5.view'],
 
     'dashboard.view' => [],

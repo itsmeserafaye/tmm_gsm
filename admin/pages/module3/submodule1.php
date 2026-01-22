@@ -301,6 +301,7 @@ if ($res) {
   var driverInput = document.getElementById('ticket-driver-input');
   var suggestionsBox = document.getElementById('ticket-plate-suggestions');
   var plateDebounceId = null;
+  var plateExactDebounceId = null;
   var violationMap = {};
   var ticketSourceSel = document.getElementById('ticket-source');
   var externalWrap = document.getElementById('external-ticket-wrap');
@@ -420,6 +421,20 @@ if ($res) {
             }
           });
       }, 300);
+
+      if (plateExactDebounceId) clearTimeout(plateExactDebounceId);
+      plateExactDebounceId = setTimeout(() => {
+        var p = normalizePlate(plateInput.value);
+        plateInput.value = p;
+        if (!p || !plateInput.checkValidity()) return;
+        if (driverInput && driverInput.value && driverInput.value.trim() !== '') return;
+        lookupPlateExact(p).then((row) => {
+          if (!row) return;
+          if (driverInput && (!driverInput.value || driverInput.value.trim() === '')) {
+            if (row.operator_name) driverInput.value = row.operator_name;
+          }
+        });
+      }, 350);
     });
 
     plateInput.addEventListener('blur', function () {

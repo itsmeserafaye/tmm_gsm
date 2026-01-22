@@ -14,6 +14,23 @@ $resV = $db->query("SELECT v.id, v.plate_number
                     ORDER BY v.plate_number ASC LIMIT 1200");
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
+$prefillVehicleText = '';
+if ($prefillVehicleId > 0) {
+  $stmtPV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
+  if ($stmtPV) {
+    $stmtPV->bind_param('i', $prefillVehicleId);
+    $stmtPV->execute();
+    if ($pv = $stmtPV->get_result()->fetch_assoc()) {
+      $prefillVehicleText = (string)$pv['id'] . ' - ' . (string)$pv['plate_number'];
+    } else {
+      $prefillVehicleText = (string)$prefillVehicleId;
+    }
+    $stmtPV->close();
+  } else {
+    $prefillVehicleText = (string)$prefillVehicleId;
+  }
+}
+
 $inspectors = [];
 $resI = $db->query("SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 ORDER BY name ASC LIMIT 500");
 if ($resI) while ($r = $resI->fetch_assoc()) $inspectors[] = $r;
@@ -50,7 +67,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formSchedule" class="space-y-5" novalidate>
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="3" pattern="^\\d+\\s*-\\s*.+$" value="<?php echo $prefillVehicleId > 0 ? htmlspecialchars((string)$prefillVehicleId) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
+          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" pattern="^(?:\\d+\\s*-\\s*.+|\\d+)$" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
           <datalist id="vehiclePickList">
             <?php foreach ($vehicles as $v): ?>
               <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>
@@ -61,6 +78,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspector</label>
+            <input id="inspectorSearch" type="text" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search inspector name or badge">
             <select name="inspector_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select inspector</option>
               <?php foreach ($inspectors as $i): ?>
@@ -94,6 +112,8 @@ if ($rootUrl === '/') $rootUrl = '';
     const form = document.getElementById('formSchedule');
     const btn = document.getElementById('btnSchedule');
     const scheduleDate = document.getElementById('scheduleDate');
+    const inspectorSearch = document.getElementById('inspectorSearch');
+    const inspectorSelect = form ? form.querySelector('select[name="inspector_id"]') : null;
 
     if (scheduleDate && !scheduleDate.value) {
       const d = new Date();
@@ -121,6 +141,23 @@ if ($rootUrl === '/') $rootUrl = '';
       if (m) return Number(m[1] || 0);
       if (/^\d+$/.test((s || '').toString().trim())) return Number((s || '').toString().trim());
       return 0;
+    }
+
+    if (inspectorSearch && inspectorSelect) {
+      const allOptions = Array.prototype.slice.call(inspectorSelect.options).map(o => ({ value: o.value, text: o.textContent }));
+      inspectorSearch.addEventListener('input', () => {
+        const q = (inspectorSearch.value || '').toString().trim().toLowerCase();
+        const keep = allOptions.filter(o => !q || (o.text || '').toLowerCase().indexOf(q) !== -1);
+        const selected = inspectorSelect.value;
+        inspectorSelect.innerHTML = '';
+        keep.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.value;
+          opt.textContent = o.text;
+          inspectorSelect.appendChild(opt);
+        });
+        if (selected && keep.some(o => o.value === selected)) inspectorSelect.value = selected;
+      });
     }
 
     if (form && btn) {

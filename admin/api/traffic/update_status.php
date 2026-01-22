@@ -23,9 +23,9 @@ if (!$ticket_id || !$status) {
 }
 
 if ($status === 'Settled') {
-    require_permission('tickets.settle');
+    require_permission('module3.settle');
 } else {
-    require_permission('tickets.validate');
+    require_any_permission(['module3.issue','module3.settle']);
 }
 
 // Validate Payment Ref for Settlement
