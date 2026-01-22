@@ -340,12 +340,15 @@ if ($res) {
 
   // Load Violation Types
   if (violationSelect) {
+    violationMap = {};
+    violationSelect.innerHTML = '<option value="">Select Violation</option>';
     fetch('api/tickets/violation_types.php')
       .then(r => r.json())
       .then(data => {
         if (data && Array.isArray(data.items)) {
           data.items.forEach(item => {
             if(!item.violation_code) return;
+            if (violationMap[item.violation_code]) return;
             violationMap[item.violation_code] = item;
             var opt = document.createElement('option');
             opt.value = item.violation_code;

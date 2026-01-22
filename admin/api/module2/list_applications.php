@@ -8,6 +8,7 @@ require_any_permission(['module2.read','module2.endorse','module2.approve','modu
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$excludeStatus = trim((string)($_GET['exclude_status'] ?? ''));
 $limit = (int)($_GET['limit'] ?? 100);
 if ($limit <= 0) $limit = 100;
 if ($limit > 500) $limit = 500;
@@ -38,6 +39,11 @@ if ($q !== '') {
 if ($status !== '' && $status !== 'Status') {
   $conds[] = "fa.status=?";
   $params[] = $status;
+  $types .= 's';
+}
+if ($excludeStatus !== '') {
+  $conds[] = "fa.status<>?";
+  $params[] = $excludeStatus;
   $types .= 's';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);

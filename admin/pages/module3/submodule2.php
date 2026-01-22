@@ -52,7 +52,7 @@ require_any_permission(['module3.settle','module3.read']);
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="relative">
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
-              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., TCK-2026-000123 or STS-2026-000123">
+              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Select ticket">
               <div id="val-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             </div>
             <div>
@@ -89,7 +89,7 @@ require_any_permission(['module3.settle','module3.read']);
         <form id="ticket-payment-form" class="space-y-4" novalidate>
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket Number</label>
-            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., TCK-2026-000123 or STS-2026-000123">
+            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Select ticket">
             <div id="pay-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
             <div id="pay-ticket-context" class="mt-1 text-xs text-emerald-600 font-medium h-4"></div>
           </div>
@@ -241,7 +241,7 @@ require_any_permission(['module3.settle','module3.read']);
     }
 
     function request(q, limit) {
-      fetch('api/tickets/list.php?q=' + encodeURIComponent(q || '') + '&limit=' + encodeURIComponent(String(limit || 200)))
+      fetch('api/tickets/list.php?q=' + encodeURIComponent(q || '') + '&exclude_paid=1&limit=' + encodeURIComponent(String(limit || 200)))
         .then(r => r.json())
         .then(data => showItems((data && Array.isArray(data.items)) ? data.items : []))
         .catch(() => hideBox());

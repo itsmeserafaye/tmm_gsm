@@ -34,10 +34,12 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 space-y-6">
       <form id="formLoad" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end" novalidate>
         <div class="flex-1 relative">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Submitted Applications</label>
-          <input id="appPickInput" type="text" autocomplete="off" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search application ref / operator / route…">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Submitted Applications (Not LTFRB-Approved)</label>
+          <input id="appSearchInput" type="text" autocomplete="off" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search application ref / operator / route…">
+          <select id="appPickSelect" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="">Select application</option>
+          </select>
           <input id="appIdInput" type="hidden" value="<?php echo (int)$prefillApp; ?>">
-          <div id="appPickSuggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-64 overflow-y-auto hidden"></div>
         </div>
         <button id="btnLoad" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold">Load</button>
       </form>
@@ -103,9 +105,9 @@ if ($rootUrl === '/') $rootUrl = '';
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const appPickInput = document.getElementById('appPickInput');
+    const appSearchInput = document.getElementById('appSearchInput');
+    const appPickSelect = document.getElementById('appPickSelect');
     const appIdInput = document.getElementById('appIdInput');
-    const appPickSuggestions = document.getElementById('appPickSuggestions');
     const formLoad = document.getElementById('formLoad');
     const btnLoad = document.getElementById('btnLoad');
     const appDetails = document.getElementById('appDetails');
@@ -118,6 +120,7 @@ if ($rootUrl === '/') $rootUrl = '';
     let currentAppId = 0;
     let currentStatus = '';
     let pickTimer = null;
+    let lastPickQuery = '';
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -144,84 +147,71 @@ if ($rootUrl === '/') $rootUrl = '';
       return data.data;
     }
 
-    function hidePickSuggestions() {
-      if (!appPickSuggestions) return;
-      appPickSuggestions.classList.add('hidden');
-      appPickSuggestions.innerHTML = '';
+    function optionLabel(row) {
+      const id = Number(row.application_id || 0);
+      const ref = (row.franchise_ref_number || '').toString();
+      const op = (row.operator_name || '').toString();
+      const route = (row.route_code || row.route_id || '').toString();
+      return `APP-${id} • ${ref || 'No Ref'} • ${route || 'No Route'} • ${op || 'Unknown Operator'}`;
     }
 
-    function showPickSuggestions(items) {
-      if (!appPickSuggestions) return;
-      if (!Array.isArray(items) || items.length === 0) {
-        hidePickSuggestions();
-        return;
-      }
-      appPickSuggestions.innerHTML = '';
-      items.slice(0, 20).forEach((row) => {
-        const id = Number(row.application_id || 0);
-        const ref = (row.franchise_ref_number || '').toString();
-        const op = (row.operator_name || '').toString();
-        const route = (row.route_code || row.route_id || '').toString();
-        const od = ((row.origin || row.destination) ? ((row.origin || '') + ' → ' + (row.destination || '')) : '').toString();
-        const line1 = `APP-${id} • ${ref || 'No Ref'} • ${route || 'No Route'}`;
-        const line2 = `${op || 'Unknown Operator'}${od ? ' • ' + od : ''}`;
-
-        const div = document.createElement('div');
-        div.className = 'px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0';
-        div.innerHTML = `
-          <div class="font-bold text-slate-800 dark:text-slate-100 text-sm">${line1}</div>
-          <div class="text-xs text-slate-500 dark:text-slate-300">${line2}</div>
-        `;
-        div.addEventListener('click', async () => {
-          if (appIdInput) appIdInput.value = String(id);
-          if (appPickInput) appPickInput.value = line1;
-          hidePickSuggestions();
-          btnLoad.click();
-        });
-        appPickSuggestions.appendChild(div);
-      });
-      appPickSuggestions.classList.remove('hidden');
-    }
-
-    async function fetchSubmittedApps(q) {
-      const url = rootUrl + '/admin/api/module2/list_applications.php?status=' + encodeURIComponent('Submitted') + '&limit=50&q=' + encodeURIComponent(q || '');
+    async function fetchPendingLtfrbApps(q) {
+      const url = rootUrl + '/admin/api/module2/list_applications.php?exclude_status=' + encodeURIComponent('LTFRB-Approved') + '&limit=200&q=' + encodeURIComponent(q || '');
       const res = await fetch(url);
       const data = await res.json();
       if (!data || !data.ok) return [];
       return Array.isArray(data.data) ? data.data : [];
     }
 
-    if (appPickInput) {
-      appPickInput.addEventListener('focus', () => {
-        if (pickTimer) clearTimeout(pickTimer);
-        pickTimer = setTimeout(async () => {
-          const items = await fetchSubmittedApps((appPickInput.value || '').toString().trim());
-          showPickSuggestions(items);
-        }, 50);
+    function populateAppSelect(items, selectedId) {
+      if (!appPickSelect) return;
+      const keepId = selectedId ? String(selectedId) : (appPickSelect.value || '');
+      appPickSelect.innerHTML = '<option value="">Select application</option>';
+      (items || []).forEach((row) => {
+        const id = String(row.application_id || '');
+        if (!id) return;
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = optionLabel(row);
+        appPickSelect.appendChild(opt);
       });
-      appPickInput.addEventListener('input', () => {
-        if (appIdInput) appIdInput.value = '';
-        if (pickTimer) clearTimeout(pickTimer);
-        pickTimer = setTimeout(async () => {
-          const items = await fetchSubmittedApps((appPickInput.value || '').toString().trim());
-          showPickSuggestions(items);
-        }, 200);
-      });
+      if (keepId && appPickSelect.querySelector('option[value="' + keepId.replace(/"/g, '\\"') + '"]')) {
+        appPickSelect.value = keepId;
+      }
+      if (appIdInput) appIdInput.value = appPickSelect.value || '';
     }
 
-    document.addEventListener('click', (e) => {
-      const t = e && e.target;
-      if (!t) return;
-      if (appPickSuggestions && (appPickSuggestions === t || appPickSuggestions.contains(t))) return;
-      if (appPickInput && (appPickInput === t || appPickInput.contains(t))) return;
-      hidePickSuggestions();
-    });
+    async function refreshAppDropdown(q) {
+      const qq = (q || '').toString().trim();
+      lastPickQuery = qq;
+      const items = await fetchPendingLtfrbApps(qq);
+      populateAppSelect(items, appIdInput ? appIdInput.value : '');
+    }
+
+    if (appSearchInput) {
+      appSearchInput.addEventListener('focus', () => {
+        if (pickTimer) clearTimeout(pickTimer);
+        pickTimer = setTimeout(() => refreshAppDropdown(appSearchInput.value || ''), 0);
+      });
+      appSearchInput.addEventListener('input', () => {
+        if (pickTimer) clearTimeout(pickTimer);
+        pickTimer = setTimeout(() => refreshAppDropdown(appSearchInput.value || ''), 180);
+      });
+    }
+    if (appPickSelect) {
+      appPickSelect.addEventListener('focus', () => {
+        if (appPickSelect.options.length <= 1) refreshAppDropdown(lastPickQuery);
+      });
+      appPickSelect.addEventListener('change', () => {
+        if (appIdInput) appIdInput.value = appPickSelect.value || '';
+      });
+    }
 
     function render(a) {
       currentAppId = Number(a.application_id || 0);
       currentStatus = (a.status || '').toString().trim();
       if (appIdInput) appIdInput.value = String(currentAppId);
-      if (appPickInput) appPickInput.value = 'APP-' + currentAppId;
+      if (appPickSelect) appPickSelect.value = String(currentAppId);
       document.getElementById('appTitle').textContent = 'APP-' + currentAppId;
       document.getElementById('appSub').textContent = (a.franchise_ref_number || '').toString();
       document.getElementById('opName').textContent = (a.operator_name || '').toString();

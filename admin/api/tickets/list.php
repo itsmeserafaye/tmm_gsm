@@ -11,6 +11,7 @@ $period = trim($_GET['period'] ?? '');
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
 if ($limit <= 0) $limit = 100;
 if ($limit > 1000) $limit = 1000;
+$excludePaid = isset($_GET['exclude_paid']) && (string)$_GET['exclude_paid'] !== '' && (string)$_GET['exclude_paid'] !== '0';
 
 $sql = "SELECT t.ticket_id, t.ticket_number, t.external_ticket_number, t.ticket_source, t.date_issued, t.violation_code, t.sts_violation_code, t.vehicle_plate, t.issued_by, t.status, t.fine_amount FROM tickets t";
 $conds = [];
@@ -21,6 +22,9 @@ if ($status !== '' && in_array($status, ['Pending','Validated','Settled','Escala
   $conds[] = "t.status = ?";
   $params[] = $status;
   $types .= 's';
+}
+if ($excludePaid) {
+  $conds[] = "LOWER(t.status) <> 'settled'";
 }
 if ($q !== '') {
   $qNoDash = preg_replace('/[^A-Za-z0-9]/', '', $q);
