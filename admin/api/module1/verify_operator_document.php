@@ -115,7 +115,11 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
     ];
   }
 
-  $stmtV = $db->prepare("SELECT doc_id, doc_type, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY uploaded_at DESC, doc_id DESC");
+  $hasUploadedAt = false;
+  $chk = $db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='operator_documents' AND COLUMN_NAME='uploaded_at' LIMIT 1");
+  if ($chk && $chk->fetch_row()) $hasUploadedAt = true;
+  $orderBy = $hasUploadedAt ? "uploaded_at DESC, doc_id DESC" : "doc_id DESC";
+  $stmtV = $db->prepare("SELECT doc_id, doc_type, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY $orderBy");
   $docs = [];
   if ($stmtV) {
     $stmtV->bind_param('i', $operatorId);

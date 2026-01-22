@@ -440,6 +440,7 @@ function db() {
       $opDocCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
+  if (!isset($opDocCols['uploaded_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP"); }
   if (!isset($opDocCols['is_verified'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
   if (!isset($opDocCols['verified_by'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
   if (!isset($opDocCols['verified_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }

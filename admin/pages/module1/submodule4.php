@@ -106,7 +106,7 @@ if ($operatorIds) {
 $allPlates = [];
 $resP = $db->query("SELECT UPPER(plate_number) AS plate_number, COALESCE(NULLIF(status,''),'') AS status
                     FROM vehicles
-                    WHERE COALESCE(plate_number,'')<>'' AND (operator_id IS NULL OR operator_id=0)
+                    WHERE COALESCE(plate_number,'')<>'' AND (operator_id IS NULL OR operator_id=0) AND (record_status IS NULL OR record_status='' OR record_status='Encoded')
                     ORDER BY created_at DESC LIMIT 1000");
 if ($resP) {
   while ($r = $resP->fetch_assoc()) {
@@ -181,11 +181,6 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
         </a>
       </div>
     </form>
-    <datalist id="vehiclePlateList">
-      <?php foreach ($allPlates as $v): ?>
-        <option value="<?php echo htmlspecialchars($v['plate_number'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($v['plate_number'] . ($v['status'] !== '' ? (' • ' . $v['status']) : '')); ?></option>
-      <?php endforeach; ?>
-    </datalist>
   </div>
 
   <div class="space-y-4">
@@ -266,7 +261,13 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
                 <form class="space-y-4" data-link-form="1" data-operator-id="<?php echo (int)$opId; ?>" novalidate>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle (Plate)</label>
-                    <input name="plate_number" list="vehiclePlateList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
+                    <input type="text" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-plate-search="1" placeholder="Search plate...">
+                    <select name="plate_number" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" data-plate-select="1">
+                      <option value="">Select plate</option>
+                      <?php foreach ($allPlates as $v): ?>
+                        <option value="<?php echo htmlspecialchars($v['plate_number'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($v['plate_number']); ?></option>
+                      <?php endforeach; ?>
+                    </select>
                   </div>
                   <div class="flex items-center justify-end gap-2">
                     <button type="submit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold" data-link-btn="1">Link Vehicle</button>
@@ -284,13 +285,6 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const normalizePlate = (value) => {
-      const v = (value || '').toString().toUpperCase().replace(/\\s+/g, '').replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-');
-      const letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
-      const digits = v.replace(/[^0-9]/g, '').slice(0, 4);
-      if (letters.length < 3) return letters + digits;
-      return letters + '-' + digits;
-    };
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -305,9 +299,20 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
       setTimeout(() => { el.remove(); }, 3000);
     }
 
-    document.querySelectorAll('input[name="plate_number"]').forEach((el) => {
-      el.addEventListener('input', () => { el.value = normalizePlate(el.value); });
-      el.addEventListener('blur', () => { el.value = normalizePlate(el.value); });
+    document.querySelectorAll('form[data-link-form="1"]').forEach((form) => {
+      const search = form.querySelector('[data-plate-search="1"]');
+      const select = form.querySelector('select[data-plate-select="1"]');
+      if (search && select) {
+        const allOptions = Array.prototype.slice.call(select.querySelectorAll('option')).map((o, idx) => ({ idx, value: o.value, text: o.textContent }));
+        const base = allOptions.filter(o => o.idx !== 0);
+        search.addEventListener('input', () => {
+          const q = (search.value || '').toString().trim().toUpperCase();
+          const selected = select.value;
+          const keep = base.filter(o => !q || (o.text || '').toUpperCase().indexOf(q) !== -1);
+          select.innerHTML = '<option value=\"\">Select plate</option>' + keep.map(o => `<option value=\"${String(o.value).replace(/\"/g, '&quot;')}\">${String(o.text)}</option>`).join('');
+          if (selected && keep.some(o => o.value === selected)) select.value = selected;
+        });
+      }
     });
 
     document.querySelectorAll('[data-toggle-vehicles="1"]').forEach((btn) => {
