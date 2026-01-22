@@ -63,9 +63,9 @@ if ($params) {
 }
 
 function tmm_required_doc_list(string $operatorType): array {
-  if ($operatorType === 'Cooperative') return ['CDA','Others'];
-  if ($operatorType === 'Corporation') return ['SEC','Others'];
-  return ['GovID'];
+  if ($operatorType === 'Cooperative') return ['CDA Registration', 'CDA Good Standing', 'Board Resolution'];
+  if ($operatorType === 'Corporation') return ['SEC Registration', 'Articles/By-laws', 'Board Resolution'];
+  return ['Government ID'];
 }
 ?>
 
@@ -259,6 +259,7 @@ function tmm_required_doc_list(string $operatorType): array {
 
     function renderDocs(operatorId, operatorName, payload) {
       const rows = (payload && payload.rows) ? payload.rows : [];
+      const opType = (payload && payload.operator && payload.operator.operator_type) ? String(payload.operator.operator_type || 'Individual') : 'Individual';
       const listHtml = rows.length ? `
         <div class="space-y-3">
           ${rows.map((d) => {
@@ -268,6 +269,11 @@ function tmm_required_doc_list(string $operatorType): array {
             const st = String(d.doc_status || (Number(d.is_verified || 0) === 1 ? 'Verified' : 'Pending'));
             const isVerified = st === 'Verified';
             const isRejected = st === 'Rejected';
+            const rawRemarks = String(d.remarks || '');
+            const parts = rawRemarks.split('| Reason:');
+            const labelPart = (parts[0] || '').trim();
+            const reasonPart = parts.length > 1 ? parts.slice(1).join('| Reason:').trim() : '';
+            const title = labelPart ? `${String(d.doc_type || '')} • ${labelPart}` : String(d.doc_type || '');
             const badge = isVerified
               ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
               : (isRejected
@@ -280,9 +286,9 @@ function tmm_required_doc_list(string $operatorType): array {
                     <i data-lucide="file" class="w-4 h-4"></i>
                   </div>
                   <div class="min-w-0">
-                    <div class="text-sm font-black text-slate-800 dark:text-white">${String(d.doc_type || '')}</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white">${title}</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${date}</div>
-                    ${isRejected && d.remarks ? `<div class="text-xs font-semibold text-rose-600 mt-1">Remarks: ${String(d.remarks)}</div>` : ``}
+                    ${isRejected && (reasonPart || rawRemarks) ? `<div class="text-xs font-semibold text-rose-600 mt-1">Reason: ${reasonPart || rawRemarks}</div>` : ``}
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
@@ -299,33 +305,66 @@ function tmm_required_doc_list(string $operatorType): array {
         </div>
       ` : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`;
 
+      const docMatrix = {
+        Individual: {
+          required: [
+            { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
+          ],
+          optional: [
+            { name: 'proof_address', docType: 'BarangayCert', label: 'Proof of Address', hint: 'Barangay Clearance or Utility Bill' },
+            { name: 'nbi_clearance', docType: 'Others', label: 'NBI Clearance', hint: '' },
+            { name: 'authorization_letter', docType: 'Others', label: 'Authorization Letter', hint: 'If represented' },
+          ],
+        },
+        Cooperative: {
+          required: [
+            { name: 'cda_registration', docType: 'CDA', label: 'CDA Registration Certificate', hint: '' },
+            { name: 'cda_good_standing', docType: 'CDA', label: 'CDA Certificate of Good Standing', hint: '' },
+            { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing application + naming representative' },
+          ],
+          optional: [
+            { name: 'members_list', docType: 'Others', label: 'List of Members', hint: '' },
+            { name: 'coop_articles_bylaws', docType: 'Others', label: 'Articles of Cooperation / By-laws', hint: '' },
+          ],
+        },
+        Corporation: {
+          required: [
+            { name: 'sec_certificate', docType: 'SEC', label: 'SEC Certificate of Registration', hint: '' },
+            { name: 'corp_articles_bylaws', docType: 'SEC', label: 'Articles of Incorporation / By-laws', hint: '' },
+            { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing operation + naming representative' },
+          ],
+          optional: [
+            { name: 'mayors_permit', docType: 'Others', label: "Mayor’s Permit", hint: '' },
+            { name: 'business_permit', docType: 'Others', label: 'Business Permit', hint: '' },
+          ],
+        },
+      };
+      const matrix = docMatrix[opType] || docMatrix.Individual;
+      const renderField = (f) => `
+        <div>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">${String(f.label || '')}</label>
+          <input name="${String(f.name || '')}" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+          ${f.hint ? `<div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">${String(f.hint)}</div>` : ``}
+        </div>
+      `;
+
       const uploadHtml = `
         <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
           <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Upload Missing</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">GovID, CDA, SEC, or Others (PDF/JPG/PNG).</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">${opType} — upload only the relevant documents (PDF/JPG/PNG).</div>
           <form id="formUploadOperatorDocs" class="space-y-4 mt-4" novalidate>
             <input type="hidden" name="operator_id" value="${String(operatorId || '')}">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">GovID</label>
-                <input name="id_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <div class="sm:col-span-2">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Required</div>
               </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CDA</label>
-                <input name="cda_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">SEC</label>
-                <input name="sec_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay Certificate</label>
-                <input name="barangay_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
-                <input name="others_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
+              ${matrix.required.map(renderField).join('')}
+              ${matrix.optional.length ? `
+                <div class="sm:col-span-2 pt-2">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Optional / Supporting</div>
+                </div>
+                ${matrix.optional.map(renderField).join('')}
+              ` : ``}
             </div>
             <div class="flex items-center justify-end gap-2">
               <button id="btnUploadOperatorDocs" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
@@ -384,7 +423,7 @@ function tmm_required_doc_list(string $operatorType): array {
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           const fd = new FormData(form);
-          const hasDocs = (fd.get('id_doc') && fd.get('id_doc').name) || (fd.get('cda_doc') && fd.get('cda_doc').name) || (fd.get('sec_doc') && fd.get('sec_doc').name) || (fd.get('barangay_doc') && fd.get('barangay_doc').name) || (fd.get('others_doc') && fd.get('others_doc').name);
+          const hasDocs = Array.from(form.querySelectorAll('input[type="file"]')).some((inp) => inp && inp.files && inp.files.length);
           if (!hasDocs) { showToast('Select at least one file to upload.', 'error'); return; }
           const orig = btn.textContent;
           btn.disabled = true;

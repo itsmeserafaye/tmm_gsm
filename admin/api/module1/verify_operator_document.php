@@ -10,7 +10,8 @@ require_permission('module1.write');
 $docId = isset($_POST['doc_id']) ? (int) $_POST['doc_id'] : 0;
 $isVerified = isset($_POST['is_verified']) ? (int) $_POST['is_verified'] : -1;
 $docStatusRaw = trim((string)($_POST['doc_status'] ?? ''));
-$remarks = trim((string)($_POST['remarks'] ?? ''));
+$remarksProvided = array_key_exists('remarks', $_POST);
+$remarks = $remarksProvided ? trim((string)($_POST['remarks'] ?? '')) : '';
 if ($docId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_doc_id']);
@@ -33,7 +34,7 @@ if ($docStatus === '') {
 }
 $isVerified = $docStatus === 'Verified' ? 1 : 0;
 
-$stmtD = $db->prepare("SELECT doc_id, operator_id, doc_type FROM operator_documents WHERE doc_id=? LIMIT 1");
+$stmtD = $db->prepare("SELECT doc_id, operator_id, doc_type, remarks, doc_status FROM operator_documents WHERE doc_id=? LIMIT 1");
 if (!$stmtD) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
@@ -57,13 +58,27 @@ if ($operatorId <= 0) {
 }
 
 $userId = (int) ($_SESSION['user_id'] ?? 0);
+$existingRemarks = (string)($doc['remarks'] ?? '');
+$finalRemarks = $existingRemarks;
+if ($remarksProvided) {
+  if ($docStatus === 'Rejected' && $remarks !== '') {
+    $base = trim((string)$existingRemarks);
+    if ($base !== '') {
+      $finalRemarks = $base . ' | Reason: ' . $remarks;
+    } else {
+      $finalRemarks = 'Reason: ' . $remarks;
+    }
+  } else {
+    $finalRemarks = $remarks;
+  }
+}
 $stmtU = $db->prepare("UPDATE operator_documents SET doc_status=?, remarks=?, is_verified=?, verified_by=CASE WHEN ?=1 THEN ? ELSE NULL END, verified_at=CASE WHEN ?=1 THEN NOW() ELSE NULL END WHERE doc_id=?");
 if (!$stmtU) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
-$stmtU->bind_param('ssiiiii', $docStatus, $remarks, $isVerified, $isVerified, $userId, $isVerified, $docId);
+$stmtU->bind_param('ssiiiii', $docStatus, $finalRemarks, $isVerified, $isVerified, $userId, $isVerified, $docId);
 $stmtU->execute();
 $stmtU->close();
 
@@ -81,47 +96,91 @@ $opType = (string) (($op['operator_type'] ?? '') ?: 'Individual');
 $opStatus = (string) ($op['verification_status'] ?? '');
 $wfStatus = (string) ($op['workflow_status'] ?? 'Draft');
 if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
-  $required = [];
+  $slots = [];
   if ($opType === 'Cooperative') {
-    $required = ['CDA', 'Others'];
+    $slots = [
+      ['doc_type' => 'CDA', 'label' => 'CDA Registration Certificate', 'keywords' => ['registration']],
+      ['doc_type' => 'CDA', 'label' => 'CDA Certificate of Good Standing', 'keywords' => ['good standing', 'good_standing', 'standing']],
+      ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
+    ];
   } elseif ($opType === 'Corporation') {
-    $required = ['SEC', 'Others'];
+    $slots = [
+      ['doc_type' => 'SEC', 'label' => 'SEC Certificate of Registration', 'keywords' => ['certificate', 'registration']],
+      ['doc_type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation']],
+      ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
+    ];
   } else {
-    $required = ['GovID'];
+    $slots = [
+      ['doc_type' => 'GovID', 'label' => 'Valid Government ID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
+    ];
   }
 
-  $stmtV = $db->prepare("SELECT doc_type,
-                                SUM(CASE WHEN doc_status='Verified' THEN 1 ELSE 0 END) AS verified_cnt,
-                                SUM(CASE WHEN doc_status='Rejected' THEN 1 ELSE 0 END) AS rejected_cnt,
-                                COUNT(*) AS total_cnt
-                         FROM operator_documents
-                         WHERE operator_id=?
-                         GROUP BY doc_type");
-  $byType = [];
+  $stmtV = $db->prepare("SELECT doc_id, doc_type, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY uploaded_at DESC, doc_id DESC");
+  $docs = [];
   if ($stmtV) {
     $stmtV->bind_param('i', $operatorId);
     $stmtV->execute();
     $res = $stmtV->get_result();
-    while ($r = $res->fetch_assoc()) {
-      $t = (string) ($r['doc_type'] ?? '');
-      $byType[$t] = [
-        'verified' => ((int)($r['verified_cnt'] ?? 0)) > 0,
-        'rejected' => ((int)($r['rejected_cnt'] ?? 0)) > 0,
-        'total' => (int)($r['total_cnt'] ?? 0),
-      ];
-    }
+    while ($r = $res->fetch_assoc()) $docs[] = $r;
     $stmtV->close();
   }
 
-  $hasAnyDocs = false;
-  foreach ($byType as $t => $info) { if (($info['total'] ?? 0) > 0) { $hasAnyDocs = true; break; } }
-
-  $hasRejected = false;
+  $hasAnyDocs = count($docs) > 0;
+  $used = [];
+  $slotOk = array_fill(0, count($slots), false);
+  $matchRemarks = function (string $remarks, array $keywords): bool {
+    $t = strtolower($remarks);
+    foreach ($keywords as $kw) {
+      $k = strtolower((string)$kw);
+      if ($k !== '' && strpos($t, $k) !== false) return true;
+    }
+    return false;
+  };
+  for ($i = 0; $i < count($slots); $i++) {
+    $s = $slots[$i];
+    foreach ($docs as $drow) {
+      $did = (int)($drow['doc_id'] ?? 0);
+      if ($did <= 0 || isset($used[$did])) continue;
+      if ((string)($drow['doc_type'] ?? '') !== (string)$s['doc_type']) continue;
+      if ((string)($drow['doc_status'] ?? '') !== 'Verified') continue;
+      $rem = (string)($drow['remarks'] ?? '');
+      if ($rem !== '' && $matchRemarks($rem, (array)($s['keywords'] ?? []))) {
+        $used[$did] = true;
+        $slotOk[$i] = true;
+        break;
+      }
+    }
+  }
+  for ($i = 0; $i < count($slots); $i++) {
+    if ($slotOk[$i]) continue;
+    $s = $slots[$i];
+    foreach ($docs as $drow) {
+      $did = (int)($drow['doc_id'] ?? 0);
+      if ($did <= 0 || isset($used[$did])) continue;
+      if ((string)($drow['doc_type'] ?? '') !== (string)$s['doc_type']) continue;
+      if ((string)($drow['doc_status'] ?? '') !== 'Verified') continue;
+      $used[$did] = true;
+      $slotOk[$i] = true;
+      break;
+    }
+  }
   $allVerified = true;
-  foreach ($required as $t) {
-    if (!isset($byType[$t]) || ($byType[$t]['total'] ?? 0) <= 0) { $allVerified = false; continue; }
-    if (!empty($byType[$t]['rejected'])) $hasRejected = true;
-    if (empty($byType[$t]['verified'])) $allVerified = false;
+  foreach ($slotOk as $ok) { if (!$ok) { $allVerified = false; break; } }
+
+  $requiredTypes = [];
+  foreach ($slots as $s) $requiredTypes[(string)$s['doc_type']] = true;
+  $hasRejected = false;
+  foreach ($docs as $drow) {
+    $dt = (string)($drow['doc_type'] ?? '');
+    if (!isset($requiredTypes[$dt])) continue;
+    if ((string)($drow['doc_status'] ?? '') !== 'Rejected') continue;
+    if ($dt !== 'Others') { $hasRejected = true; break; }
+    $rem = (string)($drow['remarks'] ?? '');
+    if ($rem === '') { $hasRejected = true; break; }
+    foreach ($slots as $s) {
+      if ((string)$s['doc_type'] !== 'Others') continue;
+      if ($matchRemarks($rem, (array)($s['keywords'] ?? []))) { $hasRejected = true; break 2; }
+    }
   }
 
   $newWf = 'Draft';
