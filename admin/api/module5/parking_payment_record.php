@@ -12,7 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
-$plate = strtoupper(trim((string)($_POST['plate_no'] ?? ($_POST['plate_number'] ?? ''))));
+$plateRaw = strtoupper(trim((string)($_POST['plate_no'] ?? ($_POST['plate_number'] ?? ''))));
+$plateRaw = preg_replace('/\s+/', '', $plateRaw);
+$plateNoDash = preg_replace('/[^A-Z0-9]/', '', $plateRaw);
+$plate = $plateRaw !== null ? (string)$plateRaw : '';
+$plateNoDash = $plateNoDash !== null ? (string)$plateNoDash : '';
+if ($plate !== '' && strpos($plate, '-') === false) {
+  if (preg_match('/^([A-Z0-9]+)(\d{3,4})$/', $plateNoDash, $m)) {
+    $plate = $m[1] . '-' . $m[2];
+  }
+}
 $slotId = (int)($_POST['slot_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $orNo = trim((string)($_POST['or_no'] ?? ''));
@@ -23,9 +32,9 @@ if ($plate === '' || $slotId <= 0 || $amount <= 0 || $orNo === '') {
   exit;
 }
 
-$stmtV = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
+$stmtV = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
 if (!$stmtV) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
-$stmtV->bind_param('s', $plate);
+$stmtV->bind_param('ss', $plate, $plateNoDash);
 $stmtV->execute();
 $veh = $stmtV->get_result()->fetch_assoc();
 $stmtV->close();

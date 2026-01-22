@@ -5,7 +5,17 @@ $db = db();
 header('Content-Type: application/json');
 require_permission('module4.schedule');
 $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
-$plate = trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
+$plate = strtoupper(trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''))));
+$plate = preg_replace('/\s+/', '', $plate);
+$plateNoDash = preg_replace('/[^A-Z0-9]/', '', $plate);
+$plate = $plate !== null ? (string)$plate : '';
+$plateNoDash = $plateNoDash !== null ? (string)$plateNoDash : '';
+$plateNorm = $plate;
+if ($plateNorm !== '' && strpos($plateNorm, '-') === false) {
+  if (preg_match('/^([A-Z0-9]+)(\d{3,4})$/', $plateNoDash, $m)) {
+    $plateNorm = $m[1] . '-' . $m[2];
+  }
+}
 $scheduledAt = trim((string)($_POST['scheduled_at'] ?? ($_POST['schedule_date'] ?? '')));
 $scheduleDate = trim((string)($_POST['schedule_date'] ?? $scheduledAt));
 $location = trim($_POST['location'] ?? '');
@@ -22,7 +32,16 @@ if (($vehicleId <= 0 && $plate === '') || $scheduledAt === '' || $location === '
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
   exit;
 }
-$plateDb = $plate;
+$toMysqlDatetime = function (string $s): string {
+  $v = trim($s);
+  $v = str_replace('T', ' ', $v);
+  if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $v)) $v .= ':00';
+  return $v;
+};
+$scheduledAt = $toMysqlDatetime((string)$scheduledAt);
+$scheduleDate = $toMysqlDatetime((string)$scheduleDate);
+
+$plateDb = $plateNorm !== '' ? $plateNorm : $plate;
 if ($vehicleId > 0) {
   $stmtV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
   if (!$stmtV) {
@@ -44,6 +63,23 @@ if ($vehicleId > 0) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'vehicle_missing_plate']);
     exit;
+  }
+}
+if ($vehicleId <= 0) {
+  $stmtV2 = $db->prepare("SELECT id, plate_number FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+  if ($stmtV2) {
+    $stmtV2->bind_param('ss', $plateDb, $plateNoDash);
+    $stmtV2->execute();
+    $veh2 = $stmtV2->get_result()->fetch_assoc();
+    $stmtV2->close();
+    if ($veh2) {
+      $vehicleId = (int)($veh2['id'] ?? 0);
+      $plateDb = (string)($veh2['plate_number'] ?? $plateDb);
+    } else {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'vehicle_not_found']);
+      exit;
+    }
   }
 }
 

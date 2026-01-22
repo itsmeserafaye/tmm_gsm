@@ -25,6 +25,7 @@ $tmm_resolve_plate = function (mysqli $db, string $plate) use ($tmm_norm_plate):
 };
 $scheduleId = (int)($_POST['schedule_id'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
+$remarks = substr((string)$remarks, 0, 255);
 $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : [];
 if ($scheduleId <= 0 || !$items) {
   http_response_code(400);

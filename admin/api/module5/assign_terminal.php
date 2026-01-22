@@ -126,14 +126,59 @@ if ($stmtRoute) {
   $routeId = isset($rowR['route_id']) && $rowR['route_id'] !== '' ? (string)$rowR['route_id'] : null;
 }
 
+$colTA = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments'");
+$taCols = [];
+if ($colTA) {
+  while ($c = $colTA->fetch_assoc()) {
+    $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+  }
+}
+$hasTerminalId = isset($taCols['terminal_id']);
+$hasVehicleId = isset($taCols['vehicle_id']);
+$hasRouteId = isset($taCols['route_id']);
+
 $db->begin_transaction();
 try {
-  $stmtUp = $db->prepare("INSERT INTO terminal_assignments (plate_number, route_id, terminal_name, terminal_id, vehicle_id, status, assigned_at)
-                          VALUES (?, ?, ?, ?, ?, 'Authorized', NOW())
-                          ON DUPLICATE KEY UPDATE terminal_id=VALUES(terminal_id), terminal_name=VALUES(terminal_name), vehicle_id=VALUES(vehicle_id), route_id=VALUES(route_id), status='Authorized', assigned_at=NOW()");
-  if (!$stmtUp) throw new Exception('db_prepare_failed');
   $termName = (string)($term['name'] ?? '');
-  $stmtUp->bind_param('sssii', $plate, $routeId, $termName, $terminalId, $vehicleId);
+  $cols = ['plate_number', 'terminal_name', 'status', 'assigned_at'];
+  $vals = ['?', '?', "'Authorized'", 'NOW()'];
+  $types = 'ss';
+  $bind = [$plate, $termName];
+
+  if ($hasRouteId) {
+    $cols[] = 'route_id';
+    $vals[] = '?';
+    $types .= 's';
+    $bind[] = $routeId !== null ? (string)$routeId : '';
+  }
+  if ($hasTerminalId) {
+    $cols[] = 'terminal_id';
+    $vals[] = '?';
+    $types .= 'i';
+    $bind[] = $terminalId;
+  }
+  if ($hasVehicleId) {
+    $cols[] = 'vehicle_id';
+    $vals[] = '?';
+    $types .= 'i';
+    $bind[] = $vehicleId;
+  }
+
+  $setParts = [];
+  if ($hasTerminalId) $setParts[] = "terminal_id=VALUES(terminal_id)";
+  $setParts[] = "terminal_name=VALUES(terminal_name)";
+  if ($hasVehicleId) $setParts[] = "vehicle_id=VALUES(vehicle_id)";
+  if ($hasRouteId) $setParts[] = "route_id=VALUES(route_id)";
+  $setParts[] = "status='Authorized'";
+  $setParts[] = "assigned_at=NOW()";
+
+  $sql = "INSERT INTO terminal_assignments (" . implode(',', $cols) . ")
+          VALUES (" . implode(',', $vals) . ")
+          ON DUPLICATE KEY UPDATE " . implode(', ', $setParts);
+
+  $stmtUp = $db->prepare($sql);
+  if (!$stmtUp) throw new Exception('db_prepare_failed');
+  $stmtUp->bind_param($types, ...$bind);
   if (!$stmtUp->execute()) throw new Exception('insert_failed');
   $stmtUp->close();
 

@@ -63,7 +63,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
-            <input id="plateInput" name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
+            <input id="plateInput" name="plate_no" required minlength="4" maxlength="16" pattern="^[A-Za-z0-9\\-]{4,16}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type or select plate">
           </div>
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Amount</label>
@@ -98,13 +98,17 @@ if ($rootUrl === '/') $rootUrl = '';
     const orInput = document.getElementById('orInput');
 
     function normalizePlate(value) {
-      const v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
-      if (v.includes('-')) return v;
-      if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
+      let v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
+      v = v.replace(/[^A-Z0-9-]/g, '');
+      v = v.replace(/-+/g, '-');
+      if (v.indexOf('-') !== -1) return v;
+      const m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
+      if (m4) return m4[1] + '-' + m4[2];
+      const m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
+      if (m3) return m3[1] + '-' + m3[2];
       return v;
     }
     if (plateInput) {
-      plateInput.addEventListener('input', () => { plateInput.value = normalizePlate(plateInput.value); });
       plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
     }
     if (orInput) {

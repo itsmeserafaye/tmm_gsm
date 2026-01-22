@@ -32,7 +32,7 @@ if ($prefillVehicleId > 0) {
 }
 
 $inspectors = [];
-$resI = $db->query("SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 ORDER BY name ASC LIMIT 500");
+$resI = $db->query("SELECT officer_id, COALESCE(NULLIF(name,''), NULLIF(full_name,'')) AS name, badge_no FROM officers WHERE active_status=1 ORDER BY COALESCE(NULLIF(name,''), NULLIF(full_name,'')) ASC LIMIT 500");
 if ($resI) while ($r = $resI->fetch_assoc()) $inspectors[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -67,7 +67,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formSchedule" class="space-y-5" novalidate>
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" pattern="^(?:\\d+\\s*-\\s*.+|\\d+)$" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
+          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate or select from list">
           <datalist id="vehiclePickList">
             <?php foreach ($vehicles as $v): ?>
               <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>
@@ -165,10 +165,16 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const fd = new FormData(form);
-        const vehicleId = parseId(fd.get('vehicle_pick'));
-        if (!vehicleId) { showToast('Select a valid vehicle.', 'error'); return; }
+        const pick = (fd.get('vehicle_pick') || '').toString().trim();
+        const vehicleId = parseId(pick);
+        const plate = pick;
+        if (!vehicleId && !plate) { showToast('Select a vehicle or type a plate.', 'error'); return; }
         const post = new FormData();
-        post.append('vehicle_id', String(vehicleId));
+        if (vehicleId) {
+          post.append('vehicle_id', String(vehicleId));
+        } else {
+          post.append('plate_number', plate);
+        }
         post.append('schedule_date', (fd.get('schedule_date') || '').toString());
         post.append('location', (fd.get('location') || '').toString());
         post.append('inspector_id', (fd.get('inspector_id') || '').toString());

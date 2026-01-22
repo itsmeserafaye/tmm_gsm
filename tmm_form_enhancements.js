@@ -143,7 +143,6 @@
     if (el.dataset.tmmNumericOnly === '1') return true;
     var type = (el.getAttribute('type') || '').toLowerCase();
     var inputmode = (el.getAttribute('inputmode') || '').toLowerCase();
-    if (type === 'number') return true;
     if (inputmode === 'numeric') return true;
     return false;
   }

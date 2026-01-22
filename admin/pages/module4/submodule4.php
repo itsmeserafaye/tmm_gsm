@@ -8,7 +8,7 @@ $db = db();
 $scheduleId = (int)($_GET['schedule_id'] ?? 0);
 
 $schedules = [];
-$resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at FROM inspection_schedules WHERE status IN ('Scheduled','Rescheduled') ORDER BY COALESCE(schedule_date, scheduled_at) ASC LIMIT 500");
+$resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at FROM inspection_schedules WHERE status IN ('Scheduled','Rescheduled','Completed') ORDER BY COALESCE(schedule_date, scheduled_at) DESC LIMIT 500");
 if ($resS) while ($r = $resS->fetch_assoc()) $schedules[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -93,7 +93,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Remarks (optional)</label>
-          <textarea name="remarks" rows="3" maxlength="300" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Failed brakes; repair required before retest."></textarea>
+          <textarea name="remarks" rows="3" maxlength="255" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Failed brakes; repair required before retest."></textarea>
         </div>
 
         <div>
@@ -102,7 +102,9 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Photos are uploaded after the checklist is saved.</div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2">
+        <div class="flex items-center justify-end gap-2 pt-2 flex-wrap">
+          <button type="button" id="btnViewReport" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">View Report</button>
+          <button type="button" id="btnDownloadReport" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Download PDF</button>
           <button id="btnSubmit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit Result</button>
         </div>
       </form>
@@ -115,6 +117,9 @@ if ($rootUrl === '/') $rootUrl = '';
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const form = document.getElementById('formConduct');
     const btn = document.getElementById('btnSubmit');
+    const btnViewReport = document.getElementById('btnViewReport');
+    const btnDownloadReport = document.getElementById('btnDownloadReport');
+    const scheduleSelect = form ? form.querySelector('select[name="schedule_id"]') : null;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -127,6 +132,37 @@ if ($rootUrl === '/') $rootUrl = '';
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    function getScheduleId() {
+      if (!scheduleSelect) return '';
+      return (scheduleSelect.value || '').toString().trim();
+    }
+
+    function syncReportButtons() {
+      const sid = getScheduleId();
+      const has = !!sid;
+      if (btnViewReport) btnViewReport.disabled = !has;
+      if (btnDownloadReport) btnDownloadReport.disabled = !has;
+    }
+
+    if (scheduleSelect) {
+      scheduleSelect.addEventListener('change', syncReportButtons);
+      syncReportButtons();
+    }
+    if (btnViewReport) {
+      btnViewReport.addEventListener('click', () => {
+        const sid = getScheduleId();
+        if (!sid) { showToast('Select a schedule first.', 'error'); return; }
+        window.open(rootUrl + '/admin/api/module4/inspection_report.php?format=html&schedule_id=' + encodeURIComponent(sid), '_blank', 'noopener');
+      });
+    }
+    if (btnDownloadReport) {
+      btnDownloadReport.addEventListener('click', () => {
+        const sid = getScheduleId();
+        if (!sid) { showToast('Select a schedule first.', 'error'); return; }
+        window.open(rootUrl + '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' + encodeURIComponent(sid), '_blank', 'noopener');
+      });
     }
 
     if (form && btn) {
