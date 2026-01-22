@@ -8,6 +8,9 @@ require_any_permission(['module3.read','module3.issue','module3.settle']);
 $status = trim($_GET['status'] ?? '');
 $q = trim($_GET['q'] ?? '');
 $period = trim($_GET['period'] ?? '');
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
+if ($limit <= 0) $limit = 100;
+if ($limit > 1000) $limit = 1000;
 
 $sql = "SELECT t.ticket_id, t.ticket_number, t.external_ticket_number, t.ticket_source, t.date_issued, t.violation_code, t.sts_violation_code, t.vehicle_plate, t.issued_by, t.status, t.fine_amount FROM tickets t";
 $conds = [];
@@ -33,7 +36,7 @@ if ($period === '90d') { $conds[] = "t.date_issued >= DATE_SUB(NOW(), INTERVAL 9
 if ($period === 'ytd') { $conds[] = "YEAR(t.date_issued) = YEAR(NOW())"; }
 
 if ($conds) { $sql .= " WHERE " . implode(" AND ", $conds); }
-$sql .= " ORDER BY t.date_issued DESC LIMIT 100";
+$sql .= " ORDER BY t.date_issued DESC LIMIT " . (int)$limit;
 
 if ($params) {
   $stmt = $db->prepare($sql);

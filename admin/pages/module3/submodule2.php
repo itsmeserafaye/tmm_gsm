@@ -94,6 +94,11 @@ require_any_permission(['module3.settle','module3.read']);
             <div id="pay-ticket-context" class="mt-1 text-xs text-emerald-600 font-medium h-4"></div>
           </div>
 
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
+            <input id="pay-vehicle-plate" type="text" readonly class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Auto-filled from ticket">
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Amount (₱)</label>
@@ -208,39 +213,58 @@ require_any_permission(['module3.settle','module3.read']);
     
     if(!input || !box) return;
 
-    input.addEventListener('input', () => {
-        const q = input.value.trim();
-        if(timer) clearTimeout(timer);
-        if(q.length < 2) { box.classList.add('hidden'); return; }
+    function hideBox() {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+    }
 
-        timer = setTimeout(() => {
-            fetch('api/tickets/list.php?q=' + encodeURIComponent(q))
-                .then(r => r.json())
-                .then(data => {
-                    if(data && data.items && data.items.length > 0) {
-                        box.innerHTML = '';
-                        data.items.slice(0, 5).forEach(item => {
-                            const div = document.createElement('div');
-                            div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
-                            const primary = (item.external_ticket_number || item.ticket_number || '').toString();
-                            const alt = (item.external_ticket_number && item.ticket_number) ? `TMM: ${item.ticket_number}` : '';
-                            div.innerHTML = `
-                                <div class="font-bold text-slate-800 text-sm">${primary}</div>
-                                <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}${alt ? ' • ' + alt : ''}</div>
-                            `;
-                            div.addEventListener('click', () => {
-                                input.value = primary;
-                                box.classList.add('hidden');
-                                if(onSelect) onSelect(item);
-                            });
-                            box.appendChild(div);
-                        });
-                        box.classList.remove('hidden');
-                    } else {
-                        box.classList.add('hidden');
-                    }
-                });
-        }, 300);
+    function showItems(items) {
+      if (!items || !items.length) { hideBox(); return; }
+      box.innerHTML = '';
+      items.slice(0, 12).forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
+        const primary = (item.external_ticket_number || item.ticket_number || '').toString();
+        const alt = (item.external_ticket_number && item.ticket_number) ? `TMM: ${item.ticket_number}` : '';
+        div.innerHTML = `
+          <div class="font-bold text-slate-800 text-sm">${primary}</div>
+          <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}${alt ? ' • ' + alt : ''}</div>
+        `;
+        div.addEventListener('click', () => {
+          input.value = primary;
+          hideBox();
+          if (onSelect) onSelect(item);
+        });
+        box.appendChild(div);
+      });
+      box.classList.remove('hidden');
+    }
+
+    function request(q, limit) {
+      fetch('api/tickets/list.php?q=' + encodeURIComponent(q || '') + '&limit=' + encodeURIComponent(String(limit || 200)))
+        .then(r => r.json())
+        .then(data => showItems((data && Array.isArray(data.items)) ? data.items : []))
+        .catch(() => hideBox());
+    }
+
+    function scheduleRequest(delayMs) {
+      const q = input.value.trim();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const limit = q ? 50 : 200;
+        request(q, limit);
+      }, delayMs);
+    }
+
+    input.addEventListener('focus', () => scheduleRequest(0));
+    input.addEventListener('click', () => scheduleRequest(0));
+    input.addEventListener('input', () => scheduleRequest(120));
+
+    document.addEventListener('click', (e) => {
+      const t = e && e.target;
+      if (!t) return;
+      if (t === input || input.contains(t) || t === box || box.contains(t)) return;
+      hideBox();
     });
   }
 
@@ -284,42 +308,18 @@ require_any_permission(['module3.settle','module3.read']);
   }
 
   // Payment Form
-  function setPaymentUiState(state) {
-    const receiptInput = document.getElementById('pay-receipt');
-    const amtInput = document.getElementById('pay-amount');
+  function setPaymentButtons(mode) {
     const btnPay = document.getElementById('btnPay');
     const btnPayTreasury = document.getElementById('btnPayTreasury');
-    const ctx = document.getElementById('pay-ticket-context');
-
-    if (!receiptInput || !amtInput) return;
-
-    if (state && state.paid) {
-      const orNo = state.or_no || state.receipt_ref || '';
-      if (orNo) {
-        receiptInput.value = orNo;
-        receiptInput.placeholder = orNo;
-      }
-      if (state.amount_paid && (!amtInput.value || Number(amtInput.value) <= 0)) {
-        amtInput.value = state.amount_paid;
-      }
-
-      receiptInput.readOnly = true;
-      amtInput.readOnly = true;
-      if (btnPay) btnPay.disabled = true;
-      if (btnPayTreasury) btnPayTreasury.disabled = true;
-
-      if (ctx) {
-        const paidAt = state.date_paid ? ` • Paid: ${state.date_paid}` : '';
-        const channel = state.payment_channel ? ` • ${state.payment_channel}` : '';
-        ctx.textContent = `Treasury Confirmed • OR: ${(orNo || 'N/A')}${channel}${paidAt}`;
-        ctx.className = 'mt-1 text-xs text-emerald-600 font-semibold h-4';
-      }
-    } else {
-      receiptInput.readOnly = false;
-      amtInput.readOnly = false;
-      if (btnPay) btnPay.disabled = false;
-      if (btnPayTreasury) btnPayTreasury.disabled = false;
+    if (!btnPay || !btnPayTreasury) return;
+    const m = (mode || 'treasury').toString();
+    if (m === 'record') {
+      btnPay.classList.remove('hidden');
+      btnPayTreasury.classList.add('hidden');
+      return;
     }
+    btnPay.classList.add('hidden');
+    btnPayTreasury.classList.remove('hidden');
   }
 
   function fetchPaymentStatus(ticketNumber) {
@@ -327,63 +327,46 @@ require_any_permission(['module3.settle','module3.read']);
       .then(r => r.json());
   }
 
-  let pollTimer = null;
-  function startTreasuryPoll(ticketNumber) {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    const startedAt = Date.now();
-    const maxMs = 120000;
-    pollTimer = setInterval(() => {
-      fetchPaymentStatus(ticketNumber)
-        .then(d => {
-          if (!d || !d.ok || !d.ticket) return;
-          const t = d.ticket;
-          if (t.is_paid && (t.receipt_ref || t.or_no)) {
-            setPaymentUiState({
-              paid: true,
-              receipt_ref: t.receipt_ref || '',
-              or_no: t.or_no || '',
-              amount_paid: t.amount_paid || t.fine_amount,
-              date_paid: t.date_paid || '',
-              payment_channel: t.payment_channel || ''
-            });
-            showToast('Treasury payment confirmed. OR: ' + (t.or_no || t.receipt_ref), 'success');
-            clearInterval(pollTimer);
-            pollTimer = null;
-          }
-        })
-        .catch(() => {});
-
-      if (Date.now() - startedAt > maxMs) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        showToast('Waiting for Treasury confirmation... try again after a few seconds.', 'warning');
-      }
-    }, 2000);
+  function getTreasuryPendingTicket() {
+    try { return (window.sessionStorage && sessionStorage.getItem('tmm_treasury_pending_ticket')) || ''; } catch (_) { return ''; }
+  }
+  function setTreasuryPendingTicket(ticketNumber) {
+    try { if (window.sessionStorage) sessionStorage.setItem('tmm_treasury_pending_ticket', (ticketNumber || '').toString()); } catch (_) {}
+  }
+  function clearTreasuryPendingTicket() {
+    try { if (window.sessionStorage) sessionStorage.removeItem('tmm_treasury_pending_ticket'); } catch (_) {}
   }
 
   setupSuggestions('pay-ticket-number', 'pay-ticket-suggestions', (item) => {
     const ctx = document.getElementById('pay-ticket-context');
+    const payPlate = document.getElementById('pay-vehicle-plate');
+    if (payPlate) payPlate.value = (item.vehicle_plate || '').toString();
     if(ctx) ctx.textContent = `Plate: ${item.vehicle_plate} • Fine: ₱${item.fine_amount || '0.00'}`;
     const amt = document.getElementById('pay-amount');
     if(amt && !amt.value && item.fine_amount) amt.value = item.fine_amount;
+    const receiptInput = document.getElementById('pay-receipt');
 
     const ticketNumber = (item.external_ticket_number || item.ticket_number || '').toString();
     if (ticketNumber) {
       fetchPaymentStatus(ticketNumber).then(d => {
         if (d && d.ok && d.ticket) {
           const t = d.ticket;
-          setPaymentUiState({
-            paid: !!t.is_paid,
-            receipt_ref: t.receipt_ref || '',
-            or_no: t.or_no || '',
-            amount_paid: t.amount_paid || 0,
-            date_paid: t.date_paid || '',
-            payment_channel: t.payment_channel || ''
-          });
+          const orNo = (t.or_no || t.receipt_ref || '').toString();
+          if (receiptInput && !receiptInput.value && orNo) receiptInput.value = orNo;
+          const pending = getTreasuryPendingTicket();
+          if (t.is_paid || pending === ticketNumber) {
+            setPaymentButtons('record');
+          } else {
+            setPaymentButtons('treasury');
+          }
         }
       }).catch(() => {});
+    } else {
+      setPaymentButtons('treasury');
     }
   });
+
+  setPaymentButtons('treasury');
 
   const payForm = document.getElementById('ticket-payment-form');
   if(payForm) {
@@ -402,6 +385,7 @@ require_any_permission(['module3.settle','module3.read']);
             .then(d => {
                 if(d.ok) {
                     showToast('Payment recorded successfully', 'success');
+                    clearTreasuryPendingTicket();
                     payForm.reset();
                     document.getElementById('pay-ticket-context').textContent = '';
                     setTimeout(() => window.location.reload(), 1500);
@@ -426,8 +410,8 @@ require_any_permission(['module3.settle','module3.read']);
       const url = `treasury/pay.php?kind=ticket&transaction_id=${encodeURIComponent(ticket)}`;
       window.open(url, '_blank', 'noopener');
       showToast('Opening Treasury payment...', 'success');
-      showToast('Waiting for Treasury confirmation...', 'warning');
-      startTreasuryPoll(ticket);
+      setTreasuryPendingTicket(ticket);
+      setPaymentButtons('record');
     });
   }
 })();

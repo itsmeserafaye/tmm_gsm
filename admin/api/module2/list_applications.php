@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['module2.view','module2.franchises.manage']);
+require_any_permission(['module2.read','module2.endorse','module2.approve','module2.history','module2.franchises.manage']);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -59,4 +59,3 @@ while ($row = $res->fetch_assoc()) $rows[] = $row;
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

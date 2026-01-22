@@ -389,14 +389,46 @@ if ($res) {
   }
 
   if (plateInput) {
+    plateInput.addEventListener('focus', function () {
+      var q = (this.value || '').trim();
+      if (plateDebounceId) clearTimeout(plateDebounceId);
+      plateDebounceId = setTimeout(() => {
+        fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(q) + '&limit=20')
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.ok && Array.isArray(data.data) && data.data.length > 0) {
+              suggestionsBox.innerHTML = '';
+              data.data.slice(0, 10).forEach(item => {
+                var div = document.createElement('div');
+                div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
+                div.innerHTML = `
+                  <div class="font-bold text-slate-800 text-sm">${item.plate_number}</div>
+                  <div class="text-xs text-slate-500">${item.operator_name || 'Unknown Operator'}</div>
+                `;
+                div.addEventListener('click', () => {
+                  plateInput.value = item.plate_number;
+                  if (driverInput && item.operator_name) driverInput.value = item.operator_name;
+                  clearSuggestions();
+                });
+                suggestionsBox.appendChild(div);
+              });
+              suggestionsBox.classList.remove('hidden');
+            } else {
+              clearSuggestions();
+            }
+          })
+          .catch(() => clearSuggestions());
+      }, 50);
+    });
+
     plateInput.addEventListener('input', function() {
       this.value = normalizePlate(this.value);
       var q = this.value.trim();
       if (plateDebounceId) clearTimeout(plateDebounceId);
-      if (q.length < 2) { clearSuggestions(); return; }
+      if (q.length < 1) { clearSuggestions(); return; }
 
       plateDebounceId = setTimeout(() => {
-        fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(q))
+        fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(q) + '&limit=20')
           .then(r => r.json())
           .then(data => {
             if (data && data.ok && Array.isArray(data.data) && data.data.length > 0) {
