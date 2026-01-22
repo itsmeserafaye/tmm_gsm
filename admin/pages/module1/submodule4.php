@@ -261,13 +261,25 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
                 <form class="space-y-4" data-link-form="1" data-operator-id="<?php echo (int)$opId; ?>" novalidate>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle (Plate)</label>
-                    <input type="text" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-plate-search="1" placeholder="Search plate...">
-                    <select name="plate_number" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" data-plate-select="1">
-                      <option value="">Select plate</option>
-                      <?php foreach ($allPlates as $v): ?>
-                        <option value="<?php echo htmlspecialchars($v['plate_number'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($v['plate_number']); ?></option>
-                      <?php endforeach; ?>
-                    </select>
+                    <div class="relative" data-plate-combobox="1">
+                      <input
+                        name="plate_number"
+                        required
+                        readonly
+                        class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase cursor-pointer"
+                        placeholder="Select plate"
+                        data-plate-value="1"
+                      >
+                      <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" data-plate-toggle="1" aria-label="Toggle plate list">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                      </button>
+                      <div class="absolute left-0 right-0 mt-2 z-[60] hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden" data-plate-panel="1">
+                        <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                          <input type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search in dropdown..." data-plate-search="1">
+                        </div>
+                        <div class="max-h-64 overflow-auto" data-plate-list="1"></div>
+                      </div>
+                    </div>
                   </div>
                   <div class="flex items-center justify-end gap-2">
                     <button type="submit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold" data-link-btn="1">Link Vehicle</button>
@@ -285,6 +297,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const unlinkedPlates = <?php echo json_encode(array_values(array_map(function($v){ return (string)($v['plate_number'] ?? ''); }, $allPlates))); ?>;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -300,19 +313,62 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
     }
 
     document.querySelectorAll('form[data-link-form="1"]').forEach((form) => {
-      const search = form.querySelector('[data-plate-search="1"]');
-      const select = form.querySelector('select[data-plate-select="1"]');
-      if (search && select) {
-        const allOptions = Array.prototype.slice.call(select.querySelectorAll('option')).map((o, idx) => ({ idx, value: o.value, text: o.textContent }));
-        const base = allOptions.filter(o => o.idx !== 0);
-        search.addEventListener('input', () => {
-          const q = (search.value || '').toString().trim().toUpperCase();
-          const selected = select.value;
-          const keep = base.filter(o => !q || (o.text || '').toUpperCase().indexOf(q) !== -1);
-          select.innerHTML = '<option value=\"\">Select plate</option>' + keep.map(o => `<option value=\"${String(o.value).replace(/\"/g, '&quot;')}\">${String(o.text)}</option>`).join('');
-          if (selected && keep.some(o => o.value === selected)) select.value = selected;
+      const box = form.querySelector('[data-plate-combobox="1"]');
+      if (!box) return;
+      const valueInput = box.querySelector('[data-plate-value="1"]');
+      const toggleBtn = box.querySelector('[data-plate-toggle="1"]');
+      const panel = box.querySelector('[data-plate-panel="1"]');
+      const search = box.querySelector('[data-plate-search="1"]');
+      const list = box.querySelector('[data-plate-list="1"]');
+      if (!valueInput || !panel || !search || !list) return;
+
+      const render = (query) => {
+        const q = (query || '').toString().trim().toUpperCase();
+        const filtered = unlinkedPlates.filter(p => !q || String(p).toUpperCase().includes(q));
+        if (!filtered.length) {
+          list.innerHTML = '<div class="p-3 text-sm text-slate-500 dark:text-slate-400 italic">No matches.</div>';
+          return;
+        }
+        list.innerHTML = filtered.map((p) => {
+          const safe = String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+          return `<button type="button" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-plate-item="1" data-plate="${safe}">${safe}</button>`;
+        }).join('');
+        list.querySelectorAll('[data-plate-item="1"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const p = btn.getAttribute('data-plate') || '';
+            valueInput.value = p;
+            panel.classList.add('hidden');
+            search.value = '';
+          });
         });
-      }
+      };
+
+      const open = () => {
+        panel.classList.remove('hidden');
+        render(search.value);
+        setTimeout(() => { search.focus(); }, 0);
+        if (window.lucide) window.lucide.createIcons();
+      };
+      const close = () => {
+        panel.classList.add('hidden');
+      };
+
+      valueInput.addEventListener('click', () => {
+        if (panel.classList.contains('hidden')) open();
+        else close();
+      });
+      if (toggleBtn) toggleBtn.addEventListener('click', () => {
+        if (panel.classList.contains('hidden')) open();
+        else close();
+      });
+      search.addEventListener('input', () => render(search.value));
+
+      document.addEventListener('click', (e) => {
+        if (!box.contains(e.target)) close();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') close();
+      });
     });
 
     document.querySelectorAll('[data-toggle-vehicles="1"]').forEach((btn) => {
