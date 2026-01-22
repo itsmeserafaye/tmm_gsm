@@ -122,7 +122,7 @@ if ($res) {
           
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-            <input id="ticket-plate-input" name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
+            <input id="ticket-plate-input" name="plate_no" required minlength="5" maxlength="16" pattern="^[A-Za-z0-9]{1,10}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234 / M5-8371">
             <div id="ticket-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
           </div>
 
@@ -309,8 +309,13 @@ if ($res) {
 
   function normalizePlate(value) {
     var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
+    v = v.replace(/[^A-Z0-9-]/g, '');
+    v = v.replace(/-+/g, '-');
     if (v.indexOf('-') >= 0) return v;
-    if (v.length >= 6) return v.slice(0, 3) + '-' + v.slice(3);
+    var m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
+    if (m4) return m4[1] + '-' + m4[2];
+    var m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
+    if (m3) return m3[1] + '-' + m3[2];
     return v;
   }
 
@@ -370,6 +375,18 @@ if ($res) {
     suggestionsBox.classList.add('hidden');
   }
 
+  function lookupPlateExact(plate) {
+    var p = (plate || '').toString().trim().toUpperCase();
+    if (!p) return Promise.resolve(null);
+    return fetch('api/traffic/vehicle_lookup.php?plate=' + encodeURIComponent(p))
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) return null;
+        return data.data || null;
+      })
+      .catch(() => null);
+  }
+
   if (plateInput) {
     plateInput.addEventListener('input', function() {
       this.value = normalizePlate(this.value);
@@ -403,6 +420,18 @@ if ($res) {
             }
           });
       }, 300);
+    });
+
+    plateInput.addEventListener('blur', function () {
+      var p = normalizePlate(this.value);
+      this.value = p;
+      if (!p || !this.checkValidity()) return;
+      lookupPlateExact(p).then((row) => {
+        if (!row) return;
+        if (driverInput && (!driverInput.value || driverInput.value.trim() === '')) {
+          if (row.operator_name) driverInput.value = row.operator_name;
+        }
+      });
     });
   }
 

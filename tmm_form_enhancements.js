@@ -51,6 +51,18 @@
     return letters + '-' + digits;
   }
 
+  function normalizePlateAny(value) {
+    var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
+    v = v.replace(/[^A-Z0-9-]/g, '');
+    v = v.replace(/-+/g, '-');
+    if (v.indexOf('-') !== -1) return v;
+    var m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
+    if (m4) return m4[1] + '-' + m4[2];
+    var m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
+    if (m3) return m3[1] + '-' + m3[2];
+    return v;
+  }
+
   function inferUppercase(el) {
     if (el.dataset.tmmUppercase === '1') return true;
     if (el.getAttribute('autocapitalize') === 'characters') return true;
@@ -143,6 +155,8 @@
     var mask = inferMask(el);
     if (mask === 'plate') {
       v = normalizePlate(v);
+    } else if (mask === 'plate_any') {
+      v = normalizePlateAny(v);
     }
 
     var filter = inferFilter(el);
