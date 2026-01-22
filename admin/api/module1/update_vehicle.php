@@ -14,6 +14,7 @@ $make = trim((string)($_POST['make'] ?? ''));
 $model = trim((string)($_POST['model'] ?? ''));
 $yearModel = trim((string)($_POST['year_model'] ?? ''));
 $fuelType = trim((string)($_POST['fuel_type'] ?? ''));
+$color = trim((string)($_POST['color'] ?? ''));
 
 if ($vehicleId <= 0 && $plate === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_vehicle']); exit; }
 
@@ -36,6 +37,7 @@ if ($make !== '') { $sets[] = "make=?"; $params[] = $make; $types .= 's'; }
 if ($model !== '') { $sets[] = "model=?"; $params[] = $model; $types .= 's'; }
 if ($yearModel !== '') { $sets[] = "year_model=?"; $params[] = $yearModel; $types .= 's'; }
 if ($fuelType !== '') { $sets[] = "fuel_type=?"; $params[] = $fuelType; $types .= 's'; }
+if ($color !== '') { $sets[] = "color=?"; $params[] = $color; $types .= 's'; }
 if (!$sets) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'nothing_to_update']); exit; }
 $whereSql = '';
 if ($vehicleId > 0) {

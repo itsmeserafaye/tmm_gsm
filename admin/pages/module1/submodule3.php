@@ -163,14 +163,20 @@ function tmm_required_doc_list(string $operatorType): array {
                   <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
                 </td>
                 <td class="py-4 px-4 text-right">
-                  <button type="button"
-                    class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors"
-                    data-op-review="1"
-                    data-operator-id="<?php echo (int)$rid; ?>"
-                    data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>">
-                    <i data-lucide="clipboard-check" class="w-4 h-4"></i>
-                    Review
-                  </button>
+                  <div class="inline-flex items-center gap-2">
+                    <a href="?page=module1/submodule4&highlight_operator_id=<?php echo (int)$rid; ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors" title="Link Vehicle to Operator">
+                      <i data-lucide="link-2" class="w-4 h-4"></i>
+                      Link Vehicle
+                    </a>
+                    <button type="button"
+                      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors"
+                      data-op-review="1"
+                      data-operator-id="<?php echo (int)$rid; ?>"
+                      data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>">
+                      <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                      Review
+                    </button>
+                  </div>
                 </td>
               </tr>
             <?php endwhile; ?>
@@ -406,11 +412,29 @@ function tmm_required_doc_list(string $operatorType): array {
         openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Review • ' + name);
         try {
           const payload = await loadOperatorDocs(id);
-          renderDocs(id, name, payload);
+          const opName = (payload && payload.operator && (payload.operator.display_name || payload.operator.name || payload.operator.full_name)) ? (payload.operator.display_name || payload.operator.name || payload.operator.full_name) : name;
+          renderDocs(id, opName, payload);
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
         }
       });
     });
+
+    const sp = new URLSearchParams(window.location.search || '');
+    const reviewId = (sp.get('review_operator_id') || '').toString().trim();
+    if (reviewId) {
+      const btn = document.querySelector('[data-op-review="1"][data-operator-id="' + reviewId.replace(/"/g, '\\"') + '"]');
+      if (btn) {
+        btn.click();
+      } else {
+        openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Review • Operator #' + reviewId);
+        loadOperatorDocs(reviewId).then((payload) => {
+          const opName = (payload && payload.operator && (payload.operator.display_name || payload.operator.name || payload.operator.full_name)) ? (payload.operator.display_name || payload.operator.name || payload.operator.full_name) : ('Operator #' + reviewId);
+          renderDocs(reviewId, opName, payload);
+        }).catch((err) => {
+          body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load documents'}</div>`;
+        });
+      }
+    }
   })();
 </script>

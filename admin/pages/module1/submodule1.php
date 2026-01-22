@@ -229,9 +229,9 @@ if ($rootUrl === '/') $rootUrl = '';
                       title="Edit Operator">
                       <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
-                    <?php if (has_any_permission(['module1.link_vehicle','module1.write'])): ?>
-                      <a href="?page=module1/submodule4&highlight_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center" title="Link Vehicle">
-                        <i data-lucide="link-2" class="w-4 h-4"></i>
+                    <?php if (has_permission('module1.write')): ?>
+                      <a href="?page=module1/submodule3&review_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all inline-flex items-center justify-center" title="Validate Documents">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
                       </a>
                     <?php endif; ?>
                   </div>

@@ -51,6 +51,7 @@ function db() {
     coop_name VARCHAR(128) DEFAULT NULL,
     franchise_id VARCHAR(64) DEFAULT NULL,
     route_id VARCHAR(64) DEFAULT NULL,
+    color VARCHAR(64) DEFAULT NULL,
     record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded',
     status VARCHAR(32) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -85,6 +86,7 @@ function db() {
   if (!isset($vehCols['model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) DEFAULT NULL"); }
   if (!isset($vehCols['year_model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL"); }
   if (!isset($vehCols['fuel_type'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($vehCols['color'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN color VARCHAR(64) DEFAULT NULL"); }
   if (!isset($vehCols['record_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'"); }
   $conn->query("UPDATE vehicles SET record_status=CASE
     WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status

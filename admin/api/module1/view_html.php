@@ -18,7 +18,7 @@ if (!has_any_permission(['module1.view','module1.vehicles.write','module1.routes
 }
 
 $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id, COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
-                             v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.status, v.created_at
+                             v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color, v.status, v.created_at
                       FROM vehicles v
                       LEFT JOIN operators o ON o.id=v.operator_id
                       WHERE v.plate_number=?");
@@ -177,6 +177,10 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Chassis No</label>
                                     <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="17 characters (no I, O, Q)">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">Color</label>
+                                    <input name="color" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['color'] ?? '')); ?>" placeholder="e.g., White">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Make</label>

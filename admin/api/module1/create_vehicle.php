@@ -27,6 +27,7 @@ try {
     $model = trim((string)($_POST['model'] ?? ''));
     $yearModel = trim((string)($_POST['year_model'] ?? ''));
     $fuelType = trim((string)($_POST['fuel_type'] ?? ''));
+    $color = trim((string)($_POST['color'] ?? ''));
     $operatorId = isset($_POST['operator_id']) && $_POST['operator_id'] !== '' ? (int)$_POST['operator_id'] : 0;
     $operatorName = trim((string)($_POST['operator_name'] ?? ''));
 
@@ -70,8 +71,8 @@ try {
     $franchise = '';
     $inspectionStatus = 'Pending';
 
-    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, record_status, status, inspection_status)
-                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status)
+                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                           ON DUPLICATE KEY UPDATE
                             vehicle_type=VALUES(vehicle_type),
                             operator_id=VALUES(operator_id),
@@ -82,6 +83,7 @@ try {
                             model=VALUES(model),
                             year_model=VALUES(year_model),
                             fuel_type=VALUES(fuel_type),
+                            color=VALUES(color),
                             record_status=VALUES(record_status),
                             status=CASE WHEN status IS NULL OR status='' OR status IN ('Linked','Unlinked') THEN VALUES(status) ELSE status END,
                             inspection_status=COALESCE(NULLIF(inspection_status,''), VALUES(inspection_status))");
@@ -91,7 +93,7 @@ try {
         exit;
     }
     $operatorIdBind = $operatorId > 0 ? $operatorId : null;
-    $stmt->bind_param('ssissssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $recordStatus, $vehicleStatus, $inspectionStatus);
+    $stmt->bind_param('ssisssssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus);
     $ok = $stmt->execute();
 
     echo json_encode(['ok' => $ok, 'vehicle_id' => (int)$db->insert_id, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus]);

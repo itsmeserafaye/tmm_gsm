@@ -127,7 +127,7 @@ $certRef = $vehicle ? (string)($vehicle['inspection_cert_ref'] ?? '') : '';
 
 if ($format !== 'pdf') {
   header('Content-Type: text/html; charset=utf-8');
-  $title = 'Inspection Report - SCH-' . (int)$scheduleId;
+  $title = 'Inspection Checklist & Result - SCH-' . (int)$scheduleId;
   ?>
   <!doctype html>
   <html lang="en">
@@ -216,7 +216,7 @@ if ($format !== 'pdf') {
   exit;
 }
 
-$title = 'Inspection Report SCH-' . (int)$scheduleId;
+$title = 'Inspection Checklist & Result SCH-' . (int)$scheduleId;
 $lines = [];
 $lines[] = $title;
 $lines[] = 'Generated: ' . date('Y-m-d H:i');

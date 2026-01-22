@@ -541,6 +541,10 @@ $typesList = vehicle_types();
                 </datalist>
               </div>
               <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Color (optional)</label>
+                <input name="color" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., White">
+              </div>
+              <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR (optional)</label>
                 <input name="orcr_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
               </div>
@@ -586,7 +590,7 @@ $typesList = vehicle_types();
           try {
             const fd = new FormData(form);
             const saveFd = new FormData();
-            ['plate_no','vehicle_type','engine_no','chassis_no','make','model','year_model','fuel_type'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
+            ['plate_no','vehicle_type','engine_no','chassis_no','make','model','year_model','fuel_type','color'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
 
             const res = await fetch(rootUrl + '/admin/api/module1/create_vehicle.php', { method: 'POST', body: saveFd });
             const data = await res.json();

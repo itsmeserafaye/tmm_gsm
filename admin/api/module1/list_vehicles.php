@@ -9,7 +9,7 @@ $recordStatus = trim($_GET['record_status'] ?? '');
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 200;
 if ($limit <= 0) $limit = 200;
 if ($limit > 1200) $limit = 1200;
-$sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operator_name, coop_name, franchise_id, route_id, engine_no, chassis_no, make, model, year_model, fuel_type, record_status, status, created_at FROM vehicles";
+$sql = "SELECT id AS vehicle_id, plate_number, vehicle_type, operator_id, operator_name, coop_name, franchise_id, route_id, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, created_at FROM vehicles";
 $conds = [];
 $params = [];
 $types = '';
