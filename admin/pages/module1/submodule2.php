@@ -469,12 +469,11 @@ $typesList = vehicle_types();
               const res = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: fd });
               const data = await res.json();
               if (!data || !data.ok) {
-                const msg = (data && data.error)
-                  ? String(data.error)
-                  : ((data && data.details)
-                    ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details))
-                    : 'upload_failed');
-                throw new Error(msg);
+                const base = (data && data.error) ? String(data.error) : 'upload_failed';
+                const extra = (data && data.details)
+                  ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details))
+                  : '';
+                throw new Error(extra ? (base + ' ' + extra) : base);
               }
               showToast('Documents uploaded.');
               await loadDocs();
@@ -613,12 +612,11 @@ $typesList = vehicle_types();
               const res2 = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: docsFd });
               const data2 = await res2.json();
               if (!data2 || !data2.ok) {
-                const msg = (data2 && data2.error)
-                  ? String(data2.error)
-                  : ((data2 && data2.details)
-                    ? (typeof data2.details === 'string' ? data2.details : JSON.stringify(data2.details))
-                    : 'upload_failed');
-                throw new Error(msg);
+                const base = (data2 && data2.error) ? String(data2.error) : 'upload_failed';
+                const extra = (data2 && data2.details)
+                  ? (typeof data2.details === 'string' ? data2.details : JSON.stringify(data2.details))
+                  : '';
+                throw new Error(extra ? (base + ' ' + extra) : base);
               }
             }
 

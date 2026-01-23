@@ -45,15 +45,16 @@ $details = [];
 function tmm_vehicle_docs_schema(mysqli $db): array {
     static $schema = null;
     if (is_array($schema)) return $schema;
-    $schema = ['exists' => false, 'cols' => []];
+    $schema = ['exists' => false, 'cols' => [], 'types' => []];
     $check = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
     if (!$check || !$check->fetch_row()) return $schema;
     $schema['exists'] = true;
-    $res = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_documents'");
+    $res = $db->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_documents'");
     if ($res) {
         while ($r = $res->fetch_assoc()) {
             $col = (string)($r['COLUMN_NAME'] ?? '');
             if ($col !== '') $schema['cols'][$col] = true;
+            if ($col !== '') $schema['types'][$col] = (string)($r['COLUMN_TYPE'] ?? '');
         }
     }
     return $schema;
@@ -112,21 +113,66 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
         return false;
     }
 
-    if ($idCol === 'vehicle_id') {
-        $types = 'iss' . $extraTypes;
-        $params = array_merge([$vehicleId, $docType, $filename], $extraParams);
-    } else {
-        $types = 'sss' . $extraTypes;
-        $params = array_merge([$plate, $docType, $filename], $extraParams);
+    $typeMeta = (string)(($schema['types'] ?? [])[$typeCol] ?? '');
+    $enumValues = [];
+    if ($typeMeta !== '' && stripos($typeMeta, "enum(") === 0) {
+        if (preg_match_all("/'([^']*)'/", $typeMeta, $m)) {
+            $enumValues = $m[1] ?? [];
+        }
     }
-    $stmt->bind_param($types, ...$params);
-    $ok = $stmt->execute();
-    if (!$ok) {
-        $errors[] = "$field: db_insert_failed";
-        $details[$field] = $stmt->error ?: 'execute_failed';
+
+    $variants = [$docType];
+    $tryAdd = function (string $v) use (&$variants): void {
+        foreach ($variants as $e) { if (strcasecmp($e, $v) === 0) return; }
+        $variants[] = $v;
+    };
+    if ($field === 'or' || $field === 'cr' || $field === 'orcr') {
+        $tryAdd('OR/CR');
+        $tryAdd('OR');
+        $tryAdd('CR');
+        $tryAdd('orcr');
+        $tryAdd('or');
+        $tryAdd('cr');
+    } elseif ($field === 'insurance') {
+        $tryAdd('INSURANCE');
+        $tryAdd('insurance');
+    } elseif ($field === 'emission') {
+        $tryAdd('EMISSION');
+        $tryAdd('emission');
+    } else {
+        $tryAdd('OTHERS');
+        $tryAdd('others');
+    }
+
+    if ($enumValues) {
+        $mapped = [];
+        foreach ($variants as $v) {
+            foreach ($enumValues as $ev) {
+                if (strcasecmp($ev, $v) === 0) { $mapped[] = $ev; break; }
+            }
+        }
+        if ($mapped) $variants = array_values(array_unique($mapped));
+        else $variants = [$enumValues[0]];
+    }
+
+    $typesBase = ($idCol === 'vehicle_id') ? 'iss' : 'sss';
+    $idVal = ($idCol === 'vehicle_id') ? $vehicleId : $plate;
+    $lastErr = '';
+    foreach ($variants as $v) {
+        $types = $typesBase . $extraTypes;
+        $params = array_merge([$idVal, $v, $filename], $extraParams);
+        $stmt->bind_param($types, ...$params);
+        $ok = $stmt->execute();
+        if ($ok) {
+            $stmt->close();
+            return true;
+        }
+        $lastErr = $stmt->error ?: 'execute_failed';
     }
     $stmt->close();
-    return $ok;
+    $errors[] = "$field: db_insert_failed";
+    $details[$field] = $lastErr;
+    return false;
 }
 
 foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
@@ -178,7 +224,17 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
 if (empty($uploaded) && empty($errors)) {
     echo json_encode(['error' => 'No files selected']);
 } elseif (!empty($errors)) {
-    echo json_encode(['ok' => false, 'error' => implode(', ', $errors), 'details' => $details, 'uploaded' => $uploaded]);
+    $errOut = [];
+    foreach ($errors as $e) {
+        $parts = explode(':', $e, 2);
+        $f = trim((string)($parts[0] ?? ''));
+        if ($f !== '' && isset($details[$f]) && $details[$f] !== '') {
+            $errOut[] = $f . ': db_insert_failed (' . (string)$details[$f] . ')';
+        } else {
+            $errOut[] = $e;
+        }
+    }
+    echo json_encode(['ok' => false, 'error' => implode(', ', $errOut), 'details' => $details, 'uploaded' => $uploaded]);
 } else {
     echo json_encode(['ok' => true, 'files' => $uploaded, 'vehicle_id' => $vehicleId, 'plate_number' => $plate]);
 }
