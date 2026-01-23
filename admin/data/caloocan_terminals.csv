@@ -1,4 +1,10 @@
-name,city,address,type,capacity,status
-Central Integrated Terminal,Caloocan City,,Terminal,500,Active
-North Bound Terminal,Caloocan City,,Terminal,300,Active
-Barangay 101 Tricycle Hub,Caloocan City,,Terminal,50,Active
+name,location,city,address,type,capacity,status
+MCU/Monumento Terminal,Monumento,Caloocan City,Rizal Ave Ext / EDSA (near LRT-1 Monumento),Terminal,800,Active
+Bagong Barrio Terminal,Bagong Barrio,Caloocan City,EDSA Bagong Barrio,Terminal,500,Active
+Sangandaan Terminal,Sangandaan,Caloocan City,Samson Rd / Sangandaan,Terminal,250,Active
+Grace Park Terminal,Grace Park,Caloocan City,10th Ave / 5th Ave area,Terminal,300,Active
+Camarin Terminal,Camarin,Caloocan City,Camarin Rd / Zabarte Rd area,Terminal,400,Active
+Deparo Terminal,Deparo,Caloocan City,Deparo Rd area,Terminal,350,Active
+Tala Terminal,Tala,Caloocan City,Tala area / Dr. Jose N. Rodriguez Memorial Hospital vicinity,Terminal,250,Active
+Bagong Silang Terminal,Bagong Silang,Caloocan City,Zabarte Rd / Phase terminals,Terminal,600,Active
+Novaliches Bayan Terminal,Novaliches,Caloocan City,Quirino Highway / Novaliches Bayan,Terminal,500,Active

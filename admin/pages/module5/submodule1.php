@@ -11,8 +11,33 @@ $statSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots WHERE
 $statSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots WHERE status='Occupied'")->fetch_assoc()['c'] ?? 0);
 $statPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments WHERE DATE(paid_at)=CURDATE()")->fetch_assoc()['c'] ?? 0);
 
+$hasRouteCode = false;
+$hasVehicleType = false;
+$colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('route_code','vehicle_type')");
+if ($colRes) {
+  while ($c = $colRes->fetch_assoc()) {
+    $cn = (string)($c['COLUMN_NAME'] ?? '');
+    if ($cn === 'route_code') $hasRouteCode = true;
+    if ($cn === 'vehicle_type') $hasVehicleType = true;
+  }
+}
+$routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)" : "r.route_id";
+$vehExpr = $hasVehicleType ? "COALESCE(NULLIF(r.vehicle_type,''), '-')" : "'-'";
+
 $terminals = [];
-$res = $db->query("SELECT id, name, location, capacity FROM terminals WHERE type <> 'Parking' ORDER BY name ASC LIMIT 500");
+$res = $db->query("SELECT
+  t.id,
+  t.name,
+  t.location,
+  t.capacity,
+  COALESCE(GROUP_CONCAT(DISTINCT CONCAT($vehExpr, ': ', $routeLabelExpr) ORDER BY $vehExpr, $routeLabelExpr SEPARATOR ', '), '') AS routes_served
+FROM terminals t
+LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
+LEFT JOIN routes r ON r.route_id=tr.route_id
+WHERE t.type <> 'Parking'
+GROUP BY t.id
+ORDER BY t.name ASC
+LIMIT 500");
 if ($res) while ($r = $res->fetch_assoc()) $terminals[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -124,6 +149,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <tr class="text-left text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
@@ -134,6 +160,9 @@ if ($rootUrl === '/') $rootUrl = '';
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
+                <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold max-w-md">
+                  <?php echo htmlspecialchars((string)($t['routes_served'] ?? '') ?: '-'); ?>
+                </td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
                   <a href="?page=module5/submodule3&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
@@ -152,7 +181,7 @@ if ($rootUrl === '/') $rootUrl = '';
               </tr>
             <?php endforeach; ?>
           <?php else: ?>
-            <tr><td colspan="4" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
+            <tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>

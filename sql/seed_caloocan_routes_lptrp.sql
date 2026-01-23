@@ -45,3 +45,125 @@ ON DUPLICATE KEY UPDATE
   authorized_units=VALUES(authorized_units),
   max_vehicle_limit=VALUES(max_vehicle_limit),
   status=VALUES(status);
+
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'MCU/Monumento Terminal','Monumento','Caloocan City','Rizal Ave Ext / EDSA (near LRT-1 Monumento)',800,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='MCU/Monumento Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Bagong Barrio Terminal','Bagong Barrio','Caloocan City','EDSA Bagong Barrio',500,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Barrio Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Sangandaan Terminal','Sangandaan','Caloocan City','Samson Rd / Sangandaan',250,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Sangandaan Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Grace Park Terminal','Grace Park','Caloocan City','10th Ave / 5th Ave area',300,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Camarin Terminal','Camarin','Caloocan City','Camarin Rd / Zabarte Rd area',400,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Camarin Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Deparo Terminal','Deparo','Caloocan City','Deparo Rd area',350,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Deparo Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Tala Terminal','Tala','Caloocan City','Tala area / Dr. Jose N. Rodriguez Memorial Hospital vicinity',250,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Tala Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Bagong Silang Terminal','Bagong Silang','Caloocan City','Zabarte Rd / Phase terminals',600,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Silang Terminal');
+INSERT INTO terminals (name, location, city, address, capacity, type)
+SELECT 'Novaliches Bayan Terminal','Novaliches','Caloocan City','Quirino Highway / Novaliches Bayan',500,'Terminal'
+WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Novaliches Bayan Terminal');
+
+CREATE TABLE IF NOT EXISTS terminal_routes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  terminal_id INT NOT NULL,
+  route_id VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_terminal_route (terminal_id, route_id),
+  INDEX idx_terminal (terminal_id),
+  INDEX idx_route (route_id),
+  FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-03' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='Bagong Barrio Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='Sangandaan Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='Grace Park Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-08' FROM terminals t WHERE t.name='Grace Park Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TRI-03' FROM terminals t WHERE t.name='Grace Park Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Camarin Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-07' FROM terminals t WHERE t.name='Camarin Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-04' FROM terminals t WHERE t.name='Camarin Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-09' FROM terminals t WHERE t.name='Camarin Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Deparo Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-05' FROM terminals t WHERE t.name='Deparo Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-01' FROM terminals t WHERE t.name='Deparo Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-02' FROM terminals t WHERE t.name='Deparo Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Tala Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Tala Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TRI-02' FROM terminals t WHERE t.name='Tala Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-06' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-07' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-08' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-03' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-04' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'BUS-02' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'BUS-03' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'TRI-01' FROM terminals t WHERE t.name='Bagong Silang Terminal';
+
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Novaliches Bayan Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-06' FROM terminals t WHERE t.name='Novaliches Bayan Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-07' FROM terminals t WHERE t.name='Novaliches Bayan Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-08' FROM terminals t WHERE t.name='Novaliches Bayan Terminal';
+INSERT IGNORE INTO terminal_routes (terminal_id, route_id)
+SELECT t.id, 'UV-09' FROM terminals t WHERE t.name='Novaliches Bayan Terminal';

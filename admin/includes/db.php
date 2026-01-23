@@ -204,6 +204,83 @@ function db() {
   $conn->query("UPDATE terminals SET location=TRIM(CONCAT(COALESCE(address,''), CASE WHEN address IS NOT NULL AND address <> '' AND city IS NOT NULL AND city <> '' THEN ', ' ELSE '' END, COALESCE(city,''))) WHERE (location IS NULL OR location='') AND ((address IS NOT NULL AND address <> '') OR (city IS NOT NULL AND city <> ''))");
   $conn->query("UPDATE terminal_assignments ta JOIN terminals t ON t.name=ta.terminal_name SET ta.terminal_id=t.id WHERE ta.terminal_id IS NULL AND ta.terminal_name IS NOT NULL AND ta.terminal_name<>''");
 
+  $conn->query("CREATE TABLE IF NOT EXISTS terminal_routes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    route_id VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_terminal_route (terminal_id, route_id),
+    INDEX idx_terminal (terminal_id),
+    INDEX idx_route (route_id),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'MCU/Monumento Terminal','Monumento','Caloocan City','Rizal Ave Ext / EDSA (near LRT-1 Monumento)',800,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='MCU/Monumento Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Bagong Barrio Terminal','Bagong Barrio','Caloocan City','EDSA Bagong Barrio',500,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Barrio Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Sangandaan Terminal','Sangandaan','Caloocan City','Samson Rd / Sangandaan',250,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Sangandaan Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Grace Park Terminal','Grace Park','Caloocan City','10th Ave / 5th Ave area',300,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Camarin Terminal','Camarin','Caloocan City','Camarin Rd / Zabarte Rd area',400,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Camarin Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Deparo Terminal','Deparo','Caloocan City','Deparo Rd area',350,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Deparo Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Tala Terminal','Tala','Caloocan City','Tala area / Dr. Jose N. Rodriguez Memorial Hospital vicinity',250,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Tala Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Bagong Silang Terminal','Bagong Silang','Caloocan City','Zabarte Rd / Phase terminals',600,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Silang Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Novaliches Bayan Terminal','Novaliches','Caloocan City','Quirino Highway / Novaliches Bayan',500,'Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Novaliches Bayan Terminal')");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-03' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='Bagong Barrio Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='Sangandaan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='Grace Park Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-08' FROM terminals t WHERE t.name='Grace Park Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-03' FROM terminals t WHERE t.name='Grace Park Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Camarin Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-07' FROM terminals t WHERE t.name='Camarin Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-04' FROM terminals t WHERE t.name='Camarin Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-09' FROM terminals t WHERE t.name='Camarin Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-05' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-01' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-02' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Tala Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Tala Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-02' FROM terminals t WHERE t.name='Tala Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-06' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-07' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-08' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-03' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-04' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-02' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-03' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-01' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-06' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-07' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-08' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-09' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+
   $conn->query("CREATE TABLE IF NOT EXISTS parking_slots (
     slot_id INT AUTO_INCREMENT PRIMARY KEY,
     terminal_id INT NOT NULL,

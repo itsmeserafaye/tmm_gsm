@@ -51,12 +51,27 @@ function ensure_terminals_table(mysqli $db): void {
   $db->query("CREATE TABLE IF NOT EXISTS terminals (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    location VARCHAR(255) DEFAULT NULL,
     city VARCHAR(100),
     address TEXT,
     type ENUM('Terminal', 'Parking', 'LoadingBay') DEFAULT 'Terminal',
     capacity INT DEFAULT 0,
     status ENUM('Active', 'Inactive', 'Suspended') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB");
+}
+
+function ensure_terminal_routes_table(mysqli $db): void {
+  if (table_exists($db, 'terminal_routes')) return;
+  $db->query("CREATE TABLE IF NOT EXISTS terminal_routes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    route_id VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_terminal_route (terminal_id, route_id),
+    INDEX idx_terminal (terminal_id),
+    INDEX idx_route (route_id),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 }
 
@@ -75,6 +90,7 @@ function ensure_routes_table(mysqli $db): void {
 
 function seed_terminals(mysqli $db, array $rows): array {
   ensure_terminals_table($db);
+  $hasLocation = has_column($db, 'terminals', 'location');
   $hasCity = has_column($db, 'terminals', 'city');
   $hasAddress = has_column($db, 'terminals', 'address');
   $hasType = has_column($db, 'terminals', 'type');
@@ -86,6 +102,7 @@ function seed_terminals(mysqli $db, array $rows): array {
   foreach ($rows as $r) {
     $name = trim((string)($r['name'] ?? ''));
     if ($name === '') { $skipped++; continue; }
+    $location = trim((string)($r['location'] ?? ''));
     $city = trim((string)($r['city'] ?? 'Caloocan City'));
     $address = trim((string)($r['address'] ?? ''));
     $type = trim((string)($r['type'] ?? 'Terminal'));
@@ -106,6 +123,7 @@ function seed_terminals(mysqli $db, array $rows): array {
     $types = 's';
     $params = [$name];
 
+    if ($hasLocation) { $cols[] = 'location'; $vals[] = '?'; $types .= 's'; $params[] = $location !== '' ? $location : null; }
     if ($hasCity) { $cols[] = 'city'; $vals[] = '?'; $types .= 's'; $params[] = $city; }
     if ($hasAddress) { $cols[] = 'address'; $vals[] = '?'; $types .= 's'; $params[] = $address; }
     if ($hasType) { $cols[] = 'type'; $vals[] = '?'; $types .= 's'; $params[] = $type; }
@@ -120,6 +138,45 @@ function seed_terminals(mysqli $db, array $rows): array {
     $stmtIns->close();
     if ($ok) $added++; else $skipped++;
   }
+  return ['added' => $added, 'skipped' => $skipped];
+}
+
+function seed_terminal_routes(mysqli $db, array $rows): array {
+  ensure_terminals_table($db);
+  ensure_terminal_routes_table($db);
+  $added = 0;
+  $skipped = 0;
+
+  $stmtT = $db->prepare("SELECT id FROM terminals WHERE name=? LIMIT 1");
+  $stmtR = $db->prepare("SELECT route_id FROM routes WHERE route_id=? LIMIT 1");
+  $stmtIns = $db->prepare("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) VALUES (?, ?)");
+  if (!$stmtT || !$stmtR || !$stmtIns) return ['added' => 0, 'skipped' => count($rows)];
+
+  foreach ($rows as $r) {
+    $tname = trim((string)($r['terminal_name'] ?? ($r['terminal'] ?? '')));
+    $rid = trim((string)($r['route_id'] ?? ($r['route_code'] ?? '')));
+    if ($tname === '' || $rid === '') { $skipped++; continue; }
+
+    $stmtT->bind_param('s', $tname);
+    $stmtT->execute();
+    $tr = $stmtT->get_result()->fetch_assoc();
+    $terminalId = (int)($tr['id'] ?? 0);
+    if ($terminalId <= 0) { $skipped++; continue; }
+
+    $stmtR->bind_param('s', $rid);
+    $stmtR->execute();
+    $rr = $stmtR->get_result()->fetch_assoc();
+    $routeId = (string)($rr['route_id'] ?? '');
+    if ($routeId === '') { $skipped++; continue; }
+
+    $stmtIns->bind_param('is', $terminalId, $routeId);
+    $ok = $stmtIns->execute();
+    if ($ok && $db->affected_rows > 0) $added++; else $skipped++;
+  }
+
+  $stmtT->close();
+  $stmtR->close();
+  $stmtIns->close();
   return ['added' => $added, 'skipped' => $skipped];
 }
 
@@ -253,6 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   echo '<div style="margin:0 0 8px 0;font-weight:700">Files</div>';
   echo '<ul style="margin:0 0 16px 18px;color:#444">';
   echo '<li>admin/data/caloocan_terminals.csv</li>';
+  echo '<li>admin/data/caloocan_terminal_routes.csv</li>';
   echo '<li>admin/data/caloocan_routes.csv</li>';
   echo '</ul>';
   echo '<form method="post">';
@@ -272,13 +330,16 @@ if ($confirm !== 'SEED_CALOOCAN') {
 }
 
 $terminals = read_csv_rows(__DIR__ . '/../data/caloocan_terminals.csv');
+$terminalRoutes = read_csv_rows(__DIR__ . '/../data/caloocan_terminal_routes.csv');
 $routes = read_csv_rows(__DIR__ . '/../data/caloocan_routes.csv');
 
 $termRes = seed_terminals($db, $terminals);
 $routeRes = seed_routes($db, $routes);
+$trRes = seed_terminal_routes($db, $terminalRoutes);
 
 echo json_encode([
   'ok' => true,
   'terminals' => $termRes,
   'routes' => $routeRes,
+  'terminal_routes' => $trRes,
 ]);

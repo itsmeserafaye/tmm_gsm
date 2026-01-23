@@ -134,7 +134,7 @@ if ($res) {
                   class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase placeholder:normal-case"
                   placeholder="Search plate… (type to filter)">
               </div>
-              <div id="plateDropdownList" class="max-h-56 overflow-auto"></div>
+              <div id="plateDropdownList" class="max-h-80 overflow-auto"></div>
             </div>
             <input id="ticket-plate-input" type="hidden" name="plate_no" value="">
           </div>
@@ -437,11 +437,21 @@ if ($res) {
     closePlateDropdown();
   }
 
-  function renderPlateItems(items, query) {
+  var platePickQuery = '';
+  var platePickOffset = 0;
+  var platePickLimit = 200;
+  var platePickLoading = false;
+  var platePickDone = false;
+  var platePickSeen = {};
+
+  function renderPlateItems(items, query, append) {
     if (!plateDropdownList) return;
-    plateDropdownList.innerHTML = '';
+    if (!append) {
+      plateDropdownList.innerHTML = '';
+      platePickSeen = {};
+    }
     var q = normalizePlate(query || '');
-    if (q) {
+    if (!append && q) {
       var useBtn = document.createElement('button');
       useBtn.type = 'button';
       useBtn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
@@ -450,6 +460,7 @@ if ($res) {
       plateDropdownList.appendChild(useBtn);
     }
     if (!items || !items.length) {
+      if (append) return;
       var empty = document.createElement('div');
       empty.className = 'px-4 py-3 text-sm text-slate-500 italic';
       empty.textContent = 'No matches.';
@@ -458,6 +469,10 @@ if ($res) {
     }
     items.forEach(function (item) {
       if (!item || !item.plate_number) return;
+      var key = String(item.plate_number || '');
+      if (!key) return;
+      if (platePickSeen[key]) return;
+      platePickSeen[key] = true;
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
@@ -470,9 +485,11 @@ if ($res) {
     if (tail) tail.classList.add('border-b-0');
   }
 
-  function fetchPlates(q) {
+  function fetchPlates(q, offset, limit) {
     var qq = (q || '').toString().trim();
-    return fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(qq) + '&limit=50')
+    var off = Number(offset || 0);
+    var lim = Number(limit || 200);
+    return fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(qq) + '&offset=' + encodeURIComponent(String(off)) + '&limit=' + encodeURIComponent(String(lim)))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data || !data.ok || !Array.isArray(data.data)) return [];
@@ -481,31 +498,59 @@ if ($res) {
       .catch(function () { return []; });
   }
 
+  function loadMorePlates(reset) {
+    if (!plateDropdownList) return;
+    if (platePickLoading) return;
+    if (platePickDone && !reset) return;
+    if (reset) {
+      platePickOffset = 0;
+      platePickDone = false;
+      platePickQuery = (plateDropdownSearch ? (plateDropdownSearch.value || '') : '').toString();
+      plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
+    }
+    platePickLoading = true;
+    var q = platePickQuery;
+    var off = platePickOffset;
+    fetchPlates(q, off, platePickLimit).then(function (items) {
+      var arr = Array.isArray(items) ? items : [];
+      if (reset) plateDropdownList.innerHTML = '';
+      renderPlateItems(arr, q, !reset);
+      if (arr.length < platePickLimit) platePickDone = true;
+      else platePickOffset = platePickOffset + platePickLimit;
+    }).finally(function () {
+      platePickLoading = false;
+    });
+  }
+
   if (plateDropdownBtn) {
     setPlateLabel('', true);
     plateDropdownBtn.addEventListener('click', function () {
       if (isPlateDropdownOpen()) closePlateDropdown();
       else {
         openPlateDropdown();
-        if (plateDropdownList && plateDropdownList.childElementCount === 0) {
-          plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
-          fetchPlates('').then(function (items) { renderPlateItems(items, plateDropdownSearch ? plateDropdownSearch.value : ''); });
-        }
+        loadMorePlates(true);
       }
     });
   }
 
   if (plateDropdownSearch) {
     plateDropdownSearch.addEventListener('input', function () {
-      var q = plateDropdownSearch.value || '';
       if (plateDebounceId) clearTimeout(plateDebounceId);
       plateDebounceId = setTimeout(function () {
-        if (plateDropdownList) plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
-        fetchPlates(q).then(function (items) { renderPlateItems(items, q); });
+        loadMorePlates(true);
       }, 180);
     });
     plateDropdownSearch.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { e.preventDefault(); closePlateDropdown(); }
+    });
+  }
+
+  if (plateDropdownList) {
+    plateDropdownList.addEventListener('scroll', function () {
+      if (platePickLoading || platePickDone) return;
+      if ((plateDropdownList.scrollTop + plateDropdownList.clientHeight) >= (plateDropdownList.scrollHeight - 40)) {
+        loadMorePlates(false);
+      }
     });
   }
 
