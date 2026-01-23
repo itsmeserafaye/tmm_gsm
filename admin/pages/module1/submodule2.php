@@ -468,7 +468,14 @@ $typesList = vehicle_types();
             try {
               const res = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: fd });
               const data = await res.json();
-              if (!data || !data.ok) throw new Error((data && (data.error || data.details)) ? (data.error || 'upload_failed') : 'upload_failed');
+              if (!data || !data.ok) {
+                const msg = (data && data.error)
+                  ? String(data.error)
+                  : ((data && data.details)
+                    ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details))
+                    : 'upload_failed');
+                throw new Error(msg);
+              }
               showToast('Documents uploaded.');
               await loadDocs();
               btnSave.disabled = false;
@@ -605,7 +612,14 @@ $typesList = vehicle_types();
               docsFd.append('orcr', f);
               const res2 = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: docsFd });
               const data2 = await res2.json();
-              if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
+              if (!data2 || !data2.ok) {
+                const msg = (data2 && data2.error)
+                  ? String(data2.error)
+                  : ((data2 && data2.details)
+                    ? (typeof data2.details === 'string' ? data2.details : JSON.stringify(data2.details))
+                    : 'upload_failed');
+                throw new Error(msg);
+              }
             }
 
             showToast('Vehicle saved successfully.');

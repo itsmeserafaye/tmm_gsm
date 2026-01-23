@@ -40,26 +40,93 @@ if (!is_dir($uploads_dir)) {
 
 $uploaded = [];
 $errors = [];
+$details = [];
 
-function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, string $field): bool {
-    $candidates = [
-        ["INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, is_verified) VALUES (?, ?, ?, 0)", 'iss', [$vehicleId, $docType, $filename]],
-        ["INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path) VALUES (?, ?, ?)", 'iss', [$vehicleId, $docType, $filename]],
-        ["INSERT INTO vehicle_documents (vehicle_id, document_type, file_path) VALUES (?, ?, ?)", 'iss', [$vehicleId, $docType, $filename]],
-        ["INSERT INTO vehicle_documents (plate_number, doc_type, file_path) VALUES (?, ?, ?)", 'sss', [$plate, $docType, $filename]],
-        ["INSERT INTO vehicle_documents (plate_number, document_type, file_path) VALUES (?, ?, ?)", 'sss', [$plate, $docType, $filename]],
-    ];
-    foreach ($candidates as $cand) {
-        [$sql, $types, $params] = $cand;
-        $stmt = $db->prepare($sql);
-        if (!$stmt) continue;
-        $stmt->bind_param($types, ...$params);
-        $ok = $stmt->execute();
-        $stmt->close();
-        if ($ok) return true;
+function tmm_vehicle_docs_schema(mysqli $db): array {
+    static $schema = null;
+    if (is_array($schema)) return $schema;
+    $schema = ['exists' => false, 'cols' => []];
+    $check = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
+    if (!$check || !$check->fetch_row()) return $schema;
+    $schema['exists'] = true;
+    $res = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_documents'");
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $col = (string)($r['COLUMN_NAME'] ?? '');
+            if ($col !== '') $schema['cols'][$col] = true;
+        }
     }
-    $errors[] = "$field: DB insert failed";
-    return false;
+    return $schema;
+}
+
+function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, array &$details, string $field): bool {
+    $schema = tmm_vehicle_docs_schema($db);
+    if (empty($schema['exists'])) {
+        $errors[] = "$field: db_insert_failed";
+        $details[$field] = 'vehicle_documents_table_missing';
+        return false;
+    }
+    $cols = (array)($schema['cols'] ?? []);
+
+    $idCol = null;
+    if (isset($cols['vehicle_id'])) $idCol = 'vehicle_id';
+    elseif (isset($cols['plate_number'])) $idCol = 'plate_number';
+
+    $typeCol = null;
+    if (isset($cols['doc_type'])) $typeCol = 'doc_type';
+    elseif (isset($cols['document_type'])) $typeCol = 'document_type';
+    elseif (isset($cols['type'])) $typeCol = 'type';
+
+    $pathCol = null;
+    if (isset($cols['file_path'])) $pathCol = 'file_path';
+    elseif (isset($cols['document_path'])) $pathCol = 'document_path';
+    elseif (isset($cols['doc_path'])) $pathCol = 'doc_path';
+    elseif (isset($cols['path'])) $pathCol = 'path';
+
+    if ($idCol === null || $typeCol === null || $pathCol === null) {
+        $errors[] = "$field: db_insert_failed";
+        $details[$field] = 'vehicle_documents_schema_not_supported';
+        return false;
+    }
+
+    $extraCols = [];
+    $extraTypes = '';
+    $extraParams = [];
+    if ($idCol === 'vehicle_id' && isset($cols['is_verified'])) {
+        $extraCols[] = 'is_verified';
+    } elseif ($idCol === 'plate_number' && isset($cols['is_verified'])) {
+        $extraCols[] = 'is_verified';
+    } elseif (isset($cols['verified'])) {
+        $extraCols[] = 'verified';
+    }
+    foreach ($extraCols as $c) {
+        $extraTypes .= 'i';
+        $extraParams[] = 0;
+    }
+
+    $sql = "INSERT INTO vehicle_documents ($idCol, $typeCol, $pathCol" . ($extraCols ? (", " . implode(", ", $extraCols)) : "") . ") VALUES (?,?,?" . ($extraCols ? ("," . implode(",", array_fill(0, count($extraCols), "?"))) : "") . ")";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) {
+        $errors[] = "$field: db_insert_failed";
+        $details[$field] = 'db_prepare_failed';
+        return false;
+    }
+
+    if ($idCol === 'vehicle_id') {
+        $types = 'iss' . $extraTypes;
+        $params = array_merge([$vehicleId, $docType, $filename], $extraParams);
+    } else {
+        $types = 'sss' . $extraTypes;
+        $params = array_merge([$plate, $docType, $filename], $extraParams);
+    }
+    $stmt->bind_param($types, ...$params);
+    $ok = $stmt->execute();
+    if (!$ok) {
+        $errors[] = "$field: db_insert_failed";
+        $details[$field] = $stmt->error ?: 'execute_failed';
+    }
+    $stmt->close();
+    return $ok;
 }
 
 foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
@@ -93,7 +160,7 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
         elseif ($field === 'emission') { $docType = 'Emission'; $legacyType = 'others'; }
         elseif ($field === 'deed') { $docType = 'Others'; $legacyType = 'deed'; }
 
-        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $field);
+        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $details, $field);
         if (!$okInsert) {
             if (is_file($dest)) { @unlink($dest); }
             continue;
@@ -103,6 +170,7 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
         if ($stmtLegacy) {
             $stmtLegacy->bind_param('sss', $plate, $legacyType, $filename);
             $stmtLegacy->execute();
+            $stmtLegacy->close();
         }
     }
 }
@@ -110,7 +178,7 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
 if (empty($uploaded) && empty($errors)) {
     echo json_encode(['error' => 'No files selected']);
 } elseif (!empty($errors)) {
-    echo json_encode(['error' => implode(', ', $errors), 'uploaded' => $uploaded]);
+    echo json_encode(['ok' => false, 'error' => implode(', ', $errors), 'details' => $details, 'uploaded' => $uploaded]);
 } else {
     echo json_encode(['ok' => true, 'files' => $uploaded, 'vehicle_id' => $vehicleId, 'plate_number' => $plate]);
 }
