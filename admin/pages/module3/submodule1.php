@@ -522,10 +522,28 @@ if ($res) {
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
-      if (!form.checkValidity()) { form.reportValidity(); return; }
+      var violationVal = violationSelect ? (violationSelect.value || '').toString().trim() : '';
+      if (!violationVal) { showToast('Select a violation type.', 'error'); return; }
+
       var p = plateInput ? normalizePlate(plateInput.value) : '';
       if (plateInput) plateInput.value = p;
       if (!p) { showToast('Select a vehicle plate.', 'error'); return; }
+
+      var locEl = form.querySelector('input[name="location"]');
+      var locVal = locEl ? (locEl.value || '').toString().trim() : '';
+      if (!locVal) { showToast('Enter a location.', 'error'); return; }
+
+      var issuedVal = issuedAt ? (issuedAt.value || '').toString().trim() : '';
+      if (!issuedVal) { showToast('Select date & time.', 'error'); return; }
+
+      if (ticketSourceSel && externalInput) {
+        var src = (ticketSourceSel.value || '').toString();
+        if (src === 'STS_PAPER') {
+          var ext = (externalInput.value || '').toString().trim();
+          if (!ext) { showToast('STS ticket number is required for paper tickets.', 'error'); return; }
+          if (!/^[A-Za-z0-9\-\/]{3,64}$/.test(ext.replace(/\s+/g, ''))) { showToast('Invalid STS ticket number format.', 'error'); return; }
+        }
+      }
       
       btn.disabled = true;
       const originalContent = btn.innerHTML;
