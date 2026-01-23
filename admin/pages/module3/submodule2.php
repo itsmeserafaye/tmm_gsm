@@ -52,8 +52,21 @@ require_any_permission(['module3.settle','module3.read']);
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="relative">
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket / STS Ticket Number</label>
-              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Select ticket">
-              <div id="val-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
+              <button type="button" id="valTicketDropdownBtn"
+                class="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
+                <span id="valTicketDropdownBtnText" class="truncate text-slate-500 dark:text-slate-400">Select ticket</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+              </button>
+              <div id="valTicketDropdownPanel"
+                class="hidden absolute left-0 right-0 mt-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-[120] overflow-hidden">
+                <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                  <input id="valTicketDropdownSearch" type="text" autocomplete="off"
+                    class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold placeholder:text-slate-400"
+                    placeholder="Search ticket...">
+                </div>
+                <div id="valTicketDropdownList" class="max-h-64 overflow-auto"></div>
+              </div>
+              <input id="val-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" type="hidden">
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
@@ -89,8 +102,21 @@ require_any_permission(['module3.settle','module3.read']);
         <form id="ticket-payment-form" class="space-y-4" novalidate>
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket Number</label>
-            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" required maxlength="64" pattern="^[A-Za-z0-9\\-\\/]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="Select ticket">
-            <div id="pay-ticket-suggestions" class="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
+            <button type="button" id="payTicketDropdownBtn"
+              class="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
+              <span id="payTicketDropdownBtnText" class="truncate text-slate-500 dark:text-slate-400">Select ticket</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+            <div id="payTicketDropdownPanel"
+              class="hidden absolute left-0 right-0 mt-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-[120] overflow-hidden">
+              <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                <input id="payTicketDropdownSearch" type="text" autocomplete="off"
+                  class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold placeholder:text-slate-400"
+                  placeholder="Search ticket...">
+              </div>
+              <div id="payTicketDropdownList" class="max-h-64 overflow-auto"></div>
+            </div>
+            <input id="pay-ticket-number" name="ticket_number" value="<?php echo htmlspecialchars($prefillTicket); ?>" type="hidden">
             <div id="pay-ticket-context" class="mt-1 text-xs text-emerald-600 font-medium h-4"></div>
           </div>
 
@@ -205,78 +231,139 @@ require_any_permission(['module3.settle','module3.read']);
     setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
   }
 
-  // --- Auto-suggestion logic helper ---
-  function setupSuggestions(inputId, suggestId, onSelect) {
-    const input = document.getElementById(inputId);
-    const box = document.getElementById(suggestId);
-    let timer = null;
-    
-    if(!input || !box) return;
-
-    function hideBox() {
-      box.classList.add('hidden');
-      box.innerHTML = '';
-    }
-
-    function showItems(items) {
-      if (!items || !items.length) { hideBox(); return; }
-      box.innerHTML = '';
-      items.slice(0, 12).forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
-        const primary = (item.external_ticket_number || item.ticket_number || '').toString();
-        const alt = (item.external_ticket_number && item.ticket_number) ? `TMM: ${item.ticket_number}` : '';
-        div.innerHTML = `
-          <div class="font-bold text-slate-800 text-sm">${primary}</div>
-          <div class="text-xs text-slate-500">${item.vehicle_plate || 'No Plate'} • ${item.status}${alt ? ' • ' + alt : ''}</div>
-        `;
-        div.addEventListener('click', () => {
-          input.value = primary;
-          hideBox();
-          if (onSelect) onSelect(item);
-        });
-        box.appendChild(div);
-      });
-      box.classList.remove('hidden');
-    }
-
-    function request(q, limit) {
-      fetch('api/tickets/list.php?q=' + encodeURIComponent(q || '') + '&exclude_paid=1&limit=' + encodeURIComponent(String(limit || 200)))
-        .then(r => r.json())
-        .then(data => showItems((data && Array.isArray(data.items)) ? data.items : []))
-        .catch(() => hideBox());
-    }
-
-    function scheduleRequest(delayMs) {
-      const q = input.value.trim();
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        const limit = q ? 50 : 200;
-        request(q, limit);
-      }, delayMs);
-    }
-
-    input.addEventListener('focus', () => scheduleRequest(0));
-    input.addEventListener('click', () => scheduleRequest(0));
-    input.addEventListener('input', () => scheduleRequest(120));
-
-    document.addEventListener('click', (e) => {
-      const t = e && e.target;
-      if (!t) return;
-      if (t === input || input.contains(t) || t === box || box.contains(t)) return;
-      hideBox();
-    });
+  function normalizePlate(value) {
+    let v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
+    v = v.replace(/[^A-Z0-9-]/g, '');
+    v = v.replace(/-+/g, '-');
+    if (v.indexOf('-') !== -1) return v;
+    const m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
+    if (m4) return m4[1] + '-' + m4[2];
+    const m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
+    if (m3) return m3[1] + '-' + m3[2];
+    return v;
   }
 
-  // Validate Form
-  setupSuggestions('val-ticket-number', 'val-ticket-suggestions', (item) => {
-    document.getElementById('val-vehicle-plate').value = item.vehicle_plate || '';
+  function initTicketDropdown(opts) {
+    const btn = document.getElementById(opts.btnId);
+    const btnText = document.getElementById(opts.btnTextId);
+    const panel = document.getElementById(opts.panelId);
+    const search = document.getElementById(opts.searchId);
+    const list = document.getElementById(opts.listId);
+    const hidden = document.getElementById(opts.hiddenInputId);
+    const plateEl = opts.plateInputId ? document.getElementById(opts.plateInputId) : null;
+    const onSelect = typeof opts.onSelect === 'function' ? opts.onSelect : null;
+    const excludePaid = opts.excludePaid ? '1' : '0';
+    let debounceId = null;
+
+    if (!btn || !btnText || !panel || !search || !list || !hidden) return;
+
+    function setLabel(text) {
+      const t = (text || '').toString().trim();
+      btnText.textContent = t || 'Select ticket';
+      btnText.classList.toggle('text-slate-500', !t);
+      btnText.classList.toggle('dark:text-slate-400', !t);
+      btnText.classList.toggle('text-slate-900', !!t);
+      btnText.classList.toggle('dark:text-white', !!t);
+    }
+
+    function open() {
+      panel.classList.remove('hidden');
+      try { search.focus(); } catch (e) {}
+      load(true);
+    }
+    function close() { panel.classList.add('hidden'); }
+    function isOpen() { return !panel.classList.contains('hidden'); }
+
+    function fetchTickets(q) {
+      const qq = (q || '').toString().trim();
+      const limit = qq ? 100 : 200;
+      return fetch('api/tickets/list.php?q=' + encodeURIComponent(qq) + '&exclude_paid=' + encodeURIComponent(excludePaid) + '&limit=' + encodeURIComponent(String(limit)))
+        .then(r => r.json())
+        .then(data => (data && Array.isArray(data.items)) ? data.items : [])
+        .catch(() => []);
+    }
+
+    function render(items) {
+      list.innerHTML = '';
+      if (!items || !items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'px-4 py-3 text-sm text-slate-500 italic';
+        empty.textContent = 'No matches.';
+        list.appendChild(empty);
+        return;
+      }
+      items.slice(0, 50).forEach((item) => {
+        const primary = (item && (item.external_ticket_number || item.ticket_number) || '').toString();
+        if (!primary) return;
+        const alt = (item.external_ticket_number && item.ticket_number) ? ('TMM: ' + item.ticket_number) : '';
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
+        row.innerHTML = '<div class="font-bold text-slate-800 dark:text-white text-sm">' + primary + '</div>' +
+          '<div class="text-xs text-slate-500">' + String(item.vehicle_plate || 'No Plate') + ' • ' + String(item.status || '') + (alt ? (' • ' + alt) : '') + '</div>';
+        row.addEventListener('click', () => {
+          hidden.value = primary;
+          setLabel(primary);
+          if (plateEl) {
+            plateEl.value = normalizePlate(item.vehicle_plate || '');
+            try { plateEl.setCustomValidity(''); } catch (e) {}
+            try { plateEl.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+            try { plateEl.dispatchEvent(new Event('blur', { bubbles: true })); } catch (e) {}
+          }
+          close();
+          if (onSelect) onSelect(item);
+        });
+        list.appendChild(row);
+      });
+      const tail = list.lastElementChild;
+      if (tail) tail.classList.add('border-b-0');
+    }
+
+    function load(reset) {
+      list.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
+      fetchTickets(search.value || '').then(render);
+    }
+
+    btn.addEventListener('click', () => { isOpen() ? close() : open(); });
+    search.addEventListener('input', () => {
+      if (debounceId) clearTimeout(debounceId);
+      debounceId = setTimeout(() => load(false), 180);
+    });
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    document.addEventListener('click', (e) => {
+      if (!isOpen()) return;
+      const t = e.target;
+      if (!t) return;
+      if (panel.contains(t) || btn.contains(t)) return;
+      close();
+    });
+
+    if (hidden.value) setLabel(hidden.value);
+  }
+
+  initTicketDropdown({
+    btnId: 'valTicketDropdownBtn',
+    btnTextId: 'valTicketDropdownBtnText',
+    panelId: 'valTicketDropdownPanel',
+    searchId: 'valTicketDropdownSearch',
+    listId: 'valTicketDropdownList',
+    hiddenInputId: 'val-ticket-number',
+    plateInputId: 'val-vehicle-plate',
+    excludePaid: true,
   });
 
   const valForm = document.getElementById('ticket-validate-form');
   if(valForm) {
     valForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        const ticketVal = (document.getElementById('val-ticket-number')?.value || '').toString().trim();
+        const plateVal = (document.getElementById('val-vehicle-plate')?.value || '').toString().trim();
+        if (!ticketVal && !plateVal) {
+          showToast('Select a ticket or enter a plate.', 'error');
+          return;
+        }
         const btn = document.getElementById('btnValidate');
         const resDiv = document.getElementById('ticket-validate-result');
         const originalHtml = btn.innerHTML;
@@ -337,7 +424,15 @@ require_any_permission(['module3.settle','module3.read']);
     try { if (window.sessionStorage) sessionStorage.removeItem('tmm_treasury_pending_ticket'); } catch (_) {}
   }
 
-  setupSuggestions('pay-ticket-number', 'pay-ticket-suggestions', (item) => {
+  initTicketDropdown({
+    btnId: 'payTicketDropdownBtn',
+    btnTextId: 'payTicketDropdownBtnText',
+    panelId: 'payTicketDropdownPanel',
+    searchId: 'payTicketDropdownSearch',
+    listId: 'payTicketDropdownList',
+    hiddenInputId: 'pay-ticket-number',
+    excludePaid: true,
+    onSelect: (item) => {
     const ctx = document.getElementById('pay-ticket-context');
     const payPlate = document.getElementById('pay-vehicle-plate');
     if (payPlate) payPlate.value = (item.vehicle_plate || '').toString();
@@ -364,6 +459,7 @@ require_any_permission(['module3.settle','module3.read']);
     } else {
       setPaymentButtons('treasury');
     }
+    }
   });
 
   setPaymentButtons('treasury');
@@ -372,6 +468,8 @@ require_any_permission(['module3.settle','module3.read']);
   if(payForm) {
     payForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        const tno = (document.getElementById('pay-ticket-number')?.value || '').toString().trim();
+        if (!tno) { showToast('Select a ticket.', 'error'); return; }
         const btn = document.getElementById('btnPay');
         const originalHtml = btn.innerHTML;
         
