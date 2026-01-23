@@ -174,24 +174,41 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   $requiredTypes = [];
   foreach ($slots as $s) $requiredTypes[(string)$s['doc_type']] = true;
   $hasRejected = false;
+  $anyVerifiedRequired = false;
   foreach ($docs as $drow) {
     $dt = (string)($drow['doc_type'] ?? '');
     if (!isset($requiredTypes[$dt])) continue;
-    if ((string)($drow['doc_status'] ?? '') !== 'Rejected') continue;
-    if ($dt !== 'Others') { $hasRejected = true; break; }
+    $st = (string)($drow['doc_status'] ?? '');
     $rem = (string)($drow['remarks'] ?? '');
-    if ($rem === '') { $hasRejected = true; break; }
-    foreach ($slots as $s) {
-      if ((string)$s['doc_type'] !== 'Others') continue;
-      if ($matchRemarks($rem, (array)($s['keywords'] ?? []))) { $hasRejected = true; break 2; }
+    if ($st === 'Verified') {
+      if ($dt !== 'Others') {
+        $anyVerifiedRequired = true;
+      } else {
+        foreach ($slots as $s) {
+          if ((string)$s['doc_type'] !== 'Others') continue;
+          if ($rem !== '' && $matchRemarks($rem, (array)($s['keywords'] ?? []))) { $anyVerifiedRequired = true; break; }
+        }
+      }
     }
+    if ($st !== 'Rejected') continue;
+    if ($dt !== 'Others') { $hasRejected = true; }
+    else {
+      if ($rem === '') { $hasRejected = true; }
+      else {
+        foreach ($slots as $s) {
+          if ((string)$s['doc_type'] !== 'Others') continue;
+          if ($matchRemarks($rem, (array)($s['keywords'] ?? []))) { $hasRejected = true; break; }
+        }
+      }
+    }
+    if ($hasRejected && $anyVerifiedRequired) break;
   }
 
   $newWf = 'Draft';
   if ($hasAnyDocs) {
-    if ($hasRejected) $newWf = 'Rejected';
+    if ($hasRejected && $anyVerifiedRequired) $newWf = 'Returned';
     elseif ($allVerified) $newWf = 'Active';
-    else $newWf = 'Pending Validation';
+    else $newWf = 'Incomplete';
   }
   $newVs = ($newWf === 'Active') ? 'Verified' : 'Draft';
   $newLegacy = ($newWf === 'Active') ? 'Approved' : 'Pending';

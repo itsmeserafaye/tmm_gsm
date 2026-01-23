@@ -119,7 +119,12 @@ if ($errors) {
 }
 
 if ($uploaded) {
-  $stmtS = $db->prepare("UPDATE operators SET workflow_status=CASE WHEN workflow_status='Draft' THEN 'Pending Validation' ELSE workflow_status END WHERE id=? AND workflow_status<>'Inactive'");
+  $stmtS = $db->prepare("UPDATE operators
+                         SET workflow_status=CASE
+                           WHEN workflow_status IN ('Inactive','Active') THEN workflow_status
+                           ELSE 'Incomplete'
+                         END
+                         WHERE id=?");
   if ($stmtS) {
     $stmtS->bind_param('i', $operatorId);
     $stmtS->execute();

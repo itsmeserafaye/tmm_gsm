@@ -122,8 +122,21 @@ if ($res) {
           
           <div class="relative">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-            <input id="ticket-plate-input" name="plate_no" required minlength="5" maxlength="16" pattern="^[A-Za-z0-9]{1,10}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase placeholder:normal-case text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234 / M5-8371">
-            <div id="ticket-plate-suggestions" class="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl max-h-48 overflow-y-auto hidden"></div>
+            <button type="button" id="plateDropdownBtn"
+              class="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
+              <span id="plateDropdownBtnText" class="truncate text-slate-500 dark:text-slate-400">Select plate</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </button>
+            <div id="plateDropdownPanel"
+              class="hidden absolute left-0 right-0 mt-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-[120] overflow-hidden">
+              <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                <input id="plateDropdownSearch" type="text" autocomplete="off"
+                  class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase placeholder:normal-case"
+                  placeholder="Search plate… (type to filter)">
+              </div>
+              <div id="plateDropdownList" class="max-h-56 overflow-auto"></div>
+            </div>
+            <input id="ticket-plate-input" type="hidden" name="plate_no" value="">
           </div>
 
           <div>
@@ -311,9 +324,12 @@ if ($res) {
   var stsPreview = document.getElementById('violation-sts-preview');
   var plateInput = document.getElementById('ticket-plate-input');
   var driverInput = document.getElementById('ticket-driver-input');
-  var suggestionsBox = document.getElementById('ticket-plate-suggestions');
+  var plateDropdownBtn = document.getElementById('plateDropdownBtn');
+  var plateDropdownBtnText = document.getElementById('plateDropdownBtnText');
+  var plateDropdownPanel = document.getElementById('plateDropdownPanel');
+  var plateDropdownSearch = document.getElementById('plateDropdownSearch');
+  var plateDropdownList = document.getElementById('plateDropdownList');
   var plateDebounceId = null;
-  var plateExactDebounceId = null;
   var violationMap = {};
   var ticketSourceSel = document.getElementById('ticket-source');
   var externalWrap = document.getElementById('external-ticket-wrap');
@@ -385,123 +401,131 @@ if ($res) {
     });
   }
 
-  // Plate Suggestions
-  function clearSuggestions() {
-    suggestionsBox.innerHTML = '';
-    suggestionsBox.classList.add('hidden');
+  function setPlateLabel(text, isPlaceholder) {
+    if (!plateDropdownBtnText) return;
+    plateDropdownBtnText.textContent = (text || '').toString() || 'Select plate';
+    if (isPlaceholder) plateDropdownBtnText.className = 'truncate text-slate-500 dark:text-slate-400';
+    else plateDropdownBtnText.className = 'truncate text-slate-900 dark:text-white';
   }
 
-  function lookupPlateExact(plate) {
-    var p = (plate || '').toString().trim().toUpperCase();
-    if (!p) return Promise.resolve(null);
-    return fetch('api/traffic/vehicle_lookup.php?plate=' + encodeURIComponent(p))
-      .then(r => r.json())
-      .then(data => {
-        if (!data || !data.ok) return null;
-        return data.data || null;
+  function openPlateDropdown() {
+    if (!plateDropdownPanel) return;
+    plateDropdownPanel.classList.remove('hidden');
+    if (plateDropdownSearch) {
+      plateDropdownSearch.focus();
+      plateDropdownSearch.select();
+    }
+  }
+
+  function closePlateDropdown() {
+    if (!plateDropdownPanel) return;
+    plateDropdownPanel.classList.add('hidden');
+  }
+
+  function isPlateDropdownOpen() {
+    return plateDropdownPanel && !plateDropdownPanel.classList.contains('hidden');
+  }
+
+  function pickPlate(plate, operatorName) {
+    if (!plateInput) return;
+    var p = normalizePlate(plate || '');
+    plateInput.value = p;
+    setPlateLabel(p, !p);
+    if (driverInput && operatorName && (!driverInput.value || driverInput.value.trim() === '')) {
+      driverInput.value = String(operatorName);
+    }
+    closePlateDropdown();
+  }
+
+  function renderPlateItems(items, query) {
+    if (!plateDropdownList) return;
+    plateDropdownList.innerHTML = '';
+    var q = normalizePlate(query || '');
+    if (q) {
+      var useBtn = document.createElement('button');
+      useBtn.type = 'button';
+      useBtn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
+      useBtn.innerHTML = '<div class="font-bold text-slate-800 dark:text-white text-sm">Use: ' + q + '</div><div class="text-xs text-slate-500">Manual entry</div>';
+      useBtn.addEventListener('click', function () { pickPlate(q, ''); });
+      plateDropdownList.appendChild(useBtn);
+    }
+    if (!items || !items.length) {
+      var empty = document.createElement('div');
+      empty.className = 'px-4 py-3 text-sm text-slate-500 italic';
+      empty.textContent = 'No matches.';
+      plateDropdownList.appendChild(empty);
+      return;
+    }
+    items.forEach(function (item) {
+      if (!item || !item.plate_number) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
+      btn.innerHTML = '<div class="font-bold text-slate-800 dark:text-white text-sm">' + String(item.plate_number) + '</div>' +
+        '<div class="text-xs text-slate-500">' + String(item.operator_name || 'Unknown Operator') + '</div>';
+      btn.addEventListener('click', function () { pickPlate(item.plate_number, item.operator_name || ''); });
+      plateDropdownList.appendChild(btn);
+    });
+    var tail = plateDropdownList.lastElementChild;
+    if (tail) tail.classList.add('border-b-0');
+  }
+
+  function fetchPlates(q) {
+    var qq = (q || '').toString().trim();
+    return fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(qq) + '&limit=50')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.ok || !Array.isArray(data.data)) return [];
+        return data.data || [];
       })
-      .catch(() => null);
+      .catch(function () { return []; });
   }
 
-  if (plateInput) {
-    plateInput.addEventListener('focus', function () {
-      var q = (this.value || '').trim();
-      if (plateDebounceId) clearTimeout(plateDebounceId);
-      plateDebounceId = setTimeout(() => {
-        fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(q) + '&limit=20')
-          .then(r => r.json())
-          .then(data => {
-            if (data && data.ok && Array.isArray(data.data) && data.data.length > 0) {
-              suggestionsBox.innerHTML = '';
-              data.data.slice(0, 10).forEach(item => {
-                var div = document.createElement('div');
-                div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
-                div.innerHTML = `
-                  <div class="font-bold text-slate-800 text-sm">${item.plate_number}</div>
-                  <div class="text-xs text-slate-500">${item.operator_name || 'Unknown Operator'}</div>
-                `;
-                div.addEventListener('click', () => {
-                  plateInput.value = item.plate_number;
-                  if (driverInput && item.operator_name) driverInput.value = item.operator_name;
-                  clearSuggestions();
-                });
-                suggestionsBox.appendChild(div);
-              });
-              suggestionsBox.classList.remove('hidden');
-            } else {
-              clearSuggestions();
-            }
-          })
-          .catch(() => clearSuggestions());
-      }, 50);
-    });
-
-    plateInput.addEventListener('input', function() {
-      this.value = normalizePlate(this.value);
-      var q = this.value.trim();
-      if (plateDebounceId) clearTimeout(plateDebounceId);
-      if (q.length < 1) { clearSuggestions(); return; }
-
-      plateDebounceId = setTimeout(() => {
-        fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(q) + '&limit=20')
-          .then(r => r.json())
-          .then(data => {
-            if (data && data.ok && Array.isArray(data.data) && data.data.length > 0) {
-              suggestionsBox.innerHTML = '';
-              data.data.slice(0, 5).forEach(item => {
-                var div = document.createElement('div');
-                div.className = 'px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0';
-                div.innerHTML = `
-                  <div class="font-bold text-slate-800 text-sm">${item.plate_number}</div>
-                  <div class="text-xs text-slate-500">${item.operator_name || 'Unknown Operator'}</div>
-                `;
-                div.addEventListener('click', () => {
-                  plateInput.value = item.plate_number;
-                  if (driverInput && item.operator_name) driverInput.value = item.operator_name;
-                  clearSuggestions();
-                });
-                suggestionsBox.appendChild(div);
-              });
-              suggestionsBox.classList.remove('hidden');
-            } else {
-              clearSuggestions();
-            }
-          });
-      }, 300);
-
-      if (plateExactDebounceId) clearTimeout(plateExactDebounceId);
-      plateExactDebounceId = setTimeout(() => {
-        var p = normalizePlate(plateInput.value);
-        plateInput.value = p;
-        if (!p || !plateInput.checkValidity()) return;
-        if (driverInput && driverInput.value && driverInput.value.trim() !== '') return;
-        lookupPlateExact(p).then((row) => {
-          if (!row) return;
-          if (driverInput && (!driverInput.value || driverInput.value.trim() === '')) {
-            if (row.operator_name) driverInput.value = row.operator_name;
-          }
-        });
-      }, 350);
-    });
-
-    plateInput.addEventListener('blur', function () {
-      var p = normalizePlate(this.value);
-      this.value = p;
-      if (!p || !this.checkValidity()) return;
-      lookupPlateExact(p).then((row) => {
-        if (!row) return;
-        if (driverInput && (!driverInput.value || driverInput.value.trim() === '')) {
-          if (row.operator_name) driverInput.value = row.operator_name;
+  if (plateDropdownBtn) {
+    setPlateLabel('', true);
+    plateDropdownBtn.addEventListener('click', function () {
+      if (isPlateDropdownOpen()) closePlateDropdown();
+      else {
+        openPlateDropdown();
+        if (plateDropdownList && plateDropdownList.childElementCount === 0) {
+          plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
+          fetchPlates('').then(function (items) { renderPlateItems(items, plateDropdownSearch ? plateDropdownSearch.value : ''); });
         }
-      });
+      }
     });
   }
+
+  if (plateDropdownSearch) {
+    plateDropdownSearch.addEventListener('input', function () {
+      var q = plateDropdownSearch.value || '';
+      if (plateDebounceId) clearTimeout(plateDebounceId);
+      plateDebounceId = setTimeout(function () {
+        if (plateDropdownList) plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
+        fetchPlates(q).then(function (items) { renderPlateItems(items, q); });
+      }, 180);
+    });
+    plateDropdownSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); closePlateDropdown(); }
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!isPlateDropdownOpen()) return;
+    var t = e.target;
+    if (!t) return;
+    if (plateDropdownPanel && plateDropdownPanel.contains(t)) return;
+    if (plateDropdownBtn && plateDropdownBtn.contains(t)) return;
+    closePlateDropdown();
+  });
 
   // Form Submit
   if (form) {
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       if (!form.checkValidity()) { form.reportValidity(); return; }
+      var p = plateInput ? normalizePlate(plateInput.value) : '';
+      if (plateInput) plateInput.value = p;
+      if (!p) { showToast('Select a vehicle plate.', 'error'); return; }
       
       btn.disabled = true;
       const originalContent = btn.innerHTML;
@@ -516,6 +540,7 @@ if ($res) {
             showToast(`Ticket ${data.ticket_number || ''} created successfully!`, 'success');
             form.reset();
             finePreview.textContent = '';
+            setPlateLabel('', true);
             setTimeout(() => window.location.reload(), 1500);
           } else {
             showToast((data && data.error) ? data.error : 'Failed to create ticket', 'error');
