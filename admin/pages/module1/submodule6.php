@@ -48,6 +48,7 @@ $sql = "SELECT
   r.via,
   r.structure,
   r.authorized_units,
+  r.fare,
   r.status,
   r.approved_by,
   r.approved_date,
@@ -160,13 +161,14 @@ if ($params) {
             <th class="py-4 px-4 hidden md:table-cell">Authorized</th>
             <th class="py-4 px-4 hidden md:table-cell">Used</th>
             <th class="py-4 px-4 hidden md:table-cell">Remaining</th>
+            <th class="py-4 px-4 hidden md:table-cell">Fare</th>
             <th class="py-4 px-4">Status</th>
             <th class="py-4 px-4 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
           <?php if (!$routes): ?>
-            <tr><td colspan="7" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
+            <tr><td colspan="8" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
           <?php endif; ?>
           <?php foreach ($routes as $r): ?>
             <?php
@@ -192,6 +194,7 @@ if ($params) {
                 'via' => (string)($r['via'] ?? ''),
                 'structure' => (string)($r['structure'] ?? ''),
                 'authorized_units' => (int)($r['authorized_units'] ?? 0),
+                'fare' => $r['fare'] === null ? null : (float)($r['fare'] ?? 0),
                 'approved_by' => (string)($r['approved_by'] ?? ''),
                 'approved_date' => (string)($r['approved_date'] ?? ''),
                 'status' => $st,
@@ -208,15 +211,24 @@ if ($params) {
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$au; ?></td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$used; ?></td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$rem; ?></td>
+              <td class="py-4 px-4 text-sm font-black text-slate-900 dark:text-white hidden md:table-cell">
+                <?php echo $r['fare'] === null || $r['fare'] === '' ? '-' : '₱ ' . number_format((float)$r['fare'], 2); ?>
+              </td>
               <td class="py-4 px-4">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
               </td>
               <td class="py-4 px-4 text-right">
                 <div class="inline-flex items-center gap-2">
-                  <button type="button" class="px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-route-view="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">View</button>
+                  <button type="button" title="View" class="inline-flex items-center justify-center p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-route-view="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                  </button>
                   <?php if ($canManage): ?>
-                    <button type="button" class="px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-xs font-bold text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">Edit</button>
-                    <button type="button" class="px-3 py-2 rounded-lg bg-rose-600 text-xs font-bold text-white hover:bg-rose-700 transition-colors" data-route-toggle="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>"><?php echo $st === 'Active' ? 'Deactivate' : 'Activate'; ?></button>
+                    <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" title="<?php echo $st === 'Active' ? 'Deactivate' : 'Activate'; ?>" class="inline-flex items-center justify-center p-2 rounded-lg <?php echo $st === 'Active' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'; ?> transition-colors" data-route-toggle="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
+                      <i data-lucide="<?php echo $st === 'Active' ? 'toggle-left' : 'toggle-right'; ?>" class="w-4 h-4"></i>
+                    </button>
                   <?php endif; ?>
                 </div>
               </td>
@@ -308,6 +320,7 @@ if ($params) {
       const via = r && r.via ? String(r.via) : '';
       const structure = r && r.structure ? String(r.structure) : '';
       const au = r && r.authorized_units ? Number(r.authorized_units) : 0;
+      const fare = (r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '';
       const approvedBy = r && r.approved_by ? String(r.approved_by) : '';
       const approvedDate = r && r.approved_date ? String(r.approved_date) : '';
       const status = r && r.status ? String(r.status) : 'Active';
@@ -359,10 +372,14 @@ if ($params) {
             <textarea name="via" rows="3" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Major streets / barangays">${esc(via)}</textarea>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Authorized Units</label>
               <input name="authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare (₱)</label>
+              <input name="fare" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fare}">
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Approved By</label>
@@ -394,6 +411,7 @@ if ($params) {
       const au = Number(r.authorized_units || 0);
       const used = Number(r.used_units || 0);
       const rem = au > 0 ? Math.max(0, au - used) : 0;
+      const fare = (r.fare === null || r.fare === undefined || r.fare === '') ? '-' : ('₱ ' + Number(r.fare).toFixed(2));
       openModal(`
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
@@ -429,6 +447,10 @@ if ($params) {
             <div>
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Structure</div>
               <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.structure || '-')}</div>
+            </div>
+            <div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare</div>
+              <div class="mt-1 text-sm font-black text-slate-900 dark:text-white">${fare}</div>
             </div>
             <div>
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Origin</div>
@@ -597,6 +619,7 @@ if ($params) {
             fd.append('via', String(r.via || ''));
             fd.append('structure', String(r.structure || ''));
             fd.append('authorized_units', String(r.authorized_units || 0));
+            fd.append('fare', (r.fare === null || r.fare === undefined) ? '' : String(r.fare));
             fd.append('approved_by', String(r.approved_by || ''));
             fd.append('approved_date', String(r.approved_date || ''));
             fd.append('status', next);

@@ -339,10 +339,11 @@ if ($rootUrl === '/') $rootUrl = '';
                 <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">From</th>
                 <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">To</th>
                 <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Fare</th>
+                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Manage</th>
               </tr>
             </thead>
             <tbody id="terminalRoutesModalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+              <tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -473,7 +474,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     async function showTerminalRoutes(terminalId) {
       if (!modalBody) return;
-      modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
+      modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
       if (modalSub) modalSub.textContent = 'Terminal ID: ' + String(terminalId);
       openModal();
       try {
@@ -482,7 +483,7 @@ if ($rootUrl === '/') $rootUrl = '';
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         const rows = Array.isArray(data.data) ? data.data : [];
         if (!rows.length) {
-          modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
+          modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
           return;
         }
         if (modalSub) modalSub.textContent = (rows[0].terminal_name ? String(rows[0].terminal_name) : 'Routes') + ' • ' + rows.length + ' route(s)';
@@ -491,18 +492,26 @@ if ($rootUrl === '/') $rootUrl = '';
           const origin = (r.origin || '-').toString();
           const dest = (r.destination || '-').toString();
           const fare = (r.fare === null || r.fare === undefined || r.fare === '') ? '-' : ('₱' + Number(r.fare).toFixed(2));
+          const manage = r.route_db_id
+            ? `<a target="_blank" rel="noopener" title="Open Route Assignment"
+                 href="?page=module2/submodule5&route_id=${Number(r.route_db_id)}"
+                 class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                 <i data-lucide="settings" class="w-4 h-4"></i>
+               </a>`
+            : '-';
           return `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
               <td class="py-3 px-3 font-semibold text-slate-900 dark:text-white">${routeLabel}</td>
               <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${origin}</td>
               <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${dest}</td>
               <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">${fare}</td>
+              <td class="py-3 px-3 text-right">${manage}</td>
             </tr>
           `;
         }).join('');
         if (window.lucide) window.lucide.createIcons();
       } catch (e) {
-        modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-rose-600 font-semibold">Failed to load routes.</td></tr>';
+        modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-rose-600 font-semibold">Failed to load routes.</td></tr>';
       }
     }
 

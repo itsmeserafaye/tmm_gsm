@@ -21,6 +21,8 @@ try {
     $structure = trim((string)($_POST['structure'] ?? ''));
     $vehicleType = trim((string)($_POST['vehicle_type'] ?? ''));
     $distanceKm = isset($_POST['distance_km']) ? (float)$_POST['distance_km'] : null;
+    $fareRaw = trim((string)($_POST['fare'] ?? ''));
+    $fare = $fareRaw === '' ? null : (float)$fareRaw;
     $authorizedUnits = isset($_POST['authorized_units']) ? (int)$_POST['authorized_units'] : null;
     $status = trim((string)($_POST['status'] ?? 'Active'));
     $approvedBy = trim((string)($_POST['approved_by'] ?? ''));
@@ -56,6 +58,10 @@ try {
     }
     if (!$stOk) $status = 'Active';
 
+    if ($fare !== null && $fare < 0) {
+        throw new Exception('invalid_fare');
+    }
+
     $maxLimit = $authorizedUnits !== null && $authorizedUnits > 0 ? $authorizedUnits : null;
     if ($maxLimit === null) $maxLimit = 50;
 
@@ -64,6 +70,7 @@ try {
     $viaBind = $via !== '' ? $via : null;
     $approvedByBind = $approvedBy !== '' ? $approvedBy : null;
     $approvedDateBind = $approvedDate !== '' ? $approvedDate : null;
+    $fareBind = $fare;
 
     if ($routePk > 0) {
         $stmtCur = $db->prepare("SELECT id FROM routes WHERE id=? LIMIT 1");
@@ -83,10 +90,10 @@ try {
         if ($dup) throw new Exception('duplicate_route_code');
 
         $stmt = $db->prepare("UPDATE routes
-                              SET route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, distance_km=?, authorized_units=?, max_vehicle_limit=?, status=?, approved_by=?, approved_date=?
+                              SET route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, distance_km=?, fare=?, authorized_units=?, max_vehicle_limit=?, status=?, approved_by=?, approved_date=?
                               WHERE id=?");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssssssssdiisssi', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind, $routePk);
+        $stmt->bind_param('ssssssssddiisssi', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind, $routePk);
         $ok = $stmt->execute();
         $stmt->close();
     } else {
@@ -98,10 +105,10 @@ try {
         $stmtDup->close();
         if ($dup) throw new Exception('duplicate_route_code');
 
-        $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status, approved_by, approved_date)
-                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+        $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, fare, authorized_units, max_vehicle_limit, status, approved_by, approved_date)
+                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssssssssdiisss', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind);
+        $stmt->bind_param('ssssssssddiisss', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind);
         $ok = $stmt->execute();
         $routePk = (int)$db->insert_id;
         $stmt->close();

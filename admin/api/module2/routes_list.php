@@ -15,9 +15,10 @@ $res = $db->query("SELECT
   r.destination,
   r.fare,
   COALESCE(r.authorized_units, r.max_vehicle_limit, 0) AS authorized_units,
-  COALESCE(SUM(CASE WHEN fv.status='Active' THEN 1 ELSE 0 END), 0) AS active_units
+  COALESCE(COUNT(DISTINCT v.id), 0) AS active_units
 FROM routes r
-LEFT JOIN franchise_vehicles fv ON fv.route_id=r.id AND fv.status='Active'
+LEFT JOIN franchise_applications fa ON fa.route_id=r.id AND fa.status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
+LEFT JOIN vehicles v ON COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=fa.operator_id AND COALESCE(v.record_status,'') <> 'Archived'
 GROUP BY r.id
 ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC
 LIMIT 1000");
@@ -28,4 +29,3 @@ if ($res) {
 }
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

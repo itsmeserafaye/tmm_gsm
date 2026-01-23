@@ -14,23 +14,27 @@ if ($routeId <= 0) {
 }
 
 $stmt = $db->prepare("SELECT
-  fv.fv_id,
-  fv.status AS assignment_status,
-  fv.assigned_at,
-  fv.franchise_ref_number,
-  fv.franchise_id,
   v.id AS vehicle_id,
   v.plate_number,
   v.vehicle_type,
   COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name,
-  CASE WHEN COALESCE(NULLIF(v.coop_name,''), '') <> '' THEN 'Cooperative' ELSE 'Individual' END AS operator_type
-FROM franchise_vehicles fv
-JOIN vehicles v ON v.id=fv.vehicle_id
-LEFT JOIN franchises f ON f.franchise_id=fv.franchise_id
-LEFT JOIN franchise_applications fa ON fa.application_id=f.application_id OR fa.franchise_ref_number=fv.franchise_ref_number
+  COALESCE(o.operator_type, CASE WHEN COALESCE(NULLIF(v.coop_name,''), '') <> '' THEN 'Cooperative' ELSE 'Individual' END) AS operator_type,
+  fa.franchise_ref_number,
+  fa.status AS franchise_status
+FROM (
+  SELECT fa1.operator_id, fa1.franchise_ref_number, fa1.status
+  FROM franchise_applications fa1
+  JOIN (
+    SELECT operator_id, MAX(application_id) AS max_id
+    FROM franchise_applications
+    WHERE route_id=? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
+    GROUP BY operator_id
+  ) x ON x.max_id=fa1.application_id
+) fa
+JOIN vehicles v ON COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=fa.operator_id
 LEFT JOIN operators o ON o.id=fa.operator_id
-WHERE COALESCE(fv.route_id, fa.route_id)=?
-ORDER BY fv.status ASC, fv.assigned_at DESC, v.plate_number ASC");
+WHERE COALESCE(v.record_status,'') <> 'Archived'
+ORDER BY operator_name ASC, v.plate_number ASC");
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
@@ -44,4 +48,3 @@ while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-
