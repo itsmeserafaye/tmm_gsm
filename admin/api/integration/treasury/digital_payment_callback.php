@@ -132,6 +132,14 @@ if ($kind === 'ticket') {
     exit;
   }
 
+  $hasCol = function (string $table, string $col) use ($db): bool {
+    $table = trim($table);
+    $col = trim($col);
+    if ($table === '' || $col === '') return false;
+    $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+    return $res && ($res->num_rows ?? 0) > 0;
+  };
+
   $stmtT = $db->prepare("SELECT ticket_id, ticket_number, fine_amount, status FROM tickets WHERE ticket_number=? OR external_ticket_number=? LIMIT 1");
   if (!$stmtT) {
     http_response_code(500);
@@ -154,9 +162,15 @@ if ($kind === 'ticket') {
   $fine = (float)($t['fine_amount'] ?? 0);
   if ($amountPaid <= 0) $amountPaid = $fine;
 
+  $receiptCol = $hasCol('payment_records', 'receipt_ref') ? 'receipt_ref' : ($hasCol('payment_records', 'or_no') ? 'or_no' : '');
+  $verifiedCol = $hasCol('payment_records', 'verified_by_treasury') ? 'verified_by_treasury' : '';
+  $dateCol = $hasCol('payment_records', 'date_paid') ? 'date_paid' : ($hasCol('payment_records', 'paid_at') ? 'paid_at' : '');
+  $hasChannel = $hasCol('payment_records', 'payment_channel');
+  $hasExt = $hasCol('payment_records', 'external_payment_id');
+
   $already = false;
-  if ($receipt !== '') {
-    $stmtDup = $db->prepare("SELECT payment_id FROM payment_records WHERE ticket_id=? AND receipt_ref=? LIMIT 1");
+  if ($receipt !== '' && $receiptCol !== '') {
+    $stmtDup = $db->prepare("SELECT payment_id FROM payment_records WHERE ticket_id=? AND {$receiptCol}=? LIMIT 1");
     if ($stmtDup) {
       $stmtDup->bind_param('is', $ticketId, $receipt);
       $stmtDup->execute();
@@ -167,20 +181,23 @@ if ($kind === 'ticket') {
   }
 
   if (!$already) {
-    $q1 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'");
-    $q2 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'");
-    $q3 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'");
-    $q4 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'paid_at'");
-    $hasChannel = ($q1 && ($q1->num_rows ?? 0) > 0);
-    $hasExt = ($q2 && ($q2->num_rows ?? 0) > 0);
-    $hasDatePaid = ($q3 && ($q3->num_rows ?? 0) > 0);
-    $hasPaidAt = ($q4 && ($q4->num_rows ?? 0) > 0);
-    $dateCol = $hasDatePaid ? 'date_paid' : ($hasPaidAt ? 'paid_at' : '');
+    if ($receiptCol === '') {
+      http_response_code(500);
+      tmm_audit_event($db, 'treasury.callback.ticket.failed', 'ticket', (string)$ticketId, ['reason' => 'payment_records_schema_mismatch']);
+      echo json_encode(['ok' => false, 'error' => 'payment_records_schema_mismatch']);
+      exit;
+    }
 
-    $cols = "ticket_id, amount_paid, receipt_ref, verified_by_treasury";
-    $place = "?, ?, ?, 1";
+    $cols = "ticket_id, amount_paid, {$receiptCol}";
+    $place = "?, ?, ?";
     $types = "ids";
     $params = [$ticketId, $amountPaid, $receipt];
+    if ($verifiedCol !== '') {
+      $cols .= ", {$verifiedCol}";
+      $place .= ", ?";
+      $types .= "i";
+      $params[] = 1;
+    }
     if ($dateCol !== '') {
       $cols .= ", {$dateCol}";
       $place .= ", ?";
@@ -214,6 +231,7 @@ if ($kind === 'ticket') {
     $stmtIns->close();
     if (!$ok) {
       http_response_code(500);
+      tmm_audit_event($db, 'treasury.callback.ticket.failed', 'ticket', (string)$ticketId, ['reason' => 'insert_failed', 'errno' => (int)$db->errno, 'db_error' => (string)$db->error]);
       echo json_encode(['ok' => false, 'error' => 'insert_failed']);
       exit;
     }

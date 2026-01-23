@@ -64,25 +64,36 @@ if ($row = $res->fetch_assoc()) {
     exit;
   }
 
-  $q1 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'");
-  $q2 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'");
-  $q3 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'");
-  $q4 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'paid_at'");
-  $hasChannel = ($q1 && ($q1->num_rows ?? 0) > 0);
-  $hasExt = ($q2 && ($q2->num_rows ?? 0) > 0);
-  $hasDatePaid = ($q3 && ($q3->num_rows ?? 0) > 0);
-  $hasPaidAt = ($q4 && ($q4->num_rows ?? 0) > 0);
-  $dateCol = $hasDatePaid ? 'date_paid' : ($hasPaidAt ? 'paid_at' : '');
+  $hasCol = function (string $table, string $col) use ($db): bool {
+    $table = trim($table);
+    $col = trim($col);
+    if ($table === '' || $col === '') return false;
+    $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+    return $res && ($res->num_rows ?? 0) > 0;
+  };
+
+  $pkCol = $hasCol('payment_records', 'payment_id') ? 'payment_id' : ($hasCol('payment_records', 'id') ? 'id' : '');
+  $receiptCol = $hasCol('payment_records', 'receipt_ref') ? 'receipt_ref' : ($hasCol('payment_records', 'or_no') ? 'or_no' : '');
+  $verifiedCol = $hasCol('payment_records', 'verified_by_treasury') ? 'verified_by_treasury' : '';
+  $dateCol = $hasCol('payment_records', 'date_paid') ? 'date_paid' : ($hasCol('payment_records', 'paid_at') ? 'paid_at' : '');
+  $hasChannel = $hasCol('payment_records', 'payment_channel');
+  $hasExt = $hasCol('payment_records', 'external_payment_id');
+
+  if ($pkCol === '' || $receiptCol === '') {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'payment_records_schema_mismatch']);
+    exit;
+  }
   $paidAt = $datePaid !== '' ? $datePaid : date('Y-m-d H:i:s');
 
   $existingPaymentId = 0;
-  $stmtFind = $db->prepare("SELECT payment_id FROM payment_records WHERE ticket_id=? ORDER BY payment_id DESC LIMIT 1");
+  $stmtFind = $db->prepare("SELECT {$pkCol} AS pid FROM payment_records WHERE ticket_id=? ORDER BY {$pkCol} DESC LIMIT 1");
   if ($stmtFind) {
     $stmtFind->bind_param('i', $tid);
     $stmtFind->execute();
     $p = $stmtFind->get_result()->fetch_assoc();
     $stmtFind->close();
-    if ($p && isset($p['payment_id'])) $existingPaymentId = (int)$p['payment_id'];
+    if ($p && isset($p['pid'])) $existingPaymentId = (int)$p['pid'];
   }
 
   $db->begin_transaction();
@@ -91,9 +102,14 @@ if ($row = $res->fetch_assoc()) {
   $errNo = 0;
   try {
     if ($existingPaymentId > 0) {
-      $sets = "amount_paid=?, receipt_ref=?, verified_by_treasury=?";
-      $types = "dsi";
-      $params = [$amount, $receipt, $verified];
+      $sets = "amount_paid=?, {$receiptCol}=?";
+      $types = "ds";
+      $params = [$amount, $receipt];
+      if ($verifiedCol !== '') {
+        $sets .= ", {$verifiedCol}=?";
+        $types .= "i";
+        $params[] = $verified;
+      }
       if ($dateCol !== '') {
         $sets .= ", {$dateCol}=?";
         $types .= "s";
@@ -111,7 +127,7 @@ if ($row = $res->fetch_assoc()) {
       }
       $types .= "i";
       $params[] = $existingPaymentId;
-      $sqlUp = "UPDATE payment_records SET {$sets} WHERE payment_id=?";
+      $sqlUp = "UPDATE payment_records SET {$sets} WHERE {$pkCol}=?";
       $stmtP = $db->prepare($sqlUp);
       if (!$stmtP) throw new Exception('db_prepare_failed');
       $bindArgs = [];
@@ -123,10 +139,16 @@ if ($row = $res->fetch_assoc()) {
       $okPayment = $stmtP->execute();
       $stmtP->close();
     } else {
-      $cols = "ticket_id, amount_paid, receipt_ref, verified_by_treasury";
-      $place = "?, ?, ?, ?";
-      $types = "idsi";
-      $params = [$tid, $amount, $receipt, $verified];
+      $cols = "ticket_id, amount_paid, {$receiptCol}";
+      $place = "?, ?, ?";
+      $types = "ids";
+      $params = [$tid, $amount, $receipt];
+      if ($verifiedCol !== '') {
+        $cols .= ", {$verifiedCol}";
+        $place .= ", ?";
+        $types .= "i";
+        $params[] = $verified;
+      }
       if ($dateCol !== '') {
         $cols .= ", {$dateCol}";
         $place .= ", ?";
@@ -183,12 +205,19 @@ if ($row = $res->fetch_assoc()) {
     echo json_encode(['ok' => true, 'ticket_id' => $tid, 'status' => 'Settled']);
   } catch (Throwable $e) {
     $db->rollback();
+    tmm_audit_event($db, 'ticket.settle.failed', 'ticket', (string)$tid, ['errno' => $errNo ?: (int)$db->errno, 'db_error' => $errMsg !== '' ? $errMsg : (string)$db->error]);
     $out = ['ok' => false, 'error' => 'Failed to record payment'];
+    if (($errNo ?: (int)$db->errno) > 0 && ($errMsg !== '' || (string)$db->error !== '')) {
+      $out['error'] = 'Failed to record payment: DB error ' . (string)($errNo ?: (int)$db->errno);
+    }
     if ($debugOn) {
       $out['debug'] = [
         'errno' => $errNo ?: (int)$db->errno,
         'db_error' => $errMsg !== '' ? $errMsg : (string)$db->error,
         'date_col' => $dateCol,
+        'receipt_col' => $receiptCol,
+        'verified_col' => $verifiedCol,
+        'pk_col' => $pkCol,
         'has_channel' => $hasChannel,
         'has_ext' => $hasExt,
       ];
