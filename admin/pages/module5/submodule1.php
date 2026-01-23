@@ -12,17 +12,14 @@ $statSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots W
 $statPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments WHERE DATE(paid_at)=CURDATE()")->fetch_assoc()['c'] ?? 0);
 
 $hasRouteCode = false;
-$hasVehicleType = false;
 $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('route_code','vehicle_type')");
 if ($colRes) {
   while ($c = $colRes->fetch_assoc()) {
     $cn = (string)($c['COLUMN_NAME'] ?? '');
     if ($cn === 'route_code') $hasRouteCode = true;
-    if ($cn === 'vehicle_type') $hasVehicleType = true;
   }
 }
 $routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)" : "r.route_id";
-$vehExpr = $hasVehicleType ? "COALESCE(NULLIF(r.vehicle_type,''), '-')" : "'-'";
 
 $terminals = [];
 $res = $db->query("SELECT
@@ -30,7 +27,7 @@ $res = $db->query("SELECT
   t.name,
   t.location,
   t.capacity,
-  COALESCE(GROUP_CONCAT(DISTINCT CONCAT($vehExpr, ': ', $routeLabelExpr) ORDER BY $vehExpr, $routeLabelExpr SEPARATOR ', '), '') AS routes_served
+  COALESCE(GROUP_CONCAT(DISTINCT $routeLabelExpr ORDER BY $routeLabelExpr SEPARATOR ', '), '') AS routes_served
 FROM terminals t
 LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
 LEFT JOIN routes r ON r.route_id=tr.route_id
@@ -165,17 +162,17 @@ if ($rootUrl === '/') $rootUrl = '';
                 </td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
-                  <a href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                  <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    Slots
+                    <span class="sr-only">Slots</span>
                   </a>
-                  <a href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                  <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="credit-card" class="w-4 h-4"></i>
-                    Payment
+                    <span class="sr-only">Payments</span>
                   </a>
-                  <a href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                  <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                     <i data-lucide="link" class="w-4 h-4"></i>
-                    Assign
+                    <span class="sr-only">Assign</span>
                   </a>
                 </td>
               </tr>

@@ -788,6 +788,17 @@ function db() {
     INDEX (vehicle_plate),
     FOREIGN KEY (violation_code) REFERENCES violation_types(violation_code)
   ) ENGINE=InnoDB");
+  $colTicketId = $conn->query("SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets' AND COLUMN_NAME='ticket_id' LIMIT 1");
+  if ($colTicketId && ($r = $colTicketId->fetch_assoc())) {
+    $extra = strtolower((string)($r['EXTRA'] ?? ''));
+    if (strpos($extra, 'auto_increment') === false) {
+      $conn->query("ALTER TABLE tickets MODIFY COLUMN ticket_id INT NOT NULL AUTO_INCREMENT");
+    }
+  }
+  $idxTicketId = $conn->query("SHOW INDEX FROM tickets WHERE Column_name='ticket_id'");
+  if (!$idxTicketId || $idxTicketId->num_rows == 0) {
+    $conn->query("ALTER TABLE tickets ADD INDEX idx_ticket_id (ticket_id)");
+  }
   // Ensure new audit columns exist (safe migrations)
   $colCheck = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets'");
   $haveBadge = false; $haveOfficer = false; $haveOperatorId = false; $haveEvidencePath = false;
