@@ -70,9 +70,9 @@ if ($rootUrl === '/') $rootUrl = '';
         <i data-lucide="link" class="w-4 h-4"></i>
         Assign Vehicle
       </a>
-      <a href="?page=module5/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=module5/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="layout-grid" class="w-4 h-4"></i>
-        Parking Slots
+        Parking
       </a>
     </div>
   </div>
@@ -165,11 +165,11 @@ if ($rootUrl === '/') $rootUrl = '';
                 </td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
-                  <a href="?page=module5/submodule3&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                  <a href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="layout-grid" class="w-4 h-4"></i>
                     Slots
                   </a>
-                  <a href="?page=module5/submodule4&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                  <a href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="credit-card" class="w-4 h-4"></i>
                     Payment
                   </a>

@@ -242,6 +242,15 @@ function db() {
   $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
                 SELECT 'Novaliches Bayan Terminal','Novaliches','Caloocan City','Quirino Highway / Novaliches Bayan',500,'Terminal'
                 WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Novaliches Bayan Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'MCU/Monumento Parking','Monumento','Caloocan City','Rizal Ave Ext / EDSA (near LRT-1 Monumento)',200,'Parking'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='MCU/Monumento Parking')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Bagong Silang Parking','Bagong Silang','Caloocan City','Zabarte Rd / Bagong Silang',150,'Parking'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Silang Parking')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
+                SELECT 'Grace Park Parking','Grace Park','Caloocan City','10th Ave / 5th Ave area',120,'Parking'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Parking')");
 
   $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
   $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
