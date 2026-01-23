@@ -352,6 +352,26 @@ $typesList = vehicle_types();
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const canWrite = <?php echo json_encode(has_permission('module1.vehicles.write')); ?>;
     const vehicleTypes = <?php echo json_encode(array_values($typesList)); ?>;
+    const makeOptions = [
+      'Toyota','Mitsubishi','Nissan','Isuzu','Suzuki','Hyundai','Kia','Ford','Honda','Mazda','Chevrolet',
+      'Foton','Hino','Daewoo','Mercedes-Benz','BMW','Audi','Volkswagen','BYD','Geely','Chery','MG','Changan'
+    ];
+    const modelOptionsByMake = {
+      'Toyota': ['Hiace','Coaster','Innova','Vios','Fortuner','Hilux','Tamaraw FX','LiteAce'],
+      'Mitsubishi': ['L300','L200','Adventure','Montero Sport','Canter','Rosa'],
+      'Nissan': ['Urvan','Navara','NV350','Almera'],
+      'Isuzu': ['N-Series','Elf','Traviz','D-Max','MU-X'],
+      'Suzuki': ['Carry','APV','Ertiga'],
+      'Hyundai': ['H-100','Starex','County'],
+      'Kia': ['K2500','K2700'],
+      'Ford': ['Transit','Ranger','Everest'],
+      'Honda': ['Civic','City','Brio'],
+      'Mazda': ['BT-50'],
+      'Chevrolet': ['Trailblazer'],
+      'Foton': ['Gratour','Tornado'],
+      'Hino': ['Dutro'],
+    };
+    const fuelOptions = ['Diesel','Gasoline','Hybrid','Electric','LPG','CNG'];
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -574,11 +594,19 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Make</label>
-                <input name="make" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Toyota">
+                <select id="vehMakeSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                <div id="vehMakeOtherWrap" class="hidden mt-2">
+                  <input id="vehMakeOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type make">
+                </div>
+                <input id="vehMakeHidden" name="make" type="hidden">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Model</label>
-                <input name="model" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Hiace">
+                <select id="vehModelSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                <div id="vehModelOtherWrap" class="hidden mt-2">
+                  <input id="vehModelOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type model">
+                </div>
+                <input id="vehModelHidden" name="model" type="hidden">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
@@ -589,13 +617,11 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fuel Type</label>
-                <input name="fuel_type" list="fuelTypeList" maxlength="20" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Diesel">
-                <datalist id="fuelTypeList">
-                  <option value="Diesel"></option>
-                  <option value="Gasoline"></option>
-                  <option value="Hybrid"></option>
-                  <option value="Electric"></option>
-                </datalist>
+                <select id="vehFuelSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                <div id="vehFuelOtherWrap" class="hidden mt-2">
+                  <input id="vehFuelOtherInput" maxlength="20" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type fuel type">
+                </div>
+                <input id="vehFuelHidden" name="fuel_type" type="hidden">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Color (optional)</label>
@@ -637,6 +663,135 @@ $typesList = vehicle_types();
         if (yearInput) {
           yearInput.addEventListener('input', () => { yearInput.value = normalizeYear(yearInput.value); });
           yearInput.addEventListener('blur', () => { yearInput.value = normalizeYear(yearInput.value); });
+        }
+
+        const normalizeUpperNoSpaces = (value) => (value || '').toString().toUpperCase().replace(/\s+/g, '');
+        const normalizeEngine = (value) => normalizeUpperNoSpaces(value).replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+        const normalizeVin = (value) => normalizeUpperNoSpaces(value).replace(/[^A-HJ-NPR-Z0-9]/g, '').slice(0, 17);
+
+        const engineInput = form.querySelector('input[name="engine_no"]');
+        if (engineInput) {
+          const validate = () => {
+            const v = engineInput.value || '';
+            if (v !== '' && !/^[A-Z0-9-]{5,20}$/.test(v)) engineInput.setCustomValidity('Engine No must be 5–20 characters (A–Z, 0–9, hyphen).');
+            else engineInput.setCustomValidity('');
+          };
+          engineInput.addEventListener('input', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+          engineInput.addEventListener('blur', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+        }
+        const vinInput = form.querySelector('input[name="chassis_no"]');
+        if (vinInput) {
+          const validate = () => {
+            const v = vinInput.value || '';
+            if (v !== '' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) vinInput.setCustomValidity('Chassis No must be a 17-character VIN (no I, O, Q).');
+            else vinInput.setCustomValidity('');
+          };
+          vinInput.addEventListener('input', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+          vinInput.addEventListener('blur', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+        }
+
+        const makeSelect = document.getElementById('vehMakeSelect');
+        const makeOtherInput = document.getElementById('vehMakeOtherInput');
+        const makeHidden = document.getElementById('vehMakeHidden');
+        const makeOtherWrap = document.getElementById('vehMakeOtherWrap');
+        const modelSelect = document.getElementById('vehModelSelect');
+        const modelOtherInput = document.getElementById('vehModelOtherInput');
+        const modelHidden = document.getElementById('vehModelHidden');
+        const modelOtherWrap = document.getElementById('vehModelOtherWrap');
+        const fuelSelect = document.getElementById('vehFuelSelect');
+        const fuelOtherInput = document.getElementById('vehFuelOtherInput');
+        const fuelHidden = document.getElementById('vehFuelHidden');
+        const fuelOtherWrap = document.getElementById('vehFuelOtherWrap');
+
+        function setWrapVisible(wrap, visible) { if (!wrap) return; wrap.classList.toggle('hidden', !visible); }
+
+        function fillMakeOptions() {
+          if (!makeSelect) return;
+          makeSelect.innerHTML =
+            `<option value="">Select</option>` +
+            makeOptions.map((m) => `<option value="${m}">${m}</option>`).join('') +
+            `<option value="__OTHER__">Other</option>`;
+        }
+        function fillFuelOptions() {
+          if (!fuelSelect) return;
+          fuelSelect.innerHTML =
+            `<option value="">Select</option>` +
+            fuelOptions.map((f) => `<option value="${f}">${f}</option>`).join('') +
+            `<option value="__OTHER__">Other</option>`;
+        }
+        function fillModelOptions(makeValue) {
+          if (!modelSelect) return;
+          const models = modelOptionsByMake[makeValue] || [];
+          modelSelect.innerHTML =
+            `<option value="">Select</option>` +
+            models.map((m) => `<option value="${m}">${m}</option>`).join('') +
+            `<option value="__OTHER__">Other</option>`;
+        }
+
+        fillMakeOptions();
+        fillFuelOptions();
+        fillModelOptions('');
+
+        if (makeSelect && makeHidden) {
+          makeSelect.addEventListener('change', () => {
+            const v = makeSelect.value || '';
+            if (v === '__OTHER__') {
+              if (makeOtherInput) makeOtherInput.value = '';
+              makeHidden.value = '';
+              setWrapVisible(makeOtherWrap, true);
+              if (makeOtherInput) makeOtherInput.focus();
+            } else {
+              makeHidden.value = v;
+              setWrapVisible(makeOtherWrap, false);
+            }
+            fillModelOptions(v);
+            if (modelSelect && modelHidden) {
+              modelSelect.value = '';
+              modelHidden.value = '';
+              if (modelOtherInput) modelOtherInput.value = '';
+              setWrapVisible(modelOtherWrap, false);
+            }
+          });
+        }
+        if (modelSelect && modelHidden) {
+          modelSelect.addEventListener('change', () => {
+            const v = modelSelect.value || '';
+            if (v === '__OTHER__') {
+              if (modelOtherInput) modelOtherInput.value = '';
+              modelHidden.value = '';
+              setWrapVisible(modelOtherWrap, true);
+              if (modelOtherInput) modelOtherInput.focus();
+            } else {
+              modelHidden.value = v;
+              setWrapVisible(modelOtherWrap, false);
+            }
+          });
+        }
+        if (fuelSelect && fuelHidden) {
+          fuelSelect.addEventListener('change', () => {
+            const v = fuelSelect.value || '';
+            if (v === '__OTHER__') {
+              if (fuelOtherInput) fuelOtherInput.value = '';
+              fuelHidden.value = '';
+              setWrapVisible(fuelOtherWrap, true);
+              if (fuelOtherInput) fuelOtherInput.focus();
+            } else {
+              fuelHidden.value = v;
+              setWrapVisible(fuelOtherWrap, false);
+            }
+          });
+        }
+        if (makeOtherInput && makeHidden) {
+          makeOtherInput.addEventListener('input', () => { makeHidden.value = makeOtherInput.value; });
+          makeOtherInput.addEventListener('blur', () => { makeHidden.value = makeOtherInput.value; });
+        }
+        if (modelOtherInput && modelHidden) {
+          modelOtherInput.addEventListener('input', () => { modelHidden.value = modelOtherInput.value; });
+          modelOtherInput.addEventListener('blur', () => { modelHidden.value = modelOtherInput.value; });
+        }
+        if (fuelOtherInput && fuelHidden) {
+          fuelOtherInput.addEventListener('input', () => { fuelHidden.value = fuelOtherInput.value; });
+          fuelOtherInput.addEventListener('blur', () => { fuelHidden.value = fuelOtherInput.value; });
         }
 
         form.addEventListener('submit', async (e) => {

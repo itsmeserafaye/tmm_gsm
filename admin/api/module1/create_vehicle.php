@@ -21,8 +21,12 @@ try {
     }
 
     $type = trim((string)($_POST['vehicle_type'] ?? ''));
-    $engineNo = strtoupper(trim((string)($_POST['engine_no'] ?? ($_POST['engine_number'] ?? ''))));
-    $chassisNo = strtoupper(trim((string)($_POST['chassis_no'] ?? ($_POST['chassis_number'] ?? ''))));
+    $engineNoRaw = (string)($_POST['engine_no'] ?? ($_POST['engine_number'] ?? ''));
+    $engineNo = strtoupper(preg_replace('/\s+/', '', trim($engineNoRaw)));
+    $engineNo = preg_replace('/[^A-Z0-9\-]/', '', $engineNo);
+    $chassisNoRaw = (string)($_POST['chassis_no'] ?? ($_POST['chassis_number'] ?? ''));
+    $chassisNo = strtoupper(preg_replace('/\s+/', '', trim($chassisNoRaw)));
+    $chassisNo = preg_replace('/[^A-HJ-NPR-Z0-9]/', '', $chassisNo);
     $make = trim((string)($_POST['make'] ?? ''));
     $model = trim((string)($_POST['model'] ?? ''));
     $yearModel = trim((string)($_POST['year_model'] ?? ''));

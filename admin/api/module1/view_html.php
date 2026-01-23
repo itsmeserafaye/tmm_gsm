@@ -184,11 +184,19 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Make</label>
-                                    <input name="make" maxlength="100" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>" placeholder="e.g., Toyota">
+                                    <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>"></select>
+                                    <div id="vehEditMakeOtherWrap" class="hidden mt-2">
+                                        <input id="vehEditMakeOtherInput" maxlength="100" class="<?php echo $inputClass; ?>" placeholder="Type make">
+                                    </div>
+                                    <input id="vehEditMakeHidden" name="make" type="hidden" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Model</label>
-                                    <input name="model" maxlength="100" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>" placeholder="e.g., Hiace">
+                                    <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>"></select>
+                                    <div id="vehEditModelOtherWrap" class="hidden mt-2">
+                                        <input id="vehEditModelOtherInput" maxlength="100" class="<?php echo $inputClass; ?>" placeholder="Type model">
+                                    </div>
+                                    <input id="vehEditModelHidden" name="model" type="hidden" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Year Model</label>
@@ -196,7 +204,11 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Fuel Type</label>
-                                    <input name="fuel_type" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>" placeholder="e.g., Diesel">
+                                    <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>"></select>
+                                    <div id="vehEditFuelOtherWrap" class="hidden mt-2">
+                                        <input id="vehEditFuelOtherInput" maxlength="64" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
+                                    </div>
+                                    <input id="vehEditFuelHidden" name="fuel_type" type="hidden" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>">
                                 </div>
                             </div>
                             <button class="<?php echo $btnClass; ?>">Save Details</button>
@@ -345,19 +357,214 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
 <script>
 (function(){
+  var makeOptions = [
+    'Toyota','Mitsubishi','Nissan','Isuzu','Suzuki','Hyundai','Kia','Ford','Honda','Mazda','Chevrolet',
+    'Foton','Hino','Daewoo','Mercedes-Benz','BMW','Audi','Volkswagen','BYD','Geely','Chery','MG','Changan'
+  ];
+  var modelOptionsByMake = {
+    'Toyota': ['Hiace','Coaster','Innova','Vios','Fortuner','Hilux','Tamaraw FX','LiteAce'],
+    'Mitsubishi': ['L300','L200','Adventure','Montero Sport','Canter','Rosa'],
+    'Nissan': ['Urvan','Navara','NV350','Almera'],
+    'Isuzu': ['N-Series','Elf','Traviz','D-Max','MU-X'],
+    'Suzuki': ['Carry','APV','Ertiga'],
+    'Hyundai': ['H-100','Starex','County'],
+    'Kia': ['K2500','K2700'],
+    'Ford': ['Transit','Ranger','Everest'],
+    'Honda': ['Civic','City','Brio'],
+    'Mazda': ['BT-50'],
+    'Chevrolet': ['Trailblazer'],
+    'Foton': ['Gratour','Tornado'],
+    'Hino': ['Dutro'],
+  };
+  var fuelOptions = ['Diesel','Gasoline','Hybrid','Electric','LPG','CNG'];
+
   function refresh(){
     fetch("api/module1/view_html.php?plate=<?php echo htmlspecialchars($v['plate_number']); ?>")
       .then(r=>r.text())
       .then(html=>{
-        var c=document.getElementById("vehicleModalBody");
+        var c=document.getElementById("vehicleModalBody") || document.getElementById("modalVehBody");
         if(c){c.innerHTML=html; if(window.lucide&&window.lucide.createIcons) window.lucide.createIcons();}
       });
   }
+
+  function normalizeUpperNoSpaces(v){ return (v||"").toString().toUpperCase().replace(/\s+/g, ""); }
+  function normalizeEngine(v){ return normalizeUpperNoSpaces(v).replace(/[^A-Z0-9-]/g, "").slice(0, 20); }
+  function normalizeVin(v){ return normalizeUpperNoSpaces(v).replace(/[^A-HJ-NPR-Z0-9]/g, "").slice(0, 17); }
+
+  function setupVinEngine(){
+    var engine = document.querySelector('input[name="engine_no"]');
+    if(engine){
+      var validateE = function(){
+        var v = engine.value || '';
+        if(v !== '' && !/^[A-Z0-9-]{5,20}$/.test(v)) engine.setCustomValidity('Engine No must be 5–20 characters (A–Z, 0–9, hyphen).');
+        else engine.setCustomValidity('');
+      };
+      engine.addEventListener('input', function(){ engine.value = normalizeEngine(engine.value); validateE(); });
+      engine.addEventListener('blur', function(){ engine.value = normalizeEngine(engine.value); validateE(); });
+      validateE();
+    }
+    var vin = document.querySelector('input[name="chassis_no"]');
+    if(vin){
+      var validateV = function(){
+        var v = vin.value || '';
+        if(v !== '' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) vin.setCustomValidity('Chassis No must be a 17-character VIN (no I, O, Q).');
+        else vin.setCustomValidity('');
+      };
+      vin.addEventListener('input', function(){ vin.value = normalizeVin(vin.value); validateV(); });
+      vin.addEventListener('blur', function(){ vin.value = normalizeVin(vin.value); validateV(); });
+      validateV();
+    }
+  }
+
+  function setupDropdowns(){
+    var makeSelect = document.getElementById('vehEditMakeSelect');
+    var makeOtherWrap = document.getElementById('vehEditMakeOtherWrap');
+    var makeOtherInput = document.getElementById('vehEditMakeOtherInput');
+    var makeHidden = document.getElementById('vehEditMakeHidden');
+
+    var modelSelect = document.getElementById('vehEditModelSelect');
+    var modelOtherWrap = document.getElementById('vehEditModelOtherWrap');
+    var modelOtherInput = document.getElementById('vehEditModelOtherInput');
+    var modelHidden = document.getElementById('vehEditModelHidden');
+
+    var fuelSelect = document.getElementById('vehEditFuelSelect');
+    var fuelOtherWrap = document.getElementById('vehEditFuelOtherWrap');
+    var fuelOtherInput = document.getElementById('vehEditFuelOtherInput');
+    var fuelHidden = document.getElementById('vehEditFuelHidden');
+
+    function setWrapVisible(w, visible){ if(!w) return; if(visible) w.classList.remove('hidden'); else w.classList.add('hidden'); }
+
+    function fillMake(){
+      if(!makeSelect) return;
+      var html = '<option value="">Select</option>';
+      for(var i=0;i<makeOptions.length;i++){ var m=makeOptions[i]; html += '<option value="'+m+'">'+m+'</option>'; }
+      html += '<option value="__OTHER__">Other</option>';
+      makeSelect.innerHTML = html;
+    }
+    function fillFuel(){
+      if(!fuelSelect) return;
+      var html = '<option value="">Select</option>';
+      for(var i=0;i<fuelOptions.length;i++){ var f=fuelOptions[i]; html += '<option value="'+f+'">'+f+'</option>'; }
+      html += '<option value="__OTHER__">Other</option>';
+      fuelSelect.innerHTML = html;
+    }
+    function fillModel(makeVal){
+      if(!modelSelect) return;
+      var models = modelOptionsByMake[makeVal] || [];
+      var html = '<option value="">Select</option>';
+      for(var i=0;i<models.length;i++){ var m=models[i]; html += '<option value="'+m+'">'+m+'</option>'; }
+      html += '<option value="__OTHER__">Other</option>';
+      modelSelect.innerHTML = html;
+    }
+
+    fillMake();
+    fillFuel();
+    fillModel('');
+
+    var curMake = makeHidden ? (makeHidden.value || '') : '';
+    var curModel = modelHidden ? (modelHidden.value || '') : '';
+    var curFuel = fuelHidden ? (fuelHidden.value || '') : '';
+
+    if(makeSelect && makeHidden){
+      var isKnownMake = makeOptions.indexOf(curMake) !== -1;
+      makeSelect.value = isKnownMake ? curMake : (curMake ? '__OTHER__' : '');
+      if(!isKnownMake && curMake){
+        setWrapVisible(makeOtherWrap, true);
+        if(makeOtherInput) makeOtherInput.value = curMake;
+      } else {
+        setWrapVisible(makeOtherWrap, false);
+      }
+      makeHidden.value = curMake;
+      fillModel(isKnownMake ? curMake : '');
+
+      makeSelect.addEventListener('change', function(){
+        var v = makeSelect.value || '';
+        if(v === '__OTHER__'){
+          makeHidden.value = makeOtherInput ? (makeOtherInput.value || '') : '';
+          setWrapVisible(makeOtherWrap, true);
+          if(makeOtherInput) makeOtherInput.focus();
+          fillModel('');
+        } else {
+          makeHidden.value = v;
+          setWrapVisible(makeOtherWrap, false);
+          fillModel(v);
+        }
+        if(modelSelect){ modelSelect.value = ''; }
+        if(modelHidden){ modelHidden.value = ''; }
+        if(modelOtherInput){ modelOtherInput.value = ''; }
+        setWrapVisible(modelOtherWrap, false);
+      });
+      if(makeOtherInput){
+        makeOtherInput.addEventListener('input', function(){ makeHidden.value = makeOtherInput.value || ''; });
+        makeOtherInput.addEventListener('blur', function(){ makeHidden.value = makeOtherInput.value || ''; });
+      }
+    }
+
+    if(modelSelect && modelHidden){
+      var knownModels = modelOptionsByMake[curMake] || [];
+      var isKnownModel = knownModels.indexOf(curModel) !== -1;
+      modelSelect.value = isKnownModel ? curModel : (curModel ? '__OTHER__' : '');
+      if(!isKnownModel && curModel){
+        setWrapVisible(modelOtherWrap, true);
+        if(modelOtherInput) modelOtherInput.value = curModel;
+      } else {
+        setWrapVisible(modelOtherWrap, false);
+      }
+      modelHidden.value = curModel;
+      modelSelect.addEventListener('change', function(){
+        var v = modelSelect.value || '';
+        if(v === '__OTHER__'){
+          modelHidden.value = modelOtherInput ? (modelOtherInput.value || '') : '';
+          setWrapVisible(modelOtherWrap, true);
+          if(modelOtherInput) modelOtherInput.focus();
+        } else {
+          modelHidden.value = v;
+          setWrapVisible(modelOtherWrap, false);
+        }
+      });
+      if(modelOtherInput){
+        modelOtherInput.addEventListener('input', function(){ modelHidden.value = modelOtherInput.value || ''; });
+        modelOtherInput.addEventListener('blur', function(){ modelHidden.value = modelOtherInput.value || ''; });
+      }
+    }
+
+    if(fuelSelect && fuelHidden){
+      var isKnownFuel = fuelOptions.indexOf(curFuel) !== -1;
+      fuelSelect.value = isKnownFuel ? curFuel : (curFuel ? '__OTHER__' : '');
+      if(!isKnownFuel && curFuel){
+        setWrapVisible(fuelOtherWrap, true);
+        if(fuelOtherInput) fuelOtherInput.value = curFuel;
+      } else {
+        setWrapVisible(fuelOtherWrap, false);
+      }
+      fuelHidden.value = curFuel;
+      fuelSelect.addEventListener('change', function(){
+        var v = fuelSelect.value || '';
+        if(v === '__OTHER__'){
+          fuelHidden.value = fuelOtherInput ? (fuelOtherInput.value || '') : '';
+          setWrapVisible(fuelOtherWrap, true);
+          if(fuelOtherInput) fuelOtherInput.focus();
+        } else {
+          fuelHidden.value = v;
+          setWrapVisible(fuelOtherWrap, false);
+        }
+      });
+      if(fuelOtherInput){
+        fuelOtherInput.addEventListener('input', function(){ fuelHidden.value = fuelOtherInput.value || ''; });
+        fuelOtherInput.addEventListener('blur', function(){ fuelHidden.value = fuelOtherInput.value || ''; });
+      }
+    }
+  }
+
   function bind(id){
     var f=document.getElementById(id);
     if(!f) return;
     f.addEventListener("submit", function(e){
       e.preventDefault();
+      if (typeof f.checkValidity === 'function' && !f.checkValidity()) {
+        if (typeof f.reportValidity === 'function') f.reportValidity();
+        return;
+      }
       var fd=new FormData(f);
       var btn = f.querySelector("button");
       var originalContent = btn.innerHTML;
@@ -392,6 +599,8 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
   bind("formAssign");
   bind("formDetails");
   bind("formLink");
+  setupVinEngine();
+  setupDropdowns();
   
   document.querySelectorAll('[data-doc-verify="1"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
