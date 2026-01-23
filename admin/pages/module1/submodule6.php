@@ -314,6 +314,7 @@ if ($params) {
 
       return `
         <form id="formRouteSave" class="space-y-5" novalidate>
+          ${isEdit ? `<input type="hidden" name="id" value="${id}">` : ``}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route Code</label>
@@ -454,9 +455,55 @@ if ($params) {
             <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Close</button>
           </div>
         </div>
+
+        <div class="mt-4 p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Assigned Operators</div>
+              <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">Operators with endorsed/approved franchises on this route.</div>
+            </div>
+          </div>
+          <div id="routeOperatorsBox" class="mt-3 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+            <div class="px-4 py-3 text-sm text-slate-500 italic">Loading...</div>
+          </div>
+        </div>
       `, 'Route • ' + (r.route_code || ''));
       const c = body.querySelector('[data-close="1"]');
       if (c) c.addEventListener('click', closeModal);
+
+      const box = body.querySelector('#routeOperatorsBox');
+      const routeId = Number(r.id || 0);
+      if (box && routeId > 0) {
+        fetch(rootUrl + '/admin/api/module1/route_operators.php?route_id=' + encodeURIComponent(String(routeId)), { headers: { 'Accept': 'application/json' } })
+          .then((rr) => rr.json())
+          .then((data) => {
+            if (!data || !data.ok) { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Failed to load.</div>'; return; }
+            const ops = Array.isArray(data.operators) ? data.operators : [];
+            if (!ops.length) { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">No assigned operators yet.</div>'; return; }
+            box.innerHTML = `
+              <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                <thead class="bg-slate-50 dark:bg-slate-800">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</th>
+                    <th class="px-4 py-3 text-right text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Units</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                  ${ops.map((o) => `
+                    <tr>
+                      <td class="px-4 py-3">
+                        <div class="text-sm font-bold text-slate-900 dark:text-white">${esc(o.operator_name || '')}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">${esc(o.operator_type || '')}${o.statuses ? ' • ' + esc(o.statuses) : ''}</div>
+                      </td>
+                      <td class="px-4 py-3 text-right font-black text-slate-900 dark:text-white">${Number(o.total_units || 0)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          })
+          .catch(() => { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Failed to load.</div>'; });
+      }
     }
 
     async function saveRoute(form) {
@@ -541,6 +588,7 @@ if ($params) {
           const next = (String(r.status || 'Active') === 'Active') ? 'Inactive' : 'Active';
           try {
             const fd = new FormData();
+            fd.append('id', String(r.id || 0));
             fd.append('route_code', String(r.route_code || ''));
             fd.append('route_name', String(r.route_name || ''));
             fd.append('vehicle_type', String(r.vehicle_type || ''));

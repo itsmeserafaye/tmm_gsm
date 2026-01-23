@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/franchise_gate.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -36,7 +37,7 @@ if (!preg_match('/^[0-9]{3,40}$/', $decisionOrderNo)) {
 
 $db->begin_transaction();
 try {
-  $stmtA = $db->prepare("SELECT application_id, operator_id, vehicle_count, franchise_ref_number, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
+  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, franchise_ref_number, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
   if (!$stmtA) throw new Exception('db_prepare_failed');
   $stmtA->bind_param('i', $appId);
   $stmtA->execute();
@@ -56,11 +57,19 @@ try {
   }
 
   $operatorId = (int)($app['operator_id'] ?? 0);
+  $routeDbId = (int)($app['route_id'] ?? 0);
   $need = (int)($app['vehicle_count'] ?? 0);
   if ($need <= 0) $need = 1;
   if ($operatorId <= 0) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'missing_operator_id']);
+    exit;
+  }
+
+  $gate = tmm_can_endorse_application($db, $operatorId, $routeDbId, $need, $appId);
+  if (!$gate['ok']) {
+    $db->rollback();
+    echo json_encode($gate);
     exit;
   }
 

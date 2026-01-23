@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/franchise_gate.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module2.franchises.manage');
@@ -21,7 +22,7 @@ if (empty($appId) || empty($permitNo)) {
 }
 
 // Verify Application exists
-$stmt = $db->prepare("SELECT application_id, status FROM franchise_applications WHERE application_id = ? OR franchise_ref_number = ?");
+$stmt = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, status FROM franchise_applications WHERE application_id = ? OR franchise_ref_number = ?");
 $stmt->bind_param('ss', $appId, $appId);
 $stmt->execute();
 $res = $stmt->get_result();
@@ -45,6 +46,21 @@ if ($row = $res->fetch_assoc()) {
             }
         }
         echo json_encode(['ok' => true, 'endorsement_id' => $endorsementId, 'permit_no' => $permit, 'message' => 'Application already endorsed']);
+        exit;
+    }
+
+    if ($currentStatus !== 'Submitted') {
+        echo json_encode(['ok' => false, 'error' => 'invalid_status_transition']);
+        exit;
+    }
+
+    $operatorId = (int)($row['operator_id'] ?? 0);
+    $routeDbId = (int)($row['route_id'] ?? 0);
+    $need = (int)($row['vehicle_count'] ?? 0);
+    if ($need <= 0) $need = 1;
+    $gate = tmm_can_endorse_application($db, $operatorId, $routeDbId, $need, (int)$realAppId);
+    if (!$gate['ok']) {
+        echo json_encode($gate);
         exit;
     }
 

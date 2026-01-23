@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/franchise_gate.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module2.franchises.manage');
@@ -20,30 +21,54 @@ if (!in_array($st, $allowed, true)) {
   exit;
 }
 
-if ($st === 'LTFRB-Approved' || $st === 'Approved') {
-  $stmtA = $db->prepare("SELECT operator_id, vehicle_count FROM franchise_applications WHERE application_id=? LIMIT 1");
+if ($st === 'LTFRB-Approved' || $st === 'Approved' || $st === 'LGU-Endorsed' || $st === 'Endorsed') {
+  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, status FROM franchise_applications WHERE application_id=? LIMIT 1");
   if ($stmtA) {
     $stmtA->bind_param('i', $id);
     $stmtA->execute();
     $app = $stmtA->get_result()->fetch_assoc();
     $stmtA->close();
+    if (!$app) { echo json_encode(['ok' => false, 'error' => 'application_not_found']); exit; }
+    $cur = (string)($app['status'] ?? '');
     $operatorId = (int)($app['operator_id'] ?? 0);
+    $routeDbId = (int)($app['route_id'] ?? 0);
     $need = (int)($app['vehicle_count'] ?? 0);
     if ($need <= 0) $need = 1;
-    if ($operatorId > 0) {
-      $stmtVeh = $db->prepare("SELECT COUNT(DISTINCT v.id) AS c
-                               FROM vehicles v
-                               JOIN vehicle_documents vd ON vd.vehicle_id=v.id AND vd.doc_type='ORCR' AND COALESCE(vd.is_verified,0)=1
-                               WHERE v.operator_id=? AND (COALESCE(v.record_status,'') <> 'Archived')");
-      if ($stmtVeh) {
-        $stmtVeh->bind_param('i', $operatorId);
-        $stmtVeh->execute();
-        $row = $stmtVeh->get_result()->fetch_assoc();
-        $stmtVeh->close();
-        $have = (int)($row['c'] ?? 0);
-        if ($have < $need) {
-          echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $need, 'have' => $have]);
-          exit;
+
+    if ($st === 'LGU-Endorsed' || $st === 'Endorsed') {
+      if ($cur === 'Endorsed' || $cur === 'LGU-Endorsed') {
+        echo json_encode(['ok' => true, 'application_id' => $id, 'status' => $cur, 'permit_number' => $permit]);
+        exit;
+      }
+      if ($cur !== 'Submitted') { echo json_encode(['ok' => false, 'error' => 'invalid_status_transition']); exit; }
+      $gate = tmm_can_endorse_application($db, $operatorId, $routeDbId, $need, $id);
+      if (!$gate['ok']) { echo json_encode($gate); exit; }
+    }
+
+    if ($st === 'LTFRB-Approved' || $st === 'Approved') {
+      if (!in_array($cur, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'], true)) {
+        echo json_encode(['ok' => false, 'error' => 'invalid_status_transition']);
+        exit;
+      }
+      $gate = tmm_can_endorse_application($db, $operatorId, $routeDbId, $need, $id);
+      if (!$gate['ok']) { echo json_encode($gate); exit; }
+    }
+    if ($st === 'LTFRB-Approved' || $st === 'Approved') {
+      if ($operatorId > 0) {
+        $stmtVeh = $db->prepare("SELECT COUNT(DISTINCT v.id) AS c
+                                 FROM vehicles v
+                                 JOIN vehicle_documents vd ON vd.vehicle_id=v.id AND vd.doc_type='ORCR' AND COALESCE(vd.is_verified,0)=1
+                                 WHERE v.operator_id=? AND (COALESCE(v.record_status,'') <> 'Archived')");
+        if ($stmtVeh) {
+          $stmtVeh->bind_param('i', $operatorId);
+          $stmtVeh->execute();
+          $row = $stmtVeh->get_result()->fetch_assoc();
+          $stmtVeh->close();
+          $have = (int)($row['c'] ?? 0);
+          if ($have < $need) {
+            echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $need, 'have' => $have]);
+            exit;
+          }
         }
       }
     }
