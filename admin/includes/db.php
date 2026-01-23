@@ -500,6 +500,27 @@ function db() {
   if (!isset($vehDocCols['doc_id']) && isset($vehDocCols['id'])) {
     $conn->query("ALTER TABLE vehicle_documents CHANGE COLUMN id doc_id INT NOT NULL AUTO_INCREMENT");
   }
+  if (isset($vehDocCols['doc_id'])) {
+    $colDocId = $conn->query("SHOW COLUMNS FROM vehicle_documents LIKE 'doc_id'");
+    $docIdExtra = '';
+    if ($colDocId) {
+      $r = $colDocId->fetch_assoc();
+      $docIdExtra = (string)($r['Extra'] ?? '');
+    }
+    if (stripos($docIdExtra, 'auto_increment') === false) {
+      $conn->query("ALTER TABLE vehicle_documents MODIFY COLUMN doc_id INT NOT NULL AUTO_INCREMENT");
+    }
+    $pk = $conn->query("SHOW KEYS FROM vehicle_documents WHERE Key_name='PRIMARY'");
+    $hasPrimary = false;
+    if ($pk) {
+      while ($r = $pk->fetch_assoc()) {
+        $hasPrimary = true;
+      }
+    }
+    if (!$hasPrimary) {
+      $conn->query("ALTER TABLE vehicle_documents ADD PRIMARY KEY (doc_id)");
+    }
+  }
   if (!isset($vehDocCols['doc_type']) && isset($vehDocCols['document_type'])) {
     $conn->query("ALTER TABLE vehicle_documents CHANGE COLUMN document_type doc_type VARCHAR(32) DEFAULT 'Others'");
   }
