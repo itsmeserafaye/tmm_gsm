@@ -49,7 +49,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Submit Franchise Application</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Select an operator and proposed route, set the requested vehicle count, and attach supporting documents.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Select an operator and proposed route, set the requested vehicle count, and the system will use the operator’s verified documents from the PUV Database.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -98,20 +98,9 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Supporting Documents (optional)</div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Doc 1</label>
-              <input name="doc_ltfrb" type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv" class="w-full text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Doc 2</label>
-              <input name="doc_coop" type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv" class="w-full text-sm">
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Doc 3</label>
-              <input name="doc_members" type="file" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv" class="w-full text-sm">
-            </div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Supporting Documents (from Operator)</div>
+          <div id="opDocsBox" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+            <div class="text-sm text-slate-500 dark:text-slate-400 italic">Select an operator to view verified documents.</div>
           </div>
         </div>
 
@@ -192,19 +181,6 @@ if ($rootUrl === '/') $rootUrl = '';
           if (!data || !data.ok || !data.application_id) throw new Error((data && data.error) ? data.error : 'submit_failed');
 
           const appId = Number(data.application_id);
-          const hasDocs = ['doc_ltfrb','doc_coop','doc_members'].some((k) => fd.get(k) && fd.get(k).name);
-          if (hasDocs) {
-            const docs = new FormData();
-            docs.append('application_id', String(appId));
-            ['doc_ltfrb','doc_coop','doc_members'].forEach((k) => {
-              const f = fd.get(k);
-              if (f && f.name) docs.append(k, f);
-            });
-            const res2 = await fetch(rootUrl + '/admin/api/module2/upload_app_docs.php', { method: 'POST', body: docs });
-            const data2 = await res2.json();
-            if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
-          }
-
           showToast('Application submitted.');
           const params = new URLSearchParams();
           params.set('page', 'module2/submodule1');
@@ -216,6 +192,69 @@ if ($rootUrl === '/') $rootUrl = '';
           btn.textContent = 'Submit';
         }
       });
+    }
+
+    const opDocsBox = document.getElementById('opDocsBox');
+    async function loadOperatorVerifiedDocs(operatorId) {
+      const res = await fetch(rootUrl + '/admin/api/module2/list_operator_verified_docs.php?operator_id=' + encodeURIComponent(String(operatorId || '')));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return data;
+    }
+    function renderOperatorDocs(payload) {
+      if (!opDocsBox) return;
+      const op = payload && payload.operator ? payload.operator : null;
+      const rows = (payload && Array.isArray(payload.data)) ? payload.data : [];
+      const wf = op ? String(op.workflow_status || '') : '';
+      const vs = op ? String(op.verification_status || '') : '';
+      const header = op ? `
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="text-sm font-black text-slate-900 dark:text-white">${String(op.display_name || '')}</div>
+          <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Workflow: ${wf || '-'} • Verification: ${vs || '-'}</div>
+        </div>
+      ` : '';
+      if (!rows.length) {
+        opDocsBox.innerHTML = header + '<div class="text-sm text-slate-500 dark:text-slate-400 italic">No verified operator documents found.</div>';
+        return;
+      }
+      opDocsBox.innerHTML = header + rows.map((d) => {
+        const href = rootUrl + '/admin/uploads/' + encodeURIComponent(String(d.file_path || ''));
+        const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
+        const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+        return `
+          <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all mb-2">
+            <div>
+              <div class="text-sm font-black text-slate-800 dark:text-white">${String(d.doc_type || '')}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+            </div>
+            <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
+          </a>
+        `;
+      }).join('');
+      if (window.lucide) window.lucide.createIcons();
+    }
+    async function refreshOperatorDocs() {
+      const opEl = form ? form.querySelector('input[name="operator_pick"]') : null;
+      const operatorId = parseId(opEl ? opEl.value : '');
+      if (!opDocsBox) return;
+      if (!operatorId) {
+        opDocsBox.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400 italic">Select an operator to view verified documents.</div>';
+        return;
+      }
+      opDocsBox.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Loading verified documents...</div>';
+      try {
+        const payload = await loadOperatorVerifiedDocs(operatorId);
+        renderOperatorDocs(payload);
+      } catch (e) {
+        opDocsBox.innerHTML = '<div class="text-sm text-rose-600">Failed to load operator documents.</div>';
+      }
+    }
+    if (form) {
+      const opEl = form.querySelector('input[name="operator_pick"]');
+      if (opEl) {
+        opEl.addEventListener('change', refreshOperatorDocs);
+        opEl.addEventListener('blur', refreshOperatorDocs);
+      }
     }
   })();
 </script>

@@ -5,10 +5,41 @@ require_any_permission(['module1.read','module1.write']);
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+$schema = '';
+$schRes = $db->query("SELECT DATABASE() AS db");
+if ($schRes) { $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: ''); }
+function tmm_has_column_mod1_sub2(mysqli $db, string $schema, string $table, string $col): bool {
+  if ($schema === '') return false;
+  $t = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
+  if (!$t) return false;
+  $t->bind_param('sss', $schema, $table, $col);
+  $t->execute();
+  $res = $t->get_result();
+  $ok = (bool)($res && $res->fetch_row());
+  $t->close();
+  return $ok;
+}
+$vdHasVehicleId = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'vehicle_id');
+$vdHasPlate = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'plate_number');
+$orcrCond = "LOWER(vd.doc_type) IN ('orcr','or/cr','or','cr')";
+
 $statTotalVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0);
 $statLinkedVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NOT NULL AND operator_id>0")->fetch_assoc()['c'] ?? 0);
 $statUnlinkedVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NULL OR operator_id=0")->fetch_assoc()['c'] ?? 0);
-$statWithOrcr = (int)($db->query("SELECT COUNT(DISTINCT vehicle_id) AS c FROM vehicle_documents WHERE doc_type='ORCR'")->fetch_assoc()['c'] ?? 0);
+$statWithOrcr = 0;
+if ($vdHasVehicleId && $vdHasPlate) {
+  $statWithOrcr = (int)($db->query("SELECT COUNT(DISTINCT v.id) AS c
+                                    FROM vehicles v
+                                    JOIN vehicle_documents vd ON (vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))
+                                    WHERE $orcrCond")->fetch_assoc()['c'] ?? 0);
+} elseif ($vdHasVehicleId) {
+  $statWithOrcr = (int)($db->query("SELECT COUNT(DISTINCT vehicle_id) AS c FROM vehicle_documents vd WHERE vd.vehicle_id IS NOT NULL AND vd.vehicle_id>0 AND $orcrCond")->fetch_assoc()['c'] ?? 0);
+} elseif ($vdHasPlate) {
+  $statWithOrcr = (int)($db->query("SELECT COUNT(DISTINCT v.id) AS c
+                                    FROM vehicles v
+                                    JOIN vehicle_documents vd ON vd.plate_number=v.plate_number
+                                    WHERE $orcrCond")->fetch_assoc()['c'] ?? 0);
+}
 $statMissingOrcr = max(0, $statTotalVeh - $statWithOrcr);
 
 $q = trim((string)($_GET['q'] ?? ''));
@@ -17,6 +48,15 @@ $recordStatus = trim((string)($_GET['record_status'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $highlightPlate = strtoupper(trim((string)($_GET['highlight_plate'] ?? '')));
 
+$hasOrcrSql = "0 AS has_orcr";
+if ($vdHasVehicleId && $vdHasPlate) {
+  $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE (vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number)) AND $orcrCond) AS has_orcr";
+} elseif ($vdHasVehicleId) {
+  $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.vehicle_id=v.id AND $orcrCond) AS has_orcr";
+} elseif ($vdHasPlate) {
+  $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.plate_number=v.plate_number AND $orcrCond) AS has_orcr";
+}
+
 $sql = "SELECT v.id AS vehicle_id,
                v.plate_number,
                v.vehicle_type,
@@ -24,7 +64,7 @@ $sql = "SELECT v.id AS vehicle_id,
                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
                v.record_status, v.status, v.created_at,
-               (SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.vehicle_id=v.id AND vd.doc_type='ORCR') AS has_orcr
+               $hasOrcrSql
         FROM vehicles v
         LEFT JOIN operators o ON o.id=v.operator_id";
 $conds = [];
@@ -477,6 +517,12 @@ $typesList = vehicle_types();
               }
               showToast('Documents uploaded.');
               await loadDocs();
+              setTimeout(() => {
+                const params = new URLSearchParams(window.location.search || '');
+                params.set('page', 'module1/submodule2');
+                if (plate) params.set('highlight_plate', plate);
+                window.location.search = params.toString();
+              }, 400);
               btnSave.disabled = false;
               btnSave.textContent = 'Upload';
             } catch (err) {
