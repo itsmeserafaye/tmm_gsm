@@ -15,9 +15,6 @@
 - Dashboard: demand forecast chart + insights + alerts
 - Explain inputs: demand observations + context (weather/events/traffic)
 
-## IoT (1–2 min)
-- Trigger telemetry demo by calling `/admin/api/iot/ingest.php` (token-based) then refresh dashboard “IoT Live Feed”.
-
 ## Security & Privacy (2–3 min)
 - RBAC: different users see different modules/features
 - Audit logs: login audit + business audit trail: [users/activity.php](file:///c:/xampp/htdocs/tmm/admin/pages/users/activity.php)
@@ -26,8 +23,3 @@
 ## Import/Export (1–2 min)
 - Export tickets CSV/PDF
 - Import LPTRP routes from sample CSV
-
-## TAM Evaluation (1 min)
-- Fill TAM survey: [tam_survey.php](file:///c:/xampp/htdocs/tmm/admin/pages/research/tam_survey.php)
-- Show results aggregation: [tam_results.php](file:///c:/xampp/htdocs/tmm/admin/pages/research/tam_results.php)
-

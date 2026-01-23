@@ -2,7 +2,7 @@
 
 This document maps the system’s current implementation to the final defense rubric and lists concrete demo steps + evidence files.
 
-## 1) Core Functionalities (ISO/IEC 25010 + TAM) – 20%
+## 1) Core Functionalities (ISO/IEC 25010) – 20%
 
 **Core modules implemented**
 - PUV Database (Operators, Vehicles, Routes/LPTRP, Ownership Transfer): [admin/pages/module1](file:///c:/xampp/htdocs/tmm/admin/pages/module1)
@@ -11,30 +11,19 @@ This document maps the system’s current implementation to the final defense ru
 - Vehicle Registration & Inspection: [admin/pages/module4](file:///c:/xampp/htdocs/tmm/admin/pages/module4)
 - Terminal & Parking: [admin/pages/module5](file:///c:/xampp/htdocs/tmm/admin/pages/module5)
 
-**TAM instrument (Perceived Usefulness + Ease of Use)**
-- Survey form: [tam_survey.php](file:///c:/xampp/htdocs/tmm/admin/pages/research/tam_survey.php)
-- Results dashboard: [tam_results.php](file:///c:/xampp/htdocs/tmm/admin/pages/research/tam_results.php)
-- Storage: `tam_survey_responses` (auto-created by [db.php](file:///c:/xampp/htdocs/tmm/admin/includes/db.php))
-
 **ISO/IEC 25010 evidence (practical)**
 - Functional suitability: modules above
 - Usability: consistent UI patterns, toasts, validation, and role-based navigation via [sidebar_items.php](file:///c:/xampp/htdocs/tmm/admin/includes/sidebar_items.php)
 - Reliability: transactional writes in ticketing, route fare bulk update, and DB safeguards in [db.php](file:///c:/xampp/htdocs/tmm/admin/includes/db.php)
 - Security: RBAC + audit logs (see section 5)
 
-## 2) AI / IoT Integration – 15%
+## 2) AI Integration – 15%
 
 **AI / predictive analytics (trend + rules + context weights)**
 - Dashboard: [dashboard.php](file:///c:/xampp/htdocs/tmm/admin/pages/dashboard.php)
 - Forecast + insights APIs: [admin/api/analytics](file:///c:/xampp/htdocs/tmm/admin/api/analytics)
 - AI settings: [settings/general.php](file:///c:/xampp/htdocs/tmm/admin/pages/settings/general.php)
 - Description: [AI.md](file:///c:/xampp/htdocs/tmm/docs/AI.md)
-
-**IoT integration (telemetry ingestion + live feed)**
-- Secure device ingest endpoint: [iot/ingest.php](file:///c:/xampp/htdocs/tmm/admin/api/iot/ingest.php)
-- Latest events endpoint: [iot/latest.php](file:///c:/xampp/htdocs/tmm/admin/api/iot/latest.php)
-- Dashboard “IoT Live Feed” card: [dashboard.php](file:///c:/xampp/htdocs/tmm/admin/pages/dashboard.php)
-- Storage: `iot_events` (auto-created by [db.php](file:///c:/xampp/htdocs/tmm/admin/includes/db.php))
 
 ## 3) Microservices / API Integration – 10%
 
@@ -77,4 +66,3 @@ This document maps the system’s current implementation to the final defense ru
 ## 8) UI Look & Feel – 10%
 - Shared UI styles: [unified.css](file:///c:/xampp/htdocs/tmm/admin/includes/unified.css)
 - Consistent admin layout: [admin/index.php](file:///c:/xampp/htdocs/tmm/admin/index.php)
-

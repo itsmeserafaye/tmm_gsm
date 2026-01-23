@@ -1123,33 +1123,5 @@ function db() {
     INDEX idx_entity (entity_type, entity_key)
   ) ENGINE=InnoDB");
 
-  $conn->query("CREATE TABLE IF NOT EXISTS iot_events (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    device_id VARCHAR(64) NOT NULL,
-    event_type VARCHAR(64) NOT NULL,
-    payload_json MEDIUMTEXT DEFAULT NULL,
-    received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_device_time (device_id, received_at),
-    INDEX idx_type_time (event_type, received_at)
-  ) ENGINE=InnoDB");
-
-  $conn->query("CREATE TABLE IF NOT EXISTS tam_survey_responses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    respondent_role VARCHAR(64) DEFAULT '',
-    respondent_type VARCHAR(64) DEFAULT '',
-    module_used VARCHAR(64) DEFAULT '',
-    pu_1 TINYINT NOT NULL,
-    pu_2 TINYINT NOT NULL,
-    pu_3 TINYINT NOT NULL,
-    pu_4 TINYINT NOT NULL,
-    peou_1 TINYINT NOT NULL,
-    peou_2 TINYINT NOT NULL,
-    peou_3 TINYINT NOT NULL,
-    peou_4 TINYINT NOT NULL,
-    comments TEXT DEFAULT NULL,
-    INDEX idx_submitted_at (submitted_at),
-    INDEX idx_module (module_used)
-  ) ENGINE=InnoDB");
   return $conn;
 }

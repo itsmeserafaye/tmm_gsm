@@ -11,7 +11,6 @@ Environment variables are loaded via: [env.php](file:///c:/xampp/htdocs/tmm/incl
 Recommended `.env` keys:
 - DB connection: host/user/pass/name
 - Treasury integration keys (optional but recommended): `TMM_TREASURY_INTEGRATION_KEY` or `TMM_TREASURY_CALLBACK_TOKEN`
-- IoT ingest token (optional but recommended): `TMM_IOT_INGEST_TOKEN`
 - reCAPTCHA + OTP settings (if enabled): see [RECAPTCHA_AND_OTP_SETUP.md](file:///c:/xampp/htdocs/tmm/docs/RECAPTCHA_AND_OTP_SETUP.md)
 
 ## Database bootstrap
@@ -28,4 +27,3 @@ If you need a fresh baseline schema, the repair script includes core tables:
 - Least-privilege DB user (SELECT/INSERT/UPDATE/DELETE only)
 - Regular DB backups + restore test
 - Rotate integration tokens periodically
-
