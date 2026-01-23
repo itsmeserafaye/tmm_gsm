@@ -12,52 +12,77 @@ function round_to_quarter($amount) {
   return round($v * 4.0) / 4.0;
 }
 
-function compute_fare($vehicleType, $distanceKm) {
+function tmm_num($value, $default) {
+  if ($value === null) return $default;
+  $s = trim((string)$value);
+  if ($s === '') return $default;
+  return (float)$s;
+}
+
+function compute_fare($vehicleType, $distanceKm, $rules) {
   $vt = strtoupper(trim((string)$vehicleType));
   $d = (float)$distanceKm;
   if ($d < 0) $d = 0;
 
   if ($vt === 'JEEPNEY') {
-    $baseKm = 4.0;
-    $base = 13.00;
-    $perKm = 1.80;
+    $baseKm = (float)($rules['jeepney_base_km'] ?? 4.0);
+    $base = (float)($rules['jeepney_base'] ?? 13.0);
+    $perKm = (float)($rules['jeepney_per_km'] ?? 1.8);
     $fare = $base + max(0.0, $d - $baseKm) * $perKm;
     return round_to_quarter($fare);
   }
 
   if ($vt === 'UV' || $vt === 'UV EXPRESS' || $vt === 'MODERN JEEPNEY') {
-    $baseKm = 4.0;
-    $base = 15.00;
-    $perKm = 2.20;
+    $baseKm = (float)($rules['uv_base_km'] ?? 4.0);
+    $base = (float)($rules['uv_base'] ?? 15.0);
+    $perKm = (float)($rules['uv_per_km'] ?? 2.2);
     $fare = $base + max(0.0, $d - $baseKm) * $perKm;
     return round_to_quarter($fare);
   }
 
   if ($vt === 'BUS') {
-    $baseKm = 4.0;
-    $base = 15.00;
-    $perKm = 2.20;
+    $baseKm = (float)($rules['bus_base_km'] ?? 4.0);
+    $base = (float)($rules['bus_base'] ?? 15.0);
+    $perKm = (float)($rules['bus_per_km'] ?? 2.2);
     $fare = $base + max(0.0, $d - $baseKm) * $perKm;
     return round_to_quarter($fare);
   }
 
   if ($vt === 'TRICYCLE') {
-    $baseKm = 1.0;
-    $base = 20.00;
-    $perKm = 5.00;
+    $baseKm = (float)($rules['tricycle_base_km'] ?? 1.0);
+    $base = (float)($rules['tricycle_base'] ?? 20.0);
+    $perKm = (float)($rules['tricycle_per_km'] ?? 5.0);
     $fare = $base + max(0.0, $d - $baseKm) * $perKm;
     return round_to_quarter($fare);
   }
 
-  $baseKm = 4.0;
-  $base = 13.00;
-  $perKm = 1.80;
+  $baseKm = (float)($rules['jeepney_base_km'] ?? 4.0);
+  $base = (float)($rules['jeepney_base'] ?? 13.0);
+  $perKm = (float)($rules['jeepney_per_km'] ?? 1.8);
   $fare = $base + max(0.0, $d - $baseKm) * $perKm;
   return round_to_quarter($fare);
 }
 
 $overwrite = isset($_POST['overwrite']) && (string)$_POST['overwrite'] === '1';
 $onlyMissing = !isset($_POST['only_missing']) || (string)$_POST['only_missing'] !== '0';
+
+$rules = [
+  'jeepney_base_km' => tmm_num($_POST['rate_jeepney_base_km'] ?? null, 4.0),
+  'jeepney_base' => tmm_num($_POST['rate_jeepney_base'] ?? null, 13.0),
+  'jeepney_per_km' => tmm_num($_POST['rate_jeepney_per_km'] ?? null, 1.8),
+  'uv_base_km' => tmm_num($_POST['rate_uv_base_km'] ?? null, 4.0),
+  'uv_base' => tmm_num($_POST['rate_uv_base'] ?? null, 15.0),
+  'uv_per_km' => tmm_num($_POST['rate_uv_per_km'] ?? null, 2.2),
+  'bus_base_km' => tmm_num($_POST['rate_bus_base_km'] ?? null, 4.0),
+  'bus_base' => tmm_num($_POST['rate_bus_base'] ?? null, 15.0),
+  'bus_per_km' => tmm_num($_POST['rate_bus_per_km'] ?? null, 2.2),
+  'tricycle_base_km' => tmm_num($_POST['rate_tricycle_base_km'] ?? null, 1.0),
+  'tricycle_base' => tmm_num($_POST['rate_tricycle_base'] ?? null, 20.0),
+  'tricycle_per_km' => tmm_num($_POST['rate_tricycle_per_km'] ?? null, 5.0),
+];
+foreach ($rules as $k => $v) {
+  if (!is_finite($v) || $v < 0) $rules[$k] = 0.0;
+}
 
 $res = $db->query("SELECT id, vehicle_type, distance_km, fare FROM routes LIMIT 5000");
 if (!$res) {
@@ -87,7 +112,7 @@ try {
     $vt = (string)($r['vehicle_type'] ?? '');
     $dist = $r['distance_km'];
     $distNum = ($dist === null || $dist === '') ? 0.0 : (float)$dist;
-    $newFare = compute_fare($vt, $distNum);
+    $newFare = compute_fare($vt, $distNum, $rules);
     $stmt->bind_param('di', $newFare, $id);
     if ($stmt->execute()) $updated++;
   }
@@ -99,4 +124,3 @@ try {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_error']);
 }
-

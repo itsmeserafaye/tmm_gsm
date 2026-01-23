@@ -17,6 +17,50 @@ if ($rootUrl === '/') $rootUrl = '';
 
 $canManage = has_any_permission(['module1.routes.write','module1.write']);
 
+function tmm_round_to_quarter($amount) {
+  $v = (float)$amount;
+  return round($v * 4.0) / 4.0;
+}
+
+function tmm_compute_route_fare($vehicleType, $distanceKm) {
+  $vt = strtoupper(trim((string)$vehicleType));
+  $d = (float)$distanceKm;
+  if ($d < 0) $d = 0;
+
+  if ($vt === 'JEEPNEY') {
+    $baseKm = 4.0;
+    $base = 13.00;
+    $perKm = 1.80;
+    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+  }
+
+  if ($vt === 'UV' || $vt === 'UV EXPRESS' || $vt === 'MODERN JEEPNEY') {
+    $baseKm = 4.0;
+    $base = 15.00;
+    $perKm = 2.20;
+    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+  }
+
+  if ($vt === 'BUS') {
+    $baseKm = 4.0;
+    $base = 15.00;
+    $perKm = 2.20;
+    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+  }
+
+  if ($vt === 'TRICYCLE') {
+    $baseKm = 1.0;
+    $base = 20.00;
+    $perKm = 5.00;
+    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+  }
+
+  $baseKm = 4.0;
+  $base = 13.00;
+  $perKm = 1.80;
+  return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+}
+
 $conds = ["1=1"];
 $params = [];
 $types = '';
@@ -47,6 +91,7 @@ $sql = "SELECT
   r.destination,
   r.via,
   r.structure,
+  r.distance_km,
   r.authorized_units,
   r.fare,
   r.status,
@@ -180,6 +225,7 @@ if ($params) {
               if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
               $name = trim((string)($r['route_name'] ?? ''));
               $vt = trim((string)($r['vehicle_type'] ?? ''));
+              $distanceKm = $r['distance_km'] === null || $r['distance_km'] === '' ? 0.0 : (float)$r['distance_km'];
               $au = (int)($r['authorized_units'] ?? 0);
               $used = (int)($r['used_units'] ?? 0);
               $rem = $au > 0 ? max(0, $au - $used) : 0;
@@ -188,6 +234,9 @@ if ($params) {
                 ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
                 : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
               $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
+              $storedFare = $r['fare'] === null || $r['fare'] === '' ? null : (float)$r['fare'];
+              $effectiveFare = ($storedFare === null || $storedFare <= 0) ? tmm_compute_route_fare($vt, $distanceKm) : $storedFare;
+              $fareIsAuto = ($storedFare === null || $storedFare <= 0);
               $rowPayload = [
                 'id' => (int)($r['id'] ?? 0),
                 'route_code' => $code,
@@ -197,8 +246,9 @@ if ($params) {
                 'destination' => (string)($r['destination'] ?? ''),
                 'via' => (string)($r['via'] ?? ''),
                 'structure' => (string)($r['structure'] ?? ''),
+                'distance_km' => $distanceKm,
                 'authorized_units' => (int)($r['authorized_units'] ?? 0),
-                'fare' => $r['fare'] === null ? null : (float)($r['fare'] ?? 0),
+                'fare' => $storedFare,
                 'approved_by' => (string)($r['approved_by'] ?? ''),
                 'approved_date' => (string)($r['approved_date'] ?? ''),
                 'status' => $st,
@@ -216,7 +266,10 @@ if ($params) {
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$used; ?></td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$rem; ?></td>
               <td class="py-4 px-4 text-sm font-black text-slate-900 dark:text-white hidden md:table-cell">
-                <?php echo $r['fare'] === null || $r['fare'] === '' ? '-' : '₱ ' . number_format((float)$r['fare'], 2); ?>
+                <?php echo '₱ ' . number_format((float)$effectiveFare, 2); ?>
+                <?php if ($fareIsAuto): ?>
+                  <span class="ml-2 px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200">AUTO</span>
+                <?php endif; ?>
               </td>
               <td class="py-4 px-4">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
@@ -281,6 +334,35 @@ if ($params) {
           <input id="autoFaresOverwrite" type="checkbox" class="w-4 h-4">
           Overwrite existing fares
         </label>
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare Rules</div>
+          <div class="grid grid-cols-1 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+              <div class="text-sm font-black text-slate-900 dark:text-white">Jeepney</div>
+              <input id="rateJeepneyBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
+              <input id="rateJeepneyBase" type="number" min="0" step="0.01" value="13" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
+              <input id="rateJeepneyPerKm" type="number" min="0" step="0.01" value="1.8" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+              <div class="text-sm font-black text-slate-900 dark:text-white">UV</div>
+              <input id="rateUvBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
+              <input id="rateUvBase" type="number" min="0" step="0.01" value="15" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
+              <input id="rateUvPerKm" type="number" min="0" step="0.01" value="2.2" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+              <div class="text-sm font-black text-slate-900 dark:text-white">Bus</div>
+              <input id="rateBusBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
+              <input id="rateBusBase" type="number" min="0" step="0.01" value="15" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
+              <input id="rateBusPerKm" type="number" min="0" step="0.01" value="2.2" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+              <div class="text-sm font-black text-slate-900 dark:text-white">Tricycle</div>
+              <input id="rateTriBaseKm" type="number" min="0" step="0.01" value="1" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
+              <input id="rateTriBase" type="number" min="0" step="0.01" value="20" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
+              <input id="rateTriPerKm" type="number" min="0" step="0.01" value="5" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
+            </div>
+          </div>
+        </div>
         <div class="flex items-center justify-end gap-2 pt-2">
           <button type="button" id="btnAutoFaresCancel" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
           <button type="button" id="btnAutoFaresApply" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Apply</button>
@@ -356,6 +438,18 @@ if ($params) {
     const btnAutoClose = document.getElementById('modalAutoFaresClose');
     const autoOnlyMissing = document.getElementById('autoFaresOnlyMissing');
     const autoOverwrite = document.getElementById('autoFaresOverwrite');
+    const rateJeepneyBaseKm = document.getElementById('rateJeepneyBaseKm');
+    const rateJeepneyBase = document.getElementById('rateJeepneyBase');
+    const rateJeepneyPerKm = document.getElementById('rateJeepneyPerKm');
+    const rateUvBaseKm = document.getElementById('rateUvBaseKm');
+    const rateUvBase = document.getElementById('rateUvBase');
+    const rateUvPerKm = document.getElementById('rateUvPerKm');
+    const rateBusBaseKm = document.getElementById('rateBusBaseKm');
+    const rateBusBase = document.getElementById('rateBusBase');
+    const rateBusPerKm = document.getElementById('rateBusPerKm');
+    const rateTriBaseKm = document.getElementById('rateTriBaseKm');
+    const rateTriBase = document.getElementById('rateTriBase');
+    const rateTriPerKm = document.getElementById('rateTriPerKm');
 
     function openAutoModal() {
       if (!modalAuto) return;
@@ -386,6 +480,18 @@ if ($params) {
         const overwrite = autoOverwrite && autoOverwrite.checked;
         fd.append('overwrite', overwrite ? '1' : '0');
         fd.append('only_missing', overwrite ? '0' : (autoOnlyMissing && autoOnlyMissing.checked ? '1' : '0'));
+        fd.append('rate_jeepney_base_km', String(rateJeepneyBaseKm && rateJeepneyBaseKm.value || ''));
+        fd.append('rate_jeepney_base', String(rateJeepneyBase && rateJeepneyBase.value || ''));
+        fd.append('rate_jeepney_per_km', String(rateJeepneyPerKm && rateJeepneyPerKm.value || ''));
+        fd.append('rate_uv_base_km', String(rateUvBaseKm && rateUvBaseKm.value || ''));
+        fd.append('rate_uv_base', String(rateUvBase && rateUvBase.value || ''));
+        fd.append('rate_uv_per_km', String(rateUvPerKm && rateUvPerKm.value || ''));
+        fd.append('rate_bus_base_km', String(rateBusBaseKm && rateBusBaseKm.value || ''));
+        fd.append('rate_bus_base', String(rateBusBase && rateBusBase.value || ''));
+        fd.append('rate_bus_per_km', String(rateBusPerKm && rateBusPerKm.value || ''));
+        fd.append('rate_tricycle_base_km', String(rateTriBaseKm && rateTriBaseKm.value || ''));
+        fd.append('rate_tricycle_base', String(rateTriBase && rateTriBase.value || ''));
+        fd.append('rate_tricycle_per_km', String(rateTriPerKm && rateTriPerKm.value || ''));
         const res = await fetch(rootUrl + '/admin/api/module1/auto_set_route_fares.php', { method: 'POST', body: fd });
         const data = await res.json();
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'apply_failed');
@@ -409,6 +515,7 @@ if ($params) {
       const destination = r && r.destination ? String(r.destination) : '';
       const via = r && r.via ? String(r.via) : '';
       const structure = r && r.structure ? String(r.structure) : '';
+      const distanceKm = (r && r.distance_km !== null && r.distance_km !== undefined && r.distance_km !== '') ? Number(r.distance_km) : '';
       const au = r && r.authorized_units ? Number(r.authorized_units) : 0;
       const fare = (r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '';
       const approvedBy = r && r.approved_by ? String(r.approved_by) : '';
@@ -429,7 +536,7 @@ if ($params) {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
               <select name="vehicle_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
@@ -443,6 +550,10 @@ if ($params) {
                 <option value="">Select</option>
                 ${['Loop','Point-to-Point'].map((t) => `<option value="${t}" ${t===structure?'selected':''}>${t}</option>`).join('')}
               </select>
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Distance (km)</label>
+              <input name="distance_km" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${distanceKm}">
             </div>
           </div>
 
@@ -501,7 +612,18 @@ if ($params) {
       const au = Number(r.authorized_units || 0);
       const used = Number(r.used_units || 0);
       const rem = au > 0 ? Math.max(0, au - used) : 0;
-      const fare = (r.fare === null || r.fare === undefined || r.fare === '') ? '-' : ('₱ ' + Number(r.fare).toFixed(2));
+      const dist = (r.distance_km === null || r.distance_km === undefined || r.distance_km === '') ? 0 : Number(r.distance_km);
+      let fare = (r.fare === null || r.fare === undefined || r.fare === '' || Number(r.fare) <= 0) ? null : Number(r.fare);
+      if (fare === null) {
+        const vt = String(r.vehicle_type || '').toUpperCase();
+        if (vt === 'JEEPNEY') fare = 13 + Math.max(0, dist - 4) * 1.8;
+        else if (vt === 'UV' || vt === 'MODERN JEEPNEY' || vt === 'UV EXPRESS') fare = 15 + Math.max(0, dist - 4) * 2.2;
+        else if (vt === 'BUS') fare = 15 + Math.max(0, dist - 4) * 2.2;
+        else if (vt === 'TRICYCLE') fare = 20 + Math.max(0, dist - 1) * 5;
+        else fare = 13 + Math.max(0, dist - 4) * 1.8;
+        fare = Math.round(fare * 4) / 4;
+      }
+      const fareText = '₱ ' + Number(fare).toFixed(2);
       openModal(`
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
@@ -540,7 +662,7 @@ if ($params) {
             </div>
             <div>
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare</div>
-              <div class="mt-1 text-sm font-black text-slate-900 dark:text-white">${fare}</div>
+              <div class="mt-1 text-sm font-black text-slate-900 dark:text-white">${fareText}</div>
             </div>
             <div>
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Origin</div>
@@ -708,6 +830,7 @@ if ($params) {
             fd.append('destination', String(r.destination || ''));
             fd.append('via', String(r.via || ''));
             fd.append('structure', String(r.structure || ''));
+            fd.append('distance_km', (r.distance_km === null || r.distance_km === undefined) ? '' : String(r.distance_km));
             fd.append('authorized_units', String(r.authorized_units || 0));
             fd.append('fare', (r.fare === null || r.fare === undefined) ? '' : String(r.fare));
             fd.append('approved_by', String(r.approved_by || ''));
