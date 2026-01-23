@@ -337,6 +337,7 @@ function db() {
   if (!isset($routeCols['destination'])) { $conn->query("ALTER TABLE routes ADD COLUMN destination VARCHAR(100) DEFAULT NULL"); }
   if (!isset($routeCols['structure'])) { $conn->query("ALTER TABLE routes ADD COLUMN structure ENUM('Loop','Point-to-Point') DEFAULT NULL"); }
   if (!isset($routeCols['distance_km'])) { $conn->query("ALTER TABLE routes ADD COLUMN distance_km DECIMAL(10,2) DEFAULT NULL"); }
+  if (!isset($routeCols['fare'])) { $conn->query("ALTER TABLE routes ADD COLUMN fare DECIMAL(10,2) DEFAULT NULL"); }
   if (!isset($routeCols['authorized_units'])) { $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL"); }
   if (!isset($routeCols['approved_by'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_by VARCHAR(128) DEFAULT NULL"); }
   if (!isset($routeCols['approved_date'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_date DATE DEFAULT NULL"); }
@@ -507,6 +508,22 @@ function db() {
     UNIQUE KEY uniq_franchise_app (application_id),
     INDEX idx_ltfrb_ref (ltfrb_ref_no),
     FOREIGN KEY (application_id) REFERENCES franchise_applications(application_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
+    fv_id INT AUTO_INCREMENT PRIMARY KEY,
+    franchise_id INT DEFAULT NULL,
+    franchise_ref_number VARCHAR(64) DEFAULT NULL,
+    route_id INT DEFAULT NULL,
+    vehicle_id INT NOT NULL,
+    status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_franchise_id (franchise_id),
+    INDEX idx_franchise_ref (franchise_ref_number),
+    INDEX idx_route_status (route_id, status),
+    INDEX idx_vehicle_status (vehicle_id, status),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (

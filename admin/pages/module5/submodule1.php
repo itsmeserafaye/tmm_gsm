@@ -177,8 +177,13 @@ if ($rootUrl === '/') $rootUrl = '';
                   <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold max-w-md">
-                      <?php echo htmlspecialchars((string)($t['routes_served'] ?? '') ?: '-'); ?>
+                    <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                      <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
+                        class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        title="View routes">
+                        <i data-lucide="list" class="w-4 h-4"></i>
+                        <span class="sr-only">View routes</span>
+                      </button>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                     <td class="py-4 px-4 text-right">
@@ -312,6 +317,38 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+  <div id="terminalRoutesModal" class="fixed inset-0 z-[200] hidden">
+    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Routes & Fares</div>
+            <div id="terminalRoutesModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
+          </div>
+          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="p-4 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+              <tr class="text-left text-slate-500 dark:text-slate-400">
+                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Route</th>
+                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">From</th>
+                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">To</th>
+                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Fare</th>
+              </tr>
+            </thead>
+            <tbody id="terminalRoutesModalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+              <tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -421,5 +458,59 @@ if ($rootUrl === '/') $rootUrl = '';
     }
     if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
     if (searchParking) searchParking.addEventListener('input', () => filterRows(searchParking, tbodyParking));
+
+    const modal = document.getElementById('terminalRoutesModal');
+    const modalBody = document.getElementById('terminalRoutesModalBody');
+    const modalSub = document.getElementById('terminalRoutesModalSub');
+    function openModal() { if (modal) modal.classList.remove('hidden'); }
+    function closeModal() { if (modal) modal.classList.add('hidden'); }
+    if (modal) {
+      const closeBtn = modal.querySelector('[data-modal-close]');
+      const backdrop = modal.querySelector('[data-modal-backdrop]');
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (backdrop) backdrop.addEventListener('click', closeModal);
+    }
+
+    async function showTerminalRoutes(terminalId) {
+      if (!modalBody) return;
+      modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
+      if (modalSub) modalSub.textContent = 'Terminal ID: ' + String(terminalId);
+      openModal();
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/terminal_routes.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const rows = Array.isArray(data.data) ? data.data : [];
+        if (!rows.length) {
+          modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
+          return;
+        }
+        if (modalSub) modalSub.textContent = (rows[0].terminal_name ? String(rows[0].terminal_name) : 'Routes') + ' • ' + rows.length + ' route(s)';
+        modalBody.innerHTML = rows.map(r => {
+          const routeLabel = (r.route_name || r.route_code || r.route_ref || '-').toString();
+          const origin = (r.origin || '-').toString();
+          const dest = (r.destination || '-').toString();
+          const fare = (r.fare === null || r.fare === undefined || r.fare === '') ? '-' : ('₱' + Number(r.fare).toFixed(2));
+          return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+              <td class="py-3 px-3 font-semibold text-slate-900 dark:text-white">${routeLabel}</td>
+              <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${origin}</td>
+              <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${dest}</td>
+              <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">${fare}</td>
+            </tr>
+          `;
+        }).join('');
+        if (window.lucide) window.lucide.createIcons();
+      } catch (e) {
+        modalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-rose-600 font-semibold">Failed to load routes.</td></tr>';
+      }
+    }
+
+    Array.from(document.querySelectorAll('[data-terminal-routes]')).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.getAttribute('data-terminal-routes') || 0);
+        if (id > 0) showTerminalRoutes(id);
+      });
+    });
   })();
 </script>
