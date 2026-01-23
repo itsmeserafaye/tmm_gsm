@@ -277,7 +277,8 @@ require_any_permission(['module3.settle','module3.read']);
     function fetchTickets(q) {
       const qq = (q || '').toString().trim();
       const limit = qq ? 100 : 200;
-      return fetch('api/tickets/list.php?q=' + encodeURIComponent(qq) + '&exclude_paid=' + encodeURIComponent(excludePaid) + '&limit=' + encodeURIComponent(String(limit)))
+      const base = (window.TMM_ADMIN_BASE_URL || '') + '/api';
+      return fetch(base + '/tickets/list.php?q=' + encodeURIComponent(qq) + '&exclude_paid=' + encodeURIComponent(excludePaid) + '&limit=' + encodeURIComponent(String(limit)))
         .then(r => r.json())
         .then(data => (data && Array.isArray(data.items)) ? data.items : [])
         .catch(() => []);
@@ -373,8 +374,18 @@ require_any_permission(['module3.settle','module3.read']);
         if(window.lucide) window.lucide.createIcons();
 
         const fd = new FormData(valForm);
-        fetch('api/tickets/validate.php', { method: 'POST', body: fd })
-            .then(r => r.json())
+        const base = (window.TMM_ADMIN_BASE_URL || '') + '/api';
+        fetch(base + '/tickets/validate.php', { method: 'POST', body: fd })
+            .then(async (r) => {
+                const text = await r.text();
+                let d = null;
+                try { d = JSON.parse(text); } catch (_) {}
+                if (!r.ok) {
+                    const msg = (d && d.error) ? d.error : ('Request failed (' + r.status + ')');
+                    throw new Error(msg);
+                }
+                return d || { ok: false, error: 'Invalid response' };
+            })
             .then(d => {
                 resDiv.classList.remove('hidden');
                 if(d.ok) {
@@ -385,6 +396,12 @@ require_any_permission(['module3.settle','module3.read']);
                     resDiv.className = 'p-3 rounded-xl bg-rose-50 border border-rose-100 text-xs text-rose-700 font-medium text-center';
                     resDiv.textContent = d.error || 'Validation failed';
                 }
+            })
+            .catch((err) => {
+                resDiv.classList.remove('hidden');
+                resDiv.className = 'p-3 rounded-xl bg-rose-50 border border-rose-100 text-xs text-rose-700 font-medium text-center';
+                resDiv.textContent = (err && err.message) ? err.message : 'Validation failed';
+                showToast((err && err.message) ? err.message : 'Validation failed', 'error');
             })
             .finally(() => {
                 btn.disabled = false;
@@ -410,7 +427,8 @@ require_any_permission(['module3.settle','module3.read']);
   }
 
   function fetchPaymentStatus(ticketNumber) {
-    return fetch('api/tickets/payment_status.php?ticket_number=' + encodeURIComponent(ticketNumber))
+    const base = (window.TMM_ADMIN_BASE_URL || '') + '/api';
+    return fetch(base + '/tickets/payment_status.php?ticket_number=' + encodeURIComponent(ticketNumber))
       .then(r => r.json());
   }
 
@@ -506,8 +524,18 @@ require_any_permission(['module3.settle','module3.read']);
         if(window.lucide) window.lucide.createIcons();
 
         const fd = new FormData(payForm);
-        fetch('api/tickets/settle.php', { method: 'POST', body: fd })
-            .then(r => r.json())
+        const base = (window.TMM_ADMIN_BASE_URL || '') + '/api';
+        fetch(base + '/tickets/settle.php', { method: 'POST', body: fd })
+            .then(async (r) => {
+                const text = await r.text();
+                let d = null;
+                try { d = JSON.parse(text); } catch (_) {}
+                if (!r.ok) {
+                    const msg = (d && d.error) ? d.error : ('Request failed (' + r.status + ')');
+                    throw new Error(msg);
+                }
+                return d || { ok: false, error: 'Invalid response' };
+            })
             .then(d => {
                 if(d.ok) {
                     showToast('Payment recorded successfully', 'success');
@@ -518,6 +546,9 @@ require_any_permission(['module3.settle','module3.read']);
                 } else {
                     showToast(d.error || 'Payment failed', 'error');
                 }
+            })
+            .catch((err) => {
+                showToast((err && err.message) ? err.message : 'Payment failed', 'error');
             })
             .finally(() => {
                 btn.disabled = false;
@@ -533,7 +564,7 @@ require_any_permission(['module3.settle','module3.read']);
       const inp = document.getElementById('pay-ticket-number');
       const ticket = inp ? (inp.value || '').trim() : '';
       if (!ticket) { showToast('Enter a ticket number first', 'error'); return; }
-      const url = `treasury/pay.php?kind=ticket&transaction_id=${encodeURIComponent(ticket)}`;
+      const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=ticket&transaction_id=${encodeURIComponent(ticket)}`;
       window.open(url, '_blank', 'noopener');
       showToast('Opening Treasury payment...', 'success');
       setTreasuryPendingTicket(ticket);

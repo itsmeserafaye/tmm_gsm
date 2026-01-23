@@ -8,7 +8,6 @@ require_permission('module3.settle');
 
 $ticket = trim((string)($_GET['ticket_number'] ?? ($_GET['q'] ?? '')));
 if ($ticket === '') {
-  http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'ticket_number_required']);
   exit;
 }
@@ -29,7 +28,6 @@ $row = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$row) {
-  http_response_code(404);
   echo json_encode(['ok' => false, 'error' => 'ticket_not_found']);
   exit;
 }

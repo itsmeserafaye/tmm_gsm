@@ -196,7 +196,25 @@
     var err = getOrCreateErrorEl(el);
     if (!err) return;
 
-    if (el.checkValidity()) {
+    var isValid = false;
+    try {
+      isValid = el.checkValidity();
+    } catch (e) {
+      if (!show) {
+        err.hidden = true;
+        err.textContent = '';
+        el.classList.remove('tmm-invalid');
+        el.removeAttribute('aria-invalid');
+        return;
+      }
+      err.textContent = 'Invalid input format';
+      err.hidden = false;
+      el.classList.add('tmm-invalid');
+      el.setAttribute('aria-invalid', 'true');
+      return;
+    }
+
+    if (isValid) {
       err.hidden = true;
       err.textContent = '';
       el.classList.remove('tmm-invalid');
