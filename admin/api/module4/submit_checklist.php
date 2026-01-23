@@ -27,6 +27,7 @@ $scheduleId = (int)($_POST['schedule_id'] ?? 0);
 $remarks = trim($_POST['remarks'] ?? '');
 $remarks = substr((string)$remarks, 0, 255);
 $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : [];
+$labelsFromPost = isset($_POST['labels']) && is_array($_POST['labels']) ? $_POST['labels'] : [];
 if ($scheduleId <= 0 || !$items) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
@@ -159,14 +160,6 @@ try {
     $resultId = (int)$db->insert_id;
   }
 
-$labels = [
-  'LIGHTS' => 'Lights & Horn',
-  'BRAKES' => 'Brakes',
-  'EMISSION' => 'Emission & Smoke Test',
-  'TIRES' => 'Tires & Wipers',
-  'INTERIOR' => 'Interior Safety',
-  'DOCS' => 'Documents & Plate'
-];
 $itemStmt = $db->prepare("INSERT INTO inspection_checklist_items (result_id, item_code, item_label, status) VALUES (?,?,?,?)");
 if ($itemStmt) {
   foreach ($items as $code => $status) {
@@ -178,7 +171,12 @@ if ($itemStmt) {
     if ($statusStr === '') {
       $statusStr = 'NA';
     }
-    $label = $labels[$codeStr] ?? $codeStr;
+    $label = $codeStr;
+    if (isset($labelsFromPost[$code]) || isset($labelsFromPost[$codeStr])) {
+      $rawLabel = isset($labelsFromPost[$code]) ? $labelsFromPost[$code] : $labelsFromPost[$codeStr];
+      $labelClean = trim((string)$rawLabel);
+      if ($labelClean !== '') $label = substr($labelClean, 0, 128);
+    }
     $itemStmt->bind_param('isss', $resultId, $codeStr, $label, $statusStr);
     $itemStmt->execute();
   }

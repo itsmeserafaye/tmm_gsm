@@ -78,14 +78,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspector</label>
-            <input id="inspectorSearch" type="text" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search inspector name or badge">
-            <select name="inspector_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="">Select inspector</option>
-              <?php foreach ($inspectors as $i): ?>
-                <?php $label = (string)$i['name']; if (!empty($i['badge_no'])) $label .= ' (' . $i['badge_no'] . ')'; ?>
-                <option value="<?php echo (int)$i['officer_id']; ?>"><?php echo htmlspecialchars($label); ?></option>
-              <?php endforeach; ?>
-            </select>
+            <input type="text" disabled class="w-full px-4 py-2.5 rounded-md bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Assigned by inspection office">
           </div>
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Schedule Date/Time</label>
@@ -112,8 +105,6 @@ if ($rootUrl === '/') $rootUrl = '';
     const form = document.getElementById('formSchedule');
     const btn = document.getElementById('btnSchedule');
     const scheduleDate = document.getElementById('scheduleDate');
-    const inspectorSearch = document.getElementById('inspectorSearch');
-    const inspectorSelect = form ? form.querySelector('select[name="inspector_id"]') : null;
 
     if (scheduleDate && !scheduleDate.value) {
       const d = new Date();
@@ -143,23 +134,6 @@ if ($rootUrl === '/') $rootUrl = '';
       return 0;
     }
 
-    if (inspectorSearch && inspectorSelect) {
-      const allOptions = Array.prototype.slice.call(inspectorSelect.options).map(o => ({ value: o.value, text: o.textContent }));
-      inspectorSearch.addEventListener('input', () => {
-        const q = (inspectorSearch.value || '').toString().trim().toLowerCase();
-        const keep = allOptions.filter(o => !q || (o.text || '').toLowerCase().indexOf(q) !== -1);
-        const selected = inspectorSelect.value;
-        inspectorSelect.innerHTML = '';
-        keep.forEach(o => {
-          const opt = document.createElement('option');
-          opt.value = o.value;
-          opt.textContent = o.text;
-          inspectorSelect.appendChild(opt);
-        });
-        if (selected && keep.some(o => o.value === selected)) inspectorSelect.value = selected;
-      });
-    }
-
     if (form && btn) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -177,7 +151,6 @@ if ($rootUrl === '/') $rootUrl = '';
         }
         post.append('schedule_date', (fd.get('schedule_date') || '').toString());
         post.append('location', (fd.get('location') || '').toString());
-        post.append('inspector_id', (fd.get('inspector_id') || '').toString());
         post.append('cr_verified', '1');
         post.append('or_verified', '1');
         btn.disabled = true;

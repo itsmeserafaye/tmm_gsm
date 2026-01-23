@@ -70,7 +70,7 @@ require_any_permission(['module3.settle','module3.read']);
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-              <input id="val-vehicle-plate" name="vehicle_plate" value="<?php echo htmlspecialchars($prefillPlate); ?>" minlength="5" maxlength="12" pattern="^[A-Za-z0-9\\-\\s]{5,12}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
+              <input id="val-vehicle-plate" name="vehicle_plate" value="<?php echo htmlspecialchars($prefillPlate); ?>" maxlength="32" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all uppercase text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., ABC-1234">
             </div>
           </div>
           

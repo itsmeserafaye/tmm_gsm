@@ -68,23 +68,67 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <?php
-            $items = [
-              'LIGHTS' => 'Lights & Horn',
-              'BRAKES' => 'Brakes',
-              'EMISSION' => 'Emission & Smoke Test',
-              'TIRES' => 'Tires & Wipers',
-              'INTERIOR' => 'Interior Safety',
-              'DOCS' => 'Documents & Plate',
-            ];
+            $items = [];
+            $resItems = $db->query("SELECT item_code, item_label
+                                    FROM inspection_checklist_items
+                                    WHERE COALESCE(item_code,'')<>'' AND COALESCE(item_label,'')<>''
+                                    GROUP BY item_code, item_label
+                                    ORDER BY item_label ASC
+                                    LIMIT 200");
+            if ($resItems) {
+              while ($r = $resItems->fetch_assoc()) {
+                $code = strtoupper(trim((string)($r['item_code'] ?? '')));
+                $label = trim((string)($r['item_label'] ?? ''));
+                if ($code !== '' && $label !== '') $items[$code] = $label;
+              }
+            }
+            if (!$items) {
+              $items = [
+                'LIGHTS' => 'Lights & Horn',
+                'BRAKES' => 'Brakes',
+                'EMISSION' => 'Emission & Smoke Test',
+                'TIRES' => 'Tires & Wipers',
+                'INTERIOR' => 'Interior Safety',
+                'DOCS' => 'Documents & Plate',
+              ];
+            }
+
+            $existing = [];
+            if ($scheduleId > 0) {
+              $stmtLast = $db->prepare("SELECT result_id FROM inspection_results WHERE schedule_id=? ORDER BY submitted_at DESC, result_id DESC LIMIT 1");
+              if ($stmtLast) {
+                $stmtLast->bind_param('i', $scheduleId);
+                $stmtLast->execute();
+                $last = $stmtLast->get_result()->fetch_assoc();
+                $stmtLast->close();
+                $rid = (int)($last['result_id'] ?? 0);
+                if ($rid > 0) {
+                  $stmtIt = $db->prepare("SELECT item_code, status FROM inspection_checklist_items WHERE result_id=?");
+                  if ($stmtIt) {
+                    $stmtIt->bind_param('i', $rid);
+                    $stmtIt->execute();
+                    $resIt = $stmtIt->get_result();
+                    while ($resIt && ($row = $resIt->fetch_assoc())) {
+                      $c = strtoupper(trim((string)($row['item_code'] ?? '')));
+                      $s = strtoupper(trim((string)($row['status'] ?? '')));
+                      if ($c !== '' && $s !== '') $existing[$c] = $s;
+                    }
+                    $stmtIt->close();
+                  }
+                }
+              }
+            }
           ?>
           <?php foreach ($items as $code => $label): ?>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($label); ?></div>
               <div class="mt-2">
+                <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
                 <select name="items[<?php echo htmlspecialchars($code); ?>]" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <option value="Pass">Pass</option>
-                  <option value="Fail">Fail</option>
-                  <option value="NA">N/A</option>
+                  <?php $sel = $existing[$code] ?? 'NA'; ?>
+                  <option value="Pass" <?php echo $sel === 'PASS' ? 'selected' : ''; ?>>Pass</option>
+                  <option value="Fail" <?php echo $sel === 'FAIL' ? 'selected' : ''; ?>>Fail</option>
+                  <option value="NA" <?php echo $sel === 'NA' ? 'selected' : ''; ?>>N/A</option>
                 </select>
               </div>
             </div>
