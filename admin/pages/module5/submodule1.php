@@ -5,6 +5,10 @@ require_permission('module5.manage_terminal');
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+$list = trim((string)($_GET['list'] ?? 'terminals'));
+if (!in_array($list, ['terminals','parking'], true)) $list = 'terminals';
+$showRoutes = $list === 'terminals';
+
 $statTerminals = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
 $statAssignments = (int)($db->query("SELECT COUNT(*) AS c FROM terminal_assignments WHERE terminal_id IS NOT NULL")->fetch_assoc()['c'] ?? 0);
 $statSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots WHERE status='Free'")->fetch_assoc()['c'] ?? 0);
@@ -22,6 +26,7 @@ if ($colRes) {
 $routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)" : "r.route_id";
 
 $terminals = [];
+$whereType = $list === 'parking' ? "t.type='Parking'" : "t.type <> 'Parking'";
 $res = $db->query("SELECT
   t.id,
   t.name,
@@ -31,7 +36,7 @@ $res = $db->query("SELECT
 FROM terminals t
 LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
 LEFT JOIN routes r ON r.route_id=tr.route_id
-WHERE t.type <> 'Parking'
+WHERE $whereType
 GROUP BY t.id
 ORDER BY t.name ASC
 LIMIT 500");
@@ -47,8 +52,8 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal List</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create terminals and view their assignments.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal & Parking List</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create terminals and view assignments, slots, and payments.</p>
     </div>
     <div class="flex items-center gap-3">
       <?php if (has_permission('reports.export')): ?>
@@ -67,9 +72,9 @@ if ($rootUrl === '/') $rootUrl = '';
         <i data-lucide="link" class="w-4 h-4"></i>
         Assign Vehicle
       </a>
-      <a href="?page=module5/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=module5/submodule1&<?php echo http_build_query(['list'=>'parking']); ?>" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="layout-grid" class="w-4 h-4"></i>
-        Parking
+        Parking List
       </a>
     </div>
   </div>
@@ -134,10 +139,20 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-      <div class="relative max-w-sm group">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="relative max-w-sm group w-full md:w-auto">
         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-        <input id="terminalSearch" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search terminal name or location...">
+        <input id="terminalSearch" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search name or location...">
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="?page=module5/submodule1&<?php echo http_build_query(['list'=>'terminals']); ?>"
+          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $list === 'terminals' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          Terminals
+        </a>
+        <a href="?page=module5/submodule1&<?php echo http_build_query(['list'=>'parking']); ?>"
+          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $list === 'parking' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          Parking
+        </a>
       </div>
     </div>
     <div class="overflow-x-auto">
@@ -146,7 +161,9 @@ if ($rootUrl === '/') $rootUrl = '';
           <tr class="text-left text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
+            <?php if ($showRoutes): ?>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
+            <?php endif; ?>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
@@ -157,28 +174,41 @@ if ($rootUrl === '/') $rootUrl = '';
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold max-w-md">
-                  <?php echo htmlspecialchars((string)($t['routes_served'] ?? '') ?: '-'); ?>
-                </td>
+                <?php if ($showRoutes): ?>
+                  <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold max-w-md">
+                    <?php echo htmlspecialchars((string)($t['routes_served'] ?? '') ?: '-'); ?>
+                  </td>
+                <?php endif; ?>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
-                  <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    <span class="sr-only">Slots</span>
-                  </a>
-                  <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                    <i data-lucide="credit-card" class="w-4 h-4"></i>
-                    <span class="sr-only">Payments</span>
-                  </a>
-                  <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                    <i data-lucide="link" class="w-4 h-4"></i>
-                    <span class="sr-only">Assign</span>
-                  </a>
+                  <?php if ($list === 'parking'): ?>
+                    <a title="Slots" aria-label="Slots" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                      <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                      <span class="sr-only">Slots</span>
+                    </a>
+                    <a title="Payments" aria-label="Payments" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                      <i data-lucide="credit-card" class="w-4 h-4"></i>
+                      <span class="sr-only">Payments</span>
+                    </a>
+                  <?php else: ?>
+                    <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                      <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                      <span class="sr-only">Slots</span>
+                    </a>
+                    <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
+                      <i data-lucide="credit-card" class="w-4 h-4"></i>
+                      <span class="sr-only">Payments</span>
+                    </a>
+                    <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                      <i data-lucide="link" class="w-4 h-4"></i>
+                      <span class="sr-only">Assign</span>
+                    </a>
+                  <?php endif; ?>
                 </td>
               </tr>
             <?php endforeach; ?>
           <?php else: ?>
-            <tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
+            <tr><td colspan="<?php echo $showRoutes ? 5 : 4; ?>" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
