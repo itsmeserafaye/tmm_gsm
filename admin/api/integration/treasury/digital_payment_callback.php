@@ -126,13 +126,20 @@ if ($stmtReq) {
 }
 
 if ($kind === 'ticket') {
-  $stmtT = $db->prepare("SELECT ticket_id, ticket_number, fine_amount, status FROM tickets WHERE ticket_number=? LIMIT 1");
+  if (!function_exists('tmm_table_exists') || !tmm_table_exists($db, 'tickets') || !tmm_table_exists($db, 'payment_records') || !tmm_table_exists($db, 'ticket_payments')) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'missing_ticketing_tables']);
+    exit;
+  }
+
+  $stmtT = $db->prepare("SELECT ticket_id, ticket_number, fine_amount, status FROM tickets WHERE ticket_number=? OR external_ticket_number=? LIMIT 1");
   if (!$stmtT) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
   }
-  $stmtT->bind_param('s', $transactionId);
+  $t2 = $transactionId;
+  $stmtT->bind_param('ss', $transactionId, $t2);
   $stmtT->execute();
   $t = $stmtT->get_result()->fetch_assoc();
   $stmtT->close();
@@ -160,13 +167,49 @@ if ($kind === 'ticket') {
   }
 
   if (!$already) {
-    $stmtIns = $db->prepare("INSERT INTO payment_records(ticket_id, amount_paid, date_paid, receipt_ref, verified_by_treasury, payment_channel, external_payment_id) VALUES(?,?,?,?,1,?,?)");
+    $q1 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'");
+    $q2 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'");
+    $q3 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'");
+    $q4 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'paid_at'");
+    $hasChannel = ($q1 && ($q1->num_rows ?? 0) > 0);
+    $hasExt = ($q2 && ($q2->num_rows ?? 0) > 0);
+    $hasDatePaid = ($q3 && ($q3->num_rows ?? 0) > 0);
+    $hasPaidAt = ($q4 && ($q4->num_rows ?? 0) > 0);
+    $dateCol = $hasDatePaid ? 'date_paid' : ($hasPaidAt ? 'paid_at' : '');
+
+    $cols = "ticket_id, amount_paid, receipt_ref, verified_by_treasury";
+    $place = "?, ?, ?, 1";
+    $types = "ids";
+    $params = [$ticketId, $amountPaid, $receipt];
+    if ($dateCol !== '') {
+      $cols .= ", {$dateCol}";
+      $place .= ", ?";
+      $types .= "s";
+      $params[] = $paidAt;
+    }
+    if ($hasChannel) {
+      $cols .= ", payment_channel";
+      $place .= ", ?";
+      $types .= "s";
+      $params[] = $channel;
+    }
+    if ($hasExt) {
+      $cols .= ", external_payment_id";
+      $place .= ", ?";
+      $types .= "s";
+      $params[] = $externalPaymentId;
+    }
+    $sqlIns = "INSERT INTO payment_records({$cols}) VALUES({$place})";
+    $stmtIns = $db->prepare($sqlIns);
     if (!$stmtIns) {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
       exit;
     }
-    $stmtIns->bind_param('idssss', $ticketId, $amountPaid, $paidAt, $receipt, $channel, $externalPaymentId);
+    $bindArgs = [];
+    $bindArgs[] = &$types;
+    for ($i = 0; $i < count($params); $i++) $bindArgs[] = &$params[$i];
+    call_user_func_array([$stmtIns, 'bind_param'], $bindArgs);
     $ok = $stmtIns->execute();
     $stmtIns->close();
     if (!$ok) {

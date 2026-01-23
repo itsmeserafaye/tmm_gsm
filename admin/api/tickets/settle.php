@@ -17,6 +17,18 @@ $datePaid = trim((string)($_POST['date_paid'] ?? ''));
 $debug = (string)getenv('TMM_DEBUG_PAYMENTS');
 $debugOn = $debug !== '' && strtolower($debug) !== 'off' && $debug !== '0';
 
+$requiredTables = ['tickets', 'payment_records', 'ticket_payments'];
+foreach ($requiredTables as $tbl) {
+  if (!function_exists('tmm_table_exists') || !tmm_table_exists($db, $tbl)) {
+    http_response_code(500);
+    echo json_encode([
+      'ok' => false,
+      'error' => "Database table missing: {$tbl}. Import sql/repair_missing_tables_from_tmm_tmm_3.sql or ensure DB bootstrap ran.",
+    ]);
+    exit;
+  }
+}
+
 if ($ticket === '' || $amount <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'Ticket number and amount are required']);
@@ -52,10 +64,14 @@ if ($row = $res->fetch_assoc()) {
     exit;
   }
 
-  $hasChannel = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'")->num_rows ?? 0) > 0;
-  $hasExt = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'")->num_rows ?? 0) > 0;
-  $hasDatePaid = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'")->num_rows ?? 0) > 0;
-  $hasPaidAt = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'paid_at'")->num_rows ?? 0) > 0;
+  $q1 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'");
+  $q2 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'");
+  $q3 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'");
+  $q4 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'paid_at'");
+  $hasChannel = ($q1 && ($q1->num_rows ?? 0) > 0);
+  $hasExt = ($q2 && ($q2->num_rows ?? 0) > 0);
+  $hasDatePaid = ($q3 && ($q3->num_rows ?? 0) > 0);
+  $hasPaidAt = ($q4 && ($q4->num_rows ?? 0) > 0);
   $dateCol = $hasDatePaid ? 'date_paid' : ($hasPaidAt ? 'paid_at' : '');
   $paidAt = $datePaid !== '' ? $datePaid : date('Y-m-d H:i:s');
 
