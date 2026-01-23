@@ -12,7 +12,7 @@ $canSlots = has_permission('module5.manage_terminal');
 $canPay = has_permission('module5.parking_fees');
 
 $terminals = [];
-$resT = $db->query("SELECT id, name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
+$resT = $db->query("SELECT id, name FROM terminals WHERE type <> 'Parking' ORDER BY name ASC LIMIT 500");
 if ($resT) while ($r = $resT->fetch_assoc()) $terminals[] = $r;
 if ($terminalId <= 0 && $terminals) $terminalId = (int)($terminals[0]['id'] ?? 0);
 $terminalName = '';
@@ -37,8 +37,8 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-5xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Parking Slots & Payments</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Manage parking slots and record parking fees.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal Slots & Payments</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Manage queue/bay slots and record terminal fees.</p>
     </div>
     <div class="flex items-center gap-3">
       <?php if (has_permission('reports.export')): ?>
@@ -54,8 +54,8 @@ if ($rootUrl === '/') $rootUrl = '';
         </a>
       <?php endif; ?>
       <a href="?page=module5/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-        <i data-lucide="home" class="w-4 h-4"></i>
-        Terminals
+        <i data-lucide="layout-grid" class="w-4 h-4"></i>
+        Parking
       </a>
       <a href="?page=module5/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="home" class="w-4 h-4"></i>
@@ -72,7 +72,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <input type="hidden" name="page" value="module5/submodule4">
         <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tab); ?>">
         <div class="flex-1">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Parking</label>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Terminal</label>
           <select name="terminal_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             <?php foreach ($terminals as $t): ?>
               <option value="<?php echo (int)$t['id']; ?>" <?php echo (int)$t['id'] === $terminalId ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$t['name']); ?></option>
