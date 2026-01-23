@@ -465,4 +465,51 @@ CREATE TABLE IF NOT EXISTS puv_demand_observations (
   INDEX idx_area_time (area_type, area_ref, observed_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS audit_events (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  event_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actor_user_id INT NOT NULL DEFAULT 0,
+  actor_email VARCHAR(128) DEFAULT '',
+  actor_role VARCHAR(64) DEFAULT '',
+  action VARCHAR(64) NOT NULL,
+  entity_type VARCHAR(64) DEFAULT '',
+  entity_key VARCHAR(128) DEFAULT '',
+  ip_address VARCHAR(64) DEFAULT '',
+  user_agent VARCHAR(255) DEFAULT '',
+  meta_json MEDIUMTEXT DEFAULT NULL,
+  INDEX idx_event_time (event_time),
+  INDEX idx_actor (actor_user_id),
+  INDEX idx_action (action),
+  INDEX idx_entity (entity_type, entity_key)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS iot_events (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  device_id VARCHAR(64) NOT NULL,
+  event_type VARCHAR(64) NOT NULL,
+  payload_json MEDIUMTEXT DEFAULT NULL,
+  received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_device_time (device_id, received_at),
+  INDEX idx_type_time (event_type, received_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS tam_survey_responses (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  respondent_role VARCHAR(64) DEFAULT '',
+  respondent_type VARCHAR(64) DEFAULT '',
+  module_used VARCHAR(64) DEFAULT '',
+  pu_1 TINYINT NOT NULL,
+  pu_2 TINYINT NOT NULL,
+  pu_3 TINYINT NOT NULL,
+  pu_4 TINYINT NOT NULL,
+  peou_1 TINYINT NOT NULL,
+  peou_2 TINYINT NOT NULL,
+  peou_3 TINYINT NOT NULL,
+  peou_4 TINYINT NOT NULL,
+  comments TEXT DEFAULT NULL,
+  INDEX idx_submitted_at (submitted_at),
+  INDEX idx_module (module_used)
+) ENGINE=InnoDB;
+
 SET FOREIGN_KEY_CHECKS=1;

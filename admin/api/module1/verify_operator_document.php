@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -238,3 +239,4 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
 }
 
 echo json_encode(['ok' => true, 'doc_id' => $docId, 'operator_id' => $operatorId, 'doc_status' => $docStatus, 'is_verified' => (bool) $isVerified]);
+tmm_audit_event($db, 'operator.doc.verify', 'operator_document', (string)$docId, ['operator_id' => $operatorId, 'doc_status' => $docStatus]);

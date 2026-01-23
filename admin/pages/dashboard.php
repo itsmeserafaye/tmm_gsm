@@ -343,6 +343,22 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         <div id="forecastSpikes" class="space-y-3"></div>
       </div>
 
+      <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-1.5 rounded bg-slate-50 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300">
+              <i data-lucide="wifi" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">IoT Live Feed</h3>
+              <div class="text-xs text-slate-500">Latest device telemetry events</div>
+            </div>
+          </div>
+          <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Last 10</span>
+        </div>
+        <div id="iotFeed" class="space-y-2 text-sm text-slate-600 dark:text-slate-300"></div>
+      </div>
+
       <!-- Route Supply -->
       <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
         <div class="flex items-center justify-between mb-6">
@@ -494,6 +510,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       var chartEl = document.getElementById('forecastChart');
       var chartLegend = document.getElementById('forecastChartLegend');
       var spikesEl = document.getElementById('forecastSpikes');
+      var iotFeed = document.getElementById('iotFeed');
       var routeSupplyTitle = document.getElementById('routeSupplyTitle');
       var routeSupplyBody = document.getElementById('routeSupplyBody');
       var routeSupplyTotal = document.getElementById('routeSupplyTotal');
@@ -841,6 +858,37 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         `;
       } else if (analysisEl) {
         analysisEl.innerHTML = 'Insufficient data for analysis.';
+      }
+
+      function loadIotFeed() {
+        if (!iotFeed) return;
+        fetch((window.TMM_ROOT_URL || '') + '/admin/api/iot/latest.php?limit=10', { headers: { 'Accept': 'application/json' } })
+          .then(r => r.json())
+          .then(d => {
+            var rows = (d && d.ok && Array.isArray(d.data)) ? d.data : [];
+            if (!rows.length) {
+              iotFeed.innerHTML = '<div class="text-xs text-slate-500 font-semibold italic">No telemetry yet.</div>';
+              return;
+            }
+            iotFeed.innerHTML = rows.map((e) => {
+              var dt = e.received_at ? new Date(e.received_at) : null;
+              var t = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : (e.received_at || '');
+              var payload = (e.payload || '').toString();
+              if (payload.length > 140) payload = payload.slice(0, 140) + '…';
+              return `
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-600">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="text-sm font-black text-slate-900 dark:text-white">${(e.device_id || '').toString()} <span class="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">${(e.event_type || '').toString()}</span></div>
+                    <div class="text-[10px] font-bold text-slate-500">${t}</div>
+                  </div>
+                  ${payload ? `<div class="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-300 break-words">${payload}</div>` : ``}
+                </div>
+              `;
+            }).join('');
+          })
+          .catch(() => {
+            iotFeed.innerHTML = '<div class="text-xs text-rose-600 font-semibold">Failed to load telemetry.</div>';
+          });
       }
     }
 
@@ -1272,5 +1320,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       setActive('terminal');
       initDemandForm();
       load();
+      loadIotFeed();
+      setInterval(loadIotFeed, 10000);
     });
   </script>

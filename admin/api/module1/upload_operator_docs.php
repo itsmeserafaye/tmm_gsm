@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -234,3 +235,6 @@ if ($uploaded) {
 }
 
 echo json_encode(['ok' => true, 'operator_id' => $operatorId, 'files' => $uploaded]);
+if ($uploaded) {
+  tmm_audit_event($db, 'operator.docs.upload', 'operator', (string)$operatorId, ['files' => $uploaded]);
+}

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 header('Content-Type: application/json');
 require_permission('module1.routes.write');
@@ -118,6 +119,7 @@ try {
   }
   $stmt->close();
   $db->commit();
+  tmm_audit_event($db, 'route.auto_set_fares', 'routes', '', ['updated' => $updated, 'overwrite' => $overwrite, 'only_missing' => $onlyMissing]);
   echo json_encode(['ok' => true, 'updated' => $updated]);
 } catch (Throwable $e) {
   $db->rollback();

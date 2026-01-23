@@ -70,3 +70,28 @@ function tmm_table_exists(mysqli $db, string $table): bool {
     $res = $db->query("SHOW TABLES LIKE '{$safe}'");
     return $res && $res->num_rows > 0;
 }
+
+function tmm_audit_event(mysqli $db, string $action, string $entityType = '', string $entityKey = '', array $meta = []): void {
+    $action = trim($action);
+    if ($action === '') return;
+    $entityType = trim($entityType);
+    $entityKey = trim($entityKey);
+    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $ua = trim((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    $userId = (int)($_SESSION['user_id'] ?? 0);
+    $email = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+    $role = trim((string)($_SESSION['role'] ?? ($_SESSION['user_role'] ?? '')));
+    $metaJson = '';
+    if ($meta) {
+        $metaJson = json_encode($meta, JSON_UNESCAPED_SLASHES);
+        if ($metaJson === false) $metaJson = '';
+        if (strlen($metaJson) > 20000) $metaJson = substr($metaJson, 0, 20000);
+    }
+
+    $stmt = $db->prepare("INSERT INTO audit_events (event_time, actor_user_id, actor_email, actor_role, action, entity_type, entity_key, ip_address, user_agent, meta_json)
+                          VALUES (NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    if (!$stmt) return;
+    $stmt->bind_param('issssssss', $userId, $email, $role, $action, $entityType, $entityKey, $ip, $ua, $metaJson);
+    $stmt->execute();
+    $stmt->close();
+}

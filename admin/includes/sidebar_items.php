@@ -81,4 +81,13 @@ $sidebarItems = [
       ['id' => 'general-settings', 'label' => 'General', 'path' => '/settings/general', 'anyPermissions' => ['settings.manage']],
     ],
   ],
+  [
+    'id' => 'research',
+    'label' => 'Research & Defense',
+    'icon' => 'clipboard-list',
+    'subItems' => [
+      ['id' => 'tam-survey', 'label' => 'TAM Survey', 'path' => '/research/tam_survey', 'anyPermissions' => ['dashboard.view','module1.read','module2.read','module3.read','module4.read','module5.read']],
+      ['id' => 'tam-results', 'label' => 'TAM Results', 'path' => '/research/tam_results', 'anyPermissions' => ['dashboard.view','module1.read','module2.read','module3.read','module4.read','module5.read']],
+    ],
+  ],
 ];

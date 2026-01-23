@@ -66,6 +66,15 @@ while ($row = $res->fetch_assoc()) {
     $logs[] = $row;
 }
 $stmt->close();
+
+$audit = [];
+$stmtA = $db->prepare("SELECT event_time, actor_user_id, actor_email, actor_role, action, entity_type, entity_key, ip_address FROM audit_events ORDER BY event_time DESC, id DESC LIMIT 50");
+if ($stmtA) {
+  $stmtA->execute();
+  $resA = $stmtA->get_result();
+  while ($r = $resA->fetch_assoc()) $audit[] = $r;
+  $stmtA->close();
+}
 ?>
 
 <div class="mx-auto max-w-6xl px-4 py-8 space-y-8">
@@ -180,6 +189,58 @@ $stmt->close();
         </div>
       </div>
       <?php endif; ?>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-slate-100 dark:bg-slate-900/30 rounded-xl">
+          <i data-lucide="shield" class="w-5 h-5 text-slate-500 dark:text-slate-300"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-black text-slate-800 dark:text-white">Business Audit Trail</h2>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Key actions (tickets, operator docs, routes, treasury)</p>
+        </div>
+      </div>
+    </div>
+    <div class="p-6">
+      <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+          <thead class="bg-slate-50 dark:bg-slate-900/30">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Time</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Action</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Entity</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">Actor</th>
+              <th class="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">IP</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+            <?php if (empty($audit)): ?>
+              <tr><td colspan="5" class="px-6 py-10 text-center text-sm font-bold text-slate-500">No audit events found.</td></tr>
+            <?php else: foreach ($audit as $a): ?>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <td class="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-500"><?php echo htmlspecialchars((string)($a['event_time'] ?? '')); ?></td>
+                <td class="px-4 py-4 text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($a['action'] ?? '')); ?></td>
+                <td class="px-4 py-4 text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <?php echo htmlspecialchars((string)($a['entity_type'] ?? '')); ?>
+                  <?php if ((string)($a['entity_key'] ?? '') !== ''): ?>
+                    <span class="ml-2 font-mono text-[10px]"><?php echo htmlspecialchars((string)($a['entity_key'] ?? '')); ?></span>
+                  <?php endif; ?>
+                </td>
+                <td class="px-4 py-4 text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                  <?php echo htmlspecialchars((string)($a['actor_email'] ?? '')); ?>
+                  <?php if ((string)($a['actor_role'] ?? '') !== ''): ?>
+                    <span class="ml-2 text-[10px] font-bold text-slate-400"><?php echo htmlspecialchars((string)($a['actor_role'] ?? '')); ?></span>
+                  <?php endif; ?>
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-xs font-mono font-bold text-slate-600 dark:text-slate-300"><?php echo htmlspecialchars((string)($a['ip_address'] ?? '')); ?></td>
+              </tr>
+            <?php endforeach; endif; ?>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

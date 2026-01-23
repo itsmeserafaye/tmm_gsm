@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/util.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module3.settle');
@@ -53,6 +54,7 @@ if ($row = $res->fetch_assoc()) {
       $stmtTP->close();
     }
     $db->query("UPDATE tickets SET status='Settled', payment_ref='" . $db->real_escape_string($receipt) . "' WHERE ticket_id = $tid");
+    tmm_audit_event($db, 'ticket.settle', 'ticket', (string)$tid, ['receipt_ref' => $receipt, 'amount_paid' => $amount]);
     echo json_encode(['ok' => true, 'ticket_id' => $tid, 'status' => 'Settled']);
   } else {
     echo json_encode(['error' => 'Failed to record payment']);

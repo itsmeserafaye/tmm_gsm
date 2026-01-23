@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../../../includes/db.php';
-require_once __DIR__ . '/../../../includes/util.php';
+require_once __DIR__ . '/../../../../includes/db.php';
+require_once __DIR__ . '/../../../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -179,6 +179,7 @@ if ($kind === 'ticket') {
     $stmtUp->close();
   }
 
+  tmm_audit_event($db, 'treasury.callback.ticket', 'ticket', (string)$ticketId, ['receipt_ref' => $receipt, 'amount_paid' => $amountPaid, 'external_payment_id' => $externalPaymentId, 'transaction_id' => $transactionId]);
   echo json_encode(['ok' => true, 'kind' => 'ticket', 'transaction_id' => $transactionId, 'ticket_id' => $ticketId, 'already_recorded' => $already]);
   exit;
 }
@@ -219,6 +220,7 @@ if ($kind === 'parking') {
   $stmt->bind_param('sssssi', $receipt, $receipt, $channel, $externalPaymentId, $paidAt, $id);
   $stmt->execute();
   $stmt->close();
+  tmm_audit_event($db, 'treasury.callback.parking', 'parking_transaction', (string)$id, ['receipt_ref' => $receipt, 'external_payment_id' => $externalPaymentId, 'transaction_id' => $transactionId]);
   echo json_encode(['ok' => true, 'kind' => 'parking', 'transaction_id' => $transactionId]);
   exit;
 }
