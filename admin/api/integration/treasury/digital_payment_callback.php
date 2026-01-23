@@ -1,11 +1,11 @@
 <?php
-require_once __DIR__ . '/../../../../includes/db.php';
-require_once __DIR__ . '/../../../../includes/util.php';
+require_once __DIR__ . '/../../../includes/db.php';
+require_once __DIR__ . '/../../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (!in_array($_SERVER['REQUEST_METHOD'], ['POST','GET'], true)) {
   http_response_code(405);
   echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
   exit;
@@ -31,6 +31,14 @@ if (!$okAuth && $expectedKey === '' && $callbackToken === '') {
 }
 
 if (!$okAuth) {
+  tmm_audit_event($db, 'treasury.callback.unauthorized', 'treasury', '-', [
+    'has_integration_key' => ($expectedKey !== ''),
+    'has_callback_token' => ($callbackToken !== ''),
+    'provided_header_key' => ($headerKey !== ''),
+    'provided_query_key' => ($queryKey !== ''),
+    'provided_token' => ($token !== ''),
+    'method' => (string)($_SERVER['REQUEST_METHOD'] ?? ''),
+  ]);
   http_response_code(401);
   echo json_encode(['ok' => false, 'error' => 'unauthorized']);
   exit;
@@ -42,12 +50,15 @@ if (!is_array($payload)) {
   if (!empty($_POST)) $payload = $_POST;
 }
 if (!is_array($payload)) {
+  if (!empty($_GET)) $payload = $_GET;
+}
+if (!is_array($payload)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_payload']);
   exit;
 }
 
-$transactionId = trim((string)($payload['transaction_id'] ?? ($payload['ref'] ?? '')));
+$transactionId = trim((string)($payload['transaction_id'] ?? ($payload['reference_id'] ?? ($payload['ref'] ?? ($payload['reference'] ?? '')))));
 $kind = strtolower(trim((string)($payload['kind'] ?? '')));
 if ($kind === '' && $transactionId !== '') {
   $stmtK = $db->prepare("SELECT kind FROM treasury_payment_requests WHERE ref=? LIMIT 1");
@@ -64,12 +75,14 @@ if ($kind === '' && $transactionId !== '') {
   }
 }
 $statusRaw = strtoupper(trim((string)($payload['payment_status'] ?? ($payload['status'] ?? ($payload['result'] ?? 'PAID')))));
-$receipt = trim((string)($payload['official_receipt_no'] ?? ($payload['receipt_ref'] ?? ($payload['or_no'] ?? ($payload['receipt'] ?? '')))));
+$receipt = trim((string)($payload['official_receipt_no'] ?? ($payload['receipt_number'] ?? ($payload['receipt_ref'] ?? ($payload['or_no'] ?? ($payload['receipt'] ?? ''))))));
 $amountPaid = (float)($payload['amount_paid'] ?? ($payload['amount'] ?? 0));
 $datePaid = trim((string)($payload['date_paid'] ?? ($payload['paid_at'] ?? ($payload['payment_date'] ?? ''))));
-$channel = trim((string)($payload['payment_channel'] ?? ($payload['channel'] ?? '')));
+$channel = trim((string)($payload['payment_channel'] ?? ($payload['payment_method'] ?? ($payload['channel'] ?? ''))));
 $externalPaymentId = trim((string)($payload['external_payment_id'] ?? ($payload['external_id'] ?? ($payload['payment_id'] ?? ''))));
 $purpose = trim((string)($payload['purpose'] ?? ($payload['description'] ?? '')));
+
+tmm_audit_event($db, 'treasury.callback.received', 'treasury', $transactionId !== '' ? $transactionId : '-', ['keys' => array_keys($payload)]);
 
 if ($transactionId === '') {
   http_response_code(400);

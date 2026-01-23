@@ -53,6 +53,8 @@ function tmm_root_url_from_script(): string {
 }
 
 function tmm_public_base_url(): string {
+    $override = trim((string)getenv('TMM_PUBLIC_BASE_URL'));
+    if ($override !== '') return rtrim($override, '/');
     $https = (string)($_SERVER['HTTPS'] ?? '');
     $isHttps = ($https !== '' && strtolower($https) !== 'off') || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
     $scheme = $isHttps ? 'https' : 'http';
