@@ -464,6 +464,34 @@ require_any_permission(['module3.settle','module3.read']);
 
   setPaymentButtons('treasury');
 
+  async function pollTreasuryReceipt(ticketNumber) {
+    const tno = (ticketNumber || '').toString().trim();
+    if (!tno) return;
+    const receiptInput = document.getElementById('pay-receipt');
+    const maxTries = 15;
+    for (let i = 0; i < maxTries; i++) {
+      try {
+        const d = await fetchPaymentStatus(tno);
+        if (d && d.ok && d.ticket) {
+          const t = d.ticket;
+          const orNo = (t.or_no || t.receipt_ref || '').toString();
+          if (orNo) {
+            if (receiptInput) receiptInput.value = orNo;
+            setPaymentButtons('record');
+            clearTreasuryPendingTicket();
+            return;
+          }
+        }
+      } catch (_) {}
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
+  const pendingOnLoad = getTreasuryPendingTicket();
+  if (pendingOnLoad) {
+    pollTreasuryReceipt(pendingOnLoad);
+  }
+
   const payForm = document.getElementById('ticket-payment-form');
   if(payForm) {
     payForm.addEventListener('submit', (e) => {

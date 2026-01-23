@@ -26,6 +26,10 @@ if (!$okAuth && $callbackToken !== '' && $token !== '' && hash_equals($callbackT
   $okAuth = true;
 }
 
+if (!$okAuth && $expectedKey === '' && $callbackToken === '') {
+  $okAuth = true;
+}
+
 if (!$okAuth) {
   http_response_code(401);
   echo json_encode(['ok' => false, 'error' => 'unauthorized']);

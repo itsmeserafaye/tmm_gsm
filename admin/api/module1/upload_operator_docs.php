@@ -14,7 +14,7 @@ if ($operatorId <= 0) {
   exit;
 }
 
-$stmtO = $db->prepare("SELECT id, name, full_name FROM operators WHERE id=? LIMIT 1");
+$stmtO = $db->prepare("SELECT id, name, full_name, operator_type, workflow_status, verification_status FROM operators WHERE id=? LIMIT 1");
 if (!$stmtO) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
@@ -119,16 +119,117 @@ if ($errors) {
 }
 
 if ($uploaded) {
-  $stmtS = $db->prepare("UPDATE operators
-                         SET workflow_status=CASE
-                           WHEN workflow_status IN ('Inactive','Active') THEN workflow_status
-                           ELSE 'Incomplete'
-                         END
-                         WHERE id=?");
-  if ($stmtS) {
-    $stmtS->bind_param('i', $operatorId);
-    $stmtS->execute();
-    $stmtS->close();
+  $opType = (string)(($op['operator_type'] ?? '') ?: 'Individual');
+  $wfStatus = (string)($op['workflow_status'] ?? 'Draft');
+  $vsStatus = (string)($op['verification_status'] ?? 'Draft');
+  if ($wfStatus !== 'Inactive' && $vsStatus !== 'Inactive') {
+    $slots = [];
+    if ($opType === 'Cooperative') {
+      $slots = [
+        ['doc_type' => 'CDA', 'keywords' => ['registration']],
+        ['doc_type' => 'CDA', 'keywords' => ['good standing', 'good_standing', 'standing']],
+        ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution']],
+      ];
+    } elseif ($opType === 'Corporation') {
+      $slots = [
+        ['doc_type' => 'SEC', 'keywords' => ['certificate', 'registration']],
+        ['doc_type' => 'SEC', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation']],
+        ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution']],
+      ];
+    } else {
+      $slots = [
+        ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
+      ];
+    }
+
+    $hasUploadedAt = false;
+    $chk = $db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='operator_documents' AND COLUMN_NAME='uploaded_at' LIMIT 1");
+    if ($chk && $chk->fetch_row()) $hasUploadedAt = true;
+    $orderBy = $hasUploadedAt ? "uploaded_at DESC, doc_id DESC" : "doc_id DESC";
+    $docs = [];
+    $stmtV = $db->prepare("SELECT doc_id, doc_type, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY $orderBy");
+    if ($stmtV) {
+      $stmtV->bind_param('i', $operatorId);
+      $stmtV->execute();
+      $res = $stmtV->get_result();
+      while ($r = $res->fetch_assoc()) $docs[] = $r;
+      $stmtV->close();
+    }
+
+    $matchRemarks = function (string $remarks, array $keywords): bool {
+      $t = strtolower($remarks);
+      foreach ($keywords as $kw) {
+        $k = strtolower((string)$kw);
+        if ($k !== '' && strpos($t, $k) !== false) return true;
+      }
+      return false;
+    };
+
+    $slotPresent = array_fill(0, count($slots), false);
+    $used = [];
+    for ($i = 0; $i < count($slots); $i++) {
+      $s = $slots[$i];
+      foreach ($docs as $drow) {
+        $did = (int)($drow['doc_id'] ?? 0);
+        if ($did <= 0 || isset($used[$did])) continue;
+        if ((string)($drow['doc_type'] ?? '') !== (string)$s['doc_type']) continue;
+        $rem = (string)($drow['remarks'] ?? '');
+        $keywords = (array)($s['keywords'] ?? []);
+        if ($keywords && $rem !== '' && $matchRemarks($rem, $keywords)) {
+          $used[$did] = true;
+          $slotPresent[$i] = true;
+          break;
+        }
+      }
+    }
+    for ($i = 0; $i < count($slots); $i++) {
+      if ($slotPresent[$i]) continue;
+      $s = $slots[$i];
+      foreach ($docs as $drow) {
+        $did = (int)($drow['doc_id'] ?? 0);
+        if ($did <= 0 || isset($used[$did])) continue;
+        if ((string)($drow['doc_type'] ?? '') !== (string)$s['doc_type']) continue;
+        $used[$did] = true;
+        $slotPresent[$i] = true;
+        break;
+      }
+    }
+    $allPresent = true;
+    foreach ($slotPresent as $ok) { if (!$ok) { $allPresent = false; break; } }
+
+    $hasRejectedRequired = false;
+    for ($i = 0; $i < count($slots); $i++) {
+      $s = $slots[$i];
+      foreach ($docs as $drow) {
+        if ((string)($drow['doc_status'] ?? '') !== 'Rejected') continue;
+        if ((string)($drow['doc_type'] ?? '') !== (string)$s['doc_type']) continue;
+        $rem = (string)($drow['remarks'] ?? '');
+        $keywords = (array)($s['keywords'] ?? []);
+        if (!$keywords) { $hasRejectedRequired = true; break 2; }
+        if ($rem !== '' && $matchRemarks($rem, $keywords)) { $hasRejectedRequired = true; break 2; }
+      }
+    }
+
+    $newWf = 'Draft';
+    if (count($docs) > 0) {
+      if ($hasRejectedRequired) $newWf = 'Returned';
+      elseif ($allPresent) $newWf = 'Pending Validation';
+      else $newWf = 'Incomplete';
+    }
+
+    $stmtS = $db->prepare("UPDATE operators
+                           SET workflow_status=CASE
+                             WHEN workflow_status IN ('Inactive','Active') THEN workflow_status
+                             ELSE ?
+                           END,
+                           status=CASE WHEN status='Inactive' THEN 'Inactive' ELSE 'Pending' END,
+                           verification_status=CASE WHEN verification_status='Inactive' THEN 'Inactive' ELSE 'Draft' END
+                           WHERE id=?");
+    if ($stmtS) {
+      $stmtS->bind_param('si', $newWf, $operatorId);
+      $stmtS->execute();
+      $stmtS->close();
+    }
   }
 }
 

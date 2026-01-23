@@ -158,10 +158,11 @@ function tmm_required_doc_list(string $operatorType): array {
                 $rid = (int)($row['id'] ?? 0);
                 $opType = (string)($row['operator_type'] ?? 'Individual');
                 $stRaw = (string)($row['workflow_status'] ?? 'Draft');
-                $st = $stRaw === 'Pending Validation' ? 'Incomplete' : ($stRaw === 'Rejected' ? 'Returned' : $stRaw);
+                $st = $stRaw === 'Rejected' ? 'Returned' : $stRaw;
                 $badge = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Incomplete' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Incomplete' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
                   'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'

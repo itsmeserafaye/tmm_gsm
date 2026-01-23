@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS operators (
   email VARCHAR(128) DEFAULT NULL,
   status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved',
   verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft',
-  workflow_status ENUM('Draft','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft',
+  workflow_status ENUM('Draft','Incomplete','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft',
   workflow_remarks TEXT DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT NULL

@@ -581,7 +581,17 @@ function db() {
   if (!isset($opsCols['email'])) { $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL"); }
   if (!isset($opsCols['status'])) { $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'"); }
   if (!isset($opsCols['verification_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft'"); }
-  if (!isset($opsCols['workflow_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN workflow_status ENUM('Draft','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'"); }
+  if (!isset($opsCols['workflow_status'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN workflow_status ENUM('Draft','Incomplete','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'");
+    $opsCols['workflow_status'] = true;
+  } else {
+    $colWf = $conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='operators' AND COLUMN_NAME='workflow_status' LIMIT 1");
+    $wfType = '';
+    if ($colWf && ($rowWf = $colWf->fetch_assoc())) $wfType = (string)($rowWf['COLUMN_TYPE'] ?? '');
+    if ($wfType !== '' && stripos($wfType, "'Incomplete'") === false) {
+      $conn->query("ALTER TABLE operators MODIFY COLUMN workflow_status ENUM('Draft','Incomplete','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'");
+    }
+  }
   if (!isset($opsCols['workflow_remarks'])) { $conn->query("ALTER TABLE operators ADD COLUMN workflow_remarks TEXT DEFAULT NULL"); }
   if (!isset($opsCols['updated_at'])) { $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL"); }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
