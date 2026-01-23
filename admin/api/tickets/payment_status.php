@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/util.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module3.settle');
@@ -40,9 +41,12 @@ $channel = '';
 $amountPaid = 0.0;
 $externalPaymentId = '';
 
-$hasChannel = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'")->num_rows ?? 0) > 0;
-$hasExt = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'")->num_rows ?? 0) > 0;
-$hasDatePaid = ($db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'")->num_rows ?? 0) > 0;
+$q1 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'payment_channel'");
+$q2 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'external_payment_id'");
+$q3 = $db->query("SHOW COLUMNS FROM payment_records LIKE 'date_paid'");
+$hasChannel = ($q1 && ($q1->num_rows ?? 0) > 0);
+$hasExt = ($q2 && ($q2->num_rows ?? 0) > 0);
+$hasDatePaid = ($q3 && ($q3->num_rows ?? 0) > 0);
 
 $cols = "payment_id, amount_paid, receipt_ref";
 if ($hasDatePaid) $cols .= ", date_paid";
@@ -61,6 +65,30 @@ if ($stmtP) {
     if ($hasDatePaid && isset($p['date_paid'])) $paidAt = (string)$p['date_paid'];
     if ($hasChannel && isset($p['payment_channel'])) $channel = (string)$p['payment_channel'];
     if ($hasExt && isset($p['external_payment_id'])) $externalPaymentId = (string)$p['external_payment_id'];
+  }
+}
+
+if ($receiptRef === '' && function_exists('tmm_table_exists') && tmm_table_exists($db, 'treasury_payment_requests')) {
+  $tno = (string)($row['ticket_number'] ?? '');
+  if ($tno !== '') {
+    $stmtR = $db->prepare("SELECT receipt_ref, payment_channel, external_payment_id, amount, updated_at
+                           FROM treasury_payment_requests
+                           WHERE ref=? AND status='paid' AND receipt_ref IS NOT NULL AND receipt_ref <> ''
+                           ORDER BY id DESC
+                           LIMIT 1");
+    if ($stmtR) {
+      $stmtR->bind_param('s', $tno);
+      $stmtR->execute();
+      $tr = $stmtR->get_result()->fetch_assoc();
+      $stmtR->close();
+      if ($tr) {
+        if (isset($tr['receipt_ref'])) $receiptRef = (string)$tr['receipt_ref'];
+        if ($channel === '' && isset($tr['payment_channel'])) $channel = (string)$tr['payment_channel'];
+        if ($externalPaymentId === '' && isset($tr['external_payment_id'])) $externalPaymentId = (string)$tr['external_payment_id'];
+        if ($amountPaid <= 0 && isset($tr['amount'])) $amountPaid = (float)$tr['amount'];
+        if ($paidAt === '' && isset($tr['updated_at'])) $paidAt = (string)$tr['updated_at'];
+      }
+    }
   }
 }
 
