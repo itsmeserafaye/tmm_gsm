@@ -178,7 +178,17 @@ if ($rootUrl === '/') $rootUrl = '';
 
           const res = await fetch(rootUrl + '/admin/api/module2/save_application.php', { method: 'POST', body: post });
           const data = await res.json();
-          if (!data || !data.ok || !data.application_id) throw new Error((data && data.error) ? data.error : 'submit_failed');
+          if (!data || !data.ok || !data.application_id) {
+            const raw = (data && data.error) ? String(data.error) : 'submit_failed';
+            const msg = raw === 'operator_docs_missing'
+              ? 'Cannot submit: operator has no uploaded documents in PUV Database.'
+              : raw === 'operator_docs_incomplete'
+                ? ('Cannot submit: missing required operator documents. ' + (data && data.missing ? String(data.missing) : ''))
+                : raw === 'operator_inactive'
+                  ? 'Cannot submit: operator is inactive.'
+                  : raw;
+            throw new Error(msg);
+          }
 
           const appId = Number(data.application_id);
           showToast('Application submitted.');

@@ -316,6 +316,11 @@ if ($rootUrl === '/') $rootUrl = '';
       return d.toLocaleString();
     }
 
+    function prettyMissing(list) {
+      if (!Array.isArray(list) || !list.length) return '';
+      return list.filter(Boolean).join(', ');
+    }
+
     async function loadApp(appId) {
       const res = await fetch(rootUrl + '/admin/api/module2/get_application.php?application_id=' + encodeURIComponent(appId));
       const data = await res.json();
@@ -323,8 +328,8 @@ if ($rootUrl === '/') $rootUrl = '';
       return data.data;
     }
 
-    async function loadDocs(appId) {
-      const res = await fetch(rootUrl + '/admin/api/module2/list_app_documents.php?application_id=' + encodeURIComponent(appId));
+    async function loadOperatorDocs(operatorId) {
+      const res = await fetch(rootUrl + '/admin/api/module2/list_operator_verified_docs.php?operator_id=' + encodeURIComponent(operatorId));
       const data = await res.json();
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       return Array.isArray(data.data) ? data.data : [];
@@ -336,7 +341,7 @@ if ($rootUrl === '/') $rootUrl = '';
         openModal('<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>', 'Application');
         try {
           const a = await loadApp(appId);
-          const docs = await loadDocs(appId);
+            const docs = a && a.operator_id ? await loadOperatorDocs(a.operator_id) : [];
           const routeLabel = (a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : '');
           body.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -395,18 +400,18 @@ if ($rootUrl === '/') $rootUrl = '';
               </div>
               <div class="space-y-4">
                 <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Documents</div>
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Verified Operator Documents</div>
                   <div class="mt-3 space-y-2">
                     ${docs.length ? docs.map((d) => {
                       const href = rootUrl + '/admin/uploads/' + encodeURIComponent((d.file_path || '').toString());
                       return `<a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
                         <div>
-                          <div class="text-sm font-black text-slate-800 dark:text-white">${(d.type || '').toString()}</div>
+                          <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || d.type || '').toString()}</div>
                           <div class="text-xs text-slate-500 dark:text-slate-400">${formatDate(d.uploaded_at)}</div>
                         </div>
                         <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
                       </a>`;
-                    }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No documents uploaded.</div>`}
+                    }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No verified operator documents found.</div>`}
                   </div>
                 </div>
               </div>
@@ -449,7 +454,21 @@ if ($rootUrl === '/') $rootUrl = '';
             const fd = new FormData(form);
             const res = await fetch(rootUrl + '/admin/api/module2/endorse_app.php', { method: 'POST', body: fd });
             const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
+            if (!data || !data.ok) {
+              const raw = (data && data.error) ? String(data.error) : 'endorse_failed';
+              const msg = raw === 'operator_docs_missing'
+                ? 'Cannot endorse: operator has no uploaded documents.'
+                : raw === 'operator_docs_not_verified'
+                  ? ('Cannot endorse: required documents must be VERIFIED. Missing/Not verified: ' + prettyMissing(data && data.missing))
+                  : raw === 'route_over_capacity'
+                    ? 'Cannot endorse: route is over capacity.'
+                    : raw === 'operator_invalid'
+                      ? 'Cannot endorse: operator is not valid.'
+                      : raw === 'operator_inactive'
+                        ? 'Cannot endorse: operator is inactive.'
+                        : raw;
+              throw new Error(msg);
+            }
             showToast('Application endorsed.');
             const params = new URLSearchParams(window.location.search || '');
             params.set('page','module2/submodule1');
