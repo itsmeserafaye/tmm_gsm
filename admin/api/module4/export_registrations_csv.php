@@ -1,11 +1,12 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/export.php';
 $db = db();
 require_permission('reports.export');
 
-header('Content-Type: text/csv');
-header('Content-Disposition: attachment; filename="vehicle_registrations.csv"');
+$format = tmm_export_format();
+tmm_send_export_headers($format, 'vehicle_registrations');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -34,19 +35,16 @@ if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY COALESCE(vr.created_at, v.created_at) DESC";
 
 $res = $db->query($sql);
-$out = fopen('php://output', 'w');
-fputcsv($out, ['vehicle_id','plate_number','operator_id','vehicle_status','registration_status','orcr_no','orcr_date','created_at']);
-while ($res && ($row = $res->fetch_assoc())) {
-  fputcsv($out, [
-    $row['vehicle_id'],
-    $row['plate_number'],
-    $row['operator_id'],
-    $row['vehicle_status'],
-    $row['registration_status'],
-    $row['orcr_no'],
-    $row['orcr_date'],
-    $row['created_at'],
-  ]);
-}
-fclose($out);
-
+$headers = ['vehicle_id','plate_number','operator_id','vehicle_status','registration_status','orcr_no','orcr_date','created_at'];
+tmm_export_from_result($format, $headers, $res, function ($r) {
+  return [
+    'vehicle_id' => $r['vehicle_id'] ?? '',
+    'plate_number' => $r['plate_number'] ?? '',
+    'operator_id' => $r['operator_id'] ?? '',
+    'vehicle_status' => $r['vehicle_status'] ?? '',
+    'registration_status' => $r['registration_status'] ?? '',
+    'orcr_no' => $r['orcr_no'] ?? '',
+    'orcr_date' => $r['orcr_date'] ?? '',
+    'created_at' => $r['created_at'] ?? '',
+  ];
+});

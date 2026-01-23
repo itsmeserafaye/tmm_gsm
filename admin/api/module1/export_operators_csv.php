@@ -1,10 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/export.php';
 $db = db();
 require_permission('reports.export');
-header('Content-Type: text/csv');
-header('Content-Disposition: attachment; filename="operators.csv"');
+$format = tmm_export_format();
+tmm_send_export_headers($format, 'operators');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $type = trim((string)($_GET['operator_type'] ?? ''));
@@ -46,21 +47,18 @@ if ($params) {
   $res = $db->query($sql);
 }
 
-$out = fopen('php://output', 'w');
-fputcsv($out, ['operator_id','operator_type','display_name','full_name','name','address','contact_no','email','status','created_at']);
-while ($res && ($row = $res->fetch_assoc())) {
-  fputcsv($out, [
-    $row['operator_id'],
-    $row['operator_type'],
-    $row['display_name'],
-    $row['full_name'],
-    $row['name'],
-    $row['address'],
-    $row['contact_no'],
-    $row['email'],
-    $row['status'],
-    $row['created_at'],
-  ]);
-}
-fclose($out);
-
+$headers = ['operator_id','operator_type','display_name','full_name','name','address','contact_no','email','status','created_at'];
+tmm_export_from_result($format, $headers, $res, function ($r) {
+  return [
+    'operator_id' => $r['operator_id'] ?? '',
+    'operator_type' => $r['operator_type'] ?? '',
+    'display_name' => $r['display_name'] ?? '',
+    'full_name' => $r['full_name'] ?? '',
+    'name' => $r['name'] ?? '',
+    'address' => $r['address'] ?? '',
+    'contact_no' => $r['contact_no'] ?? '',
+    'email' => $r['email'] ?? '',
+    'status' => $r['status'] ?? '',
+    'created_at' => $r['created_at'] ?? '',
+  ];
+});

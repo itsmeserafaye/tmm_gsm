@@ -14,6 +14,11 @@ if (current_user_role() !== 'SuperAdmin') {
 }
 
 $db = db();
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 $q = trim($_GET['q'] ?? '');
 $page = max(1, intval($_GET['p'] ?? 1));
 $limit = 20;
@@ -73,6 +78,18 @@ $stmt->close();
         Activity Logs
       </h1>
       <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Monitor system access and security events.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/settings/export_login_audit.php?<?php echo http_build_query(['q'=>$q,'format'=>'csv']); ?>"
+        class="rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 font-bold py-2.5 px-4 transition-all flex items-center gap-2">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        CSV
+      </a>
+      <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/settings/export_login_audit.php?<?php echo http_build_query(['q'=>$q,'format'=>'excel']); ?>"
+        class="rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 font-bold py-2.5 px-4 transition-all flex items-center gap-2">
+        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+        Excel
+      </a>
     </div>
   </div>
 

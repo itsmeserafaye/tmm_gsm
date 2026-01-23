@@ -355,8 +355,20 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
               <div class="text-xs text-slate-500">Authorized units vs. Demand</div>
             </div>
           </div>
-          <div id="routeSupplyTitle"
-            class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
+          <div class="flex items-center gap-2">
+            <div id="routeSupplyTitle"
+              class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
+            </div>
+            <?php if (has_permission('reports.export')): ?>
+              <a id="routeSupplyExportCsv" href="#"
+                class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> CSV
+              </a>
+              <a id="routeSupplyExportExcel" href="#"
+                class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+              </a>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -1031,14 +1043,25 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       function renderRouteSupply(data) {
         if (!routeSupplyBody || !routeSupplyTitle || !routeSupplyTotal) return;
+        var exportCsv = document.getElementById('routeSupplyExportCsv');
+        var exportExcel = document.getElementById('routeSupplyExportExcel');
+        var setExportLinks = function (terminalName) {
+          if (!exportCsv && !exportExcel) return;
+          var base = (window.TMM_ROOT_URL || '') + '/admin/api/analytics/export_route_supply.php?terminal_name=' + encodeURIComponent(terminalName || '');
+          if (exportCsv) exportCsv.href = base + '&format=csv';
+          if (exportExcel) exportExcel.href = base + '&format=excel';
+        };
         routeSupplyBody.innerHTML = '';
         if (!data || !data.ok) {
           routeSupplyTitle.textContent = 'Unknown';
           routeSupplyBody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-sm text-slate-500 italic text-center">Select a terminal to view supply.</td></tr>';
           routeSupplyTotal.textContent = '';
+          if (exportCsv) exportCsv.href = '#';
+          if (exportExcel) exportExcel.href = '#';
           return;
         }
         routeSupplyTitle.textContent = data.terminal_name ? data.terminal_name : 'Selected Terminal';
+        setExportLinks(data.terminal_name || '');
         var routes = data.routes || [];
         if (!routes.length) {
           routeSupplyBody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-sm text-slate-500 italic text-center">No authorized units found.</td></tr>';

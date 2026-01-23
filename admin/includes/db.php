@@ -259,10 +259,53 @@ function db() {
   $conn->query("UPDATE routes SET status=CASE WHEN status IN ('Active','Inactive') THEN status ELSE 'Active' END");
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
-    $conn->query("INSERT INTO routes(route_id, route_name, max_vehicle_limit, status) VALUES
-      ('R-12','Central Loop',50,'Active'),
-      ('R-08','East Corridor',30,'Active'),
-      ('R-05','North Spur',40,'Active')");
+    $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, authorized_units, max_vehicle_limit, status) VALUES
+      ('TR-01','TR-01','Monumento Loop','Jeepney','Monumento','Monumento','EDSA • Rizal Ave Ext • Samson Rd • 10th Ave/5th Ave (Caloocan)','Loop',60,60,'Active'),
+      ('TR-02','TR-02','Monumento–Sangandaan Connector','Jeepney','Monumento','Sangandaan','Samson Rd • Sangandaan Area (Caloocan)','Point-to-Point',45,45,'Active'),
+      ('TR-03','TR-03','Deparo–Tala Service','Jeepney','Deparo','Tala','Deparo Rd • Tala Area (Caloocan)','Point-to-Point',40,40,'Active'),
+      ('TR-04','TR-04','Bagong Silang–Camarin Loop','Jeepney','Bagong Silang','Camarin','Bagong Silang • Camarin (Caloocan)','Loop',55,55,'Active'),
+      ('TR-05','TR-05','Grace Park–Monumento Shuttle','UV','Grace Park','Monumento','Grace Park • EDSA/Monumento (Caloocan)','Point-to-Point',30,30,'Active')");
+  }
+
+  $legacySeed = [
+    ['old' => 'R-12', 'old_name' => 'Central Loop', 'new' => 'TR-01', 'new_name' => 'Monumento Loop', 'vehicle_type' => 'Jeepney', 'origin' => 'Monumento', 'destination' => 'Monumento', 'via' => 'EDSA • Rizal Ave Ext • Samson Rd • 10th Ave/5th Ave (Caloocan)', 'structure' => 'Loop', 'units' => 60],
+    ['old' => 'R-08', 'old_name' => 'East Corridor', 'new' => 'TR-02', 'new_name' => 'Monumento–Sangandaan Connector', 'vehicle_type' => 'Jeepney', 'origin' => 'Monumento', 'destination' => 'Sangandaan', 'via' => 'Samson Rd • Sangandaan Area (Caloocan)', 'structure' => 'Point-to-Point', 'units' => 45],
+    ['old' => 'R-05', 'old_name' => 'North Spur', 'new' => 'TR-03', 'new_name' => 'Deparo–Tala Service', 'vehicle_type' => 'Jeepney', 'origin' => 'Deparo', 'destination' => 'Tala', 'via' => 'Deparo Rd • Tala Area (Caloocan)', 'structure' => 'Point-to-Point', 'units' => 40],
+  ];
+  foreach ($legacySeed as $ls) {
+    $old = (string)$ls['old'];
+    $oldName = (string)$ls['old_name'];
+    $new = (string)$ls['new'];
+    $chkOld = $conn->prepare("SELECT id FROM routes WHERE route_id=? AND route_name=? LIMIT 1");
+    if (!$chkOld) continue;
+    $chkOld->bind_param('ss', $old, $oldName);
+    $chkOld->execute();
+    $oldRow = $chkOld->get_result()->fetch_assoc();
+    $chkOld->close();
+    if (!$oldRow) continue;
+
+    $chkNew = $conn->prepare("SELECT 1 FROM routes WHERE route_id=? LIMIT 1");
+    if (!$chkNew) continue;
+    $chkNew->bind_param('s', $new);
+    $chkNew->execute();
+    $newExists = (bool)$chkNew->get_result()->fetch_row();
+    $chkNew->close();
+    if ($newExists) continue;
+
+    $stmtU = $conn->prepare("UPDATE routes
+      SET route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, authorized_units=?, max_vehicle_limit=?, status='Active'
+      WHERE route_id=? AND route_name=?");
+    if (!$stmtU) continue;
+    $units = (int)$ls['units'];
+    $newName = (string)$ls['new_name'];
+    $vehType = (string)$ls['vehicle_type'];
+    $orig = (string)$ls['origin'];
+    $dest = (string)$ls['destination'];
+    $via = (string)$ls['via'];
+    $struct = (string)$ls['structure'];
+    $stmtU->bind_param('ssssssssiiss', $new, $new, $newName, $vehType, $orig, $dest, $via, $struct, $units, $units, $old, $oldName);
+    $stmtU->execute();
+    $stmtU->close();
   }
 
   $conn->query("CREATE TABLE IF NOT EXISTS app_settings (

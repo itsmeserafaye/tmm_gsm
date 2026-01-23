@@ -129,11 +129,13 @@ function seed_routes(mysqli $db, array $rows): array {
     $db->query("CREATE TABLE IF NOT EXISTS lptrp_routes (
       id INT AUTO_INCREMENT PRIMARY KEY,
       route_code VARCHAR(50) NOT NULL,
-      description VARCHAR(255),
       start_point VARCHAR(255),
       end_point VARCHAR(255),
+      route_name VARCHAR(255),
+      description VARCHAR(255),
       max_vehicle_capacity INT DEFAULT 0,
       current_vehicle_count INT DEFAULT 0,
+      approval_status VARCHAR(50) DEFAULT 'Approved',
       status VARCHAR(50) DEFAULT 'Approved',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB");
@@ -141,29 +143,96 @@ function seed_routes(mysqli $db, array $rows): array {
   $added = 0;
   $skipped = 0;
 
-  $stmt = $db->prepare("INSERT IGNORE INTO routes(route_id, route_name, max_vehicle_limit, status) VALUES (?,?,?,?)");
+  $hasRouteCode = has_column($db, 'routes', 'route_code');
+  $hasOrigin = has_column($db, 'routes', 'origin');
+  $hasDest = has_column($db, 'routes', 'destination');
+  $hasVia = has_column($db, 'routes', 'via');
+  $hasStructure = has_column($db, 'routes', 'structure');
+  $hasVehicleType = has_column($db, 'routes', 'vehicle_type');
+  $hasAuthorized = has_column($db, 'routes', 'authorized_units');
+  $hasApprovedBy = has_column($db, 'routes', 'approved_by');
+  $hasApprovedDate = has_column($db, 'routes', 'approved_date');
+
+  $baseCols = ['route_id', 'route_name', 'max_vehicle_limit', 'status'];
+  $cols = $baseCols;
+  if ($hasRouteCode) $cols[] = 'route_code';
+  if ($hasVehicleType) $cols[] = 'vehicle_type';
+  if ($hasOrigin) $cols[] = 'origin';
+  if ($hasDest) $cols[] = 'destination';
+  if ($hasVia) $cols[] = 'via';
+  if ($hasStructure) $cols[] = 'structure';
+  if ($hasAuthorized) $cols[] = 'authorized_units';
+  if ($hasApprovedBy) $cols[] = 'approved_by';
+  if ($hasApprovedDate) $cols[] = 'approved_date';
+
+  $vals = implode(',', array_fill(0, count($cols), '?'));
+  $updates = [];
+  foreach ($cols as $c) {
+    if ($c === 'route_id') continue;
+    $updates[] = "$c=VALUES($c)";
+  }
+  $sql = "INSERT INTO routes (" . implode(',', $cols) . ") VALUES ($vals) ON DUPLICATE KEY UPDATE " . implode(',', $updates);
+  $stmt = $db->prepare($sql);
   if (!$stmt) return ['added' => 0, 'skipped' => count($rows)];
+
   $selL = $db->prepare("SELECT id FROM lptrp_routes WHERE route_code=? LIMIT 1");
-  $insL = $db->prepare("INSERT INTO lptrp_routes(route_code, description, max_vehicle_capacity, status) VALUES (?,?,?,?)");
+  $insL = $db->prepare("INSERT INTO lptrp_routes(route_code, route_name, description, start_point, end_point, max_vehicle_capacity, approval_status, status) VALUES (?,?,?,?,?,?,?,?)");
+  $updL = $db->prepare("UPDATE lptrp_routes SET route_name=?, description=?, start_point=?, end_point=?, max_vehicle_capacity=?, approval_status=?, status=? WHERE route_code=?");
   foreach ($rows as $r) {
     $routeId = trim((string)($r['route_id'] ?? ''));
     if ($routeId === '') { $skipped++; continue; }
+    $routeCode = trim((string)($r['route_code'] ?? $routeId));
     $routeName = trim((string)($r['route_name'] ?? $routeId));
-    $max = (int)($r['max_vehicle_limit'] ?? 50);
-    if ($max <= 0) $max = 50;
+    $vehicleType = trim((string)($r['vehicle_type'] ?? ''));
+    $origin = trim((string)($r['origin'] ?? ''));
+    $destination = trim((string)($r['destination'] ?? ''));
+    $via = trim((string)($r['via'] ?? ''));
+    $structure = trim((string)($r['structure'] ?? ''));
+    $approvedBy = trim((string)($r['approved_by'] ?? ''));
+    $approvedDate = trim((string)($r['approved_date'] ?? ''));
     $status = trim((string)($r['status'] ?? 'Active'));
     if ($status === '') $status = 'Active';
-    $stmt->bind_param('ssis', $routeId, $routeName, $max, $status);
+
+    $max = (int)($r['authorized_units'] ?? ($r['max_vehicle_limit'] ?? 0));
+    if ($max <= 0) $max = 50;
+
+    $bindTypes = '';
+    $bindParams = [];
+    foreach ($cols as $c) {
+      if ($c === 'route_id') { $bindTypes .= 's'; $bindParams[] = $routeCode; continue; }
+      if ($c === 'route_name') { $bindTypes .= 's'; $bindParams[] = $routeName; continue; }
+      if ($c === 'max_vehicle_limit') { $bindTypes .= 'i'; $bindParams[] = $max; continue; }
+      if ($c === 'status') { $bindTypes .= 's'; $bindParams[] = $status; continue; }
+      if ($c === 'route_code') { $bindTypes .= 's'; $bindParams[] = $routeCode; continue; }
+      if ($c === 'vehicle_type') { $bindTypes .= 's'; $bindParams[] = $vehicleType !== '' ? $vehicleType : null; continue; }
+      if ($c === 'origin') { $bindTypes .= 's'; $bindParams[] = $origin !== '' ? $origin : null; continue; }
+      if ($c === 'destination') { $bindTypes .= 's'; $bindParams[] = $destination !== '' ? $destination : null; continue; }
+      if ($c === 'via') { $bindTypes .= 's'; $bindParams[] = $via !== '' ? $via : null; continue; }
+      if ($c === 'structure') { $bindTypes .= 's'; $bindParams[] = $structure !== '' ? $structure : null; continue; }
+      if ($c === 'authorized_units') { $bindTypes .= 'i'; $bindParams[] = $max; continue; }
+      if ($c === 'approved_by') { $bindTypes .= 's'; $bindParams[] = $approvedBy !== '' ? $approvedBy : null; continue; }
+      if ($c === 'approved_date') { $bindTypes .= 's'; $bindParams[] = ($approvedDate !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $approvedDate)) ? $approvedDate : null; continue; }
+      $bindTypes .= 's';
+      $bindParams[] = null;
+    }
+
+    $stmt->bind_param($bindTypes, ...$bindParams);
     $ok = $stmt->execute();
     if ($ok && $db->affected_rows > 0) $added++; else $skipped++;
 
-    if ($selL && $insL) {
-      $selL->bind_param('s', $routeId);
+    if ($selL && ($insL || $updL)) {
+      $selL->bind_param('s', $routeCode);
       $selL->execute();
-      $exists = (bool)$selL->get_result()->fetch_row();
-      if (!$exists) {
-        $lstatus = ($status === 'Active') ? 'Approved' : 'Pending';
-        $insL->bind_param('ssis', $routeId, $routeName, $max, $lstatus);
+      $existsRow = $selL->get_result()->fetch_assoc();
+      $exists = (bool)$existsRow;
+      $desc = $via !== '' ? $via : $routeName;
+      $lApproval = ($status === 'Active') ? 'Approved' : 'Pending';
+      $lStatus = $lApproval;
+      if ($exists && $updL) {
+        $updL->bind_param('ssssisss', $routeName, $desc, $origin, $destination, $max, $lApproval, $lStatus, $routeCode);
+        $updL->execute();
+      } elseif (!$exists && $insL) {
+        $insL->bind_param('sssssiss', $routeCode, $routeName, $desc, $origin, $destination, $max, $lApproval, $lStatus);
         $insL->execute();
       }
     }
@@ -171,6 +240,7 @@ function seed_routes(mysqli $db, array $rows): array {
   $stmt->close();
   if ($selL) $selL->close();
   if ($insL) $insL->close();
+  if ($updL) $updL->close();
   return ['added' => $added, 'skipped' => $skipped];
 }
 

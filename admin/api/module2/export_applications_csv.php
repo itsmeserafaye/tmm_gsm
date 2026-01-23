@@ -1,11 +1,11 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/export.php';
 $db = db();
 require_permission('reports.export');
-
-header('Content-Type: text/csv');
-header('Content-Disposition: attachment; filename="franchise_applications.csv"');
+$format = tmm_export_format();
+tmm_send_export_headers($format, 'franchise_applications');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -56,24 +56,21 @@ if ($params) {
   $res = $db->query($sql);
 }
 
-$out = fopen('php://output', 'w');
-fputcsv($out, ['application_id','franchise_ref_number','operator_id','operator_name','route_code','origin','destination','vehicle_count','representative_name','status','submitted_at','endorsed_at','approved_at']);
-while ($res && ($row = $res->fetch_assoc())) {
-  fputcsv($out, [
-    $row['application_id'],
-    $row['franchise_ref_number'],
-    $row['operator_id'],
-    $row['operator_name'],
-    $row['route_code'],
-    $row['origin'],
-    $row['destination'],
-    $row['vehicle_count'],
-    $row['representative_name'],
-    $row['status'],
-    $row['submitted_at'],
-    $row['endorsed_at'],
-    $row['approved_at'],
-  ]);
-}
-fclose($out);
-
+$headers = ['application_id','franchise_ref_number','operator_id','operator_name','route_code','origin','destination','vehicle_count','representative_name','status','submitted_at','endorsed_at','approved_at'];
+tmm_export_from_result($format, $headers, $res, function ($r) {
+  return [
+    'application_id' => $r['application_id'] ?? '',
+    'franchise_ref_number' => $r['franchise_ref_number'] ?? '',
+    'operator_id' => $r['operator_id'] ?? '',
+    'operator_name' => $r['operator_name'] ?? '',
+    'route_code' => $r['route_code'] ?? '',
+    'origin' => $r['origin'] ?? '',
+    'destination' => $r['destination'] ?? '',
+    'vehicle_count' => $r['vehicle_count'] ?? '',
+    'representative_name' => $r['representative_name'] ?? '',
+    'status' => $r['status'] ?? '',
+    'submitted_at' => $r['submitted_at'] ?? '',
+    'endorsed_at' => $r['endorsed_at'] ?? '',
+    'approved_at' => $r['approved_at'] ?? '',
+  ];
+});

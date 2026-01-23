@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
 require_role(['SuperAdmin']);
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 ?>
 
 <div class="mx-auto max-w-7xl px-4 py-8 space-y-8">
@@ -15,10 +21,20 @@ require_role(['SuperAdmin']);
             </h1>
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage system users and their role assignments.</p>
         </div>
-        <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
-            <i data-lucide="plus" class="w-5 h-5"></i>
-            New Account
-        </button>
+        <div class="flex items-center gap-2">
+            <a href="<?php echo htmlspecialchars((string)($rootUrl ?? '')); ?>/admin/api/settings/export_users.php?format=csv" class="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-5 rounded-xl shadow-sm transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700">
+                <i data-lucide="download" class="w-5 h-5"></i>
+                CSV
+            </a>
+            <a href="<?php echo htmlspecialchars((string)($rootUrl ?? '')); ?>/admin/api/settings/export_users.php?format=excel" class="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-5 rounded-xl shadow-sm transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700">
+                <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                Excel
+            </a>
+            <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                New Account
+            </button>
+        </div>
     </div>
 
     <!-- Filters & Search -->

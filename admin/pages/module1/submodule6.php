@@ -88,6 +88,18 @@ if ($params) {
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Define authorized routes, set capacity limits, and use route availability as the basis for franchise endorsement.</p>
     </div>
     <div class="flex items-center gap-2">
+      <?php if (has_permission('reports.export')): ?>
+        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_routes.php?<?php echo http_build_query(['q'=>$q,'vehicle_type'=>$vehicleType,'status'=>$status,'format'=>'csv']); ?>"
+          class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          Export CSV
+        </a>
+        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_routes.php?<?php echo http_build_query(['q'=>$q,'vehicle_type'=>$vehicleType,'status'=>$status,'format'=>'excel']); ?>"
+          class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          Export Excel
+        </a>
+      <?php endif; ?>
       <?php if ($canManage): ?>
         <button type="button" id="btnAddRoute" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="plus" class="w-4 h-4"></i>

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/export.php';
 $db = db();
 require_permission('reports.export');
 
@@ -22,30 +23,24 @@ $sql .= " ORDER BY date_issued DESC LIMIT 1000";
 
 $res = $db->query($sql);
 
-header('Content-Type: text/csv; charset=utf-8');
-$fname = 'tickets_export_' . date('Ymd_His') . '.csv';
-header('Content-Disposition: attachment; filename="'.$fname.'"');
-
-$out = fopen('php://output', 'w');
-fputcsv($out, ['Ticket #','STS Ticket #','Ticket Source','Violation','STS Code','Plate','Status','Fine','Issued Date','Issued By','Badge','Due Date','Receipt Ref']);
-if ($res && $res->num_rows > 0) {
-  while ($r = $res->fetch_assoc()) {
-    fputcsv($out, [
-      $r['ticket_number'],
-      $r['external_ticket_number'],
-      $r['ticket_source'],
-      $r['violation_code'],
-      $r['sts_violation_code'],
-      $r['vehicle_plate'],
-      $r['status'],
-      number_format((float)$r['fine_amount'],2),
-      $r['date_issued'],
-      $r['issued_by'],
-      $r['issued_by_badge'],
-      $r['due_date'],
-      $r['payment_ref'],
-    ]);
-  }
-}
-fclose($out);
-?> 
+$format = tmm_export_format();
+$basename = 'tickets_export_' . date('Ymd_His');
+tmm_send_export_headers($format, $basename);
+$headers = ['ticket_number','external_ticket_number','ticket_source','violation_code','sts_violation_code','vehicle_plate','status','fine_amount','date_issued','issued_by','issued_by_badge','due_date','payment_ref'];
+tmm_export_from_result($format, $headers, $res, function ($r) {
+  return [
+    'ticket_number' => $r['ticket_number'] ?? '',
+    'external_ticket_number' => $r['external_ticket_number'] ?? '',
+    'ticket_source' => $r['ticket_source'] ?? '',
+    'violation_code' => $r['violation_code'] ?? '',
+    'sts_violation_code' => $r['sts_violation_code'] ?? '',
+    'vehicle_plate' => $r['vehicle_plate'] ?? '',
+    'status' => $r['status'] ?? '',
+    'fine_amount' => $r['fine_amount'] ?? '',
+    'date_issued' => $r['date_issued'] ?? '',
+    'issued_by' => $r['issued_by'] ?? '',
+    'issued_by_badge' => $r['issued_by_badge'] ?? '',
+    'due_date' => $r['due_date'] ?? '',
+    'payment_ref' => $r['payment_ref'] ?? '',
+  ];
+});

@@ -79,6 +79,11 @@ if ($rootUrl === '/') $rootUrl = '';
           <i data-lucide="download" class="w-4 h-4"></i>
           Export CSV
         </a>
+        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module2/export_applications_csv.php?<?php echo http_build_query(['q'=>$q,'status'=>$status,'format'=>'excel']); ?>"
+          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          Export Excel
+        </a>
       <?php endif; ?>
       <a href="?page=module2/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
         <i data-lucide="file-plus" class="w-4 h-4"></i>
