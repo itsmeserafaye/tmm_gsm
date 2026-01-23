@@ -132,7 +132,7 @@ require_any_permission(['module3.settle','module3.read']);
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">OR No</label>
-              <input id="pay-receipt" name="or_no" required minlength="3" maxlength="40" pattern="^[0-9A-Za-z/-]{3,40}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., OR-2026-000123">
+              <input id="pay-receipt" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., OR-2026-000123">
             </div>
           </div>
           

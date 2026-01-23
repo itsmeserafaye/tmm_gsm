@@ -78,6 +78,11 @@ foreach ($sidebarItems as $item) {
     }
   }
 }
+
+$formJsVer = 1;
+$formJsPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tmm_form_enhancements.js';
+$ts = @filemtime($formJsPath);
+if ($ts !== false) $formJsVer = (int)$ts;
 ?>
 <!doctype html>
 <html lang="en">
@@ -107,7 +112,7 @@ foreach ($sidebarItems as $item) {
     window.TMM_ROOT_URL = <?php echo json_encode($rootUrl, JSON_UNESCAPED_SLASHES); ?>;
     window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
   </script>
-  <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js" defer></script>
+  <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string)$formJsVer; ?>" defer></script>
 </head>
 
 <body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">

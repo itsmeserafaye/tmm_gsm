@@ -106,7 +106,7 @@ if ($res) {
 
           <div id="external-ticket-wrap" class="hidden">
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">STS Ticket Number</label>
-            <input id="external-ticket-number" name="external_ticket_number" minlength="3" maxlength="64" pattern="^[0-9A-Za-z/-]{3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., STS-2026-000123">
+            <input id="external-ticket-number" name="external_ticket_number" minlength="3" maxlength="64" pattern="^(?:[0-9A-Za-z/]|-){3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., STS-2026-000123">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Type</label>
