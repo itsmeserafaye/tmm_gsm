@@ -102,6 +102,10 @@ if ($params) {
         </a>
       <?php endif; ?>
       <?php if ($canManage): ?>
+        <button type="button" id="btnAutoFares" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          <i data-lucide="wand-2" class="w-4 h-4"></i>
+          Auto-set Fares
+        </button>
         <button type="button" id="btnAddRoute" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="plus" class="w-4 h-4"></i>
           Add Route
@@ -255,6 +259,40 @@ if ($params) {
   </div>
 </div>
 
+<div id="modalAutoFares" class="fixed inset-0 z-[210] hidden">
+  <div id="modalAutoFaresBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalAutoFaresPanel" class="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white">Auto-set Route Fares</div>
+        <button type="button" id="modalAutoFaresClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="text-sm text-slate-600 dark:text-slate-300 font-semibold">
+          Uses distance (km) when available and rounds to the nearest 0.25.
+        </div>
+        <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+          <input id="autoFaresOnlyMissing" type="checkbox" checked class="w-4 h-4">
+          Only set fares that are empty/zero
+        </label>
+        <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
+          <input id="autoFaresOverwrite" type="checkbox" class="w-4 h-4">
+          Overwrite existing fares
+        </label>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" id="btnAutoFaresCancel" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <button type="button" id="btnAutoFaresApply" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Apply</button>
+        </div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+          Jeepney fares follow LTFRB PUJ matrix (₱13 first 4km + ₱1.80/km). UV/Bus use ₱15 first 4km + ₱2.20/km. Tricycle uses a practical local estimate.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
@@ -308,6 +346,58 @@ if ($params) {
     function esc(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
     }
+
+    const modalAuto = document.getElementById('modalAutoFares');
+    const modalAutoBackdrop = document.getElementById('modalAutoFaresBackdrop');
+    const modalAutoPanel = document.getElementById('modalAutoFaresPanel');
+    const btnAutoFares = document.getElementById('btnAutoFares');
+    const btnAutoApply = document.getElementById('btnAutoFaresApply');
+    const btnAutoCancel = document.getElementById('btnAutoFaresCancel');
+    const btnAutoClose = document.getElementById('modalAutoFaresClose');
+    const autoOnlyMissing = document.getElementById('autoFaresOnlyMissing');
+    const autoOverwrite = document.getElementById('autoFaresOverwrite');
+
+    function openAutoModal() {
+      if (!modalAuto) return;
+      modalAuto.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        if (modalAutoBackdrop) modalAutoBackdrop.classList.remove('opacity-0');
+        if (modalAutoPanel) modalAutoPanel.classList.remove('scale-95','opacity-0');
+      });
+      if (window.lucide) window.lucide.createIcons();
+    }
+    function closeAutoModal() {
+      if (!modalAuto) return;
+      if (modalAutoPanel) modalAutoPanel.classList.add('scale-95','opacity-0');
+      if (modalAutoBackdrop) modalAutoBackdrop.classList.add('opacity-0');
+      setTimeout(() => { modalAuto.classList.add('hidden'); }, 200);
+    }
+    if (btnAutoFares) btnAutoFares.addEventListener('click', openAutoModal);
+    if (btnAutoCancel) btnAutoCancel.addEventListener('click', closeAutoModal);
+    if (btnAutoClose) btnAutoClose.addEventListener('click', closeAutoModal);
+    if (modalAutoBackdrop) modalAutoBackdrop.addEventListener('click', closeAutoModal);
+
+    async function applyAutoFares() {
+      if (!btnAutoApply) return;
+      btnAutoApply.disabled = true;
+      btnAutoApply.textContent = 'Applying...';
+      try {
+        const fd = new FormData();
+        const overwrite = autoOverwrite && autoOverwrite.checked;
+        fd.append('overwrite', overwrite ? '1' : '0');
+        fd.append('only_missing', overwrite ? '0' : (autoOnlyMissing && autoOnlyMissing.checked ? '1' : '0'));
+        const res = await fetch(rootUrl + '/admin/api/module1/auto_set_route_fares.php', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'apply_failed');
+        showToast('Updated fares: ' + String(data.updated || 0));
+        setTimeout(() => { window.location.reload(); }, 400);
+      } catch (e) {
+        showToast('Failed', 'error');
+        btnAutoApply.disabled = false;
+        btnAutoApply.textContent = 'Apply';
+      }
+    }
+    if (btnAutoApply) btnAutoApply.addEventListener('click', applyAutoFares);
 
     function renderForm(r) {
       const id = r && r.id ? Number(r.id) : 0;
