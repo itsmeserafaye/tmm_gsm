@@ -245,11 +245,18 @@ function db() {
     }
   }
   if (!isset($routeCols['route_code'])) { $conn->query("ALTER TABLE routes ADD COLUMN route_code VARCHAR(64) DEFAULT NULL"); }
+  if (!isset($routeCols['via'])) { $conn->query("ALTER TABLE routes ADD COLUMN via TEXT DEFAULT NULL"); }
+  if (!isset($routeCols['vehicle_type'])) { $conn->query("ALTER TABLE routes ADD COLUMN vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL"); }
   if (!isset($routeCols['origin'])) { $conn->query("ALTER TABLE routes ADD COLUMN origin VARCHAR(100) DEFAULT NULL"); }
   if (!isset($routeCols['destination'])) { $conn->query("ALTER TABLE routes ADD COLUMN destination VARCHAR(100) DEFAULT NULL"); }
   if (!isset($routeCols['structure'])) { $conn->query("ALTER TABLE routes ADD COLUMN structure ENUM('Loop','Point-to-Point') DEFAULT NULL"); }
   if (!isset($routeCols['distance_km'])) { $conn->query("ALTER TABLE routes ADD COLUMN distance_km DECIMAL(10,2) DEFAULT NULL"); }
   if (!isset($routeCols['authorized_units'])) { $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL"); }
+  if (!isset($routeCols['approved_by'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_by VARCHAR(128) DEFAULT NULL"); }
+  if (!isset($routeCols['approved_date'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_date DATE DEFAULT NULL"); }
+  $conn->query("UPDATE routes SET route_code=route_id WHERE (route_code IS NULL OR route_code='') AND COALESCE(route_id,'')<>''");
+  $conn->query("UPDATE routes SET route_id=route_code WHERE (route_id IS NULL OR route_id='') AND COALESCE(route_code,'')<>''");
+  $conn->query("UPDATE routes SET status=CASE WHEN status IN ('Active','Inactive') THEN status ELSE 'Active' END");
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
     $conn->query("INSERT INTO routes(route_id, route_name, max_vehicle_limit, status) VALUES

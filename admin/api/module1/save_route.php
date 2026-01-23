@@ -16,10 +16,14 @@ try {
     $routeName = trim((string)($_POST['route_name'] ?? ''));
     $origin = trim((string)($_POST['origin'] ?? ''));
     $destination = trim((string)($_POST['destination'] ?? ''));
+    $via = trim((string)($_POST['via'] ?? ''));
     $structure = trim((string)($_POST['structure'] ?? ''));
+    $vehicleType = trim((string)($_POST['vehicle_type'] ?? ''));
     $distanceKm = isset($_POST['distance_km']) ? (float)$_POST['distance_km'] : null;
     $authorizedUnits = isset($_POST['authorized_units']) ? (int)$_POST['authorized_units'] : null;
     $status = trim((string)($_POST['status'] ?? 'Active'));
+    $approvedBy = trim((string)($_POST['approved_by'] ?? ''));
+    $approvedDate = trim((string)($_POST['approved_date'] ?? ''));
 
     if ($routeCode === '' || strlen($routeCode) < 2) {
         throw new Exception('invalid_route_code');
@@ -33,6 +37,17 @@ try {
     }
     if (!$structOk) $structure = null;
 
+    $allowedVehicleTypes = ['Tricycle','Jeepney','UV','Bus'];
+    $vehOk = false;
+    foreach ($allowedVehicleTypes as $t) {
+        if (strcasecmp($vehicleType, $t) === 0) { $vehicleType = $t; $vehOk = true; break; }
+    }
+    if (!$vehOk) $vehicleType = null;
+
+    if ($approvedDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $approvedDate)) {
+        $approvedDate = '';
+    }
+
     $statusAllowed = ['Active','Inactive'];
     $stOk = false;
     foreach ($statusAllowed as $s) {
@@ -43,24 +58,31 @@ try {
     $maxLimit = $authorizedUnits !== null && $authorizedUnits > 0 ? $authorizedUnits : null;
     if ($maxLimit === null) $maxLimit = 50;
 
-    $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, origin, destination, structure, distance_km, authorized_units, max_vehicle_limit, status)
-                          VALUES(?,?,?,?,?,?,?,?,?,?)
+    $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status, approved_by, approved_date)
+                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                           ON DUPLICATE KEY UPDATE
                             route_code=VALUES(route_code),
                             route_name=VALUES(route_name),
+                            vehicle_type=VALUES(vehicle_type),
                             origin=VALUES(origin),
                             destination=VALUES(destination),
+                            via=VALUES(via),
                             structure=VALUES(structure),
                             distance_km=VALUES(distance_km),
                             authorized_units=VALUES(authorized_units),
                             max_vehicle_limit=VALUES(max_vehicle_limit),
-                            status=VALUES(status)");
+                            status=VALUES(status),
+                            approved_by=VALUES(approved_by),
+                            approved_date=VALUES(approved_date)");
     if (!$stmt) {
         throw new Exception('db_prepare_failed');
     }
     $distanceBind = $distanceKm;
     $authorizedBind = $authorizedUnits;
-    $stmt->bind_param('ssssssdiis', $routeCode, $routeCode, $routeName, $origin, $destination, $structure, $distanceBind, $authorizedBind, $maxLimit, $status);
+    $viaBind = $via !== '' ? $via : null;
+    $approvedByBind = $approvedBy !== '' ? $approvedBy : null;
+    $approvedDateBind = $approvedDate !== '' ? $approvedDate : null;
+    $stmt->bind_param('ssssssssdiiiss', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind);
     $ok = $stmt->execute();
     $stmt->close();
 

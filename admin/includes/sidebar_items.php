@@ -14,9 +14,9 @@ $sidebarItems = [
     'subItems' => [
       ['id' => 'submodule1', 'label' => 'Operator Encoding', 'path' => '/module1/submodule1', 'anyPermissions' => ['module1.read','module1.write']],
       ['id' => 'submodule2', 'label' => 'Vehicle Encoding', 'path' => '/module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
-      ['id' => 'submodule3', 'label' => 'Operator Document Validation', 'path' => '/module1/submodule3', 'anyPermissions' => ['module1.write']],
       ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
       ['id' => 'submodule5', 'label' => 'Ownership Transfer', 'path' => '/module1/submodule5', 'anyPermissions' => ['module1.write','module1.vehicles.write']],
+      ['id' => 'submodule6', 'label' => 'Routes & LPTRP', 'path' => '/module1/submodule6', 'anyPermissions' => ['module1.read','module1.write']],
     ],
   ],
   [
@@ -27,6 +27,7 @@ $sidebarItems = [
       ['id' => 'submodule1', 'label' => 'Franchise Applications', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history','module2.apply']],
       ['id' => 'submodule2', 'label' => 'Submit Franchise Application', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.apply']],
       ['id' => 'submodule3', 'label' => 'Endorsement & LTFRB Approval', 'path' => '/module2/submodule3', 'anyPermissions' => ['module2.endorse','module2.approve','module2.history']],
+      ['id' => 'submodule4', 'label' => 'Operator Document Validation', 'path' => '/module2/submodule4', 'anyPermissions' => ['module1.write','module2.endorse','module2.approve','module2.apply']],
     ],
   ],
   [

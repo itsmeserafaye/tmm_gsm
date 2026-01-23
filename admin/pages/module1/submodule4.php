@@ -200,7 +200,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
         };
         $veh = $vehiclesByOperator[$opId] ?? [];
       ?>
-      <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden <?php echo $isHighlight ? 'ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
+      <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-visible <?php echo $isHighlight ? 'ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
         <div class="p-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">

@@ -54,11 +54,15 @@ CREATE TABLE IF NOT EXISTS routes (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   route_code VARCHAR(64) DEFAULT NULL,
+  via TEXT DEFAULT NULL,
+  vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL,
   origin VARCHAR(100) DEFAULT NULL,
   destination VARCHAR(100) DEFAULT NULL,
   structure ENUM('Loop','Point-to-Point') DEFAULT NULL,
   distance_km DECIMAL(10,2) DEFAULT NULL,
-  authorized_units INT DEFAULT NULL
+  authorized_units INT DEFAULT NULL,
+  approved_by VARCHAR(128) DEFAULT NULL,
+  approved_date DATE DEFAULT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS terminal_assignments (
@@ -119,7 +123,7 @@ CREATE TABLE IF NOT EXISTS vehicle_ownership_transfers (
   INDEX idx_created_at (created_at),
   FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
   FOREIGN KEY (from_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
-  FOREIGN KEY (to_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
+  FOREIGN KEY (to_operator_id) REFERENCES operators(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS terminals (
