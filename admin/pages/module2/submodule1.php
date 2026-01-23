@@ -433,58 +433,11 @@ if ($rootUrl === '/') $rootUrl = '';
       btn.addEventListener('click', async () => {
         if (!canManage) return;
         const appId = btn.getAttribute('data-app-id');
-        openModal(`
-          <form id="formEndorse" class="space-y-4">
-            <input type="hidden" name="application_id" value="${appId}">
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Notes (optional)</label>
-              <textarea name="notes" rows="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Validation notes..."></textarea>
-            </div>
-            <div class="flex items-center justify-end gap-2 pt-2">
-              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
-              <button id="btnEndorse" class="px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Endorse</button>
-            </div>
-          </form>
-        `, 'Endorse Application');
-        const close = body.querySelector('[data-close="1"]');
-        if (close) close.addEventListener('click', closeModal);
-        const form = document.getElementById('formEndorse');
-        const btnEnd = document.getElementById('btnEndorse');
-        if (!form || !btnEnd) return;
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          btnEnd.disabled = true;
-          btnEnd.textContent = 'Endorsing...';
-          try {
-            const fd = new FormData(form);
-            const res = await fetch(rootUrl + '/admin/api/module2/endorse_app.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) {
-              const raw = (data && data.error) ? String(data.error) : 'endorse_failed';
-              const msg = raw === 'operator_docs_missing'
-                ? 'Cannot endorse: operator has no uploaded documents.'
-                : raw === 'operator_docs_not_verified'
-                  ? ('Cannot endorse: required documents must be VERIFIED. Missing/Not verified: ' + prettyMissing(data && data.missing))
-                  : raw === 'route_over_capacity'
-                    ? 'Cannot endorse: route is over capacity.'
-                    : raw === 'operator_invalid'
-                      ? 'Cannot endorse: operator is not valid.'
-                      : raw === 'operator_inactive'
-                        ? 'Cannot endorse: operator is inactive.'
-                        : raw;
-              throw new Error(msg);
-            }
-            showToast('Application endorsed.');
-            const params = new URLSearchParams(window.location.search || '');
-            params.set('page','module2/submodule1');
-            params.set('highlight_application_id', String(appId));
-            window.location.search = params.toString();
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
-            btnEnd.disabled = false;
-            btnEnd.textContent = 'Endorse';
-          }
-        });
+        if (!appId) return;
+        const params = new URLSearchParams(window.location.search || '');
+        params.set('page', 'module2/submodule3');
+        params.set('application_id', String(appId));
+        window.location.search = params.toString();
       });
     });
 
@@ -492,59 +445,11 @@ if ($rootUrl === '/') $rootUrl = '';
       btn.addEventListener('click', async () => {
         if (!canManage) return;
         const appId = btn.getAttribute('data-app-id');
-        openModal(`
-          <form id="formApprove" class="space-y-4">
-            <input type="hidden" name="application_id" value="${appId}">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">LTFRB Ref No</label>
-                <input name="ltfrb_ref_no" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Franchise number">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Decision Order No</label>
-                <input name="decision_order_no" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Decision order">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Expiry Date</label>
-                <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Remarks (optional)</label>
-                <input name="remarks" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Remarks">
-              </div>
-            </div>
-            <div class="flex items-center justify-end gap-2 pt-2">
-              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
-              <button id="btnApprove" class="px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Save Approval</button>
-            </div>
-          </form>
-        `, 'LTFRB Approval Entry');
-        const close = body.querySelector('[data-close="1"]');
-        if (close) close.addEventListener('click', closeModal);
-        const form = document.getElementById('formApprove');
-        const btnA = document.getElementById('btnApprove');
-        if (!form || !btnA) return;
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          if (!form.checkValidity()) { form.reportValidity(); return; }
-          btnA.disabled = true;
-          btnA.textContent = 'Saving...';
-          try {
-            const fd = new FormData(form);
-            const res = await fetch(rootUrl + '/admin/api/module2/approve_application.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'approve_failed');
-            showToast('Application approved.');
-            const params = new URLSearchParams(window.location.search || '');
-            params.set('page','module2/submodule1');
-            params.set('highlight_application_id', String(appId));
-            window.location.search = params.toString();
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
-            btnA.disabled = false;
-            btnA.textContent = 'Save Approval';
-          }
-        });
+        if (!appId) return;
+        const params = new URLSearchParams(window.location.search || '');
+        params.set('page', 'module2/submodule3');
+        params.set('application_id', String(appId));
+        window.location.search = params.toString();
       });
     });
 

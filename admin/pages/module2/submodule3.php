@@ -35,10 +35,20 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formLoad" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end" novalidate>
         <div class="flex-1 relative">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Submitted Applications (Not LTFRB-Approved)</label>
-          <input id="appSearchInput" type="text" autocomplete="off" class="mb-2 w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search application ref / operator / route…">
-          <select id="appPickSelect" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <option value="">Select application</option>
-          </select>
+          <button type="button" id="appDropdownBtn"
+            class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <span id="appDropdownBtnText" class="truncate">Select application</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </button>
+          <div id="appDropdownPanel"
+            class="hidden absolute left-0 right-0 mt-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-[120] overflow-hidden">
+            <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+              <input id="appDropdownSearch" type="text" autocomplete="off"
+                class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"
+                placeholder="Search application ref / operator / route…">
+            </div>
+            <div id="appDropdownList" class="max-h-72 overflow-auto"></div>
+          </div>
           <input id="appIdInput" type="hidden" value="<?php echo (int)$prefillApp; ?>">
         </div>
         <button id="btnLoad" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold">Load</button>
@@ -105,8 +115,11 @@ if ($rootUrl === '/') $rootUrl = '';
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const appSearchInput = document.getElementById('appSearchInput');
-    const appPickSelect = document.getElementById('appPickSelect');
+    const appDropdownBtn = document.getElementById('appDropdownBtn');
+    const appDropdownBtnText = document.getElementById('appDropdownBtnText');
+    const appDropdownPanel = document.getElementById('appDropdownPanel');
+    const appDropdownSearch = document.getElementById('appDropdownSearch');
+    const appDropdownList = document.getElementById('appDropdownList');
     const appIdInput = document.getElementById('appIdInput');
     const formLoad = document.getElementById('formLoad');
     const btnLoad = document.getElementById('btnLoad');
@@ -121,6 +134,7 @@ if ($rootUrl === '/') $rootUrl = '';
     let currentStatus = '';
     let pickTimer = null;
     let lastPickQuery = '';
+    let lastPickItems = [];
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -163,55 +177,105 @@ if ($rootUrl === '/') $rootUrl = '';
       return Array.isArray(data.data) ? data.data : [];
     }
 
-    function populateAppSelect(items, selectedId) {
-      if (!appPickSelect) return;
-      const keepId = selectedId ? String(selectedId) : (appPickSelect.value || '');
-      appPickSelect.innerHTML = '<option value="">Select application</option>';
-      (items || []).forEach((row) => {
-        const id = String(row.application_id || '');
-        if (!id) return;
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = optionLabel(row);
-        appPickSelect.appendChild(opt);
-      });
-      if (keepId && appPickSelect.querySelector('option[value="' + keepId.replace(/"/g, '\\"') + '"]')) {
-        appPickSelect.value = keepId;
-      }
-      if (appIdInput) appIdInput.value = appPickSelect.value || '';
-    }
-
     async function refreshAppDropdown(q) {
       const qq = (q || '').toString().trim();
       lastPickQuery = qq;
+      if (appDropdownList) {
+        appDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
+      }
       const items = await fetchPendingLtfrbApps(qq);
-      populateAppSelect(items, appIdInput ? appIdInput.value : '');
+      lastPickItems = Array.isArray(items) ? items : [];
+      renderDropdownItems(lastPickItems);
     }
 
-    if (appSearchInput) {
-      appSearchInput.addEventListener('focus', () => {
-        if (pickTimer) clearTimeout(pickTimer);
-        pickTimer = setTimeout(() => refreshAppDropdown(appSearchInput.value || ''), 0);
+    function setDropdownLabel(text) {
+      if (!appDropdownBtnText) return;
+      const t = (text || '').toString().trim();
+      appDropdownBtnText.textContent = t !== '' ? t : 'Select application';
+    }
+
+    function isDropdownOpen() {
+      return appDropdownPanel && !appDropdownPanel.classList.contains('hidden');
+    }
+
+    function openDropdown() {
+      if (!appDropdownPanel) return;
+      appDropdownPanel.classList.remove('hidden');
+      if (appDropdownSearch) {
+        appDropdownSearch.focus();
+        appDropdownSearch.select();
+      }
+      if (!lastPickItems.length) refreshAppDropdown(lastPickQuery);
+    }
+
+    function closeDropdown() {
+      if (!appDropdownPanel) return;
+      appDropdownPanel.classList.add('hidden');
+    }
+
+    function pickApplication(row) {
+      const id = Number(row && row.application_id ? row.application_id : 0);
+      if (!id) return;
+      if (appIdInput) appIdInput.value = String(id);
+      setDropdownLabel(optionLabel(row));
+      closeDropdown();
+    }
+
+    function renderDropdownItems(items) {
+      if (!appDropdownList) return;
+      const currentId = Number((appIdInput && appIdInput.value) ? appIdInput.value : 0);
+      if (!Array.isArray(items) || !items.length) {
+        appDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">No matches.</div>';
+        return;
+      }
+      appDropdownList.innerHTML = '';
+      items.forEach((row) => {
+        const id = Number(row.application_id || 0);
+        if (!id) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-full text-left px-4 py-3 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800 ' + (id === currentId ? 'bg-blue-50/60 dark:bg-blue-900/10' : '');
+        btn.textContent = optionLabel(row);
+        btn.addEventListener('click', () => pickApplication(row));
+        appDropdownList.appendChild(btn);
       });
-      appSearchInput.addEventListener('input', () => {
-        if (pickTimer) clearTimeout(pickTimer);
-        pickTimer = setTimeout(() => refreshAppDropdown(appSearchInput.value || ''), 180);
+      const hasSelected = currentId > 0 && items.some((r) => Number(r.application_id || 0) === currentId);
+      if (!hasSelected && currentId > 0) {
+        const hint = document.createElement('div');
+        hint.className = 'px-4 py-3 text-xs text-slate-500 dark:text-slate-400 italic';
+        hint.textContent = 'Selected application is not in current results. Search to find it.';
+        appDropdownList.appendChild(hint);
+      }
+    }
+
+    if (appDropdownBtn) {
+      appDropdownBtn.addEventListener('click', () => {
+        if (isDropdownOpen()) closeDropdown(); else openDropdown();
       });
     }
-    if (appPickSelect) {
-      appPickSelect.addEventListener('focus', () => {
-        if (appPickSelect.options.length <= 1) refreshAppDropdown(lastPickQuery);
+    if (appDropdownSearch) {
+      appDropdownSearch.addEventListener('input', () => {
+        if (pickTimer) clearTimeout(pickTimer);
+        pickTimer = setTimeout(() => refreshAppDropdown(appDropdownSearch.value || ''), 180);
       });
-      appPickSelect.addEventListener('change', () => {
-        if (appIdInput) appIdInput.value = appPickSelect.value || '';
+      appDropdownSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); closeDropdown(); }
       });
     }
+    document.addEventListener('click', (e) => {
+      if (!isDropdownOpen()) return;
+      const t = e.target;
+      if (!t) return;
+      if (appDropdownPanel && appDropdownPanel.contains(t)) return;
+      if (appDropdownBtn && appDropdownBtn.contains(t)) return;
+      closeDropdown();
+    });
 
     function render(a) {
       currentAppId = Number(a.application_id || 0);
       currentStatus = (a.status || '').toString().trim();
       if (appIdInput) appIdInput.value = String(currentAppId);
-      if (appPickSelect) appPickSelect.value = String(currentAppId);
+      setDropdownLabel(optionLabel(a));
       document.getElementById('appTitle').textContent = 'APP-' + currentAppId;
       document.getElementById('appSub').textContent = (a.franchise_ref_number || '').toString();
       document.getElementById('opName').textContent = (a.operator_name || '').toString();
