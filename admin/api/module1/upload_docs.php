@@ -42,6 +42,57 @@ $uploaded = [];
 $errors = [];
 $details = [];
 
+function tmm_docs_has_expiry(mysqli $db): bool {
+    $res = $db->query("SHOW TABLES LIKE 'documents'");
+    if (!$res || !$res->fetch_row()) return false;
+    $col = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
+    return $col && $col->num_rows > 0;
+}
+
+function tmm_docs_ensure_expiry(mysqli $db): bool {
+    if (tmm_docs_has_expiry($db)) return true;
+    $res = $db->query("SHOW TABLES LIKE 'documents'");
+    if (!$res || !$res->fetch_row()) return false;
+    return (bool)$db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL");
+}
+
+function tmm_update_vehicle_status_from_docs(mysqli $db, int $vehicleId, string $plate): void {
+    if ($vehicleId <= 0 || $plate === '') return;
+    $hasDocs = $db->query("SHOW TABLES LIKE 'documents'");
+    if (!$hasDocs || !$hasDocs->fetch_row()) return;
+    $hasExpiry = tmm_docs_has_expiry($db);
+    $sql = $hasExpiry
+        ? "SELECT
+            MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr,
+            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
+            MAX(CASE WHEN LOWER(type)='or' AND (expiry_date IS NULL OR expiry_date >= CURDATE()) THEN 1 ELSE 0 END) AS or_valid
+           FROM documents WHERE plate_number=?"
+        : "SELECT
+            MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr,
+            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
+            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS or_valid
+           FROM documents WHERE plate_number=?";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) return;
+    $stmt->bind_param('s', $plate);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $hasCr = (int)($row['has_cr'] ?? 0) === 1;
+    $hasOr = (int)($row['has_or'] ?? 0) === 1;
+    $orValid = (int)($row['or_valid'] ?? 0) === 1;
+    $status = 'Inactive';
+    if ($hasCr) {
+        if (!$hasOr) $status = 'Inactive';
+        else $status = $orValid ? 'Active' : 'Blocked';
+    }
+    $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
+    if (!$stmtU) return;
+    $stmtU->bind_param('si', $status, $vehicleId);
+    $stmtU->execute();
+    $stmtU->close();
+}
+
 function tmm_vehicle_docs_schema(mysqli $db): array {
     static $schema = null;
     if (is_array($schema)) return $schema;
@@ -177,6 +228,17 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
 
 foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+        $orExpiry = null;
+        if ($field === 'or') {
+            $raw = trim((string)($_POST['or_expiry_date'] ?? ''));
+            if ($raw === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $raw)) {
+                $errors[] = "$field: expiry_date_required";
+                continue;
+            }
+            $orExpiry = $raw;
+            tmm_docs_ensure_expiry($db);
+        }
+
         $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['jpg', 'jpeg', 'png', 'pdf'])) {
             $errors[] = "$field: Invalid file type ($ext)";
@@ -201,7 +263,9 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
         $uploaded[] = $filename;
         $docType = 'Others';
         $legacyType = 'deed';
-        if ($field === 'or' || $field === 'cr' || $field === 'orcr') { $docType = 'ORCR'; $legacyType = ($field === 'cr' ? 'cr' : 'or'); }
+        if ($field === 'or') { $docType = 'OR'; $legacyType = 'or'; }
+        elseif ($field === 'cr') { $docType = 'CR'; $legacyType = 'cr'; }
+        elseif ($field === 'orcr') { $docType = 'ORCR'; $legacyType = 'or'; }
         elseif ($field === 'insurance') { $docType = 'Insurance'; $legacyType = 'insurance'; }
         elseif ($field === 'emission') { $docType = 'Emission'; $legacyType = 'others'; }
         elseif ($field === 'deed') { $docType = 'Others'; $legacyType = 'deed'; }
@@ -213,16 +277,28 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
         }
 
         $stmtLegacy = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
-        if ($stmtLegacy) {
-            $stmtLegacy->bind_param('sss', $plate, $legacyType, $filename);
-            $stmtLegacy->execute();
-            $stmtLegacy->close();
+        $docsHasExpiry = tmm_docs_has_expiry($db);
+        if ($docsHasExpiry) {
+            $stmtLegacy = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, ?, ?, ?)");
+            if ($stmtLegacy) {
+                $exp = ($legacyType === 'or') ? ($orExpiry !== null ? $orExpiry : null) : null;
+                $stmtLegacy->bind_param('ssss', $plate, $legacyType, $filename, $exp);
+                $stmtLegacy->execute();
+                $stmtLegacy->close();
+            }
+        } else {
+            if ($stmtLegacy) {
+                $stmtLegacy->bind_param('sss', $plate, $legacyType, $filename);
+                $stmtLegacy->execute();
+                $stmtLegacy->close();
+            }
         }
     }
 }
 
 if (empty($uploaded) && empty($errors)) {
-    echo json_encode(['error' => 'No files selected']);
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'no_files_selected']);
 } elseif (!empty($errors)) {
     $errOut = [];
     foreach ($errors as $e) {
@@ -234,7 +310,9 @@ if (empty($uploaded) && empty($errors)) {
             $errOut[] = $e;
         }
     }
+    http_response_code(400);
     echo json_encode(['ok' => false, 'error' => implode(', ', $errOut), 'details' => $details, 'uploaded' => $uploaded]);
 } else {
+    tmm_update_vehicle_status_from_docs($db, $vehicleId, $plate);
     echo json_encode(['ok' => true, 'files' => $uploaded, 'vehicle_id' => $vehicleId, 'plate_number' => $plate]);
 }

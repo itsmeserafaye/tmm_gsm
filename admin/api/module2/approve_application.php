@@ -90,16 +90,26 @@ try {
   $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
   $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
 
-  $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr','or','cr')";
+  $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr')";
+  $orCond = "LOWER(vd.`{$vdTypeCol}`)='or'";
+  $crCond = "LOWER(vd.`{$vdTypeCol}`)='cr'";
   $verCond = "COALESCE(vd.`{$vdVerifiedCol}`,0)=1";
+  $docsHasExpiry = $hasCol('documents', 'expiry_date');
+  $legacyOrValidCond = $docsHasExpiry ? "(d.expiry_date IS NULL OR d.expiry_date >= CURDATE())" : "1=1";
   $join = $vdHasVehicleId && $vdHasPlate
     ? "(vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))"
     : ($vdHasVehicleId ? "vd.vehicle_id=v.id" : ($vdHasPlate ? "vd.plate_number=v.plate_number" : "0=1"));
 
   $stmtVeh = $db->prepare("SELECT v.id, v.plate_number,
-                                 MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok
+                                 MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok,
+                                 MAX(CASE WHEN {$orCond} AND {$verCond} THEN 1 ELSE 0 END) AS or_ok,
+                                 MAX(CASE WHEN {$crCond} AND {$verCond} THEN 1 ELSE 0 END) AS cr_ok,
+                                 MAX(CASE WHEN LOWER(d.type)='or' AND COALESCE(d.verified,0)=1 AND {$legacyOrValidCond} THEN 1 ELSE 0 END) AS legacy_or_ok,
+                                 MAX(CASE WHEN LOWER(d.type)='cr' AND COALESCE(d.verified,0)=1 THEN 1 ELSE 0 END) AS legacy_cr_ok,
+                                 MAX(CASE WHEN LOWER(d.type) IN ('orcr','or/cr') AND COALESCE(d.verified,0)=1 THEN 1 ELSE 0 END) AS legacy_orcr_ok
                           FROM vehicles v
                           LEFT JOIN vehicle_documents vd ON {$join}
+                          LEFT JOIN documents d ON d.plate_number=v.plate_number
                           WHERE v.operator_id=?
                             AND (COALESCE(v.record_status,'') <> 'Archived')
                           GROUP BY v.id, v.plate_number
@@ -114,9 +124,15 @@ try {
   while ($r = $resVeh->fetch_assoc()) {
     $totalLinked++;
     $plate = (string)($r['plate_number'] ?? '');
-    $hasOrcr = ((int)($r['orcr_ok'] ?? 0)) === 1;
-    if ($hasOrcr) $okCount++;
-    else if ($plate !== '') $missing[] = $plate;
+    $orcrOk = ((int)($r['orcr_ok'] ?? 0)) === 1 || ((int)($r['legacy_orcr_ok'] ?? 0)) === 1;
+    $orOk = ((int)($r['or_ok'] ?? 0)) === 1 || ((int)($r['legacy_or_ok'] ?? 0)) === 1;
+    $crOk = ((int)($r['cr_ok'] ?? 0)) === 1 || ((int)($r['legacy_cr_ok'] ?? 0)) === 1;
+    $pass = $orcrOk || ($orOk && $crOk);
+    if ($pass) {
+      $okCount++;
+    } else if ($plate !== '') {
+      $missing[] = $plate;
+    }
   }
   $stmtVeh->close();
 

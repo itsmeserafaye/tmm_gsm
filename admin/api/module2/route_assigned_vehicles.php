@@ -17,6 +17,7 @@ $stmt = $db->prepare("SELECT
   v.id AS vehicle_id,
   v.plate_number,
   v.vehicle_type,
+  v.status AS vehicle_status,
   COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name,
   COALESCE(o.operator_type, CASE WHEN COALESCE(NULLIF(v.coop_name,''), '') <> '' THEN 'Cooperative' ELSE 'Individual' END) AS operator_type,
   fa.franchise_ref_number,

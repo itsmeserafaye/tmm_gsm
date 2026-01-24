@@ -63,7 +63,7 @@ $rows = [];
 if ($vehicleId > 0) {
   $useNew = tmm_has_column($db, $schema, 'vehicle_documents', 'vehicle_id') && tmm_has_column($db, $schema, 'vehicle_documents', 'doc_type');
   if ($useNew) {
-    $sql = "SELECT doc_id AS id, ? AS plate_number, doc_type AS type, file_path, uploaded_at, is_verified, verified_by, verified_at FROM vehicle_documents WHERE vehicle_id=?";
+    $sql = "SELECT doc_id AS id, ? AS plate_number, doc_type AS type, file_path, uploaded_at, is_verified, verified_by, verified_at, NULL AS expiry_date FROM vehicle_documents WHERE vehicle_id=?";
     $params = [$plate, $vehicleId];
     $types = 'si';
     if ($type !== '') {
@@ -77,8 +77,36 @@ if ($vehicleId > 0) {
       $stmt->bind_param($types, ...$params);
       $stmt->execute();
       $res = $stmt->get_result();
-      while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+      while ($row = $res->fetch_assoc()) { $row['source'] = 'vehicle_documents'; $rows[] = $row; }
       $stmt->close();
+    }
+    if ($plate !== '' && tmm_has_column($db, $schema, 'documents', 'plate_number')) {
+      $hasExpiry = tmm_has_column($db, $schema, 'documents', 'expiry_date');
+      $sql = "SELECT id AS id, plate_number, UPPER(type) AS type, file_path, uploaded_at, verified AS is_verified, NULL AS verified_by, NULL AS verified_at
+              " . ($hasExpiry ? ", expiry_date" : ", NULL AS expiry_date") . "
+              FROM documents
+              WHERE plate_number=?";
+      $params = [$plate];
+      $types = 's';
+      if ($type !== '') {
+        $t = strtolower($type);
+        if ($t === 'orcr' || $t === 'or/cr') {
+          $sql .= " AND LOWER(type) IN ('or','cr','orcr','or/cr')";
+        } else {
+          $sql .= " AND LOWER(type)=?";
+          $params[] = $t;
+          $types .= 's';
+        }
+      }
+      $sql .= " ORDER BY uploaded_at DESC";
+      $stmt = $db->prepare($sql);
+      if ($stmt) {
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) { $row['source'] = 'documents'; $rows[] = $row; }
+        $stmt->close();
+      }
     }
   } else {
     $useLegacyVehDocs = tmm_has_column($db, $schema, 'vehicle_documents', 'plate_number') && tmm_has_column($db, $schema, 'vehicle_documents', 'file_path');
@@ -120,6 +148,12 @@ if ($vehicleId > 0) {
     }
   }
 }
+
+usort($rows, function ($a, $b) {
+  $ta = (string)($a['uploaded_at'] ?? '');
+  $tb = (string)($b['uploaded_at'] ?? '');
+  return strcmp($tb, $ta);
+});
 
 echo json_encode(['ok' => true, 'data' => $rows]);
 ?>

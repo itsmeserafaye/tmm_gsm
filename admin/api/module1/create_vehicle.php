@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/security.php';
 
 header('Content-Type: application/json');
 
@@ -52,7 +53,42 @@ try {
         exit;
     }
 
-    $vehicleStatus = 'Active';
+    $ensureExpiryCol = function () use ($db): bool {
+        $res = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
+        if ($res && $res->num_rows > 0) return true;
+        $tbl = $db->query("SHOW TABLES LIKE 'documents'");
+        if (!$tbl || !$tbl->fetch_row()) return false;
+        return (bool)$db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL");
+    };
+
+    $uploadsDir = __DIR__ . '/../../uploads';
+    if (!is_dir($uploadsDir)) {
+        @mkdir($uploadsDir, 0777, true);
+    }
+
+    $crFile = $_FILES['cr'] ?? null;
+    if (!is_array($crFile) || (int)($crFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'cr_required']);
+        exit;
+    }
+
+    $orFile = $_FILES['or'] ?? null;
+    $hasOrUpload = is_array($orFile) && (int)($orFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+    $orExpiry = trim((string)($_POST['or_expiry_date'] ?? ''));
+    if ($hasOrUpload) {
+        if ($orExpiry === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $orExpiry)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'or_expiry_required']);
+            exit;
+        }
+    }
+
+    $vehicleStatus = 'Inactive';
+    if ($hasOrUpload) {
+        $today = date('Y-m-d');
+        $vehicleStatus = ($orExpiry !== '' && $orExpiry < $today) ? 'Blocked' : 'Active';
+    }
     $recordStatus = ($operatorId > 0 || $operatorName !== '') ? 'Linked' : 'Encoded';
 
     $opNameResolved = '';
@@ -75,6 +111,8 @@ try {
     $franchise = '';
     $inspectionStatus = 'Pending';
 
+    $db->begin_transaction();
+
     $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status)
                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                           ON DUPLICATE KEY UPDATE
@@ -89,7 +127,7 @@ try {
                             fuel_type=VALUES(fuel_type),
                             color=VALUES(color),
                             record_status=VALUES(record_status),
-                            status=CASE WHEN status IS NULL OR status='' OR status IN ('Linked','Unlinked') THEN VALUES(status) ELSE status END,
+                            status=VALUES(status),
                             inspection_status=COALESCE(NULLIF(inspection_status,''), VALUES(inspection_status))");
     if (!$stmt) {
         http_response_code(500);
@@ -99,13 +137,84 @@ try {
     $operatorIdBind = $operatorId > 0 ? $operatorId : null;
     $stmt->bind_param('ssisssssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus);
     $ok = $stmt->execute();
+    if (!$ok) {
+        $db->rollback();
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'db_insert_failed']);
+        exit;
+    }
+    $vehicleId = (int)$db->insert_id;
+    if ($vehicleId <= 0) {
+        $chk = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
+        if ($chk) {
+            $chk->bind_param('s', $plate);
+            $chk->execute();
+            $row = $chk->get_result()->fetch_assoc();
+            $chk->close();
+            $vehicleId = (int)($row['id'] ?? 0);
+        }
+    }
 
-    echo json_encode(['ok' => $ok, 'vehicle_id' => (int)$db->insert_id, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus]);
+    $moveAndScan = function (array $file, string $suffix) use ($uploadsDir, $plate): string {
+        $name = (string)($file['name'] ?? '');
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) {
+            throw new Exception('invalid_file_type');
+        }
+        $filename = $plate . '_' . $suffix . '_' . time() . '.' . $ext;
+        $dest = $uploadsDir . '/' . $filename;
+        if (!move_uploaded_file((string)$file['tmp_name'], $dest)) {
+            throw new Exception('upload_move_failed');
+        }
+        $safe = tmm_scan_file_for_viruses($dest);
+        if (!$safe) {
+            if (is_file($dest)) { @unlink($dest); }
+            throw new Exception('file_failed_security_scan');
+        }
+        return $filename;
+    };
+
+    $ensureExpiryCol();
+
+    $insertDoc = function (string $typeLower, string $filePath, ?string $expiry) use ($db, $plate): void {
+        $hasExpiry = false;
+        $r = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
+        if ($r && $r->num_rows > 0) $hasExpiry = true;
+        if ($hasExpiry) {
+            $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, ?, ?, ?)");
+            if (!$stmtD) throw new Exception('db_prepare_failed');
+            $stmtD->bind_param('ssss', $plate, $typeLower, $filePath, $expiry);
+            if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
+            $stmtD->close();
+        } else {
+            $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
+            if (!$stmtD) throw new Exception('db_prepare_failed');
+            $stmtD->bind_param('sss', $plate, $typeLower, $filePath);
+            if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
+            $stmtD->close();
+        }
+    };
+
+    $crPath = $moveAndScan($crFile, 'cr');
+    $insertDoc('cr', $crPath, null);
+
+    if ($hasOrUpload) {
+        $orPath = $moveAndScan($orFile, 'or');
+        $insertDoc('or', $orPath, $orExpiry !== '' ? $orExpiry : null);
+    }
+
+    $db->commit();
+
+    echo json_encode(['ok' => true, 'vehicle_id' => $vehicleId, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus]);
 } catch (Exception $e) {
     if (defined('TMM_TEST')) {
         throw $e;
     }
+    if (isset($db) && $db instanceof mysqli) {
+        try { $db->rollback(); } catch (Throwable $_) {}
+    }
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    $msg = $e->getMessage();
+    echo json_encode(['ok' => false, 'error' => $msg !== '' ? $msg : 'request_failed']);
 }
 ?> 

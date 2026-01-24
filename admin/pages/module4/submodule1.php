@@ -146,15 +146,39 @@ $res = $db->query($sql);
             <?php while ($row = $res->fetch_assoc()): ?>
               <?php
                 $reg = (string)($row['registration_status'] ?? '');
+                $vehSt = (string)($row['vehicle_status'] ?? '');
                 $badge = match($reg) {
                   'Registered', 'Recorded' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
                   'Expired' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Pending' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
+                $vehBadge = match($vehSt) {
+                  'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Inactive' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Blocked' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
+                };
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($row['plate_number'] ?? '')); ?></td>
+                <td class="py-4 px-6">
+                  <div class="font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($row['plate_number'] ?? '')); ?></div>
+                  <?php if ($vehSt === 'Blocked'): ?>
+                    <div class="mt-1 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                      <i data-lucide="octagon-alert" class="w-4 h-4"></i>
+                      Operation blocked (OR expired)
+                    </div>
+                  <?php elseif ($vehSt === 'Inactive'): ?>
+                    <div class="mt-1 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-50 text-amber-800 border border-amber-200">
+                      <i data-lucide="triangle-alert" class="w-4 h-4"></i>
+                      Inactive (missing OR)
+                    </div>
+                  <?php elseif ($vehSt !== ''): ?>
+                    <div class="mt-1">
+                      <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ring-1 ring-inset <?php echo $vehBadge; ?>"><?php echo htmlspecialchars($vehSt); ?></span>
+                    </div>
+                  <?php endif; ?>
+                </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">
                   <?php
                     $orcr = trim((string)($row['orcr_no'] ?? ''));

@@ -40,6 +40,7 @@ $statusClass = match($v['status']) {
     'Active' => 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
     'Linked' => 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
     'Unlinked' => 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+    'Blocked' => 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
     'Inactive' => 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
     default => 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20'
 };
@@ -69,6 +70,18 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         <?php echo htmlspecialchars($v['status']); ?>
                     </span>
                 </div>
+                <?php $vs = (string)($v['status'] ?? ''); ?>
+                <?php if ($vs === 'Blocked'): ?>
+                    <div class="mt-2 inline-flex items-center gap-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 text-xs font-bold">
+                        <i data-lucide="octagon-alert" class="w-4 h-4"></i>
+                        Operation blocked (OR expired)
+                    </div>
+                <?php elseif ($vs === 'Inactive'): ?>
+                    <div class="mt-2 inline-flex items-center gap-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1.5 text-xs font-bold">
+                        <i data-lucide="triangle-alert" class="w-4 h-4"></i>
+                        Inactive (missing OR)
+                    </div>
+                <?php endif; ?>
                 <div class="text-base font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
                     <i data-lucide="user" class="w-4 h-4"></i>
                     <?php echo htmlspecialchars($v['operator_display'] !== '' ? $v['operator_display'] : 'Unlinked'); ?>
@@ -330,6 +343,13 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <span class="text-[10px] font-medium text-slate-500">Emission</span>
                                     <input name="emission" type="file" accept=".pdf,.jpg,.jpeg,.png" class="hidden">
                                 </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">OR Expiry Date (required if OR uploaded)</label>
+                                <input name="or_expiry_date" type="date" class="<?php echo $inputClass; ?>">
                             </div>
                         </div>
 

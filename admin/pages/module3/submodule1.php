@@ -473,10 +473,19 @@ if ($res) {
       if (!key) return;
       if (platePickSeen[key]) return;
       platePickSeen[key] = true;
+      var st = (item.status || '').toString();
+      var stLabel = '';
+      var stClass = '';
+      if (st === 'Blocked') { stLabel = 'Operation blocked'; stClass = 'bg-rose-100 text-rose-700 border border-rose-200'; }
+      else if (st === 'Inactive') { stLabel = 'Inactive'; stClass = 'bg-amber-100 text-amber-700 border border-amber-200'; }
+      else if (st === 'Active') { stLabel = 'Active'; stClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200'; }
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
-      btn.innerHTML = '<div class="font-bold text-slate-800 dark:text-white text-sm">' + String(item.plate_number) + '</div>' +
+      btn.innerHTML = '<div class="flex items-center justify-between gap-2">' +
+        '<div class="font-bold text-slate-800 dark:text-white text-sm">' + String(item.plate_number) + '</div>' +
+        (stLabel ? ('<span class="px-2 py-0.5 rounded-full text-[10px] font-black ' + stClass + '">' + stLabel + '</span>') : '') +
+        '</div>' +
         '<div class="text-xs text-slate-500">' + String(item.operator_name || 'Unknown Operator') + '</div>';
       btn.addEventListener('click', function () { pickPlate(item.plate_number, item.operator_name || ''); });
       plateDropdownList.appendChild(btn);

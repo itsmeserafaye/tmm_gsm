@@ -255,6 +255,7 @@ if ($rootUrl === '/') $rootUrl = '';
       assignedBody.innerHTML = rows.map(r => {
         const plate = (r.plate_number || '-').toString();
         const vtype = (r.vehicle_type || '-').toString();
+        const vstatus = (r.vehicle_status || '').toString();
         const op = (r.operator_name || '-').toString();
         const opType = (r.operator_type || '-').toString();
         const fr = (r.franchise_ref_number || '-').toString();
@@ -262,9 +263,17 @@ if ($rootUrl === '/') $rootUrl = '';
         const badge = (st === 'LTFRB-Approved' || st === 'Approved')
           ? 'bg-emerald-100 text-emerald-700'
           : ((st === 'Endorsed' || st === 'LGU-Endorsed') ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-700');
+        const vWarn = vstatus === 'Blocked'
+          ? '<div class="mt-1 inline-flex items-center gap-2 px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">Operation blocked</div>'
+          : (vstatus === 'Inactive'
+            ? '<div class="mt-1 inline-flex items-center gap-2 px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200">Inactive</div>'
+            : '');
         return `
           <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-            <td class="py-3 px-4 font-black text-slate-900 dark:text-white">${plate}</td>
+            <td class="py-3 px-4">
+              <div class="font-black text-slate-900 dark:text-white">${plate}</div>
+              ${vWarn}
+            </td>
             <td class="py-3 px-3 text-slate-700 dark:text-slate-200 font-semibold">${vtype}</td>
             <td class="py-3 px-3 text-slate-700 dark:text-slate-200 font-semibold">${op}</td>
             <td class="py-3 px-3 text-slate-700 dark:text-slate-200 font-semibold">${opType}</td>

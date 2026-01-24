@@ -22,6 +22,7 @@ function tmm_has_column_mod1_sub2(mysqli $db, string $schema, string $table, str
 $vdHasVehicleId = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'vehicle_id');
 $vdHasPlate = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'plate_number');
 $orcrCond = "LOWER(vd.doc_type) IN ('orcr','or/cr','or','cr')";
+$docsHasExpiry = tmm_has_column_mod1_sub2($db, $schema, 'documents', 'expiry_date');
 
 $statTotalVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0);
 $statLinkedVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NOT NULL AND operator_id>0")->fetch_assoc()['c'] ?? 0);
@@ -266,6 +267,7 @@ $typesList = vehicle_types();
                 };
                 $badgeSt = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Blocked' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Linked' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/20',
                   'Unlinked' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
@@ -288,14 +290,51 @@ $typesList = vehicle_types();
                   <?php endif; ?>
                 </td>
                 <td class="py-4 px-4 hidden lg:table-cell">
-                  <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $hasOrcr ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'; ?>">
-                    OR/CR <?php echo $hasOrcr ? 'On file' : 'Missing'; ?>
+                  <?php
+                    $plateKey = $db->real_escape_string($plateUp);
+                    $docsTbl = $db->query("SHOW TABLES LIKE 'documents'");
+                    $hasDocsTbl = (bool)($docsTbl && $docsTbl->fetch_row());
+                    $hasOr = false;
+                    $hasCr = false;
+                    $orValid = true;
+                    if ($hasDocsTbl) {
+                      $rr = $db->query("SELECT
+                                          MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
+                                          MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr" . ($docsHasExpiry ? ",
+                                          MAX(CASE WHEN LOWER(type)='or' AND (expiry_date IS NULL OR expiry_date >= CURDATE()) THEN 1 ELSE 0 END) AS or_valid" : "") . "
+                                        FROM documents WHERE plate_number='{$plateKey}'");
+                      $m = $rr ? $rr->fetch_assoc() : null;
+                      $hasOr = (int)($m['has_or'] ?? 0) === 1;
+                      $hasCr = (int)($m['has_cr'] ?? 0) === 1;
+                      if ($docsHasExpiry) $orValid = (int)($m['or_valid'] ?? 0) === 1;
+                    }
+                    $label = 'Missing';
+                    if ($hasOr && !$orValid) $label = 'OR expired';
+                    else if ($hasOr && $hasCr) $label = 'OR & CR on file';
+                    else if ($hasOr) $label = 'OR on file';
+                    else if ($hasCr) $label = 'CR on file';
+                    else if ($hasOrcr) $label = 'OR/CR on file';
+                    $ok = $label !== 'Missing';
+                  ?>
+                  <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $ok ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'; ?>">
+                    <?php echo htmlspecialchars($label); ?>
                   </span>
                 </td>
                 <td class="py-4 px-4">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeRs; ?>"><?php echo htmlspecialchars($rs); ?></span>
                     <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeSt; ?>"><?php echo htmlspecialchars($st); ?></span>
+                    <?php if ($st === 'Blocked'): ?>
+                      <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-2">
+                        <i data-lucide="octagon-alert" class="w-4 h-4"></i>
+                        Operation blocked
+                      </span>
+                    <?php elseif ($st === 'Inactive'): ?>
+                      <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-2">
+                        <i data-lucide="triangle-alert" class="w-4 h-4"></i>
+                        Missing OR
+                      </span>
+                    <?php endif; ?>
                   </div>
                 </td>
                 <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">
@@ -435,8 +474,16 @@ $typesList = vehicle_types();
             <input type="hidden" name="vehicle_id" value="${vehicleId}">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR (PDF/JPG/PNG)</label>
-                <input name="orcr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR (PDF/JPG/PNG)</label>
+                <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CR (PDF/JPG/PNG)</label>
+                <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date (required if OR uploaded)</label>
+                <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance</label>
@@ -463,7 +510,7 @@ $typesList = vehicle_types();
 
         async function loadDocs() {
           try {
-            const res = await fetch(rootUrl + '/admin/api/module1/list_documents.php?vehicle_id=' + encodeURIComponent(vehicleId));
+            const res = await fetch(rootUrl + '/admin/api/module1/list_documents.php?vehicle_id=' + encodeURIComponent(vehicleId) + '&plate=' + encodeURIComponent(plate));
             const data = await res.json();
             const list = document.getElementById('vehDocsList');
             if (!list) return;
@@ -474,22 +521,57 @@ $typesList = vehicle_types();
               const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
               const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
               const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+              const expRaw = (d.expiry_date || '').toString();
+              const expDate = expRaw ? new Date(expRaw + 'T00:00:00') : null;
+              const expText = expDate && !isNaN(expDate.getTime()) ? expDate.toLocaleDateString() : '';
+              const isV = Number(d.is_verified || 0) === 1;
+              const badge = isV
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+              const canVerify = (d.source || '') === 'vehicle_documents' || (d.source || '') === 'documents';
               return `
-                <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all mb-2">
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all mb-2">
                   <div class="flex items-center gap-3">
                     <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500">
                       <i data-lucide="file" class="w-4 h-4"></i>
                     </div>
                     <div>
-                      <div class="text-sm font-black text-slate-800 dark:text-white">${(d.type || '').toString()}</div>
-                      <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+                      <div class="flex items-center gap-2">
+                        <div class="text-sm font-black text-slate-800 dark:text-white">${(d.type || '').toString()}</div>
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${badge}">${isV ? 'Verified' : 'Pending'}</span>
+                      </div>
+                      <div class="text-xs text-slate-500 dark:text-slate-400">${date}${(String(d.type||'').toUpperCase()==='OR' && expText) ? (' • Expires: ' + expText) : ''}</div>
                     </div>
                   </div>
-                  <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
-                </a>
+                  <div class="flex items-center gap-1.5">
+                    ${canVerify ? `<button type="button" class="px-3 py-2 rounded-lg text-xs font-bold ${isV ? 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}" data-doc-verify="1" data-source="${(d.source||'')}" data-id="${String(d.id||'')}" data-next="${isV ? '0' : '1'}">${isV ? 'Mark Pending' : 'Verify'}</button>` : ``}
+                    <a href="${href}" target="_blank" class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800 transition-all" title="View"><i data-lucide="external-link" class="w-4 h-4"></i></a>
+                  </div>
+                </div>
               `;
             }).join('');
             if (window.lucide) window.lucide.createIcons();
+            list.querySelectorAll('[data-doc-verify="1"]').forEach((b) => {
+              b.addEventListener('click', async () => {
+                const id = b.getAttribute('data-id') || '';
+                const source = b.getAttribute('data-source') || '';
+                const next = b.getAttribute('data-next') || '';
+                if (!id || !source) return;
+                const fd = new FormData();
+                fd.append('doc_id', id);
+                fd.append('source', source);
+                fd.append('is_verified', next);
+                try {
+                  const rr = await fetch(rootUrl + '/admin/api/module1/verify_document.php', { method: 'POST', body: fd });
+                  const dd = await rr.json().catch(() => null);
+                  if (!dd || !dd.ok) throw new Error((dd && dd.error) ? dd.error : 'verify_failed');
+                  showToast('Updated verification.');
+                  await loadDocs();
+                } catch (e) {
+                  showToast('Failed to update verification.', 'error');
+                }
+              });
+            });
           } catch (err) {
             const list = document.getElementById('vehDocsList');
             if (list) list.innerHTML = '<div class="text-rose-600">Failed to load documents.</div>';
@@ -504,7 +586,7 @@ $typesList = vehicle_types();
           form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const fd = new FormData(form);
-            const hasFiles = ['orcr','insurance','others'].some((k) => fd.get(k) && fd.get(k).name);
+            const hasFiles = ['or','cr','insurance','others'].some((k) => fd.get(k) && fd.get(k).name);
             if (!hasFiles) { showToast('Select at least one file.', 'error'); return; }
             btnSave.disabled = true;
             btnSave.textContent = 'Uploading...';
@@ -605,9 +687,26 @@ $typesList = vehicle_types();
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Color (optional)</label>
                 <input name="color" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., White">
               </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR (optional)</label>
-                <input name="orcr_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Required Documents</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR (Required)</label>
+                  <input name="cr" type="file" required accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+                  <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">CR missing → Cannot encode.</div>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR (Optional)</label>
+                  <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm" data-or-file="1">
+                  <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR missing → Encoded but Inactive.</div>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR Expiry Date</label>
+                  <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
+                  <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR expired → Operation blocked.</div>
+                </div>
               </div>
             </div>
 
@@ -772,6 +871,19 @@ $typesList = vehicle_types();
           fuelOtherInput.addEventListener('blur', () => { fuelHidden.value = fuelOtherInput.value; });
         }
 
+        const orFileInput = form.querySelector('[data-or-file="1"]');
+        const orExpiryInput = form.querySelector('[data-or-expiry="1"]');
+        const syncOrExpiryRequired = () => {
+          const hasOr = !!(orFileInput && orFileInput.files && orFileInput.files.length > 0);
+          if (orExpiryInput) {
+            orExpiryInput.required = hasOr;
+            if (!hasOr) orExpiryInput.setCustomValidity('');
+          }
+        };
+        if (orFileInput) orFileInput.addEventListener('change', syncOrExpiryRequired);
+        if (orExpiryInput) orExpiryInput.addEventListener('change', syncOrExpiryRequired);
+        syncOrExpiryRequired();
+
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
           if (!form.checkValidity()) { form.reportValidity(); return; }
@@ -779,32 +891,20 @@ $typesList = vehicle_types();
           btnSave.textContent = 'Saving...';
           try {
             const fd = new FormData(form);
-            const saveFd = new FormData();
-            ['plate_no','vehicle_type','engine_no','chassis_no','make','model','year_model','fuel_type','color'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
-
-            const res = await fetch(rootUrl + '/admin/api/module1/create_vehicle.php', { method: 'POST', body: saveFd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-            const vehicleId = Number(data.vehicle_id || 0);
-            const plate = (data.plate_number || fd.get('plate_no') || '').toString().toUpperCase().trim();
-
-            const f = fd.get('orcr_file');
-            if (vehicleId > 0 && f && f.name) {
-              const docsFd = new FormData();
-              docsFd.append('vehicle_id', String(vehicleId));
-              docsFd.append('orcr', f);
-              const res2 = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: docsFd });
-              const data2 = await res2.json();
-              if (!data2 || !data2.ok) {
-                const base = (data2 && data2.error) ? String(data2.error) : 'upload_failed';
-                const extra = (data2 && data2.details)
-                  ? (typeof data2.details === 'string' ? data2.details : JSON.stringify(data2.details))
-                  : '';
-                throw new Error(extra ? (base + ' ' + extra) : base);
-              }
+            const res = await fetch(rootUrl + '/admin/api/module1/create_vehicle.php', { method: 'POST', body: fd });
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok) {
+              const code = (data && data.error) ? String(data.error) : 'save_failed';
+              const msg = code === 'cr_required' ? 'CR is required. Upload CR to encode the vehicle.'
+                : code === 'or_expiry_required' ? 'OR expiry date is required when uploading OR.'
+                : (data && data.message) ? String(data.message) : code;
+              throw new Error(msg);
             }
-
-            showToast('Vehicle saved successfully.');
+            const plate = (data.plate_number || fd.get('plate_no') || '').toString().toUpperCase().trim();
+            const st = (data.status || '').toString();
+            if (st === 'Active') showToast('Vehicle saved. Status: ACTIVE');
+            else if (st === 'Blocked') showToast('Vehicle saved. Status: BLOCKED (OR expired)', 'error');
+            else showToast('Vehicle saved. Status: INACTIVE (missing OR)');
             const params = new URLSearchParams(window.location.search || '');
             params.set('page', 'module1/submodule2');
             if (plate) params.set('highlight_plate', plate);
