@@ -158,6 +158,28 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
   </div>
 </div>
 
+<!-- Approve Transfer Modal -->
+<div id="modalApproveTransfer" class="fixed inset-0 z-[200] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+    <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Approve Transfer</h3>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Confirm approval and set effective date.</p>
+    </div>
+    <form id="formApproveTransfer" class="p-6 space-y-4">
+      <input type="hidden" name="transfer_id">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Effective Date</label>
+        <input type="date" name="effective_date" required class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+        <p class="text-xs text-slate-400 mt-1.5">Date when the transfer becomes legally active.</p>
+      </div>
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" id="btnCancelApprove" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+        <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95">Confirm Approval</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
@@ -329,34 +351,73 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
           const action = btn.getAttribute('data-act');
           const id = btn.getAttribute('data-id');
           if (!id) return;
-          let remarks = '';
-          let eff = '';
-          if (action === 'reject') {
-            remarks = (prompt('Reject remarks (required):') || '').trim();
-            if (!remarks) { showToast('Remarks required.', 'error'); return; }
-          } else {
-            eff = (prompt('Effective date (YYYY-MM-DD) optional:', '') || '').trim();
-            if (eff && !/^\d{4}\-\d{2}\-\d{2}$/.test(eff)) { showToast('Invalid date format.', 'error'); return; }
+
+          if (action === 'approve') {
+            // Open Modal
+            const modal = document.getElementById('modalApproveTransfer');
+            const form = document.getElementById('formApproveTransfer');
+            if (modal && form) {
+              form.reset();
+              form.querySelector('[name="transfer_id"]').value = id;
+              // Set default date to today
+              form.querySelector('[name="effective_date"]').value = new Date().toISOString().split('T')[0];
+              modal.classList.remove('hidden');
+              modal.classList.add('flex');
+            }
+            return;
           }
-          const fd = new FormData();
-          fd.append('transfer_id', id);
-          fd.append('action', action);
-          if (remarks) fd.append('remarks', remarks);
-          if (eff) fd.append('effective_date', eff);
-          try {
-            const res = await fetch(rootUrl + '/admin/api/module1/ownership_transfer_review.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
-            showToast(action === 'approve' ? 'Transfer approved.' : 'Transfer rejected.');
-            await refresh();
-          } catch (err) {
-            const raw = (err && err.message) ? String(err.message) : '';
-            const msg = raw === 'active_violations' ? 'Cannot approve: vehicle has active violations.'
-              : raw === 'orcr_not_valid' ? 'Cannot approve: OR/CR is not valid.'
-              : (raw || 'Failed');
-            showToast(msg, 'error');
+
+          // Reject Logic
+          if (action === 'reject') {
+            const remarks = (prompt('Reject remarks (required):') || '').trim();
+            if (!remarks) { showToast('Remarks required.', 'error'); return; }
+            
+            const fd = new FormData();
+            fd.append('transfer_id', id);
+            fd.append('action', action);
+            fd.append('remarks', remarks);
+            submitReview(fd, action);
           }
         });
+      });
+    }
+
+    async function submitReview(fd, action) {
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module1/ownership_transfer_review.php', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
+        showToast(action === 'approve' ? 'Transfer approved.' : 'Transfer rejected.');
+        await refresh();
+      } catch (err) {
+        const raw = (err && err.message) ? String(err.message) : '';
+        const msg = raw === 'active_violations' ? 'Cannot approve: vehicle has active violations.'
+          : raw === 'orcr_not_valid' ? 'Cannot approve: OR/CR is not valid.'
+          : (raw || 'Failed');
+        showToast(msg, 'error');
+      }
+    }
+
+    // Modal Logic
+    const modalApprove = document.getElementById('modalApproveTransfer');
+    const formApprove = document.getElementById('formApproveTransfer');
+    const btnCancelApprove = document.getElementById('btnCancelApprove');
+
+    if (btnCancelApprove && modalApprove) {
+      btnCancelApprove.addEventListener('click', () => {
+        modalApprove.classList.add('hidden');
+        modalApprove.classList.remove('flex');
+      });
+    }
+
+    if (formApprove && modalApprove) {
+      formApprove.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(formApprove);
+        fd.append('action', 'approve');
+        submitReview(fd, 'approve');
+        modalApprove.classList.add('hidden');
+        modalApprove.classList.remove('flex');
       });
     }
 

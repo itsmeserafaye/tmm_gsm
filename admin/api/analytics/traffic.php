@@ -76,9 +76,9 @@ function traffic_factor_from_metrics(?float $congestionPct, int $incCount): floa
 }
 
 function traffic_city_snapshot(mysqli $db, float $radiusKm): array {
-  $lat = (float)tmm_setting($db, 'weather_lat', '14.5995');
-  $lon = (float)tmm_setting($db, 'weather_lon', '120.9842');
-  $label = (string)tmm_setting($db, 'weather_label', 'City Center');
+  $lat = (float)tmm_setting($db, 'weather_lat', '14.6571');
+  $lon = (float)tmm_setting($db, 'weather_lon', '120.9841');
+  $label = (string)tmm_setting($db, 'weather_label', 'Caloocan City');
   $flow = tmm_tomtom_traffic_flow($db, $lat, $lon);
   $inc = tmm_tomtom_traffic_incidents($db, $lat, $lon, $radiusKm);
   $fm = traffic_flow_metrics($flow);

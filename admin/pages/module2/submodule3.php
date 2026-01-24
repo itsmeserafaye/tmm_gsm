@@ -86,20 +86,32 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
           </div>
           <div class="space-y-4">
-            <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <div id="sectionEndorse" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Endorse</div>
               <form id="formEndorse" class="space-y-4 mt-4" novalidate>
                 <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Verified documents; ready for approval."></textarea>
                 <button id="btnEndorse" class="w-full px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Endorse</button>
               </form>
             </div>
-            <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <div id="sectionApprove" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hidden">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Approval Entry</div>
               <form id="formApprove" class="space-y-4 mt-4" novalidate>
-                <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][0-9\\-\\/]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
-                <input name="decision_order_no" required maxlength="40" pattern="^[0-9]{3,40}$" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1002003">
-                <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <input name="remarks" maxlength="200" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Valid until expiry date">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LTFRB Reference No</label>
+                  <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][0-9\\-\\/]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Decision Order No</label>
+                  <input name="decision_order_no" required maxlength="40" pattern="^[0-9]{3,40}$" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1002003">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Expiry Date</label>
+                  <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Remarks</label>
+                  <input name="remarks" maxlength="200" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Valid until expiry date">
+                </div>
                 <button id="btnApprove" class="w-full px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Save Approval</button>
               </form>
             </div>
@@ -150,8 +162,30 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     function setEnabled() {
-      btnEndorse.disabled = currentStatus !== 'Submitted';
-      btnApprove.disabled = !(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'].includes(currentStatus));
+      const sectionEndorse = document.getElementById('sectionEndorse');
+      const sectionApprove = document.getElementById('sectionApprove');
+      
+      // Endorse Section: Visible only if status is Submitted
+      if (sectionEndorse) {
+        if (currentStatus === 'Submitted') {
+          sectionEndorse.classList.remove('hidden');
+          btnEndorse.disabled = false;
+        } else {
+          sectionEndorse.classList.add('hidden');
+          btnEndorse.disabled = true;
+        }
+      }
+
+      // Approve Section: Visible only if Endorsed or Approved
+      if (sectionApprove) {
+        if (['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved'].includes(currentStatus)) {
+          sectionApprove.classList.remove('hidden');
+          btnApprove.disabled = false;
+        } else {
+          sectionApprove.classList.add('hidden');
+          btnApprove.disabled = true;
+        }
+      }
     }
 
     async function loadApp(appId) {
