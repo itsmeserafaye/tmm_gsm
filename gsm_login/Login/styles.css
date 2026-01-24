@@ -2,13 +2,13 @@
 
 /* Color Palette Variables */
 :root {
-    --primary: #4CAF50;
-    --secondary: #4A90E2;
-    --accent: #FDA811;
+    --primary: #4A90E2;
+    --secondary: #9AA5B1;
+    --accent: #4CAF50;
     --background: #FBFBFB;
-    --gradient-primary: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    --gradient-secondary: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
-    --gradient-accent: linear-gradient(135deg, #FDA811 0%, #FF8C00 100%);
+    --gradient-primary: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+    --gradient-secondary: linear-gradient(135deg, #9AA5B1 0%, #7F8C9A 100%);
+    --gradient-accent: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.1);
     --shadow-medium: 0 20px 60px rgba(0, 0, 0, 0.15);
     --shadow-strong: 0 30px 80px rgba(0, 0, 0, 0.2);
