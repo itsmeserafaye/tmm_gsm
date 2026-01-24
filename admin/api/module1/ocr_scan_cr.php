@@ -105,12 +105,40 @@ function ocr_extract_fields(string $raw): array {
 function ocr_find_tesseract_path(): string {
   $fromEnv = trim((string)getenv('TMM_TESSERACT_PATH'));
   if ($fromEnv !== '') return $fromEnv;
+  $root = realpath(__DIR__ . '/../../../');
+  if ($root) {
+    $win = $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'tesseract' . DIRECTORY_SEPARATOR . 'tesseract.exe';
+    if (is_file($win)) return $win;
+    $nix = $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'tesseract' . DIRECTORY_SEPARATOR . 'tesseract';
+    if (is_file($nix)) return $nix;
+  }
   return 'tesseract';
+}
+
+function ocr_find_tessdata_dir(): string {
+  $fromEnv = trim((string)getenv('TMM_TESSDATA_DIR'));
+  if ($fromEnv !== '') return $fromEnv;
+  $root = realpath(__DIR__ . '/../../../');
+  if ($root) {
+    $t = $root . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'tesseract' . DIRECTORY_SEPARATOR . 'tessdata';
+    if (is_dir($t) && is_file($t . DIRECTORY_SEPARATOR . 'eng.traineddata')) return $t;
+  }
+  $prefix = trim((string)getenv('TESSDATA_PREFIX'));
+  if ($prefix !== '') {
+    $guess = rtrim($prefix, "/\\") . DIRECTORY_SEPARATOR . 'tessdata';
+    return $guess;
+  }
+  return '';
 }
 
 function ocr_run_tesseract(string $inputPath): array {
   $bin = ocr_find_tesseract_path();
-  $cmd = '"' . str_replace('"', '\"', $bin) . '" "' . str_replace('"', '\"', $inputPath) . '" stdout -l eng --psm 6 2>&1';
+  $tessdata = ocr_find_tessdata_dir();
+  $tessArg = '';
+  if ($tessdata !== '') {
+    $tessArg = ' --tessdata-dir "' . str_replace('"', '\"', $tessdata) . '"';
+  }
+  $cmd = '"' . str_replace('"', '\"', $bin) . '" "' . str_replace('"', '\"', $inputPath) . '" stdout -l eng --psm 6' . $tessArg . ' 2>&1';
   $out = @shell_exec($cmd);
   $out = is_string($out) ? $out : '';
   $outTrim = trim($out);
