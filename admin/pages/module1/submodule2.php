@@ -628,7 +628,7 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
-                <input name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234">
+                <input name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234 (ABC1234 also ok)">
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
@@ -643,7 +643,7 @@ $typesList = vehicle_types();
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Engine No</label>
                 <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1NZFE-12345">
-                <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Engine number found on engine block or OR/CR</div>
+                <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Engine number (from engine block or CR)</div>
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Chassis No</label>
@@ -707,6 +707,48 @@ $typesList = vehicle_types();
                   <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
                   <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR expired → Operation blocked.</div>
                 </div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CR Metadata (Optional)</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Number</label>
+                  <input name="cr_number" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., CR-2026-000123">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Issue Date</label>
+                  <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Registered Owner</label>
+                  <input name="registered_owner" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
+                </div>
+              </div>
+            </div>
+
+            <div id="ocrWrap" class="p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OCR Scan (CR)</div>
+                  <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Scan the CR to auto-fill vehicle details.</div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="btnScanCr" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-sm font-bold">Scan CR & Auto-fill</button>
+                </div>
+              </div>
+              <div id="ocrMsg" class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300 hidden"></div>
+              <div id="ocrConfirmWrap" class="mt-4 hidden">
+                <label class="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <input type="checkbox" id="ocrConfirm" class="mt-1 w-4 h-4" />
+                  <div class="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    I confirm the scanned details are correct.
+                    <div class="text-xs font-medium text-amber-700 dark:text-amber-300 mt-1">Required before saving when OCR is used.</div>
+                  </div>
+                </label>
+                <input type="hidden" name="ocr_used" value="0" id="ocrUsedInput">
+                <input type="hidden" name="ocr_confirmed" value="0" id="ocrConfirmedInput">
               </div>
             </div>
 
@@ -884,8 +926,108 @@ $typesList = vehicle_types();
         if (orExpiryInput) orExpiryInput.addEventListener('change', syncOrExpiryRequired);
         syncOrExpiryRequired();
 
+        const crFileInput = form.querySelector('input[name="cr"]');
+        const btnScanCr = document.getElementById('btnScanCr');
+        const ocrMsg = document.getElementById('ocrMsg');
+        const ocrConfirmWrap = document.getElementById('ocrConfirmWrap');
+        const ocrConfirm = document.getElementById('ocrConfirm');
+        const ocrUsedInput = document.getElementById('ocrUsedInput');
+        const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
+
+        const setOcrMsg = (text, kind) => {
+          if (!ocrMsg) return;
+          ocrMsg.textContent = text;
+          ocrMsg.classList.remove('hidden');
+          ocrMsg.className = 'mt-3 text-sm font-semibold ' + (kind === 'error' ? 'text-rose-700 dark:text-rose-300' : (kind === 'success' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-slate-300'));
+        };
+
+        const applyExtracted = (fields) => {
+          if (!fields || typeof fields !== 'object') return;
+          const map = {
+            plate_no: 'plate_no',
+            engine_no: 'engine_no',
+            chassis_no: 'chassis_no',
+            year_model: 'year_model',
+            color: 'color',
+            cr_number: 'cr_number',
+            cr_issue_date: 'cr_issue_date',
+            registered_owner: 'registered_owner'
+          };
+          Object.keys(map).forEach((k) => {
+            const v = fields[k];
+            if (!v) return;
+            const el = form.querySelector(`[name="${map[k]}"]`);
+            if (!el) return;
+            el.value = String(v);
+            el.classList.add('ring-2','ring-emerald-300');
+            setTimeout(() => { el.classList.remove('ring-2','ring-emerald-300'); }, 1200);
+          });
+
+          if (fields.make) {
+            const makeHidden = document.getElementById('vehMakeHidden');
+            if (makeHidden) makeHidden.value = String(fields.make);
+          }
+          if (fields.model) {
+            const modelHidden = document.getElementById('vehModelHidden');
+            if (modelHidden) modelHidden.value = String(fields.model);
+          }
+          if (fields.fuel_type) {
+            const fuelHidden = document.getElementById('vehFuelHidden');
+            if (fuelHidden) fuelHidden.value = String(fields.fuel_type);
+          }
+        };
+
+        const setOcrUsed = (used) => {
+          if (ocrUsedInput) ocrUsedInput.value = used ? '1' : '0';
+          if (ocrConfirmWrap) ocrConfirmWrap.classList.toggle('hidden', !used);
+          if (ocrConfirmedInput) ocrConfirmedInput.value = '0';
+          if (ocrConfirm) ocrConfirm.checked = false;
+        };
+
+        if (ocrConfirm) {
+          ocrConfirm.addEventListener('change', () => {
+            if (ocrConfirmedInput) ocrConfirmedInput.value = ocrConfirm.checked ? '1' : '0';
+          });
+        }
+
+        if (btnScanCr) {
+          btnScanCr.addEventListener('click', async () => {
+            const f = crFileInput && crFileInput.files && crFileInput.files[0] ? crFileInput.files[0] : null;
+            if (!f) { setOcrMsg('Select a CR file first.', 'error'); return; }
+            btnScanCr.disabled = true;
+            btnScanCr.textContent = 'Scanning...';
+            setOcrMsg('Scanning CR and extracting fields...', 'info');
+            try {
+              const fd = new FormData();
+              fd.append('cr', f);
+              const res = await fetch(rootUrl + '/admin/api/module1/ocr_scan_cr.php', { method: 'POST', body: fd });
+              const data = await res.json().catch(() => null);
+              if (!data || !data.ok) {
+                const msg = (data && data.message) ? String(data.message) : 'OCR failed';
+                const extra = (data && data.data && data.data.error) ? (' (' + String(data.data.error) + ')') : '';
+                throw new Error(msg + extra);
+              }
+              const fields = data.data && data.data.fields ? data.data.fields : null;
+              applyExtracted(fields);
+              setOcrUsed(true);
+              setOcrMsg('Scan complete. Review auto-filled fields and confirm before saving.', 'success');
+            } catch (e) {
+              setOcrUsed(false);
+              setOcrMsg((e && e.message) ? String(e.message) : 'OCR failed', 'error');
+            } finally {
+              btnScanCr.disabled = false;
+              btnScanCr.textContent = 'Scan CR & Auto-fill';
+            }
+          });
+        }
+
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
+          if (ocrUsedInput && ocrUsedInput.value === '1' && ocrConfirmedInput && ocrConfirmedInput.value !== '1') {
+            showToast('Confirm scanned details before saving.', 'error');
+            if (ocrConfirmWrap) ocrConfirmWrap.classList.remove('hidden');
+            return;
+          }
           if (!form.checkValidity()) { form.reportValidity(); return; }
           btnSave.disabled = true;
           btnSave.textContent = 'Saving...';

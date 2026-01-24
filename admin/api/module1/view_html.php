@@ -185,7 +185,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Engine No</label>
                                     <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345">
-                                    <div class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Engine number found on engine block or OR/CR</div>
+                                    <div class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Engine number (from engine block or CR)</div>
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Chassis No</label>
