@@ -10,6 +10,11 @@ $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 $recaptchaCfg = recaptcha_config($db);
 $recaptchaSiteKey = (string) ($recaptchaCfg['site_key'] ?? '');
 
+$formJsVer = 1;
+$formJsPath = __DIR__ . DIRECTORY_SEPARATOR . 'tmm_form_enhancements.js';
+$ts = @filemtime($formJsPath);
+if ($ts !== false) $formJsVer = (int) $ts;
+
 if (!empty($_SESSION['operator_user_id'])) {
     header('Location: ' . $baseUrl . '/citizen/operator/index.php');
     exit;
@@ -30,7 +35,8 @@ if (!empty($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GoServePH - Welcome</title>
+    <title>TMM - Welcome</title>
+    <meta name="description" content="Transport & Mobility Management (TMM) — ticketing, treasury payments, inspection, franchise, terminals, and commuter services.">
     <link rel="icon" type="image/png"
         href="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,7 +44,7 @@ if (!empty($_SESSION['user_id'])) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js" defer></script>
+    <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string) $formJsVer; ?>" defer></script>
 </head>
 
 <body class="bg-custom-bg min-h-screen flex flex-col">
@@ -58,12 +64,16 @@ if (!empty($_SESSION['user_id'])) {
                         <div class="text-xs text-slate-500">Transport & Mobility Management System</div>
                     </div>
                 </div>
-                <div class="flex items-center gap-8">
-                    <!-- Nav links removed -->
-                    <div class="text-right">
-                        <div class="text-sm">
-                            <div id="currentDateTime" class="font-semibold"></div>
-                        </div>
+                <div class="flex items-center gap-4">
+                    <nav class="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
+                        <a href="#home" class="hover:text-slate-900">Home</a>
+                        <a href="#systems" class="hover:text-slate-900">Portals</a>
+                        <a href="#features" class="hover:text-slate-900">Features</a>
+                        <a href="#support" class="hover:text-slate-900">Support</a>
+                    </nav>
+                    <div class="hidden sm:block text-right">
+                        <div class="text-xs text-slate-500 font-semibold">Local time</div>
+                        <div id="currentDateTime" class="text-sm font-bold text-slate-700"></div>
                     </div>
                 </div>
             </div>
@@ -73,6 +83,8 @@ if (!empty($_SESSION['user_id'])) {
     <main class="flex-1">
         <section id="home" class="container mx-auto px-6 pt-6">
             <div class="relative overflow-hidden rounded-2xl shadow-2xl bg-gradient-to-br from-slate-50 to-indigo-50">
+                <div class="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl"></div>
+                <div class="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl"></div>
 
                 <div class="relative px-6 py-14 md:py-20">
                     <div class="flex flex-col items-center text-center">
@@ -84,15 +96,30 @@ if (!empty($_SESSION['user_id'])) {
                         <div class="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">
                             Transport & Mobility<br /><span class="text-custom-secondary">Management</span>
                         </div>
-                        <div class="mt-2 text-lg md:text-xl font-semibold text-slate-700">
-                            Transport & Mobility Management System
+                        <div class="mt-3 max-w-2xl text-base md:text-lg text-slate-700 font-semibold">
+                            One platform for franchise workflows, ticketing and treasury processing, inspections, terminal operations, and commuter services.
                         </div>
-                        <div class="mt-6">
-                            <a href="#systems"
-                                class="inline-flex items-center gap-2 bg-custom-secondary text-white px-5 py-3 rounded-xl font-semibold btn-primary">
-                                View systems
-                                <i class="fas fa-arrow-down text-sm"></i>
+                        <div class="mt-7 flex flex-col sm:flex-row items-center gap-3">
+                            <a href="#systems" class="inline-flex items-center gap-2 bg-custom-secondary text-white px-5 py-3 rounded-xl font-semibold btn-primary">
+                                Explore portals <i class="fas fa-arrow-down text-sm"></i>
                             </a>
+                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff" class="inline-flex items-center gap-2 bg-white text-slate-800 px-5 py-3 rounded-xl font-semibold border border-slate-200 hover:bg-slate-50">
+                                Staff login <i class="fas fa-arrow-right text-sm"></i>
+                            </a>
+                        </div>
+                        <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
+                            <div class="bg-white/70 backdrop-blur rounded-xl border border-slate-100 p-4 text-left">
+                                <div class="text-xs font-black uppercase tracking-widest text-slate-500">Faster processing</div>
+                                <div class="mt-1 text-sm font-bold text-slate-800">Treasury payment tracking and settlement</div>
+                            </div>
+                            <div class="bg-white/70 backdrop-blur rounded-xl border border-slate-100 p-4 text-left">
+                                <div class="text-xs font-black uppercase tracking-widest text-slate-500">Better oversight</div>
+                                <div class="mt-1 text-sm font-bold text-slate-800">Role-based access and audit logs</div>
+                            </div>
+                            <div class="bg-white/70 backdrop-blur rounded-xl border border-slate-100 p-4 text-left">
+                                <div class="text-xs font-black uppercase tracking-widest text-slate-500">Clear insights</div>
+                                <div class="mt-1 text-sm font-bold text-slate-800">Dashboards and analytics for decisions</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -101,8 +128,8 @@ if (!empty($_SESSION['user_id'])) {
 
         <section id="systems" class="container mx-auto px-6 py-12">
             <div class="text-center">
-                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">TMM PORTALS</h2>
-                <div class="mt-2 text-sm text-slate-600">Click any system to access its dedicated portal</div>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">TMM Portals</h2>
+                <div class="mt-2 text-sm text-slate-600">Choose how you want to access the platform</div>
             </div>
 
             <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -165,7 +192,57 @@ if (!empty($_SESSION['user_id'])) {
             </div>
         </section>
 
-        <section class="container mx-auto px-6 pb-12">
+        <section id="features" class="container mx-auto px-6 pb-12">
+            <div class="text-center">
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Key Features</h2>
+                <div class="mt-2 text-sm text-slate-600">Designed for real transport operations and citizen services</div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-id-card text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Franchise & Operator Records</div>
+                    <div class="mt-1 text-sm text-slate-600">Maintain operators, vehicles, routes, and applications in one place.</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-receipt text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Ticketing & Treasury Processing</div>
+                    <div class="mt-1 text-sm text-slate-600">Issue tickets, validate, and record official receipts for settlement.</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-clipboard-check text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Inspection Workflows</div>
+                    <div class="mt-1 text-sm text-slate-600">Track inspection steps and ensure compliance with structured records.</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-square-parking text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Terminal & Parking Operations</div>
+                    <div class="mt-1 text-sm text-slate-600">Manage slots, payments, and terminal activities for daily operations.</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-shield-halved text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Role-Based Access</div>
+                    <div class="mt-1 text-sm text-slate-600">Keep modules protected with permissions and activity monitoring.</div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
+                        <i class="fas fa-chart-line text-custom-secondary text-xl"></i>
+                    </div>
+                    <div class="mt-4 font-bold text-slate-900">Analytics</div>
+                    <div class="mt-1 text-sm text-slate-600">Use dashboards and reports to support planning and decisions.</div>
+                </div>
+            </div>
+
             <div class="relative overflow-hidden rounded-2xl shadow-xl bg-gradient-to-br from-slate-50 to-slate-100">
 
                 <div class="relative px-6 py-12">
@@ -200,21 +277,20 @@ if (!empty($_SESSION['user_id'])) {
         </section>
     </main>
 
-    <footer class="bg-custom-primary text-white py-4 mt-8">
+    <footer id="support" class="bg-custom-primary text-white py-6 mt-8">
         <div class="container mx-auto px-6">
-            <div class="flex flex-col lg:flex-row justify-between items-center">
-                <div class="text-center lg:text-left mb-2 lg:mb-0">
-                    <h3 class="text-lg font-bold mb-1">Government Services Management System</h3>
-                    <p class="text-xs opacity-90">
-                        For any inquiries, please call 122 or email helpdesk@gov.ph
-                    </p>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                <div class="text-center lg:text-left">
+                    <div class="text-lg font-black">Transport & Mobility Management</div>
+                    <div class="text-xs opacity-90 mt-1">Support: call 122 or email helpdesk@tmm.gov.ph</div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div class="flex space-x-3">
-                        <button type="button" id="footerTerms" class="text-xs hover:underline">TERMS OF SERVICE</button>
-                        <span>|</span>
-                        <button type="button" id="footerPrivacy" class="text-xs hover:underline">PRIVACY POLICY</button>
-                    </div>
+                <div class="text-center text-xs opacity-90">
+                    Secure access • Role-based permissions • Audit trail
+                </div>
+                <div class="flex items-center justify-center lg:justify-end gap-3 text-xs font-bold">
+                    <button type="button" id="footerTerms" class="hover:underline">TERMS</button>
+                    <span class="opacity-60">|</span>
+                    <button type="button" id="footerPrivacy" class="hover:underline">PRIVACY</button>
                 </div>
             </div>
         </div>
@@ -235,7 +311,7 @@ if (!empty($_SESSION['user_id'])) {
             class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
             <div
                 class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Create your GoServePH account</h2>
+                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Create your TMM account</h2>
                 <div class="mt-1 text-xs text-gray-500">
                     Registering as an operator?
                     <button type="button" id="openOperatorRegisterFromCitizen"
@@ -624,20 +700,20 @@ if (!empty($_SESSION['user_id'])) {
     <div id="termsModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold">GoServePH Terms of Service Agreement</h3>
+                <h3 class="text-lg font-semibold">TMM Terms of Service Agreement</h3>
                 <button type="button" id="closeTerms" class="text-gray-500 hover:text-gray-700"><i
                         class="fas fa-times"></i></button>
             </div>
             <div class="px-6 py-4 space-y-4 text-sm leading-6">
-                <p><strong>Welcome to GoServePH!</strong></p>
-                <p>This GoServePH Services Agreement ("Agreement") is a binding legal contract for the use of our
+                <p><strong>Welcome to TMM!</strong></p>
+                <p>This TMM Services Agreement ("Agreement") is a binding legal contract for the use of our
                     software systems—which handle data input, monitoring, processing, and analytics—("Services") between
-                    GoServePH ("us," "our," or "we") and you, the registered user ("you" or "user").</p>
+                    TMM ("us," "our," or "we") and you, the registered user ("you" or "user").</p>
                 <p>This Agreement details the terms and conditions for using our Services. By accessing or using any
-                    GoServePH Services, you agree to these terms. If you don't understand any part of this Agreement,
-                    please contact us at info@goserveph.com.</p>
+                    TMM Services, you agree to these terms. If you don't understand any part of this Agreement,
+                    please contact us at helpdesk@tmm.gov.ph.</p>
                 <h4 class="font-semibold">OVERVIEW OF THIS AGREEMENT</h4>
-                <p>This document outlines the terms for your use of the GoServePH system:</p>
+                <p>This document outlines the terms for your use of the TMM system:</p>
                 <table class="w-full text-left text-xs">
                     <thead>
                         <tr>
@@ -677,7 +753,7 @@ if (!empty($_SESSION['user_id'])) {
                 <p>b. Review and Approval: We reserve the right to review and approve your application, which typically
                     takes at least two (2) business days. We can deny or reject any application at our discretion.</p>
                 <p>c. Eligibility: Only businesses, institutions, and other entities based in the Philippines are
-                    eligible to apply for a GoServePH Account.</p>
+                    eligible to apply for a TMM Account.</p>
                 <p>d. Representative Authority: You confirm that your Representative has the full authority to provide
                     your information and legally bind your entity to this Agreement. We may ask for proof of this
                     authority.</p>
@@ -686,7 +762,7 @@ if (!empty($_SESSION['user_id'])) {
                 <p><strong>2. Services and Support</strong></p>
                 <p>We provide support for general account inquiries and issues that prevent the proper use of the system
                     ("System Errors"). Support includes resources available through our in-app Ticketing System and
-                    website documentation ("Documentation"). For further questions, contact us at support@goserveph.com.
+                    website documentation ("Documentation"). For further questions, contact us at helpdesk@tmm.gov.ph.
                 </p>
                 <p><strong>3. Service Rules and Restrictions</strong></p>
                 <p>a. Lawful Use: You must use the Services lawfully and comply with all applicable Philippine laws,
@@ -719,7 +795,7 @@ if (!empty($_SESSION['user_id'])) {
                 <p><strong>5. Termination</strong></p>
                 <p>a. Agreement Term: This Agreement starts upon registration and continues until terminated by you or
                     us.</p>
-                <p>b. Termination by You: You can terminate by emailing a closure request to info@goserveph.com. Your
+                <p>b. Termination by You: You can terminate by emailing a closure request to helpdesk@tmm.gov.ph. Your
                     Account will be closed within 120 business days of receipt.</p>
                 <p>c. Termination by Us: We may terminate this Agreement, suspend your Account, or close it at any time,
                     for any reason, by providing you notice. Immediate suspension or termination may occur if:</p>
@@ -745,24 +821,24 @@ if (!empty($_SESSION['user_id'])) {
                 <p><strong>2. Ownership of Intellectual Property (IP)</strong></p>
                 <p>a. Your Data: You retain ownership of all your master data, raw transactional data, and generated
                     reports gathered from the system.</p>
-                <p>b. GoServePH IP: We exclusively own all rights, titles, and interests in the patents, copyrights,
-                    trademarks, system designs, and documentation ("GoServePH IP"). All rights in GoServePH IP not
+                <p>b. TMM IP: We exclusively own all rights, titles, and interests in the patents, copyrights,
+                    trademarks, system designs, and documentation ("TMM IP"). All rights in TMM IP not
                     expressly granted to you are reserved by us.</p>
                 <p>c. Ideas: If you submit comments or ideas for system improvements ("Ideas"), you agree that we are
                     free to use these Ideas without any attribution or compensation to you.</p>
                 <p><strong>3. License Coverage</strong></p>
                 <p>We grant you a non-exclusive and non-transferable license to electronically access and use the
-                    GoServePH IP only as described in this Agreement. We are not selling the IP to you, and you cannot
+                    TMM IP only as described in this Agreement. We are not selling the IP to you, and you cannot
                     sublicense it. We may revoke this license if you violate the Agreement.</p>
                 <p><strong>4. References to Our Relationship</strong></p>
                 <p>During the term of this Agreement, both you and we may publicly identify the other party as the
                     service provider or client, respectively. If you object to us identifying you as a client, you must
-                    notify us at info@goserveph.com. Upon termination, both parties must remove all public references to
+                    notify us at helpdesk@tmm.gov.ph. Upon termination, both parties must remove all public references to
                     the relationship.</p>
                 <h4 class="font-semibold">SECTION C: PAYMENT TERMS AND CONDITIONS</h4>
                 <p><strong>1. Service Fees</strong></p>
                 <p>We will charge the Fees for set-up, access, support, penalties, and other transactions as described
-                    on the GoServePH website. We may revise the Fees at any time, with at least 30 days' notice before
+                    on TMM documentation or official advisories. We may revise the Fees at any time, with at least 30 days' notice before
                     the revisions apply to you.</p>
                 <p><strong>2. Payment Terms and Schedule</strong></p>
                 <p>a. Billing: Your monthly bill for the upcoming month is generated by the system on the 21st day of
@@ -779,7 +855,7 @@ if (!empty($_SESSION['user_id'])) {
                     the right to reject your application or terminate your Account if you are ineligible to use PayPal
                     services.</p>
                 <p><strong>5. Processing Disputes and Refunds</strong></p>
-                <p>You must report disputes and refund requests by emailing us at billing@goserveph.com. Disputes will
+                <p>You must report disputes and refund requests by emailing us at helpdesk@tmm.gov.ph. Disputes will
                     only be investigated if reported within 60 days from the billing date. If a refund is warranted, it
                     will be issued as a credit memo for use on future bills.</p>
                 <h4 class="font-semibold">SECTION D: DATA USAGE, PRIVACY AND SECURITY</h4>
@@ -787,7 +863,7 @@ if (!empty($_SESSION['user_id'])) {
                 <p>Data security is a top priority. This section outlines our obligations when handling information.</p>
                 <p>'PERSONAL DATA' is information that relates to and can identify a person.</p>
                 <p>'USER DATA' is information that describes your business, operations, products, or services.</p>
-                <p>'GoServePH DATA' is transactional data over our infrastructure, fraud analysis info, aggregated data,
+                <p>'TMM DATA' is transactional data over our infrastructure, fraud analysis info, aggregated data,
                     and other information originating from the Services.</p>
                 <p>'DATA' means all of the above.</p>
                 <p>We use Data to provide Services, mitigate fraud, and improve our systems. We do not provide Personal
@@ -829,7 +905,7 @@ if (!empty($_SESSION['user_id'])) {
                     <li>You will not use the Services for fraudulent or illegal purposes.</li>
                 </ul>
                 <p><strong>5. No Warranties</strong></p>
-                <p>We provide the Services and GoServePH IP “AS IS” and “AS AVAILABLE,” without any express, implied, or
+                <p>We provide the Services and TMM IP “AS IS” and “AS AVAILABLE,” without any express, implied, or
                     statutory warranties of title, merchantability, fitness for a particular purpose, or
                     non-infringement.</p>
                 <p><strong>6. Limitation of Liability</strong></p>
@@ -843,7 +919,7 @@ if (!empty($_SESSION['user_id'])) {
                     <li>Bugs, viruses, or interruptions to the Services.</li>
                 </ul>
                 <p>This Agreement and all incorporated policies constitute the entire agreement between you and
-                    GoServePH.</p>
+                    TMM.</p>
             </div>
             <div class="border-t px-6 py-3 flex justify-end">
                 <button type="button" id="closeTermsBottom"
@@ -856,15 +932,15 @@ if (!empty($_SESSION['user_id'])) {
     <div id="privacyModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-y-auto">
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-semibold">GoServePH Data Privacy Policy</h3>
+                <h3 class="text-lg font-semibold">TMM Data Privacy Policy</h3>
                 <button type="button" id="closePrivacy" class="text-gray-500 hover:text-gray-700"><i
                         class="fas fa-times"></i></button>
             </div>
             <div class="px-6 py-4 space-y-4 text-sm leading-6">
                 <p><strong>Protecting the information you and your users handle through our system is our highest
-                        priority.</strong> This policy outlines how GoServePH manages, secures, and uses your data.</p>
+                        priority.</strong> This policy outlines how TMM manages, secures, and uses your data.</p>
                 <h4 class="font-semibold">1. How We Define and Use Data</h4>
-                <p>In this policy, we define the types of data that flow through the GoServePH system:</p>
+                <p>In this policy, we define the types of data that flow through the TMM system:</p>
                 <table class="w-full text-left text-xs">
                     <thead>
                         <tr>
@@ -884,7 +960,7 @@ if (!empty($_SESSION['user_id'])) {
                                 activities.</td>
                         </tr>
                         <tr>
-                            <td class="py-1 pr-4">GoServePH Data</td>
+                            <td class="py-1 pr-4">TMM Data</td>
                             <td class="py-1">Details about transactions and activity on our platform, information used
                                 for fraud detection, aggregated data, and any non-personal information generated by our
                                 system.</td>
@@ -892,14 +968,14 @@ if (!empty($_SESSION['user_id'])) {
                         <tr>
                             <td class="py-1 pr-4">DATA</td>
                             <td class="py-1">Used broadly to refer to all the above: Personal Data, User Data, and
-                                GoServePH Data.</td>
+                                TMM Data.</td>
                         </tr>
                     </tbody>
                 </table>
                 <h4 class="font-semibold">Our Commitment to Data Use</h4>
                 <p>We analyze and manage data only for the following critical purposes:</p>
                 <ul class="list-disc pl-5">
-                    <li>To provide, maintain, and improve the GoServePH Services for you and all other users.</li>
+                    <li>To provide, maintain, and improve the TMM Services for you and all other users.</li>
                     <li>To detect and mitigate fraud, financial loss, or other harm to you or other users.</li>
                     <li>To develop and enhance our products, systems, and tools.</li>
                 </ul>
@@ -908,7 +984,7 @@ if (!empty($_SESSION['user_id'])) {
                 <h4 class="font-semibold">2. Data Protection and Compliance</h4>
                 <p><strong>Confidentiality</strong></p>
                 <p>We commit to using Data only as permitted by our agreement or as specifically directed by you. You,
-                    in turn, must protect all Data you access through GoServePH and use it only in connection with our
+                    in turn, must protect all Data you access through TMM and use it only in connection with our
                     Services. Neither party may use Personal Data to market to third parties without explicit consent.
                 </p>
                 <p>We will only disclose Data when legally required to do so, such as through a subpoena, court order,
@@ -919,7 +995,7 @@ if (!empty($_SESSION['user_id'])) {
                     use of the Data you provide to us.</p>
                 <p><em>Consent:</em> You are responsible for obtaining all necessary rights and consents from your
                     End-Users to allow us to collect, use, and store their Personal Data.</p>
-                <p><em>End-User Disclosure:</em> You must clearly inform your End-Users that GoServePH processes
+                <p><em>End-User Disclosure:</em> You must clearly inform your End-Users that TMM processes
                     transactions for you and may receive their Personal Data as part of that process.</p>
                 <p><strong>Data Processing Roles</strong></p>
                 <p>When we process Personal Data on your behalf, we operate under the following legal roles:</p>
@@ -936,7 +1012,7 @@ if (!empty($_SESSION['user_id'])) {
                 <p>You acknowledge that we rely entirely on your instructions. Therefore, we are not liable for any
                     claims resulting from our actions that were based directly or indirectly on your instructions.</p>
                 <p><strong>Prohibited Activities</strong></p>
-                <p>You are strictly prohibited from data mining the GoServePH database or any portion of it without our
+                <p>You are strictly prohibited from data mining the TMM database or any portion of it without our
                     express written permission.</p>
                 <p><strong>Breach Notification</strong></p>
                 <p>If we become aware of an unauthorized acquisition, disclosure, change, or loss of Personal Data on
@@ -949,7 +1025,7 @@ if (!empty($_SESSION['user_id'])) {
                     deactivation process.</p>
                 <p><strong>Data Retention</strong></p>
                 <p>Upon deactivation, all of your Personal Identifying Information will be deleted from our systems.</p>
-                <p><em>Important Note:</em> Due to the nature of our role as a Government Services Management System,
+                <p><em>Important Note:</em> For legal, accounting, and audit purposes,
                     and for legal, accounting, and audit purposes, we are required to retain some of your non-personal
                     account activity history and transactional records. You will receive a confirmation email once your
                     request has been fully processed.</p>
