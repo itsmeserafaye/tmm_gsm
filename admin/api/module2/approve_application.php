@@ -73,14 +73,37 @@ try {
     exit;
   }
 
+  $hasCol = function (string $table, string $col) use ($db): bool {
+    $table = trim($table);
+    $col = trim($col);
+    if ($table === '' || $col === '') return false;
+    $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+    return $res && ($res->num_rows ?? 0) > 0;
+  };
+
+  $vdTypeCol = $hasCol('vehicle_documents', 'doc_type') ? 'doc_type'
+    : ($hasCol('vehicle_documents', 'document_type') ? 'document_type'
+    : ($hasCol('vehicle_documents', 'type') ? 'type' : 'doc_type'));
+  $vdVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified'
+    : ($hasCol('vehicle_documents', 'verified') ? 'verified'
+    : ($hasCol('vehicle_documents', 'isApproved') ? 'isApproved' : 'is_verified'));
+  $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
+  $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
+
+  $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr','or','cr')";
+  $verCond = "COALESCE(vd.`{$vdVerifiedCol}`,0)=1";
+  $join = $vdHasVehicleId && $vdHasPlate
+    ? "(vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))"
+    : ($vdHasVehicleId ? "vd.vehicle_id=v.id" : ($vdHasPlate ? "vd.plate_number=v.plate_number" : "0=1"));
+
   $stmtVeh = $db->prepare("SELECT v.id, v.plate_number,
-                                  MAX(CASE WHEN vd.doc_type='ORCR' AND COALESCE(vd.is_verified,0)=1 THEN 1 ELSE 0 END) AS orcr_ok
-                           FROM vehicles v
-                           LEFT JOIN vehicle_documents vd ON vd.vehicle_id=v.id AND vd.doc_type='ORCR'
-                           WHERE v.operator_id=?
-                             AND (COALESCE(v.record_status,'') <> 'Archived')
-                           GROUP BY v.id, v.plate_number
-                           ORDER BY v.created_at DESC");
+                                 MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok
+                          FROM vehicles v
+                          LEFT JOIN vehicle_documents vd ON {$join}
+                          WHERE v.operator_id=?
+                            AND (COALESCE(v.record_status,'') <> 'Archived')
+                          GROUP BY v.id, v.plate_number
+                          ORDER BY v.created_at DESC");
   if (!$stmtVeh) throw new Exception('db_prepare_failed');
   $stmtVeh->bind_param('i', $operatorId);
   $stmtVeh->execute();

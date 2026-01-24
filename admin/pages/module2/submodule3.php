@@ -392,23 +392,32 @@ if ($rootUrl === '/') $rootUrl = '';
           const fd = new FormData(formApprove);
           fd.append('application_id', String(currentAppId));
           const res = await fetch(rootUrl + '/admin/api/module2/approve_application.php', { method: 'POST', body: fd });
-          const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'approve_failed');
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) {
+            const code = (data && data.error) ? String(data.error) : 'approve_failed';
+            const msg = (function(){
+              if (code === 'orcr_required_for_approval') {
+                const need = Number(data.need || 0) || 0;
+                const have = Number(data.have || 0) || 0;
+                const plates = Array.isArray(data.missing_plates) ? data.missing_plates.filter(Boolean) : [];
+                const plateText = plates.length ? (' Missing OR/CR (not verified): ' + plates.slice(0, 8).join(', ') + (plates.length > 8 ? '…' : '')) : '';
+                return `Approval needs ${need} verified OR/CR. Found ${have}.${plateText}`;
+              }
+              if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
+              if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
+              if (code === 'invalid_status') return 'Application status is not eligible for approval.';
+              if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
+              if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
+              return (data && data.message) ? String(data.message) : code;
+            })();
+            showToast(msg, 'error');
+            return;
+          }
           showToast('Application approved.');
           const a = await loadApp(currentAppId);
           render(a);
         } catch (err) {
-          const code = (err && err.message) ? String(err.message) : '';
-          const msg = (function(){
-            if (code === 'orcr_required_for_approval') return 'Approval requires enough verified OR/CR documents for the requested vehicle count.';
-            if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
-            if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
-            if (code === 'invalid_status') return 'Application status is not eligible for approval.';
-            if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
-            if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
-            return code || 'Failed';
-          })();
-          showToast(msg, 'error');
+          showToast('Failed to save approval.', 'error');
         } finally {
           btnApprove.textContent = 'Save Approval';
           setEnabled();
