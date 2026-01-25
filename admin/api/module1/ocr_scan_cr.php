@@ -31,6 +31,20 @@ function ocr_extract_plate(string $text): ?string {
   return $candidates ? $candidates[0] : null;
 }
 
+function ocr_norm_engine(string $s): string {
+  $s = strtoupper($s);
+  $s = preg_replace('/[^A-Z0-9\\-]/', '', $s);
+  $s = preg_replace('/\\-+/', '-', $s);
+  return trim($s ?? '');
+}
+
+function ocr_norm_vin(string $s): string {
+  $s = strtoupper($s);
+  $s = preg_replace('/[^A-Z0-9]/', '', $s);
+  $s = strtr($s, ['O' => '0', 'I' => '1', 'Q' => '0']);
+  return trim($s ?? '');
+}
+
 function ocr_extract_by_keywords(string $text, array $keys, string $pattern): ?string {
   foreach ($keys as $k) {
     $rx = '/(?:' . $k . ')\\s*(?:[:\\-\\|]|\\s)\\s*' . $pattern . '/i';
@@ -97,8 +111,11 @@ function ocr_extract_fields(string $raw): array {
   $t = preg_replace("/[ ]{2,}/", " ", $t);
 
   $plate = ocr_extract_plate($t);
-  $engine = ocr_extract_by_keywords($t, ['ENGINE\\s*NO', 'ENGINE\\s*NUMBER', 'ENGINE'], '([A-Z0-9\\-]{5,20})');
-  $chassis = ocr_extract_by_keywords($t, ['CHASSIS\\s*NO', 'CHASSIS\\s*NUMBER', 'CHASSIS', 'VIN'], '([A-HJ-NPR-Z0-9]{17})');
+  $engineRaw = ocr_extract_by_keywords($t, ['ENGINE\\s*NO', 'ENGINE\\s*NUMBER', 'ENGINE\\s*#', 'ENGINE\\s*NUM', 'ENGINE'], '([A-Z0-9\\- ]{4,30})');
+  $engine = $engineRaw ? ocr_norm_engine($engineRaw) : null;
+  $chassisRaw = ocr_extract_by_keywords($t, ['CHASSIS\\s*NO', 'CHASSIS\\s*NUMBER', 'CHASSIS\\s*#', 'CHASSIS', 'VIN'], '([A-Z0-9\\- ]{15,25})');
+  $vin = $chassisRaw ? ocr_norm_vin($chassisRaw) : '';
+  $chassis = ($vin !== '' && strlen($vin) === 17) ? $vin : null;
   $make = ocr_extract_by_keywords($t, ['MAKE'], '([A-Z0-9\\- ]{2,30})');
   $series = ocr_extract_by_keywords($t, ['SERIES', 'MODEL'], '([A-Z0-9\\- ]{2,30})');
   $year = ocr_extract_by_keywords($t, ['YEAR\\s*MODEL', 'YEAR'], '([0-9]{4})');
@@ -159,14 +176,15 @@ function ocr_find_tessdata_dir(): string {
   return '';
 }
 
-function ocr_run_tesseract(string $inputPath): array {
+function ocr_run_tesseract(string $inputPath, int $psm): array {
   $bin = ocr_find_tesseract_path();
   $tessdata = ocr_find_tessdata_dir();
   $tessArg = '';
   if ($tessdata !== '') {
     $tessArg = ' --tessdata-dir "' . str_replace('"', '\"', $tessdata) . '"';
   }
-  $cmd = '"' . str_replace('"', '\"', $bin) . '" "' . str_replace('"', '\"', $inputPath) . '" stdout -l eng --psm 6' . $tessArg . ' 2>&1';
+  $psm = $psm > 0 ? $psm : 6;
+  $cmd = '"' . str_replace('"', '\"', $bin) . '" "' . str_replace('"', '\"', $inputPath) . '" stdout -l eng --oem 1 --psm ' . (int)$psm . ' -c preserve_interword_spaces=1' . $tessArg . ' 2>&1';
   $out = @shell_exec($cmd);
   $out = is_string($out) ? $out : '';
   $outTrim = trim($out);
@@ -177,7 +195,36 @@ function ocr_run_tesseract(string $inputPath): array {
   if (preg_match('/\b(error|failed|cannot|could not|unable)\b/i', $outTrim) && !preg_match('/\b(PLATE|ENGINE|CHASSIS|CERTIFICATE|REGISTRATION|OWNER)\b/i', $outTrim)) {
     return ['ok' => false, 'text' => $outTrim, 'error' => 'tesseract_error'];
   }
-  return ['ok' => true, 'text' => $outTrim, 'error' => ''];
+  return ['ok' => true, 'text' => $outTrim, 'error' => '', 'psm' => $psm];
+}
+
+function ocr_count_filled(array $fields): int {
+  $filled = 0;
+  foreach ($fields as $v) {
+    if (is_string($v) && trim($v) !== '') $filled++;
+  }
+  return $filled;
+}
+
+function ocr_best_tesseract(string $inputPath): array {
+  $psms = [6, 4, 11, 3];
+  $best = ['ok' => false, 'text' => '', 'error' => 'ocr_empty_output', 'psm' => 0];
+  $bestScore = -1;
+  foreach ($psms as $psm) {
+    $r = ocr_run_tesseract($inputPath, $psm);
+    if (!$r['ok']) {
+      if (!$best['ok'] && $best['error'] === 'ocr_empty_output') $best = $r + ['psm' => $psm];
+      continue;
+    }
+    $fields = ocr_extract_fields(ocr_norm_text((string)$r['text']));
+    $score = ocr_count_filled($fields);
+    if ($score > $bestScore) {
+      $bestScore = $score;
+      $best = $r + ['psm' => $psm];
+    }
+    if ($bestScore >= 3) break;
+  }
+  return $best;
 }
 
 try {
@@ -212,7 +259,7 @@ try {
     ocr_send(false, 'OCR engine not configured', ['engine' => $engine], 400);
   }
 
-  $r = ocr_run_tesseract($tmpPath);
+  $r = ocr_best_tesseract($tmpPath);
   if (is_file($tmpPath)) @unlink($tmpPath);
 
   if (!$r['ok']) {
@@ -224,10 +271,7 @@ try {
 
   $raw = ocr_norm_text((string)$r['text']);
   $fields = ocr_extract_fields($raw);
-  $filled = 0;
-  foreach ($fields as $v) {
-    if (is_string($v) && trim($v) !== '') $filled++;
-  }
+  $filled = ocr_count_filled($fields);
   if ($filled === 0) {
     ocr_send(false, 'No details were extracted. Try a clearer image or adjust OCR.', [
       'error' => 'no_fields_extracted',
@@ -238,6 +282,7 @@ try {
 
   ocr_send(true, 'ok', [
     'engine' => 'tesseract',
+    'psm' => (int)($r['psm'] ?? 0),
     'raw_text_preview' => substr($raw, 0, 800),
     'fields' => $fields
   ]);
