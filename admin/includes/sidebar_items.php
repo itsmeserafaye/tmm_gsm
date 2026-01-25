@@ -73,19 +73,12 @@ $sidebarItems = [
     ],
   ],
   [
-    'id' => 'security',
-    'label' => 'Security',
-    'icon' => 'shield',
-    'subItems' => [
-      ['id' => 'settings', 'label' => 'Security Settings', 'path' => '/security/settings', 'anyPermissions' => ['settings.manage']],
-    ],
-  ],
-  [
     'id' => 'settings',
     'label' => 'Settings',
     'icon' => 'settings',
     'subItems' => [
       ['id' => 'general-settings', 'label' => 'General', 'path' => '/settings/general', 'anyPermissions' => ['settings.manage']],
+      ['id' => 'security-settings', 'label' => 'Security Settings', 'path' => '/settings/security', 'anyPermissions' => ['settings.manage']],
     ],
   ],
 ];
