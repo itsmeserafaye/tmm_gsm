@@ -2,18 +2,23 @@
 require_once __DIR__ . '/../../includes/env.php';
 tmm_load_env(__DIR__ . '/../../.env');
 
-function db() {
+function db()
+{
   static $conn;
-  if ($conn) return $conn;
+  if ($conn)
+    return $conn;
 
-  $host = trim((string)getenv('TMM_DB_HOST'));
-  $user = trim((string)getenv('TMM_DB_USER'));
-  $pass = (string)getenv('TMM_DB_PASS');
-  $name = trim((string)getenv('TMM_DB_NAME'));
+  $host = trim((string) getenv('TMM_DB_HOST'));
+  $user = trim((string) getenv('TMM_DB_USER'));
+  $pass = (string) getenv('TMM_DB_PASS');
+  $name = trim((string) getenv('TMM_DB_NAME'));
 
-  if ($host === '') $host = 'localhost';
-  if ($user === '') $user = 'tmm_tmmgosergfvx';
-  if ($name === '') $name = 'tmm_tmm';
+  if ($host === '')
+    $host = 'localhost';
+  if ($user === '')
+    $user = 'tmm_tmmgosergfvx';
+  if ($name === '')
+    $name = 'tmm_tmm';
 
   $candidates = [
     [$host, $user, $pass, $name],
@@ -36,12 +41,14 @@ function db() {
         $name = $n;
         break;
       }
-      $lastErr = (string)$try->connect_error;
+      $lastErr = (string) $try->connect_error;
     } catch (Throwable $e) {
       $lastErr = $e->getMessage();
     }
   }
-  if (!$conn || $conn->connect_error) { die('DB connect error'); }
+  if (!$conn || $conn->connect_error) {
+    die('DB connect error');
+  }
   $conn->set_charset('utf8mb4');
   $conn->query("CREATE TABLE IF NOT EXISTS vehicles (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -64,32 +71,66 @@ function db() {
   if ($colVeh) {
     while ($c = $colVeh->fetch_assoc()) {
       $colName = $c['COLUMN_NAME'] ?? '';
-      if ($colName === 'inspection_status') { $haveInspectionStatus = true; }
-      if ($colName === 'inspection_cert_ref') { $haveInspectionCert = true; }
-      if ($colName === 'inspection_passed_at') { $haveInspectionPassedAt = true; }
+      if ($colName === 'inspection_status') {
+        $haveInspectionStatus = true;
+      }
+      if ($colName === 'inspection_cert_ref') {
+        $haveInspectionCert = true;
+      }
+      if ($colName === 'inspection_passed_at') {
+        $haveInspectionPassedAt = true;
+      }
     }
   }
-  if (!$haveInspectionStatus) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_status VARCHAR(20) DEFAULT 'Pending'"); }
-  if (!$haveInspectionCert) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL"); }
-  if (!$haveInspectionPassedAt) { $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_passed_at DATETIME DEFAULT NULL"); }
+  if (!$haveInspectionStatus) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_status VARCHAR(20) DEFAULT 'Pending'");
+  }
+  if (!$haveInspectionCert) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL");
+  }
+  if (!$haveInspectionPassedAt) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN inspection_passed_at DATETIME DEFAULT NULL");
+  }
   $colVeh2 = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicles'");
   $vehCols = [];
   if ($colVeh2) {
     while ($c = $colVeh2->fetch_assoc()) {
-      $vehCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $vehCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
-  if (!isset($vehCols['operator_id'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN operator_id INT DEFAULT NULL"); }
-  if (!isset($vehCols['engine_no'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN engine_no VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($vehCols['chassis_no'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN chassis_no VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($vehCols['make'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN make VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($vehCols['model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($vehCols['year_model'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL"); }
-  if (!isset($vehCols['fuel_type'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL"); }
-  if (!isset($vehCols['color'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN color VARCHAR(64) DEFAULT NULL"); }
-  if (!isset($vehCols['current_operator_id'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN current_operator_id INT DEFAULT NULL"); }
-  if (!isset($vehCols['ownership_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN ownership_status ENUM('Active','Transferred') DEFAULT 'Active'"); }
-  if (!isset($vehCols['record_status'])) { $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'"); }
+  if (!isset($vehCols['operator_id'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN operator_id INT DEFAULT NULL");
+  }
+  if (!isset($vehCols['engine_no'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN engine_no VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($vehCols['chassis_no'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN chassis_no VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($vehCols['make'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN make VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($vehCols['model'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN model VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($vehCols['year_model'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN year_model VARCHAR(8) DEFAULT NULL");
+  }
+  if (!isset($vehCols['fuel_type'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN fuel_type VARCHAR(64) DEFAULT NULL");
+  }
+  if (!isset($vehCols['color'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN color VARCHAR(64) DEFAULT NULL");
+  }
+  if (!isset($vehCols['current_operator_id'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN current_operator_id INT DEFAULT NULL");
+  }
+  if (!isset($vehCols['ownership_status'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN ownership_status ENUM('Active','Transferred') DEFAULT 'Active'");
+  }
+  if (!isset($vehCols['record_status'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'");
+  }
   $conn->query("UPDATE vehicles SET record_status=CASE
     WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
@@ -112,12 +153,20 @@ function db() {
   if ($colDocs) {
     while ($c = $colDocs->fetch_assoc()) {
       $colName = $c['COLUMN_NAME'] ?? '';
-      if ($colName === 'verified') { $haveVerifiedCol = true; }
-      if ($colName === 'application_id') { $haveAppIdCol = true; }
+      if ($colName === 'verified') {
+        $haveVerifiedCol = true;
+      }
+      if ($colName === 'application_id') {
+        $haveAppIdCol = true;
+      }
     }
   }
-  if (!$haveVerifiedCol) { $conn->query("ALTER TABLE documents ADD COLUMN verified TINYINT(1) DEFAULT 0"); }
-  if (!$haveAppIdCol) { $conn->query("ALTER TABLE documents ADD COLUMN application_id INT NULL"); }
+  if (!$haveVerifiedCol) {
+    $conn->query("ALTER TABLE documents ADD COLUMN verified TINYINT(1) DEFAULT 0");
+  }
+  if (!$haveAppIdCol) {
+    $conn->query("ALTER TABLE documents ADD COLUMN application_id INT NULL");
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS ownership_transfers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -165,14 +214,18 @@ function db() {
   $taCols = [];
   if ($colTA) {
     while ($c = $colTA->fetch_assoc()) {
-      $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $taCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
   if (isset($taCols['id']) && !isset($taCols['assignment_id'])) {
     $conn->query("ALTER TABLE terminal_assignments CHANGE COLUMN id assignment_id INT AUTO_INCREMENT");
   }
-  if (!isset($taCols['terminal_id'])) { $conn->query("ALTER TABLE terminal_assignments ADD COLUMN terminal_id INT DEFAULT NULL"); }
-  if (!isset($taCols['vehicle_id'])) { $conn->query("ALTER TABLE terminal_assignments ADD COLUMN vehicle_id INT DEFAULT NULL"); }
+  if (!isset($taCols['terminal_id'])) {
+    $conn->query("ALTER TABLE terminal_assignments ADD COLUMN terminal_id INT DEFAULT NULL");
+  }
+  if (!isset($taCols['vehicle_id'])) {
+    $conn->query("ALTER TABLE terminal_assignments ADD COLUMN vehicle_id INT DEFAULT NULL");
+  }
   $idxVeh = $conn->query("SHOW INDEX FROM terminal_assignments WHERE Key_name='uniq_vehicle'");
   if (!$idxVeh || $idxVeh->num_rows == 0) {
     $conn->query("ALTER TABLE terminal_assignments ADD UNIQUE KEY uniq_vehicle (vehicle_id)");
@@ -193,14 +246,24 @@ function db() {
   $termCols = [];
   if ($colTerm) {
     while ($c = $colTerm->fetch_assoc()) {
-      $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $termCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
-  if (!isset($termCols['location'])) { $conn->query("ALTER TABLE terminals ADD COLUMN location VARCHAR(255) DEFAULT NULL"); }
-  if (!isset($termCols['capacity'])) { $conn->query("ALTER TABLE terminals ADD COLUMN capacity INT DEFAULT 0"); }
-  if (!isset($termCols['type'])) { $conn->query("ALTER TABLE terminals ADD COLUMN type VARCHAR(50) DEFAULT 'Terminal'"); }
-  if (!isset($termCols['city'])) { $conn->query("ALTER TABLE terminals ADD COLUMN city VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($termCols['address'])) { $conn->query("ALTER TABLE terminals ADD COLUMN address TEXT"); }
+  if (!isset($termCols['location'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN location VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($termCols['capacity'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN capacity INT DEFAULT 0");
+  }
+  if (!isset($termCols['type'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN type VARCHAR(50) DEFAULT 'Terminal'");
+  }
+  if (!isset($termCols['city'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN city VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($termCols['address'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN address TEXT");
+  }
   $conn->query("UPDATE terminals SET location=TRIM(CONCAT(COALESCE(address,''), CASE WHEN address IS NOT NULL AND address <> '' AND city IS NOT NULL AND city <> '' THEN ', ' ELSE '' END, COALESCE(city,''))) WHERE (location IS NULL OR location='') AND ((address IS NOT NULL AND address <> '') OR (city IS NOT NULL AND city <> ''))");
   $conn->query("UPDATE terminal_assignments ta JOIN terminals t ON t.name=ta.terminal_name SET ta.terminal_id=t.id WHERE ta.terminal_id IS NULL AND ta.terminal_name IS NOT NULL AND ta.terminal_name<>''");
 
@@ -327,20 +390,42 @@ function db() {
   $routeCols = [];
   if ($colRoutes) {
     while ($c = $colRoutes->fetch_assoc()) {
-      $routeCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $routeCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
-  if (!isset($routeCols['route_code'])) { $conn->query("ALTER TABLE routes ADD COLUMN route_code VARCHAR(64) DEFAULT NULL"); }
-  if (!isset($routeCols['via'])) { $conn->query("ALTER TABLE routes ADD COLUMN via TEXT DEFAULT NULL"); }
-  if (!isset($routeCols['vehicle_type'])) { $conn->query("ALTER TABLE routes ADD COLUMN vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL"); }
-  if (!isset($routeCols['origin'])) { $conn->query("ALTER TABLE routes ADD COLUMN origin VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($routeCols['destination'])) { $conn->query("ALTER TABLE routes ADD COLUMN destination VARCHAR(100) DEFAULT NULL"); }
-  if (!isset($routeCols['structure'])) { $conn->query("ALTER TABLE routes ADD COLUMN structure ENUM('Loop','Point-to-Point') DEFAULT NULL"); }
-  if (!isset($routeCols['distance_km'])) { $conn->query("ALTER TABLE routes ADD COLUMN distance_km DECIMAL(10,2) DEFAULT NULL"); }
-  if (!isset($routeCols['fare'])) { $conn->query("ALTER TABLE routes ADD COLUMN fare DECIMAL(10,2) DEFAULT NULL"); }
-  if (!isset($routeCols['authorized_units'])) { $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL"); }
-  if (!isset($routeCols['approved_by'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_by VARCHAR(128) DEFAULT NULL"); }
-  if (!isset($routeCols['approved_date'])) { $conn->query("ALTER TABLE routes ADD COLUMN approved_date DATE DEFAULT NULL"); }
+  if (!isset($routeCols['route_code'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN route_code VARCHAR(64) DEFAULT NULL");
+  }
+  if (!isset($routeCols['via'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN via TEXT DEFAULT NULL");
+  }
+  if (!isset($routeCols['vehicle_type'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL");
+  }
+  if (!isset($routeCols['origin'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN origin VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($routeCols['destination'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN destination VARCHAR(100) DEFAULT NULL");
+  }
+  if (!isset($routeCols['structure'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN structure ENUM('Loop','Point-to-Point') DEFAULT NULL");
+  }
+  if (!isset($routeCols['distance_km'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN distance_km DECIMAL(10,2) DEFAULT NULL");
+  }
+  if (!isset($routeCols['fare'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN fare DECIMAL(10,2) DEFAULT NULL");
+  }
+  if (!isset($routeCols['authorized_units'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL");
+  }
+  if (!isset($routeCols['approved_by'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN approved_by VARCHAR(128) DEFAULT NULL");
+  }
+  if (!isset($routeCols['approved_date'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN approved_date DATE DEFAULT NULL");
+  }
   $conn->query("UPDATE routes SET route_code=route_id WHERE (route_code IS NULL OR route_code='') AND COALESCE(route_id,'')<>''");
   $conn->query("UPDATE routes SET route_id=route_code WHERE (route_id IS NULL OR route_id='') AND COALESCE(route_code,'')<>''");
   $conn->query("UPDATE routes SET status=CASE WHEN status IN ('Active','Inactive') THEN status ELSE 'Active' END");
@@ -360,36 +445,41 @@ function db() {
     ['old' => 'R-05', 'old_name' => 'North Spur', 'new' => 'TR-03', 'new_name' => 'Deparo–Tala Service', 'vehicle_type' => 'Jeepney', 'origin' => 'Deparo', 'destination' => 'Tala', 'via' => 'Deparo Rd • Tala Area (Caloocan)', 'structure' => 'Point-to-Point', 'units' => 40],
   ];
   foreach ($legacySeed as $ls) {
-    $old = (string)$ls['old'];
-    $oldName = (string)$ls['old_name'];
-    $new = (string)$ls['new'];
+    $old = (string) $ls['old'];
+    $oldName = (string) $ls['old_name'];
+    $new = (string) $ls['new'];
     $chkOld = $conn->prepare("SELECT id FROM routes WHERE route_id=? AND route_name=? LIMIT 1");
-    if (!$chkOld) continue;
+    if (!$chkOld)
+      continue;
     $chkOld->bind_param('ss', $old, $oldName);
     $chkOld->execute();
     $oldRow = $chkOld->get_result()->fetch_assoc();
     $chkOld->close();
-    if (!$oldRow) continue;
+    if (!$oldRow)
+      continue;
 
     $chkNew = $conn->prepare("SELECT 1 FROM routes WHERE route_id=? LIMIT 1");
-    if (!$chkNew) continue;
+    if (!$chkNew)
+      continue;
     $chkNew->bind_param('s', $new);
     $chkNew->execute();
-    $newExists = (bool)$chkNew->get_result()->fetch_row();
+    $newExists = (bool) $chkNew->get_result()->fetch_row();
     $chkNew->close();
-    if ($newExists) continue;
+    if ($newExists)
+      continue;
 
     $stmtU = $conn->prepare("UPDATE routes
       SET route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, authorized_units=?, max_vehicle_limit=?, status='Active'
       WHERE route_id=? AND route_name=?");
-    if (!$stmtU) continue;
-    $units = (int)$ls['units'];
-    $newName = (string)$ls['new_name'];
-    $vehType = (string)$ls['vehicle_type'];
-    $orig = (string)$ls['origin'];
-    $dest = (string)$ls['destination'];
-    $via = (string)$ls['via'];
-    $struct = (string)$ls['structure'];
+    if (!$stmtU)
+      continue;
+    $units = (int) $ls['units'];
+    $newName = (string) $ls['new_name'];
+    $vehType = (string) $ls['vehicle_type'];
+    $orig = (string) $ls['origin'];
+    $dest = (string) $ls['destination'];
+    $via = (string) $ls['via'];
+    $struct = (string) $ls['structure'];
     $stmtU->bind_param('ssssssssiiss', $new, $new, $newName, $vehType, $orig, $dest, $via, $struct, $units, $units, $old, $oldName);
     $stmtU->execute();
     $stmtU->close();
@@ -468,7 +558,7 @@ function db() {
   $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
   $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
   if ($statusCol && ($row = $statusCol->fetch_assoc())) {
-    $t = (string)($row['Type'] ?? '');
+    $t = (string) ($row['Type'] ?? '');
     if (stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
       $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted'");
     }
@@ -560,7 +650,7 @@ function db() {
   $opsCols = [];
   if ($colOps) {
     while ($c = $colOps->fetch_assoc()) {
-      $opsCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $opsCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
   $idxOpsPk = $conn->query("SHOW INDEX FROM operators WHERE Key_name='PRIMARY'");
@@ -573,27 +663,48 @@ function db() {
   if (!$opsHasPk && isset($opsCols['id'])) {
     $conn->query("ALTER TABLE operators ADD PRIMARY KEY (id)");
   }
-  if (!isset($opsCols['operator_type'])) { $conn->query("ALTER TABLE operators ADD COLUMN operator_type ENUM('Individual','Cooperative','Corporation') DEFAULT 'Individual'"); }
-  if (!isset($opsCols['registered_name'])) { $conn->query("ALTER TABLE operators ADD COLUMN registered_name VARCHAR(255) DEFAULT NULL"); }
-  if (!isset($opsCols['name'])) { $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL"); }
-  if (!isset($opsCols['address'])) { $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL"); }
-  if (!isset($opsCols['contact_no'])) { $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL"); }
-  if (!isset($opsCols['email'])) { $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL"); }
-  if (!isset($opsCols['status'])) { $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'"); }
-  if (!isset($opsCols['verification_status'])) { $conn->query("ALTER TABLE operators ADD COLUMN verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft'"); }
+  if (!isset($opsCols['operator_type'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN operator_type ENUM('Individual','Cooperative','Corporation') DEFAULT 'Individual'");
+  }
+  if (!isset($opsCols['registered_name'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN registered_name VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($opsCols['name'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($opsCols['address'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($opsCols['contact_no'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL");
+  }
+  if (!isset($opsCols['email'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN email VARCHAR(128) DEFAULT NULL");
+  }
+  if (!isset($opsCols['status'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN status ENUM('Pending','Approved','Inactive') DEFAULT 'Approved'");
+  }
+  if (!isset($opsCols['verification_status'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN verification_status ENUM('Draft','Verified','Inactive') NOT NULL DEFAULT 'Draft'");
+  }
   if (!isset($opsCols['workflow_status'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN workflow_status ENUM('Draft','Incomplete','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'");
     $opsCols['workflow_status'] = true;
   } else {
     $colWf = $conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='operators' AND COLUMN_NAME='workflow_status' LIMIT 1");
     $wfType = '';
-    if ($colWf && ($rowWf = $colWf->fetch_assoc())) $wfType = (string)($rowWf['COLUMN_TYPE'] ?? '');
+    if ($colWf && ($rowWf = $colWf->fetch_assoc()))
+      $wfType = (string) ($rowWf['COLUMN_TYPE'] ?? '');
     if ($wfType !== '' && stripos($wfType, "'Incomplete'") === false) {
       $conn->query("ALTER TABLE operators MODIFY COLUMN workflow_status ENUM('Draft','Incomplete','Pending Validation','Active','Returned','Rejected','Inactive') NOT NULL DEFAULT 'Draft'");
     }
   }
-  if (!isset($opsCols['workflow_remarks'])) { $conn->query("ALTER TABLE operators ADD COLUMN workflow_remarks TEXT DEFAULT NULL"); }
-  if (!isset($opsCols['updated_at'])) { $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL"); }
+  if (!isset($opsCols['workflow_remarks'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN workflow_remarks TEXT DEFAULT NULL");
+  }
+  if (!isset($opsCols['updated_at'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL");
+  }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
   $conn->query("UPDATE operators SET registered_name=COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) WHERE (registered_name IS NULL OR registered_name='') AND (COALESCE(NULLIF(name,''), full_name) IS NOT NULL)");
   $conn->query("UPDATE operators SET verification_status=CASE
@@ -626,15 +737,27 @@ function db() {
   $opDocCols = [];
   if ($colOpDocs) {
     while ($c = $colOpDocs->fetch_assoc()) {
-      $opDocCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $opDocCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
-  if (!isset($opDocCols['uploaded_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP"); }
-  if (!isset($opDocCols['is_verified'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
-  if (!isset($opDocCols['verified_by'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
-  if (!isset($opDocCols['verified_at'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }
-  if (!isset($opDocCols['doc_status'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending'"); }
-  if (!isset($opDocCols['remarks'])) { $conn->query("ALTER TABLE operator_documents ADD COLUMN remarks TEXT DEFAULT NULL"); }
+  if (!isset($opDocCols['uploaded_at'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+  }
+  if (!isset($opDocCols['is_verified'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0");
+  }
+  if (!isset($opDocCols['verified_by'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_by INT DEFAULT NULL");
+  }
+  if (!isset($opDocCols['verified_at'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($opDocCols['doc_status'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending'");
+  }
+  if (!isset($opDocCols['remarks'])) {
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN remarks TEXT DEFAULT NULL");
+  }
   $conn->query("UPDATE operator_documents SET doc_status=CASE WHEN is_verified=1 THEN 'Verified' ELSE COALESCE(NULLIF(doc_status,''),'Pending') END");
   $conn->query("UPDATE operator_documents SET doc_type=CASE
     WHEN LOWER(COALESCE(doc_type,'')) IN ('id','govid','valid id','validid') THEN 'GovID'
@@ -644,7 +767,7 @@ function db() {
   $conn->query("CREATE TABLE IF NOT EXISTS vehicle_documents (
     doc_id INT AUTO_INCREMENT PRIMARY KEY,
     vehicle_id INT NOT NULL,
-    doc_type ENUM('ORCR','Insurance','Emission','Others') DEFAULT 'Others',
+    doc_type ENUM('OR','CR','Insurance','Emission','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_verified TINYINT(1) NOT NULL DEFAULT 0,
@@ -657,7 +780,7 @@ function db() {
   $vehDocCols = [];
   if ($colVehDocs) {
     while ($c = $colVehDocs->fetch_assoc()) {
-      $vehDocCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $vehDocCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
     }
   }
   if (!isset($vehDocCols['doc_id']) && isset($vehDocCols['id'])) {
@@ -668,7 +791,7 @@ function db() {
     $docIdExtra = '';
     if ($colDocId) {
       $r = $colDocId->fetch_assoc();
-      $docIdExtra = (string)($r['Extra'] ?? '');
+      $docIdExtra = (string) ($r['Extra'] ?? '');
     }
     if (stripos($docIdExtra, 'auto_increment') === false) {
       $conn->query("ALTER TABLE vehicle_documents MODIFY COLUMN doc_id INT NOT NULL AUTO_INCREMENT");
@@ -691,15 +814,37 @@ function db() {
     $conn->query("ALTER TABLE vehicle_documents ADD COLUMN vehicle_id INT NULL AFTER doc_id");
     $conn->query("ALTER TABLE vehicle_documents ADD INDEX idx_vehicle_id (vehicle_id)");
   }
-  if (!isset($vehDocCols['is_verified'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0"); }
-  if (!isset($vehDocCols['verified_by'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_by INT DEFAULT NULL"); }
-  if (!isset($vehDocCols['verified_at'])) { $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_at DATETIME DEFAULT NULL"); }
+  if (!isset($vehDocCols['is_verified'])) {
+    $conn->query("ALTER TABLE vehicle_documents ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0");
+  }
+  if (!isset($vehDocCols['verified_by'])) {
+    $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_by INT DEFAULT NULL");
+  }
+  if (!isset($vehDocCols['verified_at'])) {
+    $conn->query("ALTER TABLE vehicle_documents ADD COLUMN verified_at DATETIME DEFAULT NULL");
+  }
+
+  // Update the ENUM to support OR and CR separately
+  $docTypeCol = $conn->query("SHOW COLUMNS FROM vehicle_documents LIKE 'doc_type'");
+  if ($docTypeCol && ($row = $docTypeCol->fetch_assoc())) {
+    $type = (string) ($row['Type'] ?? '');
+    // Check if we need to update the ENUM
+    if (stripos($type, "'OR'") === false || stripos($type, "'CR'") === false) {
+      // First, update any existing ORCR values - we'll keep them as ORCR for now to avoid data loss
+      // The migration will happen naturally as new documents are uploaded
+      $conn->query("ALTER TABLE vehicle_documents MODIFY COLUMN doc_type ENUM('OR','CR','ORCR','Insurance','Emission','Others') DEFAULT 'Others'");
+    }
+  }
+
+  // Normalize document types - keep OR and CR separate
   $conn->query("UPDATE vehicle_documents SET doc_type=CASE
-    WHEN LOWER(COALESCE(doc_type,'')) IN ('or','cr','orcr','or/cr') THEN 'ORCR'
+    WHEN LOWER(COALESCE(doc_type,''))='or' THEN 'OR'
+    WHEN LOWER(COALESCE(doc_type,''))='cr' THEN 'CR'
+    WHEN LOWER(COALESCE(doc_type,'')) IN ('orcr','or/cr') THEN 'ORCR'
     WHEN LOWER(COALESCE(doc_type,''))='insurance' THEN 'Insurance'
     WHEN LOWER(COALESCE(doc_type,'')) IN ('emission','emissions') THEN 'Emission'
     WHEN LOWER(COALESCE(doc_type,'')) IN ('others','other','deed') THEN 'Others'
-    WHEN COALESCE(doc_type,'') IN ('ORCR','Insurance','Emission','Others') THEN doc_type
+    WHEN COALESCE(doc_type,'') IN ('OR','CR','ORCR','Insurance','Emission','Others') THEN doc_type
     ELSE 'Others' END");
   $conn->query("UPDATE vehicle_documents vd JOIN vehicles v ON v.plate_number=vd.plate_number SET vd.vehicle_id=v.id WHERE (vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND COALESCE(vd.plate_number,'')<>''");
   $conn->query("CREATE TABLE IF NOT EXISTS coops (
@@ -770,7 +915,7 @@ function db() {
     $check = $conn->query("SELECT violation_code FROM violation_types WHERE violation_code = '$code' LIMIT 1");
     if ($check && $check->num_rows == 0) {
       $desc = $conn->real_escape_string($v[1]);
-      $fine = (float)$v[2];
+      $fine = (float) $v[2];
       $cat = $conn->real_escape_string($v[3]);
       $sts = $conn->real_escape_string($v[4]);
       $conn->query("INSERT INTO violation_types(violation_code, description, fine_amount, category, sts_equivalent_code) VALUES ('$code', '$desc', $fine, '$cat', '$sts')");
@@ -817,7 +962,7 @@ function db() {
   ) ENGINE=InnoDB");
   $colTicketId = $conn->query("SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets' AND COLUMN_NAME='ticket_id' LIMIT 1");
   if ($colTicketId && ($r = $colTicketId->fetch_assoc())) {
-    $extra = strtolower((string)($r['EXTRA'] ?? ''));
+    $extra = strtolower((string) ($r['EXTRA'] ?? ''));
     if (strpos($extra, 'auto_increment') === false) {
       $conn->query("ALTER TABLE tickets MODIFY COLUMN ticket_id INT NOT NULL AUTO_INCREMENT");
     }
@@ -828,27 +973,40 @@ function db() {
   }
   // Ensure new audit columns exist (safe migrations)
   $colCheck = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='tickets'");
-  $haveBadge = false; $haveOfficer = false; $haveOperatorId = false; $haveEvidencePath = false;
+  $haveBadge = false;
+  $haveOfficer = false;
+  $haveOperatorId = false;
+  $haveEvidencePath = false;
   if ($colCheck) {
     while ($c = $colCheck->fetch_assoc()) {
-      if (($c['COLUMN_NAME'] ?? '') === 'issued_by_badge') $haveBadge = true;
-      if (($c['COLUMN_NAME'] ?? '') === 'officer_id') $haveOfficer = true;
-      if (($c['COLUMN_NAME'] ?? '') === 'operator_id') $haveOperatorId = true;
-      if (($c['COLUMN_NAME'] ?? '') === 'evidence_path') $haveEvidencePath = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'issued_by_badge')
+        $haveBadge = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'officer_id')
+        $haveOfficer = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'operator_id')
+        $haveOperatorId = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'evidence_path')
+        $haveEvidencePath = true;
     }
   }
-  if (!$haveBadge) { $conn->query("ALTER TABLE tickets ADD COLUMN issued_by_badge VARCHAR(64) DEFAULT NULL"); }
-  if (!$haveOfficer) { 
+  if (!$haveBadge) {
+    $conn->query("ALTER TABLE tickets ADD COLUMN issued_by_badge VARCHAR(64) DEFAULT NULL");
+  }
+  if (!$haveOfficer) {
     $conn->query("ALTER TABLE tickets ADD COLUMN officer_id INT DEFAULT NULL");
     // Add FK if table exists
     $conn->query("ALTER TABLE tickets ADD INDEX idx_officer_id (officer_id)");
     $conn->query("ALTER TABLE tickets ADD CONSTRAINT fk_tickets_officer FOREIGN KEY (officer_id) REFERENCES officers(officer_id)");
   }
-  if (!$haveOperatorId) { $conn->query("ALTER TABLE tickets ADD COLUMN operator_id INT DEFAULT NULL"); }
-  if (!$haveEvidencePath) { $conn->query("ALTER TABLE tickets ADD COLUMN evidence_path VARCHAR(255) DEFAULT NULL"); }
+  if (!$haveOperatorId) {
+    $conn->query("ALTER TABLE tickets ADD COLUMN operator_id INT DEFAULT NULL");
+  }
+  if (!$haveEvidencePath) {
+    $conn->query("ALTER TABLE tickets ADD COLUMN evidence_path VARCHAR(255) DEFAULT NULL");
+  }
   $statusColTickets = $conn->query("SHOW COLUMNS FROM tickets LIKE 'status'");
   if ($statusColTickets && ($row = $statusColTickets->fetch_assoc())) {
-    $t = (string)($row['Type'] ?? '');
+    $t = (string) ($row['Type'] ?? '');
     if (stripos($t, 'unpaid') === false) {
       $conn->query("ALTER TABLE tickets MODIFY COLUMN status ENUM('Unpaid','Pending','Validated','Settled','Escalated') DEFAULT 'Unpaid'");
       $conn->query("UPDATE tickets SET status='Unpaid' WHERE status IN ('Pending','Validated','Escalated')");
@@ -897,16 +1055,28 @@ function db() {
   if ($colPay) {
     while ($c = $colPay->fetch_assoc()) {
       $cn = $c['COLUMN_NAME'] ?? '';
-      if ($cn === 'payment_channel') $havePayChannel = true;
-      if ($cn === 'external_payment_id') $haveExternalPaymentId = true;
-      if ($cn === 'exported_to_treasury') $haveExportedToTreasury = true;
-      if ($cn === 'exported_at') $haveExportedAt = true;
+      if ($cn === 'payment_channel')
+        $havePayChannel = true;
+      if ($cn === 'external_payment_id')
+        $haveExternalPaymentId = true;
+      if ($cn === 'exported_to_treasury')
+        $haveExportedToTreasury = true;
+      if ($cn === 'exported_at')
+        $haveExportedAt = true;
     }
   }
-  if (!$havePayChannel) { $conn->query("ALTER TABLE payment_records ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL"); }
-  if (!$haveExternalPaymentId) { $conn->query("ALTER TABLE payment_records ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL"); }
-  if (!$haveExportedToTreasury) { $conn->query("ALTER TABLE payment_records ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0"); }
-  if (!$haveExportedAt) { $conn->query("ALTER TABLE payment_records ADD COLUMN exported_at DATETIME DEFAULT NULL"); }
+  if (!$havePayChannel) {
+    $conn->query("ALTER TABLE payment_records ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL");
+  }
+  if (!$haveExternalPaymentId) {
+    $conn->query("ALTER TABLE payment_records ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL");
+  }
+  if (!$haveExportedToTreasury) {
+    $conn->query("ALTER TABLE payment_records ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0");
+  }
+  if (!$haveExportedAt) {
+    $conn->query("ALTER TABLE payment_records ADD COLUMN exported_at DATETIME DEFAULT NULL");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS treasury_payment_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -929,23 +1099,39 @@ function db() {
   ) ENGINE=InnoDB");
 
   $tblParking = $conn->query("SELECT COUNT(*) AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_transactions'");
-  $hasParkingTx = $tblParking && ((int)($tblParking->fetch_assoc()['c'] ?? 0) > 0);
+  $hasParkingTx = $tblParking && ((int) ($tblParking->fetch_assoc()['c'] ?? 0) > 0);
   if ($hasParkingTx) {
     $colPark = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_transactions'");
     $parkCols = [];
     if ($colPark) {
       while ($c = $colPark->fetch_assoc()) {
-        $parkCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+        $parkCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
       }
     }
-    if (!isset($parkCols['receipt_ref'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN receipt_ref VARCHAR(64) DEFAULT NULL"); }
-    if (!isset($parkCols['payment_channel'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL"); }
-    if (!isset($parkCols['external_payment_id'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL"); }
-    if (!isset($parkCols['paid_at'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN paid_at DATETIME DEFAULT NULL"); }
-    if (!isset($parkCols['duration_hours'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN duration_hours INT DEFAULT NULL"); }
-    if (!isset($parkCols['payment_method'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_method VARCHAR(64) DEFAULT NULL"); }
-    if (!isset($parkCols['reference_no'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN reference_no VARCHAR(64) DEFAULT NULL"); }
-    if (!isset($parkCols['exported_to_treasury'])) { $conn->query("ALTER TABLE parking_transactions ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0"); }
+    if (!isset($parkCols['receipt_ref'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN receipt_ref VARCHAR(64) DEFAULT NULL");
+    }
+    if (!isset($parkCols['payment_channel'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_channel VARCHAR(64) DEFAULT NULL");
+    }
+    if (!isset($parkCols['external_payment_id'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN external_payment_id VARCHAR(128) DEFAULT NULL");
+    }
+    if (!isset($parkCols['paid_at'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN paid_at DATETIME DEFAULT NULL");
+    }
+    if (!isset($parkCols['duration_hours'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN duration_hours INT DEFAULT NULL");
+    }
+    if (!isset($parkCols['payment_method'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN payment_method VARCHAR(64) DEFAULT NULL");
+    }
+    if (!isset($parkCols['reference_no'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN reference_no VARCHAR(64) DEFAULT NULL");
+    }
+    if (!isset($parkCols['exported_to_treasury'])) {
+      $conn->query("ALTER TABLE parking_transactions ADD COLUMN exported_to_treasury TINYINT(1) DEFAULT 0");
+    }
   }
   $conn->query("CREATE TABLE IF NOT EXISTS ticket_notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1000,22 +1186,43 @@ function db() {
   if ($colCheckIns) {
     while ($c = $colCheckIns->fetch_assoc()) {
       $cn = $c['COLUMN_NAME'] ?? '';
-      if ($cn === 'inspection_type') $haveInspectionType = true;
-      if ($cn === 'requested_by') $haveRequestedBy = true;
-      if ($cn === 'contact_person') $haveContactPerson = true;
-      if ($cn === 'contact_number') $haveContactNumber = true;
-      if ($cn === 'inspector_label') $haveInspectorLabel = true;
-      if ($cn === 'vehicle_id') $haveVehicleId = true;
-      if ($cn === 'schedule_date') $haveScheduleDate = true;
+      if ($cn === 'inspection_type')
+        $haveInspectionType = true;
+      if ($cn === 'requested_by')
+        $haveRequestedBy = true;
+      if ($cn === 'contact_person')
+        $haveContactPerson = true;
+      if ($cn === 'contact_number')
+        $haveContactNumber = true;
+      if ($cn === 'inspector_label')
+        $haveInspectorLabel = true;
+      if ($cn === 'vehicle_id')
+        $haveVehicleId = true;
+      if ($cn === 'schedule_date')
+        $haveScheduleDate = true;
     }
   }
-  if (!$haveInspectionType) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspection_type VARCHAR(32) DEFAULT 'Annual'"); }
-  if (!$haveRequestedBy) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN requested_by VARCHAR(128) DEFAULT NULL"); }
-  if (!$haveContactPerson) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_person VARCHAR(128) DEFAULT NULL"); }
-  if (!$haveContactNumber) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_number VARCHAR(32) DEFAULT NULL"); }
-   if (!$haveInspectorLabel) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspector_label VARCHAR(128) DEFAULT NULL AFTER inspector_id"); }
-  if (!$haveVehicleId) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN vehicle_id INT DEFAULT NULL AFTER plate_number"); }
-  if (!$haveScheduleDate) { $conn->query("ALTER TABLE inspection_schedules ADD COLUMN schedule_date DATETIME DEFAULT NULL AFTER scheduled_at"); }
+  if (!$haveInspectionType) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspection_type VARCHAR(32) DEFAULT 'Annual'");
+  }
+  if (!$haveRequestedBy) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN requested_by VARCHAR(128) DEFAULT NULL");
+  }
+  if (!$haveContactPerson) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_person VARCHAR(128) DEFAULT NULL");
+  }
+  if (!$haveContactNumber) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN contact_number VARCHAR(32) DEFAULT NULL");
+  }
+  if (!$haveInspectorLabel) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN inspector_label VARCHAR(128) DEFAULT NULL AFTER inspector_id");
+  }
+  if (!$haveVehicleId) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN vehicle_id INT DEFAULT NULL AFTER plate_number");
+  }
+  if (!$haveScheduleDate) {
+    $conn->query("ALTER TABLE inspection_schedules ADD COLUMN schedule_date DATETIME DEFAULT NULL AFTER scheduled_at");
+  }
   $conn->query("UPDATE inspection_schedules s JOIN vehicles v ON v.plate_number=s.plate_number SET s.vehicle_id=v.id WHERE s.vehicle_id IS NULL");
   $conn->query("UPDATE inspection_schedules SET schedule_date=scheduled_at WHERE schedule_date IS NULL");
 
@@ -1031,7 +1238,7 @@ function db() {
   ) ENGINE=InnoDB");
   $colReg = $conn->query("SHOW COLUMNS FROM vehicle_registrations LIKE 'registration_status'");
   if ($colReg && ($row = $colReg->fetch_assoc())) {
-    $t = (string)($row['Type'] ?? '');
+    $t = (string) ($row['Type'] ?? '');
     if (stripos($t, 'recorded') === false) {
       $conn->query("ALTER TABLE vehicle_registrations MODIFY COLUMN registration_status ENUM('Pending','Recorded','Registered','Expired') DEFAULT 'Registered'");
     }

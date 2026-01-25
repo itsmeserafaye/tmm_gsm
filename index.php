@@ -42,26 +42,28 @@ if (!empty($_SESSION['user_id'])) {
 </head>
 
 <body class="bg-custom-bg min-h-screen flex flex-col">
-    <header class="py-3">
+    <header class="py-4 bg-gradient-to-r from-white via-purple-50 to-pink-50 border-b-4 border-gradient-to-r from-purple-500 via-pink-500 to-orange-500 shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-6">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg">
-                        <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
-                            alt="TMM Logo" class="h-10 w-auto">
+                    <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-xl p-0.5">
+                        <div class="w-full h-full bg-white rounded-full flex items-center justify-center">
+                            <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
+                                alt="TMM Logo" class="h-10 w-auto">
+                        </div>
                     </div>
                     <div class="leading-tight">
                         <h1 class="text-xl lg:text-2xl font-bold" style="font-weight: 700;">
                             <span class="text-slate-800">Transport & Mobility</span> <span
-                                class="text-custom-primary">Management</span>
+                                class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Management</span>
                         </h1>
-                        <div class="text-xs text-custom-secondary">Transport & Mobility Management System</div>
+                        <div class="text-xs font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Transport & Mobility Management System</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-8">
                     <div class="text-right">
                         <div class="text-sm">
-                            <div id="currentDateTime" class="font-semibold text-slate-600"></div>
+                            <div id="currentDateTime" class="font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"></div>
                         </div>
                     </div>
                 </div>

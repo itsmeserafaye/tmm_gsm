@@ -3,32 +3,45 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['module1.view','module1.vehicles.write']);
+require_any_permission(['module1.view', 'module1.vehicles.write']);
 
 $schema = '';
 $schRes = $db->query("SELECT DATABASE() AS db");
-if ($schRes) { $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: ''); }
-function tmm_has_column(mysqli $db, string $schema, string $table, string $col): bool {
-  if ($schema === '') return false;
+if ($schRes) {
+  $schema = (string) (($schRes->fetch_assoc()['db'] ?? '') ?: '');
+}
+function tmm_has_column(mysqli $db, string $schema, string $table, string $col): bool
+{
+  if ($schema === '')
+    return false;
   $t = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
-  if (!$t) return false;
+  if (!$t)
+    return false;
   $t->bind_param('sss', $schema, $table, $col);
   $t->execute();
   $res = $t->get_result();
-  $ok = (bool)($res && $res->fetch_row());
+  $ok = (bool) ($res && $res->fetch_row());
   $t->close();
   return $ok;
 }
 
-$plate = trim((string)($_GET['plate'] ?? ($_GET['plate_number'] ?? '')));
-$vehicleId = isset($_GET['vehicle_id']) ? (int)$_GET['vehicle_id'] : 0;
-$type = trim((string)($_GET['type'] ?? ''));
+$plate = trim((string) ($_GET['plate'] ?? ($_GET['plate_number'] ?? '')));
+$vehicleId = isset($_GET['vehicle_id']) ? (int) $_GET['vehicle_id'] : 0;
+$type = trim((string) ($_GET['type'] ?? ''));
 if ($type !== '') {
   $t = strtolower(trim($type));
-  if ($t === 'or' || $t === 'cr' || $t === 'orcr' || $t === 'or/cr') $type = 'ORCR';
-  elseif ($t === 'insurance') $type = 'Insurance';
-  elseif ($t === 'deed') $type = 'Others';
-  elseif ($t === 'others') $type = 'Others';
+  if ($t === 'or')
+    $type = 'OR';
+  elseif ($t === 'cr')
+    $type = 'CR';
+  elseif ($t === 'orcr' || $t === 'or/cr')
+    $type = 'ORCR';
+  elseif ($t === 'insurance')
+    $type = 'Insurance';
+  elseif ($t === 'deed')
+    $type = 'Others';
+  elseif ($t === 'others')
+    $type = 'Others';
 }
 
 if ($plate === '' && $vehicleId <= 0) {
@@ -55,8 +68,9 @@ if ($vehicleId > 0) {
   }
 }
 if ($vehRow && isset($vehRow['id'])) {
-  $vehicleId = (int)$vehRow['id'];
-  if ($plate === '') $plate = (string)($vehRow['plate_number'] ?? '');
+  $vehicleId = (int) $vehRow['id'];
+  if ($plate === '')
+    $plate = (string) ($vehRow['plate_number'] ?? '');
 }
 
 $rows = [];
@@ -77,37 +91,13 @@ if ($vehicleId > 0) {
       $stmt->bind_param($types, ...$params);
       $stmt->execute();
       $res = $stmt->get_result();
-      while ($row = $res->fetch_assoc()) { $row['source'] = 'vehicle_documents'; $rows[] = $row; }
+      while ($row = $res->fetch_assoc()) {
+        $row['source'] = 'vehicle_documents';
+        $rows[] = $row;
+      }
       $stmt->close();
     }
-    if ($plate !== '' && tmm_has_column($db, $schema, 'documents', 'plate_number')) {
-      $hasExpiry = tmm_has_column($db, $schema, 'documents', 'expiry_date');
-      $sql = "SELECT id AS id, plate_number, UPPER(type) AS type, file_path, uploaded_at, verified AS is_verified, NULL AS verified_by, NULL AS verified_at
-              " . ($hasExpiry ? ", expiry_date" : ", NULL AS expiry_date") . "
-              FROM documents
-              WHERE plate_number=?";
-      $params = [$plate];
-      $types = 's';
-      if ($type !== '') {
-        $t = strtolower($type);
-        if ($t === 'orcr' || $t === 'or/cr') {
-          $sql .= " AND LOWER(type) IN ('or','cr','orcr','or/cr')";
-        } else {
-          $sql .= " AND LOWER(type)=?";
-          $params[] = $t;
-          $types .= 's';
-        }
-      }
-      $sql .= " ORDER BY uploaded_at DESC";
-      $stmt = $db->prepare($sql);
-      if ($stmt) {
-        $stmt->bind_param($types, ...$params);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) { $row['source'] = 'documents'; $rows[] = $row; }
-        $stmt->close();
-      }
-    }
+    // Removed duplicate query to documents table to prevent showing documents multiple times
   } else {
     $useLegacyVehDocs = tmm_has_column($db, $schema, 'vehicle_documents', 'plate_number') && tmm_has_column($db, $schema, 'vehicle_documents', 'file_path');
     if ($useLegacyVehDocs && $plate !== '') {
@@ -128,21 +118,29 @@ if ($vehicleId > 0) {
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+        while ($row = $res->fetch_assoc()) {
+          $rows[] = $row;
+        }
         $stmt->close();
       }
     } elseif ($plate !== '' && tmm_has_column($db, $schema, 'documents', 'plate_number')) {
       $sql = "SELECT id AS id, plate_number, type, file_path, uploaded_at, verified AS is_verified, NULL AS verified_by, NULL AS verified_at FROM documents WHERE plate_number=?";
       $params = [$plate];
       $types = 's';
-      if ($type !== '') { $sql .= " AND type=?"; $params[] = strtolower($type) === 'orcr' ? 'or' : strtolower($type); $types .= 's'; }
+      if ($type !== '') {
+        $sql .= " AND type=?";
+        $params[] = strtolower($type) === 'orcr' ? 'or' : strtolower($type);
+        $types .= 's';
+      }
       $sql .= " ORDER BY uploaded_at DESC";
       $stmt = $db->prepare($sql);
       if ($stmt) {
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $res = $stmt->get_result();
-        while ($row = $res->fetch_assoc()) { $rows[] = $row; }
+        while ($row = $res->fetch_assoc()) {
+          $rows[] = $row;
+        }
         $stmt->close();
       }
     }
@@ -150,8 +148,8 @@ if ($vehicleId > 0) {
 }
 
 usort($rows, function ($a, $b) {
-  $ta = (string)($a['uploaded_at'] ?? '');
-  $tb = (string)($b['uploaded_at'] ?? '');
+  $ta = (string) ($a['uploaded_at'] ?? '');
+  $tb = (string) ($b['uploaded_at'] ?? '');
   return strcmp($tb, $ta);
 });
 

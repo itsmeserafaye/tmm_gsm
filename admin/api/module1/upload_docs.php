@@ -3,8 +3,8 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 $db = db();
-$plate = trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
-$vehicleId = isset($_POST['vehicle_id']) ? (int)$_POST['vehicle_id'] : 0;
+$plate = trim((string) ($_POST['plate_number'] ?? ($_POST['plate_no'] ?? '')));
+$vehicleId = isset($_POST['vehicle_id']) ? (int) $_POST['vehicle_id'] : 0;
 header('Content-Type: application/json');
 require_permission('module1.vehicles.write');
 
@@ -30,8 +30,8 @@ if (!$exists) {
     echo json_encode(['error' => 'vehicle_not_found']);
     exit;
 }
-$vehicleId = (int)($exists['id'] ?? 0);
-$plate = (string)($exists['plate_number'] ?? $plate);
+$vehicleId = (int) ($exists['id'] ?? 0);
+$plate = (string) ($exists['plate_number'] ?? $plate);
 
 $uploads_dir = __DIR__ . '/../../uploads';
 if (!is_dir($uploads_dir)) {
@@ -42,24 +42,32 @@ $uploaded = [];
 $errors = [];
 $details = [];
 
-function tmm_docs_has_expiry(mysqli $db): bool {
+function tmm_docs_has_expiry(mysqli $db): bool
+{
     $res = $db->query("SHOW TABLES LIKE 'documents'");
-    if (!$res || !$res->fetch_row()) return false;
+    if (!$res || !$res->fetch_row())
+        return false;
     $col = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
     return $col && $col->num_rows > 0;
 }
 
-function tmm_docs_ensure_expiry(mysqli $db): bool {
-    if (tmm_docs_has_expiry($db)) return true;
+function tmm_docs_ensure_expiry(mysqli $db): bool
+{
+    if (tmm_docs_has_expiry($db))
+        return true;
     $res = $db->query("SHOW TABLES LIKE 'documents'");
-    if (!$res || !$res->fetch_row()) return false;
-    return (bool)$db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL");
+    if (!$res || !$res->fetch_row())
+        return false;
+    return (bool) $db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL");
 }
 
-function tmm_update_vehicle_status_from_docs(mysqli $db, int $vehicleId, string $plate): void {
-    if ($vehicleId <= 0 || $plate === '') return;
+function tmm_update_vehicle_status_from_docs(mysqli $db, int $vehicleId, string $plate): void
+{
+    if ($vehicleId <= 0 || $plate === '')
+        return;
     $hasDocs = $db->query("SHOW TABLES LIKE 'documents'");
-    if (!$hasDocs || !$hasDocs->fetch_row()) return;
+    if (!$hasDocs || !$hasDocs->fetch_row())
+        return;
     $hasExpiry = tmm_docs_has_expiry($db);
     $sql = $hasExpiry
         ? "SELECT
@@ -73,67 +81,86 @@ function tmm_update_vehicle_status_from_docs(mysqli $db, int $vehicleId, string 
             MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS or_valid
            FROM documents WHERE plate_number=?";
     $stmt = $db->prepare($sql);
-    if (!$stmt) return;
+    if (!$stmt)
+        return;
     $stmt->bind_param('s', $plate);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
-    $hasCr = (int)($row['has_cr'] ?? 0) === 1;
-    $hasOr = (int)($row['has_or'] ?? 0) === 1;
-    $orValid = (int)($row['or_valid'] ?? 0) === 1;
+    $hasCr = (int) ($row['has_cr'] ?? 0) === 1;
+    $hasOr = (int) ($row['has_or'] ?? 0) === 1;
+    $orValid = (int) ($row['or_valid'] ?? 0) === 1;
     $status = 'Inactive';
     if ($hasCr) {
-        if (!$hasOr) $status = 'Inactive';
-        else $status = $orValid ? 'Active' : 'Blocked';
+        if (!$hasOr)
+            $status = 'Inactive';
+        else
+            $status = $orValid ? 'Active' : 'Blocked';
     }
     $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
-    if (!$stmtU) return;
+    if (!$stmtU)
+        return;
     $stmtU->bind_param('si', $status, $vehicleId);
     $stmtU->execute();
     $stmtU->close();
 }
 
-function tmm_vehicle_docs_schema(mysqli $db): array {
+function tmm_vehicle_docs_schema(mysqli $db): array
+{
     static $schema = null;
-    if (is_array($schema)) return $schema;
+    if (is_array($schema))
+        return $schema;
     $schema = ['exists' => false, 'cols' => [], 'types' => []];
     $check = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
-    if (!$check || !$check->fetch_row()) return $schema;
+    if (!$check || !$check->fetch_row())
+        return $schema;
     $schema['exists'] = true;
     $res = $db->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_documents'");
     if ($res) {
         while ($r = $res->fetch_assoc()) {
-            $col = (string)($r['COLUMN_NAME'] ?? '');
-            if ($col !== '') $schema['cols'][$col] = true;
-            if ($col !== '') $schema['types'][$col] = (string)($r['COLUMN_TYPE'] ?? '');
+            $col = (string) ($r['COLUMN_NAME'] ?? '');
+            if ($col !== '')
+                $schema['cols'][$col] = true;
+            if ($col !== '')
+                $schema['types'][$col] = (string) ($r['COLUMN_TYPE'] ?? '');
         }
     }
     return $schema;
 }
 
-function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, array &$details, string $field): bool {
+function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, array &$details, string $field): bool
+{
     $schema = tmm_vehicle_docs_schema($db);
     if (empty($schema['exists'])) {
         $errors[] = "$field: db_insert_failed";
         $details[$field] = 'vehicle_documents_table_missing';
         return false;
     }
-    $cols = (array)($schema['cols'] ?? []);
+    $cols = (array) ($schema['cols'] ?? []);
 
     $idCol = null;
-    if (isset($cols['vehicle_id'])) $idCol = 'vehicle_id';
-    elseif (isset($cols['plate_number'])) $idCol = 'plate_number';
+    if (isset($cols['vehicle_id']))
+        $idCol = 'vehicle_id';
+    elseif (isset($cols['plate_number']))
+        $idCol = 'plate_number';
 
     $typeCol = null;
-    if (isset($cols['doc_type'])) $typeCol = 'doc_type';
-    elseif (isset($cols['document_type'])) $typeCol = 'document_type';
-    elseif (isset($cols['type'])) $typeCol = 'type';
+    if (isset($cols['doc_type']))
+        $typeCol = 'doc_type';
+    elseif (isset($cols['document_type']))
+        $typeCol = 'document_type';
+    elseif (isset($cols['type']))
+        $typeCol = 'type';
 
     $pathCol = null;
-    if (isset($cols['file_path'])) $pathCol = 'file_path';
-    elseif (isset($cols['document_path'])) $pathCol = 'document_path';
-    elseif (isset($cols['doc_path'])) $pathCol = 'doc_path';
-    elseif (isset($cols['path'])) $pathCol = 'path';
+    if (isset($cols['file_path']))
+        $pathCol = 'file_path';
+    elseif (isset($cols['document_path']))
+        $pathCol = 'document_path';
+    elseif (isset($cols['doc_path']))
+        $pathCol = 'doc_path';
+    elseif (isset($cols['path']))
+        $pathCol = 'path';
 
     if ($idCol === null || $typeCol === null || $pathCol === null) {
         $errors[] = "$field: db_insert_failed";
@@ -164,7 +191,7 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
         return false;
     }
 
-    $typeMeta = (string)(($schema['types'] ?? [])[$typeCol] ?? '');
+    $typeMeta = (string) (($schema['types'] ?? [])[$typeCol] ?? '');
     $enumValues = [];
     if ($typeMeta !== '' && stripos($typeMeta, "enum(") === 0) {
         if (preg_match_all("/'([^']*)'/", $typeMeta, $m)) {
@@ -172,38 +199,26 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
         }
     }
 
+    // Use only the exact document type provided - no variants to prevent duplicates
     $variants = [$docType];
-    $tryAdd = function (string $v) use (&$variants): void {
-        foreach ($variants as $e) { if (strcasecmp($e, $v) === 0) return; }
-        $variants[] = $v;
-    };
-    if ($field === 'or' || $field === 'cr' || $field === 'orcr') {
-        $tryAdd('OR/CR');
-        $tryAdd('OR');
-        $tryAdd('CR');
-        $tryAdd('orcr');
-        $tryAdd('or');
-        $tryAdd('cr');
-    } elseif ($field === 'insurance') {
-        $tryAdd('INSURANCE');
-        $tryAdd('insurance');
-    } elseif ($field === 'emission') {
-        $tryAdd('EMISSION');
-        $tryAdd('emission');
-    } else {
-        $tryAdd('OTHERS');
-        $tryAdd('others');
-    }
 
+    // If enum exists, try to match the exact type or find case-insensitive match
     if ($enumValues) {
         $mapped = [];
         foreach ($variants as $v) {
             foreach ($enumValues as $ev) {
-                if (strcasecmp($ev, $v) === 0) { $mapped[] = $ev; break; }
+                if (strcasecmp($ev, $v) === 0) {
+                    $mapped[] = $ev;
+                    break;
+                }
             }
         }
-        if ($mapped) $variants = array_values(array_unique($mapped));
-        else $variants = [$enumValues[0]];
+        if ($mapped) {
+            $variants = array_values(array_unique($mapped));
+        } else {
+            // If no match found, use first enum value as fallback
+            $variants = [$enumValues[0]];
+        }
     }
 
     $typesBase = ($idCol === 'vehicle_id') ? 'iss' : 'sss';
@@ -226,11 +241,11 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
     return false;
 }
 
-foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $field) {
+foreach (['or', 'cr', 'insurance', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
         $orExpiry = null;
         if ($field === 'or') {
-            $raw = trim((string)($_POST['or_expiry_date'] ?? ''));
+            $raw = trim((string) ($_POST['or_expiry_date'] ?? ''));
             if ($raw === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $raw)) {
                 $errors[] = "$field: expiry_date_required";
                 continue;
@@ -244,10 +259,10 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
             $errors[] = "$field: Invalid file type ($ext)";
             continue;
         }
-        
+
         $filename = $plate . '_' . $field . '_' . time() . '.' . $ext;
         $dest = $uploads_dir . '/' . $filename;
-        
+
         if (!move_uploaded_file($_FILES[$field]['tmp_name'], $dest)) {
             $errors[] = "$field: Failed to move file";
             continue;
@@ -255,43 +270,34 @@ foreach (['or', 'cr', 'deed', 'orcr', 'insurance', 'emission', 'others'] as $fie
 
         $safe = tmm_scan_file_for_viruses($dest);
         if (!$safe) {
-            if (is_file($dest)) { @unlink($dest); }
+            if (is_file($dest)) {
+                @unlink($dest);
+            }
             $errors[] = "$field: File failed security scan";
             continue;
         }
 
         $uploaded[] = $filename;
-        $docType = 'Others';
-        $legacyType = 'deed';
-        if ($field === 'or') { $docType = 'OR'; $legacyType = 'or'; }
-        elseif ($field === 'cr') { $docType = 'CR'; $legacyType = 'cr'; }
-        elseif ($field === 'orcr') { $docType = 'ORCR'; $legacyType = 'or'; }
-        elseif ($field === 'insurance') { $docType = 'Insurance'; $legacyType = 'insurance'; }
-        elseif ($field === 'emission') { $docType = 'Emission'; $legacyType = 'others'; }
-        elseif ($field === 'deed') { $docType = 'Others'; $legacyType = 'deed'; }
 
-        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $details, $field);
-        if (!$okInsert) {
-            if (is_file($dest)) { @unlink($dest); }
-            continue;
+        // Map field to document type - use exact types only
+        $docType = 'Others';
+        if ($field === 'or') {
+            $docType = 'OR';
+        } elseif ($field === 'cr') {
+            $docType = 'CR';
+        } elseif ($field === 'insurance') {
+            $docType = 'Insurance';
+        } elseif ($field === 'others') {
+            $docType = 'Others';
         }
 
-        $stmtLegacy = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
-        $docsHasExpiry = tmm_docs_has_expiry($db);
-        if ($docsHasExpiry) {
-            $stmtLegacy = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, ?, ?, ?)");
-            if ($stmtLegacy) {
-                $exp = ($legacyType === 'or') ? ($orExpiry !== null ? $orExpiry : null) : null;
-                $stmtLegacy->bind_param('ssss', $plate, $legacyType, $filename, $exp);
-                $stmtLegacy->execute();
-                $stmtLegacy->close();
+        // Only insert into vehicle_documents table (not documents table to avoid duplicates)
+        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $details, $field);
+        if (!$okInsert) {
+            if (is_file($dest)) {
+                @unlink($dest);
             }
-        } else {
-            if ($stmtLegacy) {
-                $stmtLegacy->bind_param('sss', $plate, $legacyType, $filename);
-                $stmtLegacy->execute();
-                $stmtLegacy->close();
-            }
+            continue;
         }
     }
 }
@@ -303,9 +309,9 @@ if (empty($uploaded) && empty($errors)) {
     $errOut = [];
     foreach ($errors as $e) {
         $parts = explode(':', $e, 2);
-        $f = trim((string)($parts[0] ?? ''));
+        $f = trim((string) ($parts[0] ?? ''));
         if ($f !== '' && isset($details[$f]) && $details[$f] !== '') {
-            $errOut[] = $f . ': db_insert_failed (' . (string)$details[$f] . ')';
+            $errOut[] = $f . ': db_insert_failed (' . (string) $details[$f] . ')';
         } else {
             $errOut[] = $e;
         }
