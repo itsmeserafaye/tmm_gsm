@@ -739,6 +739,16 @@ $typesList = vehicle_types();
                 </div>
               </div>
               <div id="ocrMsg" class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300 hidden"></div>
+              <div id="ocrResult" class="mt-3 hidden">
+                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-3">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Extracted</div>
+                  <div id="ocrFieldsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200"></div>
+                  <details class="mt-3">
+                    <summary class="cursor-pointer text-xs font-black text-slate-600 dark:text-slate-300">Show OCR text</summary>
+                    <pre id="ocrRawPreview" class="mt-2 text-[11px] whitespace-pre-wrap break-words text-slate-600 dark:text-slate-300"></pre>
+                  </details>
+                </div>
+              </div>
               <div id="ocrConfirmWrap" class="mt-4 hidden">
                 <label class="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                   <input type="checkbox" id="ocrConfirm" class="mt-1 w-4 h-4" />
@@ -929,6 +939,9 @@ $typesList = vehicle_types();
         const crFileInput = form.querySelector('input[name="cr"]');
         const btnScanCr = document.getElementById('btnScanCr');
         const ocrMsg = document.getElementById('ocrMsg');
+        const ocrResult = document.getElementById('ocrResult');
+        const ocrFieldsGrid = document.getElementById('ocrFieldsGrid');
+        const ocrRawPreview = document.getElementById('ocrRawPreview');
         const ocrConfirmWrap = document.getElementById('ocrConfirmWrap');
         const ocrConfirm = document.getElementById('ocrConfirm');
         const ocrUsedInput = document.getElementById('ocrUsedInput');
@@ -984,6 +997,31 @@ $typesList = vehicle_types();
           if (ocrConfirm) ocrConfirm.checked = false;
         };
 
+        const showOcrResult = (fields, rawPreview) => {
+          if (ocrResult) ocrResult.classList.remove('hidden');
+          if (ocrRawPreview) ocrRawPreview.textContent = (rawPreview || '').toString();
+          if (!ocrFieldsGrid) return;
+          const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+          const order = [
+            ['plate_no','Plate'],
+            ['engine_no','Engine'],
+            ['chassis_no','Chassis'],
+            ['make','Make'],
+            ['model','Model'],
+            ['year_model','Year'],
+            ['fuel_type','Fuel'],
+            ['color','Color'],
+            ['cr_number','CR No'],
+            ['cr_issue_date','CR Date'],
+            ['registered_owner','Owner']
+          ];
+          ocrFieldsGrid.innerHTML = order.map(([k, label]) => {
+            const v = fields && fields[k] ? String(fields[k]) : '';
+            const vv = v !== '' ? v : '—';
+            return `<div class="flex items-center justify-between gap-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 px-2.5 py-2"><span class="text-slate-500 dark:text-slate-400 font-black">${esc(label)}</span><span class="text-slate-800 dark:text-white font-bold">${esc(vv)}</span></div>`;
+          }).join('');
+        };
+
         if (ocrConfirm) {
           ocrConfirm.addEventListener('change', () => {
             if (ocrConfirmedInput) ocrConfirmedInput.value = ocrConfirm.checked ? '1' : '0';
@@ -997,6 +1035,7 @@ $typesList = vehicle_types();
             btnScanCr.disabled = true;
             btnScanCr.textContent = 'Scanning...';
             setOcrMsg('Scanning CR and extracting fields...', 'info');
+            if (ocrResult) ocrResult.classList.add('hidden');
             try {
               const fd = new FormData();
               fd.append('cr', f);
@@ -1005,9 +1044,14 @@ $typesList = vehicle_types();
               if (!data || !data.ok) {
                 const msg = (data && data.message) ? String(data.message) : 'OCR failed';
                 const extra = (data && data.data && data.data.error) ? (' (' + String(data.data.error) + ')') : '';
+                const rawPrev = (data && data.data && data.data.raw_text_preview) ? String(data.data.raw_text_preview) : '';
+                const flds = (data && data.data && data.data.fields) ? data.data.fields : null;
+                if (rawPrev || flds) showOcrResult(flds || {}, rawPrev);
                 throw new Error(msg + extra);
               }
               const fields = data.data && data.data.fields ? data.data.fields : null;
+              const rawPrev = data.data && data.data.raw_text_preview ? String(data.data.raw_text_preview) : '';
+              showOcrResult(fields || {}, rawPrev);
               applyExtracted(fields);
               setOcrUsed(true);
               setOcrMsg('Scan complete. Review auto-filled fields and confirm before saving.', 'success');
