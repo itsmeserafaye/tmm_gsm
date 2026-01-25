@@ -20,8 +20,24 @@ $statFailed = (int)($db->query("SELECT COUNT(*) AS c FROM inspections WHERE resu
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && $r->num_rows > 0;
+};
+$vrHasOrNo = $hasCol('vehicle_registrations', 'or_number');
+$vrHasOrDate = $hasCol('vehicle_registrations', 'or_date');
+$vrHasOrExp = $hasCol('vehicle_registrations', 'or_expiry_date');
+$vrHasRegYear = $hasCol('vehicle_registrations', 'registration_year');
+
+$orNoSel = $vrHasOrNo ? "COALESCE(NULLIF(vr.or_number,''), vr.orcr_no) AS or_number" : "vr.orcr_no AS or_number";
+$orDateSel = $vrHasOrDate ? "COALESCE(NULLIF(vr.or_date,''), vr.orcr_date) AS or_date" : "vr.orcr_date AS or_date";
+$orExpSel = $vrHasOrExp ? "vr.or_expiry_date AS or_expiry_date" : "'' AS or_expiry_date";
+$regYearSel = $vrHasRegYear ? "vr.registration_year AS registration_year" : "'' AS registration_year";
+
 $sql = "SELECT v.id AS vehicle_id, v.plate_number, v.operator_id, v.status AS vehicle_status,
-               vr.registration_status, vr.orcr_no, vr.orcr_date, vr.created_at
+               vr.registration_status, {$orNoSel}, {$orDateSel}, {$orExpSel}, {$regYearSel}, vr.created_at
         FROM vehicles v
         LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id";
 $conds = [];
@@ -135,7 +151,7 @@ $res = $db->query($sql);
         <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
           <tr class="text-left text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Plate</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">OR/CR</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">OR</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Registration</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Created</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
@@ -181,9 +197,16 @@ $res = $db->query($sql);
                 </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">
                   <?php
-                    $orcr = trim((string)($row['orcr_no'] ?? ''));
-                    $od = (string)($row['orcr_date'] ?? '');
-                    echo htmlspecialchars($orcr !== '' ? ($orcr . ($od !== '' ? (' • ' . $od) : '')) : '-');
+                    $orNo = trim((string)($row['or_number'] ?? ''));
+                    $od = (string)($row['or_date'] ?? '');
+                    $oe = (string)($row['or_expiry_date'] ?? '');
+                    $ry = trim((string)($row['registration_year'] ?? ''));
+                    $parts = [];
+                    if ($orNo !== '') $parts[] = $orNo;
+                    if ($od !== '') $parts[] = $od;
+                    if ($oe !== '') $parts[] = 'Exp: ' . $oe;
+                    if ($ry !== '') $parts[] = 'Year: ' . $ry;
+                    echo htmlspecialchars($parts ? implode(' • ', $parts) : '-');
                   ?>
                 </td>
                 <td class="py-4 px-4">

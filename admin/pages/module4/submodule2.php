@@ -7,27 +7,6 @@ $db = db();
 
 $prefillVehicleId = (int)($_GET['vehicle_id'] ?? 0);
 
-$vehicles = [];
-$resV = $db->query("SELECT id, plate_number FROM vehicles WHERE operator_id IS NOT NULL AND operator_id > 0 ORDER BY plate_number ASC LIMIT 1200");
-if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
-
-$prefillVehicleText = '';
-if ($prefillVehicleId > 0) {
-  $stmtPV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
-  if ($stmtPV) {
-    $stmtPV->bind_param('i', $prefillVehicleId);
-    $stmtPV->execute();
-    if ($pv = $stmtPV->get_result()->fetch_assoc()) {
-      $prefillVehicleText = (string)$pv['id'] . ' - ' . (string)$pv['plate_number'];
-    } else {
-      $prefillVehicleText = (string)$prefillVehicleId;
-    }
-    $stmtPV->close();
-  } else {
-    $prefillVehicleText = (string)$prefillVehicleId;
-  }
-}
-
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -53,26 +32,87 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-5">
-      <form id="formRegister" class="space-y-5" novalidate>
-        <div>
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" pattern="^(?:\\d+\\s*-\\s*.+|\\d+)$" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 - ABC-1234">
-          <datalist id="vehiclePickList">
-            <?php foreach ($vehicles as $v): ?>
-              <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>
-            <?php endforeach; ?>
-          </datalist>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR No</label>
-            <input name="orcr_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., ORCR-2026-0001">
+      <form id="formRegister" class="space-y-6" novalidate enctype="multipart/form-data">
+        <input type="hidden" name="vehicle_id" id="vehicleId" value="<?php echo (int)$prefillVehicleId; ?>">
+
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 1: Search Vehicle (PUV Database)</div>
+          <div class="mt-3 flex flex-col sm:flex-row gap-2">
+            <input id="vehSearch" class="flex-1 px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / engine / chassis / operator">
+            <button type="button" id="btnVehSearch" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-sm font-bold">Search</button>
           </div>
-          <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR Date</label>
-            <input name="orcr_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          <div id="vehResults" class="mt-3 hidden"></div>
+        </div>
+
+        <div id="vehInfo" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Vehicle Info (Read-only)</div>
+              <div id="vehTitle" class="mt-1 text-lg font-black text-slate-900 dark:text-white"></div>
+              <div id="vehSub" class="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300"></div>
+            </div>
+            <a id="vehCrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View CR</a>
+          </div>
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black text-slate-500 dark:text-slate-400">Engine No</div>
+              <div id="vehEngine" class="mt-1 font-black text-slate-900 dark:text-white"></div>
+            </div>
+            <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black text-slate-500 dark:text-slate-400">Chassis No</div>
+              <div id="vehChassis" class="mt-1 font-black text-slate-900 dark:text-white"></div>
+            </div>
+          </div>
+          <div class="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CR Metadata</div>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div>
+                <div class="text-xs font-black text-slate-500 dark:text-slate-400">CR Number</div>
+                <div id="vehCrNo" class="mt-1 font-black text-slate-900 dark:text-white"></div>
+              </div>
+              <div>
+                <div class="text-xs font-black text-slate-500 dark:text-slate-400">CR Issue Date</div>
+                <div id="vehCrDate" class="mt-1 font-black text-slate-900 dark:text-white"></div>
+              </div>
+              <div>
+                <div class="text-xs font-black text-slate-500 dark:text-slate-400">Registered Owner</div>
+                <div id="vehOwner" class="mt-1 font-black text-slate-900 dark:text-white"></div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div id="regWrap" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 2: Registration (OR)</div>
+          <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
+              <input name="or_number" id="orNumber" minlength="3" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., OR-2026-0001">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
+              <input name="or_date" id="orDate" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
+              <input name="or_expiry_date" id="orExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
+              <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR (required for activation)</label>
+              <input name="or_file" id="orFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">OR missing → Registered but INACTIVE. OR expired → Registration EXPIRED.</div>
+            </div>
+          </div>
+          <div class="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div class="text-xs font-black text-slate-500 dark:text-slate-400">System-controlled Status</div>
+            <div id="regStatusHint" class="mt-1 text-sm font-black text-slate-900 dark:text-white">Pending</div>
+          </div>
+        </div>
+
         <div class="flex items-center justify-end gap-2 pt-2">
           <button id="btnRegister" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
         </div>
@@ -86,6 +126,26 @@ if ($rootUrl === '/') $rootUrl = '';
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const form = document.getElementById('formRegister');
     const btn = document.getElementById('btnRegister');
+    const vehIdEl = document.getElementById('vehicleId');
+    const vehSearch = document.getElementById('vehSearch');
+    const btnVehSearch = document.getElementById('btnVehSearch');
+    const vehResults = document.getElementById('vehResults');
+    const vehInfo = document.getElementById('vehInfo');
+    const regWrap = document.getElementById('regWrap');
+    const vehTitle = document.getElementById('vehTitle');
+    const vehSub = document.getElementById('vehSub');
+    const vehEngine = document.getElementById('vehEngine');
+    const vehChassis = document.getElementById('vehChassis');
+    const vehCrNo = document.getElementById('vehCrNo');
+    const vehCrDate = document.getElementById('vehCrDate');
+    const vehOwner = document.getElementById('vehOwner');
+    const vehCrLink = document.getElementById('vehCrLink');
+    const orNumber = document.getElementById('orNumber');
+    const orDate = document.getElementById('orDate');
+    const orExpiry = document.getElementById('orExpiry');
+    const regYear = document.getElementById('regYear');
+    const orFile = document.getElementById('orFile');
+    const regStatusHint = document.getElementById('regStatusHint');
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -100,31 +160,133 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
-    function parseId(s) {
-      const m = (s || '').toString().trim().match(/^(\d+)\s*-/);
-      if (m) return Number(m[1] || 0);
-      if (/^\d+$/.test((s || '').toString().trim())) return Number((s || '').toString().trim());
-      return 0;
+    const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function computeStatus() {
+      const exp = (orExpiry && orExpiry.value) ? String(orExpiry.value) : '';
+      const hasOrFile = !!(orFile && orFile.files && orFile.files.length > 0);
+      const hasMeta = !!((orNumber && orNumber.value && orNumber.value.trim() !== '') || (orDate && orDate.value && orDate.value.trim() !== ''));
+      const today = new Date();
+      const todayYmd = today.toISOString().slice(0, 10);
+      if (exp && exp < todayYmd) return 'Expired';
+      if (hasOrFile || hasMeta) return 'Registered';
+      return 'Pending';
+    }
+
+    function updateStatusHint() {
+      if (!regStatusHint) return;
+      const st = computeStatus();
+      regStatusHint.textContent = st;
+    }
+
+    if (orNumber) orNumber.addEventListener('input', updateStatusHint);
+    if (orDate) orDate.addEventListener('change', updateStatusHint);
+    if (orExpiry) orExpiry.addEventListener('change', updateStatusHint);
+    if (orFile) orFile.addEventListener('change', updateStatusHint);
+    if (regYear) regYear.addEventListener('input', () => { regYear.value = String(regYear.value || '').replace(/\D+/g,'').slice(0,4); });
+
+    async function loadVehicleInfo(vehicleId) {
+      const res = await fetch(rootUrl + '/admin/api/module4/vehicle_info.php?vehicle_id=' + encodeURIComponent(String(vehicleId)));
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok || !data.data) throw new Error((data && data.error) ? data.error : 'load_failed');
+      const v = data.data.vehicle || {};
+      const r = data.data.registration || {};
+      if (vehTitle) vehTitle.textContent = String(v.plate_number || '-') + (v.vehicle_type ? (' • ' + String(v.vehicle_type)) : '');
+      if (vehSub) vehSub.textContent = String(v.operator_name || '-');
+      if (vehEngine) vehEngine.textContent = String(v.engine_no || '-');
+      if (vehChassis) vehChassis.textContent = String(v.chassis_no || '-');
+      if (vehCrNo) vehCrNo.textContent = String(v.cr_number || '-');
+      if (vehCrDate) vehCrDate.textContent = String(v.cr_issue_date || '-');
+      if (vehOwner) vehOwner.textContent = String(v.registered_owner || '-');
+      if (vehCrLink) {
+        const fp = String(v.cr_file_path || '');
+        if (fp) {
+          vehCrLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
+          vehCrLink.classList.remove('hidden');
+        } else {
+          vehCrLink.classList.add('hidden');
+        }
+      }
+      if (orNumber) orNumber.value = String(r.or_number || '');
+      if (orDate) orDate.value = String(r.or_date || '');
+      if (orExpiry) orExpiry.value = String(r.or_expiry_date || '');
+      if (regYear) regYear.value = String(r.registration_year || '');
+      if (vehInfo) vehInfo.classList.remove('hidden');
+      if (regWrap) regWrap.classList.remove('hidden');
+      updateStatusHint();
+    }
+
+    async function doSearch() {
+      const q = (vehSearch && vehSearch.value) ? String(vehSearch.value).trim() : '';
+      if (!vehResults) return;
+      vehResults.classList.remove('hidden');
+      vehResults.innerHTML = '<div class="text-sm text-slate-500 italic">Loading...</div>';
+      const res = await fetch(rootUrl + '/admin/api/module4/search_vehicles.php?q=' + encodeURIComponent(q));
+      const data = await res.json().catch(() => null);
+      const rows = data && data.ok && Array.isArray(data.data) ? data.data : [];
+      if (!rows.length) {
+        vehResults.innerHTML = '<div class="text-sm text-slate-500 italic">No matches.</div>';
+        return;
+      }
+      vehResults.innerHTML = rows.map((r) => {
+        const id = Number(r.id || 0);
+        const plate = esc(r.plate_number || '-');
+        const engine = esc(r.engine_no || '');
+        const op = esc(r.operator_name || '-');
+        return `<button type="button" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all mb-2" data-pick-id="${id}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-black text-slate-900 dark:text-white">${plate}</div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">#${id}</div>
+          </div>
+          <div class="mt-1 text-xs text-slate-600 dark:text-slate-300 font-semibold">${op}</div>
+          <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">${engine ? ('Engine: ' + engine) : ''}</div>
+        </button>`;
+      }).join('');
+      vehResults.querySelectorAll('[data-pick-id]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const id = Number(b.getAttribute('data-pick-id') || 0);
+          if (!id) return;
+          if (vehIdEl) vehIdEl.value = String(id);
+          try {
+            await loadVehicleInfo(id);
+            showToast('Vehicle selected.', 'success');
+          } catch (e) {
+            showToast((e && e.message) ? String(e.message) : 'Failed', 'error');
+          }
+        });
+      });
+    }
+
+    if (btnVehSearch) btnVehSearch.addEventListener('click', () => { doSearch().catch(() => {}); });
+    if (vehSearch) {
+      vehSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doSearch().catch(() => {}); }
+      });
+    }
+
+    const preId = Number(vehIdEl && vehIdEl.value ? vehIdEl.value : 0);
+    if (preId > 0) {
+      loadVehicleInfo(preId).catch(() => {});
     }
 
     if (form && btn) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const vehicleId = Number(vehIdEl && vehIdEl.value ? vehIdEl.value : 0);
+        if (!vehicleId) { showToast('Select a vehicle from PUV Database.', 'error'); return; }
+        if (orFile && orFile.files && orFile.files.length > 0) {
+          if (!orExpiry || !orExpiry.value) { showToast('OR expiry date is required when uploading OR.', 'error'); return; }
+        }
         if (!form.checkValidity()) { form.reportValidity(); return; }
-        const fd = new FormData(form);
-        const vehicleId = parseId(fd.get('vehicle_pick'));
-        if (!vehicleId) { showToast('Select a valid vehicle.', 'error'); return; }
-        const post = new FormData();
-        post.append('vehicle_id', String(vehicleId));
-        post.append('orcr_no', (fd.get('orcr_no') || '').toString());
-        post.append('orcr_date', (fd.get('orcr_date') || '').toString());
+        const post = new FormData(form);
+        post.set('vehicle_id', String(vehicleId));
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
           const res = await fetch(rootUrl + '/admin/api/module4/register_vehicle.php', { method: 'POST', body: post });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-          showToast('Vehicle registered.');
+          showToast('Registration saved. Status: ' + String(data.registration_status || 'OK'));
           setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 400);
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
