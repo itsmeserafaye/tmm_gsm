@@ -1,17 +1,30 @@
 /* Custom CSS for Government Services Management System */
 
-/* Color Palette Variables */
+/* Enhanced Color Palette Variables */
 :root {
     --primary: #4A90E2;
     --secondary: #9AA5B1;
     --accent: #4CAF50;
+    --purple: #8B5CF6;
+    --teal: #14B8A6;
+    --orange: #F97316;
+    --pink: #EC4899;
+    --indigo: #6366F1;
+    --cyan: #06B6D4;
     --background: #FBFBFB;
     --gradient-primary: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
     --gradient-secondary: linear-gradient(135deg, #9AA5B1 0%, #7F8C9A 100%);
     --gradient-accent: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    --gradient-purple: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    --gradient-teal: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+    --gradient-orange: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+    --gradient-vibrant: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    --gradient-sunset: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 50%, #2BFF88 100%);
+    --gradient-ocean: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.1);
     --shadow-medium: 0 20px 60px rgba(0, 0, 0, 0.15);
     --shadow-strong: 0 30px 80px rgba(0, 0, 0, 0.2);
+    --shadow-colored: 0 20px 60px rgba(139, 92, 246, 0.3);
     --header-height: 72px;
 }
 
@@ -64,6 +77,43 @@
     --tw-ring-color: var(--secondary);
 }
 
+/* New Vibrant Color Utilities */
+.bg-custom-purple {
+    background-color: var(--purple);
+}
+
+.bg-custom-teal {
+    background-color: var(--teal);
+}
+
+.bg-custom-orange {
+    background-color: var(--orange);
+}
+
+.text-custom-purple {
+    color: var(--purple);
+}
+
+.text-custom-teal {
+    color: var(--teal);
+}
+
+.text-custom-orange {
+    color: var(--orange);
+}
+
+.border-custom-purple {
+    border-color: var(--purple);
+}
+
+.border-custom-teal {
+    border-color: var(--teal);
+}
+
+.border-custom-orange {
+    border-color: var(--orange);
+}
+
 /* Custom Styles */
 body {
     font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
@@ -73,9 +123,21 @@ body {
 }
 
 /* Ensure all common elements inherit the sans-serif font */
-h1, h2, h3, h4, h5, h6,
-p, a, small, span, label,
-button, input, textarea, select {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+a,
+small,
+span,
+label,
+button,
+input,
+textarea,
+select {
     font-family: inherit;
 }
 
@@ -95,7 +157,7 @@ body::after {
 
 /* Removed banner styles */
 
-/* Animated background particles */
+/* Enhanced animated background particles */
 body::before {
     content: '';
     position: fixed;
@@ -103,18 +165,30 @@ body::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background: 
-        radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(253, 168, 17, 0.05) 0%, transparent 50%);
+    background:
+        radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(20, 184, 166, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(249, 115, 22, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 60% 70%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 90% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
     animation: backgroundFloat 20s ease-in-out infinite;
     z-index: -1;
 }
 
 @keyframes backgroundFloat {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    33% { transform: translateY(-20px) rotate(1deg); }
-    66% { transform: translateY(10px) rotate(-1deg); }
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+        transform: translateY(-20px) rotate(1deg);
+    }
+
+    66% {
+        transform: translateY(10px) rotate(-1deg);
+    }
 }
 
 /* Header Styles */
@@ -147,8 +221,13 @@ header::before {
 }
 
 @keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 /* Logo Animation */
@@ -157,9 +236,12 @@ header::before {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.05);
     }
@@ -189,8 +271,15 @@ header::before {
 }
 
 @keyframes float {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(2deg); }
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-10px) rotate(2deg);
+    }
 }
 
 /* Glow effect for interactive elements */
@@ -236,18 +325,23 @@ input {
     display: flex;
     align-items: center;
 }
+
 .req-dot {
     width: 8px;
     height: 8px;
     border-radius: 9999px;
     display: inline-block;
     margin-right: 8px;
-    background: #e5e7eb; /* gray-200 */
-    box-shadow: inset 0 0 0 1px #cbd5e1; /* slate-300 */
+    background: #e5e7eb;
+    /* gray-200 */
+    box-shadow: inset 0 0 0 1px #cbd5e1;
+    /* slate-300 */
 }
+
 .req-item.met .req-dot {
-    background: #22c55e; /* green-500 */
-    box-shadow: 0 0 0 2px rgba(34,197,94,0.25);
+    background: #22c55e;
+    /* green-500 */
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
 }
 
 /* Keep eye toggle pinned inside input */
@@ -267,13 +361,15 @@ input {
     height: 48px;
     text-align: center;
     font-size: 1.125rem;
-    border: 1px solid #d1d5db; /* gray-300 */
+    border: 1px solid #d1d5db;
+    /* gray-300 */
     border-radius: 0.5rem;
 }
+
 .otp-input:focus {
     outline: none;
     border-color: var(--secondary);
-    box-shadow: 0 0 0 2px rgba(74,144,226,0.25);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.25);
 }
 
 /* Make inline text buttons borderless */
@@ -397,7 +493,9 @@ button:active {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Responsive Design */
@@ -406,16 +504,16 @@ button:active {
         grid-template-columns: 1fr;
         gap: 2rem;
     }
-    
+
     .text-4xl {
         font-size: 2.5rem;
     }
-    
+
     .text-5xl {
         font-size: 3rem;
     }
-    
-    .space-x-8 > * + * {
+
+    .space-x-8>*+* {
         margin-left: 1rem;
     }
 }
@@ -460,7 +558,10 @@ input:focus {
 }
 
 /* Modern Typography */
-h1, h3 { color: white; }
+h1,
+h3 {
+    color: white;
+}
 
 h2 {
     color: #4A90E2;
@@ -484,18 +585,35 @@ h2 {
 
 /* Typography scale */
 /* Headings: Inter 600 */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: inherit;
     font-weight: 600;
 }
 
 /* Body text: Inter 400 */
-body, p, li, td, th, div {
+body,
+p,
+li,
+td,
+th,
+div {
     font-weight: 400;
 }
 
 /* Captions/UI: Inter 500 */
-small, label, button, input, textarea, select, .ui, .caption {
+small,
+label,
+button,
+input,
+textarea,
+select,
+.ui,
+.caption {
     font-weight: 500;
 }
 
@@ -507,7 +625,8 @@ small, label, button, input, textarea, select, .ui, .caption {
 
 /* Required field asterisk */
 .required-asterisk {
-    color: #ef4444; /* red-500 */
+    color: #ef4444;
+    /* red-500 */
     margin-left: 2px;
 }
 
@@ -531,8 +650,15 @@ small, label, button, input, textarea, select, .ui, .caption {
 }
 
 @keyframes gradientShift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
 }
 
 /* Modern card hover effects */
@@ -551,9 +677,12 @@ small, label, button, input, textarea, select, .ui, .caption {
 }
 
 @keyframes pulseGlow {
-    0%, 100% {
+
+    0%,
+    100% {
         box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
     }
+
     50% {
         box-shadow: 0 0 40px rgba(76, 175, 80, 0.6);
     }
@@ -583,15 +712,15 @@ small, label, button, input, textarea, select, .ui, .caption {
     .bg-custom-primary {
         background-color: #000;
     }
-    
+
     .text-white {
         color: #fff;
     }
-    
+
     .bg-white {
         background-color: #fff;
     }
-    
+
     .text-gray-700 {
         color: #000;
     }

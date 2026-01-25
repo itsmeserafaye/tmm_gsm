@@ -71,25 +71,35 @@ if (!empty($_SESSION['user_id'])) {
 
     <main class="flex-1">
         <section id="home" class="container mx-auto px-6 pt-6">
-            <div class="relative overflow-hidden rounded-2xl shadow-2xl bg-gradient-to-br from-slate-50 to-indigo-50">
-                <div class="relative px-6 py-14 md:py-20">
+            <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
+                <!-- Animated overlay -->
+                <div class="absolute inset-0 opacity-30">
+                    <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 4s;"></div>
+                    <div class="absolute bottom-0 right-0 w-96 h-96 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 6s; animation-delay: 1s;"></div>
+                </div>
+                
+                <div class="relative px-6 py-16 md:py-24">
                     <div class="flex flex-col items-center text-center">
-                        <div
-                            class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-5">
+                        <div class="w-24 h-24 md:w-28 md:h-28 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl mb-6 animate-bounce" style="animation-duration: 3s;">
                             <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
-                                alt="TMM" class="h-16 md:h-20 w-auto" style="height: 5rem; width: auto;">
+                                alt="TMM" class="h-20 md:h-24 w-auto">
                         </div>
-                        <div class="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">
-                            Transport & Mobility<br /><span class="text-custom-primary">Management</span>
+                        <div class="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
+                            Transport & Mobility<br /><span class="text-yellow-300">Management</span>
                         </div>
-                        <div class="mt-2 text-lg md:text-xl font-semibold text-custom-secondary">
-                            Transport & Mobility Management System
+                        <div class="mt-4 text-xl md:text-2xl font-semibold text-white/90 drop-shadow">
+                            Your Gateway to Smart Transportation Solutions
                         </div>
-                        <div class="mt-6">
+                        <div class="mt-8 flex gap-4">
                             <a href="#systems"
-                                class="inline-flex items-center gap-2 bg-custom-primary text-white px-5 py-3 rounded-xl font-semibold btn-primary">
-                                View systems
+                                class="inline-flex items-center gap-2 bg-white text-purple-700 px-6 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
+                                Explore Portals
                                 <i class="fas fa-arrow-down text-sm"></i>
+                            </a>
+                            <a href="#features"
+                                class="inline-flex items-center gap-2 bg-purple-900/30 backdrop-blur-sm text-white border-2 border-white/50 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-purple-900/50 transform hover:scale-105 transition-all duration-300">
+                                Learn More
+                                <i class="fas fa-info-circle text-sm"></i>
                             </a>
                         </div>
                     </div>
@@ -103,63 +113,71 @@ if (!empty($_SESSION['user_id'])) {
                 <div class="mt-2 text-sm text-custom-secondary">Click any system to access its dedicated portal</div>
             </div>
 
-            <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Staff Portal -->
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
-                    <div class="flex items-center justify-center">
-                        <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
-                            <i class="fas fa-user-shield text-custom-primary text-2xl"></i>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-indigo-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-center">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-user-shield text-white text-3xl"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-5 text-center">
-                        <div class="text-lg font-bold text-slate-900">Staff Portal</div>
-                        <div class="mt-1 text-sm text-slate-600">Administration and management access.</div>
-                        <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff"
-                            class="mt-5 inline-flex items-center justify-center gap-2 text-custom-primary font-semibold hover:underline">
-                            Access System <i class="fas fa-arrow-right text-xs"></i>
-                        </a>
+                        <div class="mt-6 text-center">
+                            <div class="text-xl font-bold text-slate-900">Staff Portal</div>
+                            <div class="mt-2 text-sm text-slate-600">Administration and management access for authorized personnel.</div>
+                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff"
+                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                                Access System <i class="fas fa-arrow-right text-xs"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Operator Portal -->
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
-                    <div class="flex items-center justify-center">
-                        <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
-                            <i class="fas fa-bus text-custom-primary text-2xl"></i>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-teal-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-center">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-bus text-white text-3xl"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-5 text-center">
-                        <div class="text-lg font-bold text-slate-900">Operator Portal</div>
-                        <div class="mt-1 text-sm text-slate-600">PUV operator services. Plate number required.</div>
-                        <div class="mt-5 flex items-center justify-center gap-4">
-                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator"
-                                class="inline-flex items-center justify-center gap-2 text-custom-primary font-semibold hover:underline">
-                                Access System <i class="fas fa-arrow-right text-xs"></i>
-                            </a>
-                            <button type="button" id="btnOperatorRegisterOpen"
-                                class="text-custom-primary font-semibold hover:underline">Register</button>
+                        <div class="mt-6 text-center">
+                            <div class="text-xl font-bold text-slate-900">Operator Portal</div>
+                            <div class="mt-2 text-sm text-slate-600">PUV operator services and fleet management tools.</div>
+                            <div class="mt-6 flex items-center justify-center gap-3">
+                                <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator"
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                                    Login <i class="fas fa-arrow-right text-xs"></i>
+                                </a>
+                                <button type="button" id="btnOperatorRegisterOpen"
+                                    class="inline-flex items-center gap-2 border-2 border-teal-500 text-teal-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-teal-50 transition-all duration-300">Register</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Commuter Portal -->
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-2xl transition-all">
-                    <div class="flex items-center justify-center">
-                        <div class="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
-                            <i class="fas fa-users text-custom-primary text-2xl"></i>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-orange-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-pink-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-center">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
+                                <i class="fas fa-users text-white text-3xl"></i>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-5 text-center">
-                        <div class="text-lg font-bold text-slate-900">Commuter Portal</div>
-                        <div class="mt-1 text-sm text-slate-600">Citizen services for commuters. No plate number
-                            required.</div>
-                        <div class="mt-5 flex items-center justify-center gap-4">
-                            <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
-                                class="inline-flex items-center justify-center gap-2 text-custom-primary font-semibold hover:underline">
-                                Access Portal <i class="fas fa-arrow-right text-xs"></i>
-                            </a>
-                            <button type="button" id="showRegister"
-                                class="text-custom-primary font-semibold hover:underline">Register</button>
+                        <div class="mt-6 text-center">
+                            <div class="text-xl font-bold text-slate-900">Commuter Portal</div>
+                            <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information.</div>
+                            <div class="mt-6 flex items-center justify-center gap-3">
+                                <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-pink-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                                    Enter <i class="fas fa-arrow-right text-xs"></i>
+                                </a>
+                                <button type="button" id="showRegister"
+                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300">Register</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -174,105 +192,146 @@ if (!empty($_SESSION['user_id'])) {
             </div>
 
             <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-id-card text-custom-primary text-xl"></i>
+                <!-- Feature 1 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-purple-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-id-card text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Franchise & Operator Records</div>
+                        <div class="mt-1 text-sm text-slate-600">Maintain operators, vehicles, routes, and applications in one place.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Franchise & Operator Records</div>
-                    <div class="mt-1 text-sm text-slate-600">Maintain operators, vehicles, routes, and applications in one place.</div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-receipt text-custom-primary text-xl"></i>
+                
+                <!-- Feature 2 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-teal-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-receipt text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Ticketing & Treasury Processing</div>
+                        <div class="mt-1 text-sm text-slate-600">Issue tickets, validate, and record official receipts for settlement.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Ticketing & Treasury Processing</div>
-                    <div class="mt-1 text-sm text-slate-600">Issue tickets, validate, and record official receipts for settlement.</div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-clipboard-check text-custom-primary text-xl"></i>
+                
+                <!-- Feature 3 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-clipboard-check text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Inspection Workflows</div>
+                        <div class="mt-1 text-sm text-slate-600">Track inspection steps and ensure compliance with structured records.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Inspection Workflows</div>
-                    <div class="mt-1 text-sm text-slate-600">Track inspection steps and ensure compliance with structured records.</div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-square-parking text-custom-primary text-xl"></i>
+                
+                <!-- Feature 4 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-pink-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-square-parking text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Terminal & Parking Operations</div>
+                        <div class="mt-1 text-sm text-slate-600">Manage terminals, parking slots, and facility usage efficiently.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Terminal & Parking Operations</div>
-                    <div class="mt-1 text-sm text-slate-600">Manage terminals, parking slots, and facility usage efficiently.</div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-shield-halved text-custom-primary text-xl"></i>
+                
+                <!-- Feature 5 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-indigo-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-shield-halved text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Role-Based Access</div>
+                        <div class="mt-1 text-sm text-slate-600">Keep modules protected with permissions and activity monitoring.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Role-Based Access</div>
-                    <div class="mt-1 text-sm text-slate-600">Keep modules protected with permissions and activity monitoring.</div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <i class="fas fa-chart-line text-custom-primary text-xl"></i>
+                
+                <!-- Feature 6 -->
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div class="relative">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
+                            <i class="fas fa-chart-line text-white text-xl"></i>
+                        </div>
+                        <div class="mt-4 font-bold text-slate-900">Analytics</div>
+                        <div class="mt-1 text-sm text-slate-600">Use dashboards and reports to support planning and decisions.</div>
                     </div>
-                    <div class="mt-4 font-bold text-slate-900">Analytics</div>
-                    <div class="mt-1 text-sm text-slate-600">Use dashboards and reports to support planning and decisions.</div>
                 </div>
             </div>
         </section>
 
+
         <!-- Streamlined Access Section -->
         <section class="container mx-auto px-6 pb-12">
-            <div class="relative overflow-hidden rounded-2xl shadow-xl bg-white border border-slate-100">
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-green-50/50"></div>
+            <div class="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
+                <!-- Animated overlay -->
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute top-10 right-10 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 5s;"></div>
+                    <div class="absolute bottom-10 left-10 w-72 h-72 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 7s; animation-delay: 1s;"></div>
+                </div>
                 
                 <div class="relative px-6 py-16">
                     <div class="text-center mb-16">
-                        <h2 class="text-3xl md:text-4xl font-bold text-custom-primary mb-4">Streamlined Access</h2>
-                        <p class="text-slate-600 max-w-2xl mx-auto">Access transportation services securely and efficiently in just three simple steps.</p>
+                        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Streamlined Access</h2>
+                        <p class="text-white/90 max-w-2xl mx-auto text-lg drop-shadow">Access transportation services securely and efficiently in just three simple steps.</p>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                         <!-- Connector Line (Desktop) -->
-                        <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-blue-200 to-green-200 -translate-y-1/2 z-0 transform scale-x-75"></div>
+                        <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-white/30 -translate-y-1/2 z-0 transform scale-x-75"></div>
 
                         <!-- Step 1 -->
                         <div class="relative z-10 text-center group">
-                            <div class="w-20 h-20 mx-auto bg-white rounded-2xl shadow-lg border-2 border-blue-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-custom-primary">
-                                    <i class="fas fa-th-large text-2xl"></i>
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-th-large text-3xl"></i>
                                 </div>
                             </div>
-                            <h3 class="text-xl font-bold text-slate-800 mb-2">1. Select Portal</h3>
-                            <p class="text-slate-600 text-sm">Choose the dedicated portal for your role (Staff, Operator, or Commuter).</p>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">1. Select Portal</h3>
+                                <p class="text-white/80 text-sm">Choose the dedicated portal for your role (Staff, Operator, or Commuter).</p>
+                            </div>
                         </div>
 
                         <!-- Step 2 -->
                         <div class="relative z-10 text-center group">
-                            <div class="w-20 h-20 mx-auto bg-white rounded-2xl shadow-lg border-2 border-blue-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-custom-primary">
-                                    <i class="fas fa-user-check text-2xl"></i>
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-user-check text-3xl"></i>
                                 </div>
                             </div>
-                            <h3 class="text-xl font-bold text-slate-800 mb-2">2. Authenticate</h3>
-                            <p class="text-slate-600 text-sm">Log in securely or register a new account to verify your identity.</p>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">2. Authenticate</h3>
+                                <p class="text-white/80 text-sm">Log in securely or register a new account to verify your identity.</p>
+                            </div>
                         </div>
 
                         <!-- Step 3 -->
                         <div class="relative z-10 text-center group">
-                            <div class="w-20 h-20 mx-auto bg-white rounded-2xl shadow-lg border-2 border-green-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-custom-accent">
-                                    <i class="fas fa-rocket text-2xl"></i>
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-rocket text-3xl"></i>
                                 </div>
                             </div>
-                            <h3 class="text-xl font-bold text-slate-800 mb-2">3. Manage</h3>
-                            <p class="text-slate-600 text-sm">Access your dashboard, manage applications, or view real-time data.</p>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">3. Manage</h3>
+                                <p class="text-white/80 text-sm">Access your dashboard, manage applications, or view real-time data.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
+
     </main>
 
-    <footer class="bg-custom-primary text-white py-6 mt-8">
+    <footer class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-6 mt-8">
         <div class="container mx-auto px-6">
             <div class="flex flex-col lg:flex-row justify-between items-center">
                 <div class="text-center lg:text-left mb-2 lg:mb-0">
@@ -291,6 +350,7 @@ if (!empty($_SESSION['user_id'])) {
             </div>
         </div>
     </footer>
+
 
     <!-- Commuter Registration Modal -->
     <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
