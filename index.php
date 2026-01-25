@@ -42,7 +42,7 @@ if (!empty($_SESSION['user_id'])) {
 </head>
 
 <body class="bg-custom-bg min-h-screen flex flex-col">
-    <header class="py-4 bg-gradient-to-r from-white via-purple-50 to-pink-50 border-b-4 border-gradient-to-r from-purple-500 via-pink-500 to-orange-500 shadow-lg sticky top-0 z-50">
+    <header class="fixed top-0 left-0 right-0 py-4 bg-gradient-to-r from-white via-purple-50 to-pink-50 border-b-4 border-gradient-to-r from-purple-500 via-pink-500 to-orange-500 shadow-lg z-50">
         <div class="container mx-auto px-6">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
@@ -71,7 +71,7 @@ if (!empty($_SESSION['user_id'])) {
         </div>
     </header>
 
-    <main class="flex-1">
+    <main class="flex-1 pt-24">
         <section id="home" class="container mx-auto px-6 pt-6">
             <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
                 <!-- Animated overlay -->
