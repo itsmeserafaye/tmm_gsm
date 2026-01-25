@@ -439,6 +439,178 @@ function db()
       ('TR-05','TR-05','Grace Park–Monumento Shuttle','UV','Grace Park','Monumento','Grace Park • EDSA/Monumento (Caloocan)','Point-to-Point',30,30,'Active')");
   }
 
+  // Add new bus routes for Caloocan City
+  $busRoutes = [
+    ['BUS-04', 'BUS-04', 'EDSA Carousel North (Monumento–PITX)', 'Bus', 'Monumento', 'PITX Parañaque', 'EDSA (Balintawak • SM North • Quezon Ave • Ortigas • Ayala • Taft)', 'Point-to-Point', 250, 100, 100, 'Active'],
+    ['BUS-05', 'BUS-05', 'EDSA Carousel South (PITX–Monumento)', 'Bus', 'PITX Parañaque', 'Monumento', 'EDSA (Taft • Ayala • Ortigas • Quezon Ave • SM North • Balintawak)', 'Point-to-Point', 250, 100, 100, 'Active'],
+    ['BUS-06', 'BUS-06', 'Monumento–Baguio City (Victory Liner)', 'Bus', 'Monumento', 'Baguio City', 'NLEX • TPLEX • Kennon Road', 'Point-to-Point', 250, 30, 30, 'Active'],
+    ['BUS-07', 'BUS-07', 'Monumento–Dagupan (Victory Liner)', 'Bus', 'Monumento', 'Dagupan', 'NLEX • TPLEX', 'Point-to-Point', 200, 25, 25, 'Active'],
+    ['BUS-08', 'BUS-08', 'Monumento–Olongapo (Victory Liner)', 'Bus', 'Monumento', 'Olongapo', 'NLEX • SCTEX', 'Point-to-Point', 120, 20, 20, 'Active'],
+    ['BUS-09', 'BUS-09', 'Monumento–San Fernando Pampanga (Victory Liner)', 'Bus', 'Monumento', 'San Fernando, Pampanga', 'NLEX', 'Point-to-Point', 80, 15, 15, 'Active'],
+    ['BUS-10', 'BUS-10', 'Monumento–Iba Zambales (Victory Liner)', 'Bus', 'Monumento', 'Iba, Zambales', 'NLEX • SCTEX', 'Point-to-Point', 150, 15, 15, 'Active'],
+    ['BUS-11', 'BUS-11', 'Monumento–Dagupan (Five Star)', 'Bus', 'Monumento', 'Dagupan', 'NLEX • TPLEX', 'Point-to-Point', 200, 20, 20, 'Active'],
+    ['BUS-12', 'BUS-12', 'Monumento–San Isidro Pangasinan (Five Star)', 'Bus', 'Monumento', 'San Isidro, Pangasinan', 'NLEX • TPLEX', 'Point-to-Point', 180, 15, 15, 'Active'],
+    ['BUS-13', 'BUS-13', 'Monumento–Sta Cruz Zambales (Genesis)', 'Bus', 'Monumento', 'Sta. Cruz, Zambales', 'NLEX • SCTEX', 'Point-to-Point', 140, 15, 15, 'Active'],
+  ];
+
+  foreach ($busRoutes as $route) {
+    $routeId = $conn->real_escape_string($route[0]);
+    $checkRoute = $conn->query("SELECT route_id FROM routes WHERE route_id='$routeId' LIMIT 1");
+    if ($checkRoute && $checkRoute->num_rows == 0) {
+      $routeCode = $conn->real_escape_string($route[1]);
+      $routeName = $conn->real_escape_string($route[2]);
+      $vehicleType = $conn->real_escape_string($route[3]);
+      $origin = $conn->real_escape_string($route[4]);
+      $destination = $conn->real_escape_string($route[5]);
+      $via = $conn->real_escape_string($route[6]);
+      $structure = $conn->real_escape_string($route[7]);
+      $distanceKm = (float) $route[8];
+      $authorizedUnits = (int) $route[9];
+      $maxVehicleLimit = (int) $route[10];
+      $status = $conn->real_escape_string($route[11]);
+
+      $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status) 
+                    VALUES ('$routeId','$routeCode','$routeName','$vehicleType','$origin','$destination','$via','$structure',$distanceKm,$authorizedUnits,$maxVehicleLimit,'$status')");
+    }
+  }
+
+  // Link new bus routes to Monumento Terminal
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-04' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-05' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-06' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-07' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-08' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-09' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-10' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-11' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-12' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-13' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+
+  // Add Jeepney routes (JEEP-10 to JEEP-19)
+  $jeepRoutes = [
+    ['JEEP-10', 'JEEP-10', 'Novaliches–Rizal Ave via Banal', 'Jeepney', 'Novaliches Bayan', 'Rizal Avenue', 'Banal • Quirino Highway', 'Point-to-Point', 12, 40, 40, 'Active'],
+    ['JEEP-11', 'JEEP-11', 'Bagong Barrio–G. De Jesus/EDSA', 'Jeepney', 'Bagong Barrio', 'G. De Jesus/EDSA', 'Repara Road • Milagrosa Street', 'Point-to-Point', 8, 35, 35, 'Active'],
+    ['JEEP-12', 'JEEP-12', 'Bagong Silang–Novaliches via Susano', 'Jeepney', 'Bagong Silang', 'Novaliches', 'Susano Road • Quirino Highway', 'Point-to-Point', 10, 40, 40, 'Active'],
+    ['JEEP-13', 'JEEP-13', 'Bagumbong–Novaliches', 'Jeepney', 'Bagumbong', 'Novaliches', 'Quirino Highway', 'Point-to-Point', 9, 35, 35, 'Active'],
+    ['JEEP-14', 'JEEP-14', 'Novaliches–Bignay', 'Jeepney', 'Novaliches', 'Bignay', 'General Luis • Llano Road', 'Point-to-Point', 7, 30, 30, 'Active'],
+    ['JEEP-15', 'JEEP-15', 'Blumentritt–Novaliches', 'Jeepney', 'Blumentritt', 'Novaliches', 'Rizal Ave • Quirino Highway', 'Point-to-Point', 15, 45, 45, 'Active'],
+    ['JEEP-16', 'JEEP-16', 'Monumento–Malabon via Acacia', 'Jeepney', 'Monumento', 'Malabon Bayan', 'Acacia Avenue', 'Point-to-Point', 6, 35, 35, 'Active'],
+    ['JEEP-17', 'JEEP-17', 'Monumento–Navotas', 'Jeepney', 'Monumento', 'Navotas', 'Rizal Ave Ext • C-4 Road', 'Point-to-Point', 8, 35, 35, 'Active'],
+    ['JEEP-18', 'JEEP-18', 'Monumento–Malanday', 'Jeepney', 'Monumento', 'Malanday', 'Rizal Ave • Malanday Road', 'Point-to-Point', 7, 30, 30, 'Active'],
+    ['JEEP-19', 'JEEP-19', 'Monumento–Angat', 'Jeepney', 'Monumento', 'Angat', 'NLEX', 'Point-to-Point', 65, 25, 25, 'Active'],
+  ];
+
+  foreach ($jeepRoutes as $route) {
+    $routeId = $conn->real_escape_string($route[0]);
+    $checkRoute = $conn->query("SELECT route_id FROM routes WHERE route_id='$routeId' LIMIT 1");
+    if ($checkRoute && $checkRoute->num_rows == 0) {
+      $routeCode = $conn->real_escape_string($route[1]);
+      $routeName = $conn->real_escape_string($route[2]);
+      $vehicleType = $conn->real_escape_string($route[3]);
+      $origin = $conn->real_escape_string($route[4]);
+      $destination = $conn->real_escape_string($route[5]);
+      $via = $conn->real_escape_string($route[6]);
+      $structure = $conn->real_escape_string($route[7]);
+      $distanceKm = (float) $route[8];
+      $authorizedUnits = (int) $route[9];
+      $maxVehicleLimit = (int) $route[10];
+      $status = $conn->real_escape_string($route[11]);
+
+      $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status) 
+                    VALUES ('$routeId','$routeCode','$routeName','$vehicleType','$origin','$destination','$via','$structure',$distanceKm,$authorizedUnits,$maxVehicleLimit,'$status')");
+    }
+  }
+
+  // Add Tricycle routes (TRI-04 to TRI-13)
+  $triRoutes = [
+    ['TRI-04', 'TRI-04', 'Bagong Silang Phase 1-3 Loop', 'Tricycle', 'Phase 1', 'Phase 3', 'Internal roads', 'Loop', 3, 25, 25, 'Active'],
+    ['TRI-05', 'TRI-05', 'Bagong Silang Phase 4-9 Loop', 'Tricycle', 'Phase 4', 'Phase 9', 'Internal roads', 'Loop', 4, 30, 30, 'Active'],
+    ['TRI-06', 'TRI-06', 'Bagong Silang Phase 10-12 Loop', 'Tricycle', 'Phase 10', 'Phase 12', 'Internal roads', 'Loop', 3, 25, 25, 'Active'],
+    ['TRI-07', 'TRI-07', 'Sta. Quiteria Loop', 'Tricycle', 'Sta. Quiteria Terminal', 'Sta. Quiteria Barangay', 'Local roads', 'Loop', 2, 20, 20, 'Active'],
+    ['TRI-08', 'TRI-08', 'Zabarte Road Loop', 'Tricycle', 'Zabarte Terminal', 'Zabarte Area', 'Zabarte Road', 'Loop', 2, 20, 20, 'Active'],
+    ['TRI-09', 'TRI-09', 'General Luis Loop', 'Tricycle', 'General Luis Terminal', 'General Luis Area', 'Local roads', 'Loop', 2, 20, 20, 'Active'],
+    ['TRI-10', 'TRI-10', 'Grace Park Loop', 'Tricycle', 'Grace Park Terminal', 'Grace Park Area', '5th Ave • 10th Ave', 'Loop', 2, 20, 20, 'Active'],
+    ['TRI-11', 'TRI-11', 'Camarin Loop', 'Tricycle', 'Camarin Terminal', 'Camarin Area', 'Local roads', 'Loop', 3, 25, 25, 'Active'],
+    ['TRI-12', 'TRI-12', 'Deparo Loop', 'Tricycle', 'Deparo Terminal', 'Deparo Area', 'Deparo Road', 'Loop', 2, 20, 20, 'Active'],
+    ['TRI-13', 'TRI-13', 'Tala Loop', 'Tricycle', 'Tala Terminal', 'Tala Area', 'Local roads', 'Loop', 2, 20, 20, 'Active'],
+  ];
+
+  foreach ($triRoutes as $route) {
+    $routeId = $conn->real_escape_string($route[0]);
+    $checkRoute = $conn->query("SELECT route_id FROM routes WHERE route_id='$routeId' LIMIT 1");
+    if ($checkRoute && $checkRoute->num_rows == 0) {
+      $routeCode = $conn->real_escape_string($route[1]);
+      $routeName = $conn->real_escape_string($route[2]);
+      $vehicleType = $conn->real_escape_string($route[3]);
+      $origin = $conn->real_escape_string($route[4]);
+      $destination = $conn->real_escape_string($route[5]);
+      $via = $conn->real_escape_string($route[6]);
+      $structure = $conn->real_escape_string($route[7]);
+      $distanceKm = (float) $route[8];
+      $authorizedUnits = (int) $route[9];
+      $maxVehicleLimit = (int) $route[10];
+      $status = $conn->real_escape_string($route[11]);
+
+      $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status) 
+                    VALUES ('$routeId','$routeCode','$routeName','$vehicleType','$origin','$destination','$via','$structure',$distanceKm,$authorizedUnits,$maxVehicleLimit,'$status')");
+    }
+  }
+
+  // Add UV Express routes (UV-10 to UV-19)
+  $uvRoutes = [
+    ['UV-10', 'UV-10', 'Deparo–SM North EDSA', 'UV', 'Deparo', 'SM North EDSA', 'Quirino Highway • EDSA', 'Point-to-Point', 15, 30, 30, 'Active'],
+    ['UV-11', 'UV-11', 'Deparo–Blumentritt', 'UV', 'Deparo', 'Blumentritt', 'Quirino Highway • Rizal Ave', 'Point-to-Point', 18, 25, 25, 'Active'],
+    ['UV-12', 'UV-12', 'Cubao–Novaliches (24/7)', 'UV', 'Cubao', 'Novaliches', 'EDSA • Quirino Highway', 'Point-to-Point', 12, 35, 35, 'Active'],
+    ['UV-13', 'UV-13', 'Cubao–Deparo', 'UV', 'Cubao', 'Deparo', 'EDSA • Quirino Highway', 'Point-to-Point', 14, 30, 30, 'Active'],
+    ['UV-14', 'UV-14', 'SM North–TM Kalaw Manila', 'UV', 'SM North EDSA', 'TM Kalaw, Manila', 'EDSA • Taft Ave', 'Point-to-Point', 20, 30, 30, 'Active'],
+    ['UV-15', 'UV-15', 'Tandang Sora–TM Kalaw Manila', 'UV', 'Tandang Sora', 'TM Kalaw, Manila', 'Commonwealth • EDSA • Taft', 'Point-to-Point', 22, 25, 25, 'Active'],
+    ['UV-16', 'UV-16', 'Monumento–Cubao', 'UV', 'Monumento', 'Cubao', 'EDSA', 'Point-to-Point', 12, 35, 35, 'Active'],
+    ['UV-17', 'UV-17', 'Monumento–SM Fairview', 'UV', 'Monumento', 'SM Fairview', 'EDSA • Commonwealth', 'Point-to-Point', 18, 30, 30, 'Active'],
+    ['UV-18', 'UV-18', 'Novaliches–Trinoma', 'UV', 'Novaliches', 'Trinoma', 'Quirino Highway • EDSA', 'Point-to-Point', 10, 30, 30, 'Active'],
+    ['UV-19', 'UV-19', 'Bagong Silang–SM North', 'UV', 'Bagong Silang', 'SM North EDSA', 'Quirino Highway • EDSA', 'Point-to-Point', 16, 25, 25, 'Active'],
+  ];
+
+  foreach ($uvRoutes as $route) {
+    $routeId = $conn->real_escape_string($route[0]);
+    $checkRoute = $conn->query("SELECT route_id FROM routes WHERE route_id='$routeId' LIMIT 1");
+    if ($checkRoute && $checkRoute->num_rows == 0) {
+      $routeCode = $conn->real_escape_string($route[1]);
+      $routeName = $conn->real_escape_string($route[2]);
+      $vehicleType = $conn->real_escape_string($route[3]);
+      $origin = $conn->real_escape_string($route[4]);
+      $destination = $conn->real_escape_string($route[5]);
+      $via = $conn->real_escape_string($route[6]);
+      $structure = $conn->real_escape_string($route[7]);
+      $distanceKm = (float) $route[8];
+      $authorizedUnits = (int) $route[9];
+      $maxVehicleLimit = (int) $route[10];
+      $status = $conn->real_escape_string($route[11]);
+
+      $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, authorized_units, max_vehicle_limit, status) 
+                    VALUES ('$routeId','$routeCode','$routeName','$vehicleType','$origin','$destination','$via','$structure',$distanceKm,$authorizedUnits,$maxVehicleLimit,'$status')");
+    }
+  }
+
+  // Link new routes to appropriate terminals
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-10' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-11' FROM terminals t WHERE t.name='Bagong Barrio Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-12' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-13' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-14' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-15' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-16' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-17' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-18' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-19' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-10' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-11' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-13' FROM terminals t WHERE t.name='Deparo Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-16' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-17' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-18' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-19' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
+
+
   $legacySeed = [
     ['old' => 'R-12', 'old_name' => 'Central Loop', 'new' => 'TR-01', 'new_name' => 'Monumento Loop', 'vehicle_type' => 'Jeepney', 'origin' => 'Monumento', 'destination' => 'Monumento', 'via' => 'EDSA • Rizal Ave Ext • Samson Rd • 10th Ave/5th Ave (Caloocan)', 'structure' => 'Loop', 'units' => 60],
     ['old' => 'R-08', 'old_name' => 'East Corridor', 'new' => 'TR-02', 'new_name' => 'Monumento–Sangandaan Connector', 'vehicle_type' => 'Jeepney', 'origin' => 'Monumento', 'destination' => 'Sangandaan', 'via' => 'Samson Rd • Sangandaan Area (Caloocan)', 'structure' => 'Point-to-Point', 'units' => 45],
