@@ -3,6 +3,24 @@ function operator_portal_clear_session(): void {
   unset($_SESSION['operator_user_id'], $_SESSION['operator_email'], $_SESSION['operator_plate']);
 }
 
+function operator_portal_get_setting(mysqli $db, string $key, string $default = ''): string {
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+  if (!$stmt) return $default;
+  $stmt->bind_param('s', $key);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  $v = $row ? trim((string)($row['setting_value'] ?? '')) : '';
+  return $v !== '' ? $v : $default;
+}
+
+function operator_portal_session_timeout_seconds(mysqli $db): int {
+  $min = (int)trim(operator_portal_get_setting($db, 'session_timeout', '30'));
+  if ($min <= 0) $min = 30;
+  if ($min > 1440) $min = 1440;
+  return $min * 60;
+}
+
 function operator_portal_login(mysqli $db, string $plateNumber, string $email, string $password): array {
   $plateNumber = strtoupper(trim($plateNumber));
   $email = strtolower(trim($email));
@@ -49,6 +67,7 @@ function operator_portal_login(mysqli $db, string $plateNumber, string $email, s
   $_SESSION['operator_user_id'] = $userId;
   $_SESSION['operator_email'] = $email;
   $_SESSION['operator_plate'] = $plateNumber;
+  $_SESSION['operator_last_activity'] = time();
   return ['ok' => true, 'message' => 'Login successful.'];
 }
 
@@ -58,5 +77,17 @@ function operator_portal_require_login(string $redirectTo): void {
     header('Location: ' . $redirectTo);
     exit;
   }
+  require_once __DIR__ . '/db.php';
+  $db = db();
+  $ttl = operator_portal_session_timeout_seconds($db);
+  $now = time();
+  $last = (int)($_SESSION['operator_last_activity'] ?? 0);
+  if ($last > 0 && ($now - $last) > $ttl) {
+    operator_portal_clear_session();
+    @session_unset();
+    @session_destroy();
+    header('Location: ' . $redirectTo);
+    exit;
+  }
+  $_SESSION['operator_last_activity'] = $now;
 }
-

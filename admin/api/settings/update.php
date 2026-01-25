@@ -30,15 +30,34 @@ $allowed = [
   
   // Security
   'password_min_length',
+  'password_require_upper',
+  'password_require_lower',
+  'password_require_number',
+  'password_require_symbol',
   'session_timeout',
+  'session_warning_seconds',
   'max_login_attempts',
-  'require_mfa'
+  'lockout_minutes',
+  'require_mfa',
+  'mfa_trust_days',
+  'otp_ttl_seconds',
+  
+  // Email (MFA / Notifications)
+  'smtp_host',
+  'smtp_port',
+  'smtp_secure',
+  'smtp_user',
+  'smtp_pass'
 ];
 
 $updates = [];
 foreach ($allowed as $k) {
   if (array_key_exists($k, $_POST)) {
-    $updates[$k] = trim((string)$_POST[$k]);
+    $v = trim((string)$_POST[$k]);
+    if ($k === 'smtp_pass' && $v === '') {
+      continue;
+    }
+    $updates[$k] = $v;
   }
 }
 

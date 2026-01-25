@@ -26,6 +26,15 @@ function tmm_mailer(mysqli $db): PHPMailer {
   $port = (int)(getenv('TMM_SMTP_PORT') ?: 587);
   $secure = trim((string)getenv('TMM_SMTP_SECURE'));
 
+  if ($host === '') {
+    $host = app_setting($db, 'smtp_host', '');
+    $user = app_setting($db, 'smtp_user', '');
+    $pass = app_setting($db, 'smtp_pass', '');
+    $portV = app_setting($db, 'smtp_port', '');
+    $secure = app_setting($db, 'smtp_secure', '');
+    $port = (int)($portV !== '' ? $portV : 587);
+  }
+
   if ($host !== '') {
     $mail->isSMTP();
     $mail->Host = $host;

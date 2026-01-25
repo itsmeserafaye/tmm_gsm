@@ -31,6 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $db = db();
 
+$setting = function(string $key, string $default = '') use ($db): string {
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+  if (!$stmt) return $default;
+  $stmt->bind_param('s', $key);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  $v = $row ? trim((string)($row['setting_value'] ?? '')) : '';
+  return $v !== '' ? $v : $default;
+};
+
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
 if (!is_array($input)) {
@@ -54,11 +65,23 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 if ($password !== $confirmPassword) {
   opreg_send(false, 'Passwords do not match.', null, 400);
 }
-if (strlen($password) < 10) {
-  opreg_send(false, 'Password must be at least 10 characters.', null, 400);
+$minLen = (int)$setting('password_min_length', '10');
+if ($minLen < 6) $minLen = 6;
+if ($minLen > 32) $minLen = 32;
+if (strlen($password) < $minLen) {
+  opreg_send(false, 'Password must be at least ' . $minLen . ' characters.', null, 400);
 }
-if (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/\d/', $password) || !preg_match('/[^A-Za-z0-9]/', $password)) {
-  opreg_send(false, 'Password does not meet requirements.', null, 400);
+$reqUpper = $setting('password_require_upper', '1') === '1';
+$reqLower = $setting('password_require_lower', '1') === '1';
+$reqNumber = $setting('password_require_number', '1') === '1';
+$reqSymbol = $setting('password_require_symbol', '1') === '1';
+$missing = [];
+if ($reqUpper && !preg_match('/[A-Z]/', $password)) $missing[] = 'uppercase';
+if ($reqLower && !preg_match('/[a-z]/', $password)) $missing[] = 'lowercase';
+if ($reqNumber && !preg_match('/\d/', $password)) $missing[] = 'number';
+if ($reqSymbol && !preg_match('/[^A-Za-z0-9]/', $password)) $missing[] = 'symbol';
+if ($missing) {
+  opreg_send(false, 'Password does not meet requirements: ' . implode(', ', $missing) . '.', null, 400);
 }
 
 $cfg = recaptcha_config($db);
@@ -142,4 +165,3 @@ opreg_send(true, 'Registration successful. Redirecting...', [
   'recaptcha_configured' => $recaptchaConfigured,
   'redirect' => '../../citizen/operator/index.php'
 ]);
-

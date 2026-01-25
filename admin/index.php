@@ -135,6 +135,27 @@ if ($ts !== false) $formJsVer = (int)$ts;
       </main>
     </div>
   </div>
+  <div id="tmm-session-toast" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-[420px] z-[100]">
+    <div class="pointer-events-auto px-4 py-4 rounded-2xl shadow-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+            <i data-lucide="timer" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-sm font-black">Session expiring soon</div>
+            <div id="tmm-session-toast-msg" class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200"></div>
+          </div>
+        </div>
+        <button type="button" id="tmm-session-toast-close" class="p-2 rounded-lg hover:bg-amber-100 dark:hover:bg-slate-800/60 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="mt-4 flex items-center justify-end gap-2">
+        <button type="button" id="tmm-session-stay" class="px-4 py-2.5 rounded-md bg-amber-700 hover:bg-amber-800 text-white font-semibold">Stay Logged In</button>
+      </div>
+    </div>
+  </div>
   <script>
     function isMobile() { return window.matchMedia('(max-width: 767px)').matches }
     function initTheme() {
@@ -248,6 +269,76 @@ if ($ts !== false) $formJsVer = (int)$ts;
       initSidebar();
       setupExpandableNav();
       if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+
+      (function () {
+        var timeoutSec = <?php echo json_encode((int)tmm_session_timeout_seconds()); ?>;
+        var warnSecRaw = <?php echo json_encode((int)trim((string)tmm_get_app_setting('session_warning_seconds', '30'))); ?>;
+        var warnSec = warnSecRaw > 0 ? warnSecRaw : 30;
+        warnSec = Math.max(10, Math.min(120, warnSec));
+        warnSec = Math.min(warnSec, Math.max(10, timeoutSec - 5));
+        var toast = document.getElementById('tmm-session-toast');
+        var toastMsg = document.getElementById('tmm-session-toast-msg');
+        var btnStay = document.getElementById('tmm-session-stay');
+        var btnClose = document.getElementById('tmm-session-toast-close');
+        var logoutUrl = (window.TMM_ROOT_URL || '') + '/gsm_login/Login/login.php?logout=true';
+        var pingUrl = (window.TMM_ROOT_URL || '') + '/admin/api/auth/ping.php';
+        var lastActivityMs = Date.now();
+        var showing = false;
+        var tickId = null;
+
+        function hideToast() {
+          if (!toast) return;
+          toast.classList.add('hidden');
+          showing = false;
+        }
+
+        function showToast(secLeft) {
+          if (!toast || !toastMsg) return;
+          showing = true;
+          toast.classList.remove('hidden');
+          toastMsg.textContent = 'Logging out in ' + String(secLeft) + ' seconds due to inactivity.';
+          try { if (window.lucide && window.lucide.createIcons) window.lucide.createIcons(); } catch (e) {}
+        }
+
+        function resetActivity() {
+          lastActivityMs = Date.now();
+          if (showing) hideToast();
+        }
+
+        function ping() {
+          try {
+            return fetch(pingUrl, { headers: { 'Accept': 'application/json' } })
+              .then(function (r) { return r.json(); })
+              .then(function () { resetActivity(); })
+              .catch(function () { resetActivity(); });
+          } catch (e) {
+            resetActivity();
+            return Promise.resolve();
+          }
+        }
+
+        function tick() {
+          var idleSec = Math.floor((Date.now() - lastActivityMs) / 1000);
+          var remaining = timeoutSec - idleSec;
+          if (remaining <= 0) {
+            window.location.href = logoutUrl;
+            return;
+          }
+          if (remaining <= warnSec) {
+            showToast(remaining);
+          } else if (showing) {
+            hideToast();
+          }
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(function (evt) {
+          document.addEventListener(evt, resetActivity, { passive: true });
+        });
+        if (btnStay) btnStay.addEventListener('click', function () { ping(); });
+        if (btnClose) btnClose.addEventListener('click', function () { hideToast(); });
+
+        tickId = window.setInterval(tick, 1000);
+      })();
     });
     window.addEventListener('resize', function () { initSidebar() });
   </script>

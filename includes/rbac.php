@@ -27,11 +27,17 @@ function rbac_ensure_schema(mysqli $db) {
     department VARCHAR(120) DEFAULT NULL,
     position_title VARCHAR(120) DEFAULT NULL,
     status ENUM('Active','Inactive','Locked') NOT NULL DEFAULT 'Active',
+    locked_until DATETIME DEFAULT NULL,
     last_login_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_status (status)
   ) ENGINE=InnoDB");
+
+  $cols = $db->query("SHOW COLUMNS FROM rbac_users LIKE 'locked_until'");
+  if (!$cols || $cols->num_rows === 0) {
+    $db->query("ALTER TABLE rbac_users ADD COLUMN locked_until DATETIME DEFAULT NULL AFTER status");
+  }
 
   $db->query("CREATE TABLE IF NOT EXISTS user_profiles (
     user_id INT NOT NULL PRIMARY KEY,

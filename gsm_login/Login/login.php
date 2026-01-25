@@ -61,15 +61,33 @@ function gsm_send($ok, $message, $data = null, $httpCode = 200)
   exit;
 }
 
-function gsm_require_mfa(mysqli $db): bool
+function gsm_setting(mysqli $db, string $key, string $default = ''): string
 {
-  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key='require_mfa' LIMIT 1");
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
   if (!$stmt)
-    return false;
+    return $default;
+  $stmt->bind_param('s', $key);
   $stmt->execute();
   $row = $stmt->get_result()->fetch_assoc();
   $stmt->close();
-  $v = strtolower(trim((string) ($row['setting_value'] ?? '0')));
+  $v = $row ? trim((string) ($row['setting_value'] ?? '')) : '';
+  return $v !== '' ? $v : $default;
+}
+
+function gsm_setting_int(mysqli $db, string $key, int $default, int $min, int $max): int
+{
+  $raw = gsm_setting($db, $key, (string)$default);
+  $v = (int) trim((string)$raw);
+  if ($v < $min)
+    $v = $min;
+  if ($v > $max)
+    $v = $max;
+  return $v;
+}
+
+function gsm_require_mfa(mysqli $db): bool
+{
+  $v = strtolower(trim(gsm_setting($db, 'require_mfa', '0')));
   return $v === '1' || $v === 'true' || $v === 'yes' || $v === 'on';
 }
 
@@ -187,7 +205,9 @@ if ($action === 'login_otp_resend') {
   $purpose = (string) ($pending['purpose'] ?? '');
   if ($pEmail === '' || $purpose === '')
     gsm_send(false, 'No pending OTP request.', null, 400);
-  $sent = otp_send($db, $pEmail, $purpose, 120);
+  $ttl = (int)($pending['otp_ttl'] ?? 0);
+  if ($ttl <= 0) $ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
+  $sent = otp_send($db, $pEmail, $purpose, $ttl);
   if (!($sent['ok'] ?? false))
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), $sent['data'] ?? null, 500);
   gsm_send(true, (string) ($sent['message'] ?? 'OTP sent.'), [
@@ -230,7 +250,8 @@ if ($action === 'login_otp_verify') {
     $perms = rbac_get_user_permissions($db, $userId);
     $primaryRole = rbac_primary_role($roles);
 
-    td_trust($db, 'rbac', $userId, $deviceHash, 10);
+    $trustDays = (int)($pending['trust_days'] ?? 10);
+    if ($trustDays > 0) td_trust($db, 'rbac', $userId, $deviceHash, $trustDays);
 
     session_regenerate_id(true);
     unset($_SESSION['pending_login']);
@@ -255,7 +276,7 @@ if ($action === 'login_otp_verify') {
 
     gsm_send(true, 'Login successful', [
       'redirect' => $redirect,
-      'otp_trust_days' => 10,
+      'otp_trust_days' => $trustDays > 0 ? $trustDays : 0,
     ]);
   }
 
@@ -265,7 +286,8 @@ if ($action === 'login_otp_verify') {
     if ($opUserId <= 0 || $plate === '')
       gsm_send(false, 'Invalid OTP request.', null, 400);
 
-    td_trust($db, 'operator', $opUserId, $deviceHash, 10);
+    $trustDays = (int)($pending['trust_days'] ?? 10);
+    if ($trustDays > 0) td_trust($db, 'operator', $opUserId, $deviceHash, $trustDays);
 
     session_regenerate_id(true);
     unset($_SESSION['pending_login']);
@@ -276,7 +298,7 @@ if ($action === 'login_otp_verify') {
 
     gsm_send(true, 'Login successful', [
       'redirect' => $gsm_root_url . '/citizen/operator/index.php',
-      'otp_trust_days' => 10,
+      'otp_trust_days' => $trustDays > 0 ? $trustDays : 0,
     ]);
   }
 
@@ -302,7 +324,8 @@ if ($action === 'operator_login') {
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_mfa($db);
-  if (!$mustOtp && $opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash)) {
+  $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  if (!$mustOtp && $trustDays > 0 && $opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash, $trustDays)) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
       'user' => [
@@ -323,8 +346,11 @@ if ($action === 'operator_login') {
     'operator_user_id' => $opUserId,
     'plate_number' => $plateNumber,
     'device_hash' => $deviceHash,
+    'trust_days' => $trustDays,
   ];
-  $sent = otp_send($db, $email, 'login_operator', 120);
+  $ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
+  $_SESSION['pending_login']['otp_ttl'] = $ttl;
+  $sent = otp_send($db, $email, 'login_operator', $ttl);
   if (!($sent['ok'] ?? false)) {
     unset($_SESSION['pending_login']);
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
@@ -332,7 +358,7 @@ if ($action === 'operator_login') {
   gsm_send(true, 'OTP required', [
     'otp_required' => true,
     'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
-    'otp_trust_days' => 10,
+    'otp_trust_days' => $trustDays,
   ]);
 }
 
@@ -349,8 +375,53 @@ if ($deviceId === '') {
 }
 
 $user = rbac_get_user_by_email($db, $email);
+if ($user && (($user['status'] ?? '') === 'Locked')) {
+  $luRaw = trim((string)($user['locked_until'] ?? ''));
+  if ($luRaw === '') {
+    rbac_write_login_audit($db, (int)($user['id'] ?? 0) ?: null, $email, false);
+    gsm_send(false, 'Account is locked. Please contact an administrator.', null, 423);
+  }
+  $lu = strtotime($luRaw);
+  if ($lu !== false && $lu > time()) {
+    rbac_write_login_audit($db, (int)($user['id'] ?? 0) ?: null, $email, false);
+    gsm_send(false, 'Account is temporarily locked. Please try again later.', ['locked_until' => $luRaw], 423);
+  }
+  $uid = (int)($user['id'] ?? 0);
+  if ($uid > 0) {
+    $stmtU = $db->prepare("UPDATE rbac_users SET status='Active', locked_until=NULL WHERE id=?");
+    if ($stmtU) {
+      $stmtU->bind_param('i', $uid);
+      $stmtU->execute();
+      $stmtU->close();
+    }
+  }
+  $user = rbac_get_user_by_email($db, $email);
+}
+
 if (!$user || (($user['status'] ?? '') !== 'Active') || !password_verify($password, (string) ($user['password_hash'] ?? ''))) {
-  rbac_write_login_audit($db, $user ? (int) $user['id'] : null, $email, false);
+  $uid = $user ? (int)($user['id'] ?? 0) : null;
+  rbac_write_login_audit($db, $uid ?: null, $email, false);
+  if ($user && $uid) {
+    $maxAttempts = gsm_setting_int($db, 'max_login_attempts', 5, 3, 10);
+    $lockMinutes = gsm_setting_int($db, 'lockout_minutes', 15, 1, 240);
+    $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM rbac_login_audit WHERE email=? AND ok=0 AND created_at >= DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+    if ($stmtC) {
+      $stmtC->bind_param('si', $email, $lockMinutes);
+      $stmtC->execute();
+      $row = $stmtC->get_result()->fetch_assoc();
+      $stmtC->close();
+      $c = (int)($row['c'] ?? 0);
+      if ($c >= $maxAttempts) {
+        $stmtL = $db->prepare("UPDATE rbac_users SET status='Locked', locked_until=DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id=?");
+        if ($stmtL) {
+          $stmtL->bind_param('ii', $lockMinutes, $uid);
+          $stmtL->execute();
+          $stmtL->close();
+        }
+        gsm_send(false, 'Too many failed attempts. Account temporarily locked.', null, 423);
+      }
+    }
+  }
   gsm_send(false, 'Invalid email or password', null, 401);
 }
 
@@ -361,7 +432,9 @@ $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
-if ($mustOtp || !td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
+$trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+if ($trustDays <= 0) $mustOtp = true;
+if ($mustOtp || ($trustDays > 0 && !td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDays))) {
   $_SESSION['pending_login'] = [
     'created_at' => time(),
     'user_type' => 'rbac',
@@ -369,8 +442,11 @@ if ($mustOtp || !td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
     'email' => $email,
     'user_id' => $userId,
     'device_hash' => $deviceHash,
+    'trust_days' => $trustDays,
   ];
-  $sent = otp_send($db, $email, 'login_rbac', 120);
+  $ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
+  $_SESSION['pending_login']['otp_ttl'] = $ttl;
+  $sent = otp_send($db, $email, 'login_rbac', $ttl);
   if (!($sent['ok'] ?? false)) {
     unset($_SESSION['pending_login']);
     gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
@@ -378,7 +454,7 @@ if ($mustOtp || !td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
   gsm_send(true, 'OTP required', [
     'otp_required' => true,
     'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
-    'otp_trust_days' => 10,
+    'otp_trust_days' => $trustDays,
   ]);
 }
 
@@ -391,7 +467,7 @@ $_SESSION['role'] = $primaryRole;
 $_SESSION['roles'] = $roles;
 $_SESSION['permissions'] = $perms;
 
-$stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW() WHERE id=?");
+$stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
 if ($stmt) {
   $stmt->bind_param('i', $userId);
   $stmt->execute();

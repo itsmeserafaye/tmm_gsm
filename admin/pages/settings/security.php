@@ -68,6 +68,56 @@ function get_setting($key, $default = '') {
                     </div>
                 </div>
 
+                <div class="md:col-span-2 -mt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-4">
+                            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Password Complexity</div>
+                            <div class="mt-1 text-xs text-slate-400 font-medium">Applies to commuter and operator registrations.</div>
+                        </div>
+                        <label class="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Uppercase (A-Z)</span>
+                            <span class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="password_require_upper" value="0">
+                                <input type="checkbox" name="password_require_upper" value="1" class="sr-only peer" <?php echo get_setting('password_require_upper', '1') === '1' ? 'checked' : ''; ?>>
+                                <div class="w-12 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-300 dark:peer-focus:ring-rose-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                            </span>
+                        </label>
+                        <label class="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Lowercase (a-z)</span>
+                            <span class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="password_require_lower" value="0">
+                                <input type="checkbox" name="password_require_lower" value="1" class="sr-only peer" <?php echo get_setting('password_require_lower', '1') === '1' ? 'checked' : ''; ?>>
+                                <div class="w-12 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-300 dark:peer-focus:ring-rose-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                            </span>
+                        </label>
+                        <label class="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Number (0-9)</span>
+                            <span class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="password_require_number" value="0">
+                                <input type="checkbox" name="password_require_number" value="1" class="sr-only peer" <?php echo get_setting('password_require_number', '1') === '1' ? 'checked' : ''; ?>>
+                                <div class="w-12 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-300 dark:peer-focus:ring-rose-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                            </span>
+                        </label>
+                        <label class="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Symbol (!@#$)</span>
+                            <span class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="password_require_symbol" value="0">
+                                <input type="checkbox" name="password_require_symbol" value="1" class="sr-only peer" <?php echo get_setting('password_require_symbol', '1') === '1' ? 'checked' : ''; ?>>
+                                <div class="w-12 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-300 dark:peer-focus:ring-rose-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[3px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lockout Duration (Minutes)</label>
+                        <input type="number" name="lockout_minutes" min="1" max="240" value="<?php echo htmlspecialchars(get_setting('lockout_minutes', '15')); ?>" 
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">How long an account stays locked after repeated failures.</p>
+                    </div>
+                </div>
+
                 <div class="md:col-span-2 pt-4 border-t border-slate-100 dark:border-slate-700">
                     <div class="flex items-center justify-between">
                         <div>
@@ -79,6 +129,23 @@ function get_setting($key, $default = '') {
                             <input type="checkbox" name="require_mfa" value="1" class="sr-only peer" <?php echo get_setting('require_mfa') === '1' ? 'checked' : ''; ?>>
                             <div class="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-rose-300 dark:peer-focus:ring-rose-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-rose-600"></div>
                         </label>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MFA Trusted Device (Days)</label>
+                        <input type="number" name="mfa_trust_days" min="0" max="30" value="<?php echo htmlspecialchars(get_setting('mfa_trust_days', '10')); ?>" 
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">0 means OTP required every login (even trusted devices).</p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">OTP Expiry (Seconds)</label>
+                        <input type="number" name="otp_ttl_seconds" min="60" max="900" value="<?php echo htmlspecialchars(get_setting('otp_ttl_seconds', '120')); ?>" 
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">Shorter expiry improves security, but may reduce deliverability.</p>
                     </div>
                 </div>
             </div>
@@ -104,6 +171,64 @@ function get_setting($key, $default = '') {
                         <p class="mt-2 text-xs text-slate-400 font-medium">Auto-logout after inactivity.</p>
                     </div>
                 </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Warning Countdown (Seconds)</label>
+                        <input type="number" name="session_warning_seconds" min="10" max="120" value="<?php echo htmlspecialchars(get_setting('session_warning_seconds', '30')); ?>" 
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">Show a countdown toast before logout.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+                <div class="p-2 bg-sky-100 dark:bg-sky-900/30 rounded-xl">
+                    <i data-lucide="mail" class="w-5 h-5 text-sky-600 dark:text-sky-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 dark:text-white">Email Delivery (OTP/MFA)</h2>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">SMTP Configuration</p>
+                </div>
+            </div>
+            <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SMTP Host</label>
+                    <input type="text" name="smtp_host" value="<?php echo htmlspecialchars(get_setting('smtp_host', '')); ?>" placeholder="smtp.gmail.com"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-sky-500 transition-all">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">If empty, server will use PHP mail() or .env SMTP config.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SMTP Port</label>
+                    <input type="number" name="smtp_port" min="1" max="65535" value="<?php echo htmlspecialchars(get_setting('smtp_port', '587')); ?>"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SMTP User</label>
+                    <input type="text" name="smtp_user" value="<?php echo htmlspecialchars(get_setting('smtp_user', '')); ?>" placeholder="no-reply@example.com"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-sky-500 transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SMTP Password</label>
+                    <input type="password" name="smtp_pass" value="" placeholder="Leave blank to keep current"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-sky-500 transition-all">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">For security, current password is never shown.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">SMTP Security</label>
+                    <select name="smtp_secure" class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-sky-500 transition-all">
+                        <?php $sec = strtolower((string)get_setting('smtp_secure', 'tls')); ?>
+                        <option value="tls" <?php echo $sec === 'tls' ? 'selected' : ''; ?>>TLS (STARTTLS)</option>
+                        <option value="ssl" <?php echo $sec === 'ssl' ? 'selected' : ''; ?>>SSL</option>
+                    </select>
+                </div>
+                <div class="flex items-end justify-end gap-3">
+                    <button type="button" id="btnTestEmail" class="px-4 py-2.5 rounded-md bg-sky-700 hover:bg-sky-800 text-white font-semibold">Send Test Email</button>
+                </div>
+                <div class="md:col-span-2">
+                    <div id="emailTestMsg" class="text-xs font-bold text-slate-500 dark:text-slate-400 min-h-[1.5em]"></div>
+                </div>
             </div>
         </div>
 
@@ -128,6 +253,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const form = document.getElementById('security-settings-form');
     const btn = document.getElementById('btn-save-security');
+    const btnTestEmail = document.getElementById('btnTestEmail');
+    const emailTestMsg = document.getElementById('emailTestMsg');
+
+    function setEmailTestMsg(msg, ok) {
+        if (!emailTestMsg) return;
+        emailTestMsg.textContent = msg || '';
+        emailTestMsg.className = 'text-xs font-bold min-h-[1.5em] ' + (ok ? 'text-emerald-600' : 'text-rose-600');
+    }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -177,6 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000);
         }
     });
+
+    if (btnTestEmail) {
+        btnTestEmail.addEventListener('click', async () => {
+            btnTestEmail.disabled = true;
+            btnTestEmail.textContent = 'Sending...';
+            setEmailTestMsg('Sending test email...', true);
+            try {
+                const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/test_email.php', { method: 'POST' });
+                const data = await res.json();
+                if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'failed');
+                setEmailTestMsg('Test email sent. Check your inbox/spam.', true);
+            } catch (err) {
+                setEmailTestMsg((err && err.message) ? String(err.message) : 'Failed to send test email.', false);
+            } finally {
+                btnTestEmail.disabled = false;
+                btnTestEmail.textContent = 'Send Test Email';
+            }
+        });
+    }
 });
 </script>
-
