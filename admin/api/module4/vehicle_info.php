@@ -26,6 +26,7 @@ $vrHasOrExp = $hasCol('vehicle_registrations', 'or_expiry_date');
 $vrHasRegYear = $hasCol('vehicle_registrations', 'registration_year');
 
 $stmt = $db->prepare("SELECT v.id, v.plate_number, v.vehicle_type, v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color,
+                             v.status AS vehicle_status,
                              v.cr_number, v.cr_issue_date, v.registered_owner,
                              COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name,
                              vr.registration_status,
@@ -77,6 +78,7 @@ echo json_encode(['ok' => true, 'data' => [
     'id' => (int)$row['id'],
     'plate_number' => $plate,
     'vehicle_type' => (string)($row['vehicle_type'] ?? ''),
+    'status' => (string)($row['vehicle_status'] ?? ''),
     'engine_no' => (string)($row['engine_no'] ?? ''),
     'chassis_no' => (string)($row['chassis_no'] ?? ''),
     'make' => (string)($row['make'] ?? ''),
@@ -99,4 +101,3 @@ echo json_encode(['ok' => true, 'data' => [
     'or_file_path' => $orFile,
   ],
 ]]);
-

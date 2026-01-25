@@ -51,7 +51,10 @@ if ($rootUrl === '/') $rootUrl = '';
               <div id="vehTitle" class="mt-1 text-lg font-black text-slate-900 dark:text-white"></div>
               <div id="vehSub" class="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300"></div>
             </div>
-            <a id="vehCrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View CR</a>
+            <div class="flex items-center gap-2">
+              <a id="vehCrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View CR</a>
+              <a id="vehOrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View OR</a>
+            </div>
           </div>
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
@@ -110,6 +113,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black text-slate-500 dark:text-slate-400">System-controlled Status</div>
             <div id="regStatusHint" class="mt-1 text-sm font-black text-slate-900 dark:text-white">Pending</div>
+            <div id="opStatusHint" class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400"></div>
           </div>
         </div>
 
@@ -140,12 +144,14 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehCrDate = document.getElementById('vehCrDate');
     const vehOwner = document.getElementById('vehOwner');
     const vehCrLink = document.getElementById('vehCrLink');
+    const vehOrLink = document.getElementById('vehOrLink');
     const orNumber = document.getElementById('orNumber');
     const orDate = document.getElementById('orDate');
     const orExpiry = document.getElementById('orExpiry');
     const regYear = document.getElementById('regYear');
     const orFile = document.getElementById('orFile');
     const regStatusHint = document.getElementById('regStatusHint');
+    const opStatusHint = document.getElementById('opStatusHint');
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -207,6 +213,15 @@ if ($rootUrl === '/') $rootUrl = '';
           vehCrLink.classList.add('hidden');
         }
       }
+      if (vehOrLink) {
+        const fp = String(r.or_file_path || '');
+        if (fp) {
+          vehOrLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
+          vehOrLink.classList.remove('hidden');
+        } else {
+          vehOrLink.classList.add('hidden');
+        }
+      }
       if (orNumber) orNumber.value = String(r.or_number || '');
       if (orDate) orDate.value = String(r.or_date || '');
       if (orExpiry) orExpiry.value = String(r.or_expiry_date || '');
@@ -214,6 +229,10 @@ if ($rootUrl === '/') $rootUrl = '';
       if (vehInfo) vehInfo.classList.remove('hidden');
       if (regWrap) regWrap.classList.remove('hidden');
       updateStatusHint();
+      if (opStatusHint) {
+        const vs = String(v.status || '');
+        opStatusHint.textContent = vs ? ('Operation status: ' + vs) : '';
+      }
     }
 
     async function doSearch() {

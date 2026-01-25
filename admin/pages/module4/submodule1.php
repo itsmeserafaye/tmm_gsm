@@ -11,11 +11,11 @@ $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 
-$statRegistered = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status IN ('Registered','Recorded')")->fetch_assoc()['c'] ?? 0);
-$statScheduled = (int)($db->query("SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Scheduled'")->fetch_assoc()['c'] ?? 0);
-$statCompleted = (int)($db->query("SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Completed'")->fetch_assoc()['c'] ?? 0);
-$statPassed = (int)($db->query("SELECT COUNT(*) AS c FROM inspections WHERE result='Passed'")->fetch_assoc()['c'] ?? 0);
-$statFailed = (int)($db->query("SELECT COUNT(*) AS c FROM inspections WHERE result='Failed'")->fetch_assoc()['c'] ?? 0);
+$statRegistered = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Registered'")->fetch_assoc()['c'] ?? 0);
+$statPending = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Pending'")->fetch_assoc()['c'] ?? 0);
+$statExpired = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Expired'")->fetch_assoc()['c'] ?? 0);
+$statActiveOps = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE status='Active' AND COALESCE(record_status,'') <> 'Archived'")->fetch_assoc()['c'] ?? 0);
+$statBlockedOps = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE status='Blocked' AND COALESCE(record_status,'') <> 'Archived'")->fetch_assoc()['c'] ?? 0);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -43,9 +43,9 @@ $sql = "SELECT v.id AS vehicle_id, v.plate_number, v.operator_id, v.status AS ve
 $conds = [];
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
-  $conds[] = "(v.plate_number LIKE '%$qv%')";
+  $conds[] = "(v.plate_number LIKE '%$qv%' OR v.engine_no LIKE '%$qv%' OR v.chassis_no LIKE '%$qv%')";
 }
-if ($status !== '' && in_array($status, ['Registered','Recorded','Pending','Expired'], true)) {
+if ($status !== '' && in_array($status, ['Registered','Pending','Expired'], true)) {
   $sv = $db->real_escape_string($status);
   $conds[] = "vr.registration_status='$sv'";
 }
@@ -90,20 +90,20 @@ $res = $db->query($sql);
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statRegistered; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Scheduled</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statScheduled; ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statPending; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Completed</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statCompleted; ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expired</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statExpired; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Passed</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statPassed; ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Operating (Active)</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statActiveOps; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Failed</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statFailed; ?></div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Blocked</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statBlockedOps; ?></div>
     </div>
   </div>
 
@@ -118,7 +118,7 @@ $res = $db->query($sql);
         <div class="relative w-full sm:w-60">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Registration Status</option>
-            <?php foreach (['Registered','Recorded','Pending','Expired'] as $s): ?>
+            <?php foreach (['Registered','Pending','Expired'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -136,7 +136,7 @@ $res = $db->query($sql);
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
-    <?php foreach (['Registered','Recorded','Pending','Expired'] as $chip): ?>
+    <?php foreach (['Registered','Pending','Expired'] as $chip): ?>
         <a href="?<?php echo http_build_query(['page'=>'module4/submodule1','q'=>$q,'status'=>$chip]); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>
