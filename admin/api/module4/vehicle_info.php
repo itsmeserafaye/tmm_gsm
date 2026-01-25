@@ -116,6 +116,10 @@ if ($stmtDoc) {
   $stmtDoc->close();
 }
 
+$ownerFallback = trim((string)($row['registered_owner'] ?? ''));
+$opNameFallback = trim((string)($row['operator_name'] ?? ''));
+if ($ownerFallback === '' && $opNameFallback !== '' && $opNameFallback !== '-') $ownerFallback = $opNameFallback;
+
 echo json_encode(['ok' => true, 'data' => [
   'vehicle' => [
     'id' => (int)$row['id'],
@@ -132,7 +136,7 @@ echo json_encode(['ok' => true, 'data' => [
     'operator_name' => (string)($row['operator_name'] ?? ''),
     'cr_number' => (string)($row['cr_number'] ?? ''),
     'cr_issue_date' => (string)($row['cr_issue_date'] ?? ''),
-    'registered_owner' => (string)($row['registered_owner'] ?? ''),
+    'registered_owner' => $ownerFallback,
     'cr_file_path' => $crFile,
   ],
   'registration' => [

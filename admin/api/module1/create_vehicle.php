@@ -133,6 +133,7 @@ try {
         }
     }
     if ($opNameResolved === '' && $operatorName !== '') $opNameResolved = $operatorName;
+    if ($registeredOwner === '' && $opNameResolved !== '') $registeredOwner = $opNameResolved;
 
     $route = '';
     $franchise = '';

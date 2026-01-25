@@ -71,6 +71,18 @@ if ($operatorId <= 0) {
 }
 
 $plate = (string)($veh['plate_number'] ?? '');
+$opNameResolved = '';
+$stmtOp = $db->prepare("SELECT name, full_name FROM operators WHERE id=? LIMIT 1");
+if ($stmtOp) {
+  $stmtOp->bind_param('i', $operatorId);
+  $stmtOp->execute();
+  $op = $stmtOp->get_result()->fetch_assoc();
+  $stmtOp->close();
+  if ($op) {
+    $opNameResolved = trim((string)($op['name'] ?? ''));
+    if ($opNameResolved === '') $opNameResolved = trim((string)($op['full_name'] ?? ''));
+  }
+}
 $hasCr = false;
 $stmtCr = $db->prepare("SELECT id FROM documents WHERE plate_number=? AND LOWER(type)='cr' LIMIT 1");
 if ($stmtCr) {
@@ -118,6 +130,10 @@ $ensureRegCols = function () use ($db, $hasCol): void {
   if (!$hasCol('vehicle_registrations', 'registration_year')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN registration_year VARCHAR(4) NULL"); }
 };
 
+$ensureOwnerCol = function () use ($db, $hasCol): void {
+  if (!$hasCol('vehicles', 'registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
+};
+
 $ensureDocExpiry = function () use ($db, $hasCol): void {
   if (!$hasCol('documents', 'expiry_date')) { @$db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL"); }
 };
@@ -136,6 +152,7 @@ $db->begin_transaction();
 try {
   $ensureRegCols();
   $ensureDocExpiry();
+  $ensureOwnerCol();
 
   $orcrNoLegacy = $orNumber !== '' ? $orNumber : (trim((string)($_POST['orcr_no'] ?? '')));
   $orcrDateLegacy = $orDate !== '' ? $orDate : (trim((string)($_POST['orcr_date'] ?? '')));
@@ -172,6 +189,15 @@ try {
     $stmtD->bind_param('sss', $plate, $filename, $orExpiry);
     if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
     $stmtD->close();
+  }
+
+  if ($opNameResolved !== '' && $hasCol('vehicles', 'registered_owner')) {
+    $stmtOw = $db->prepare("UPDATE vehicles SET registered_owner=CASE WHEN COALESCE(NULLIF(registered_owner,''),'')='' THEN ? ELSE registered_owner END WHERE id=?");
+    if ($stmtOw) {
+      $stmtOw->bind_param('si', $opNameResolved, $vehicleId);
+      $stmtOw->execute();
+      $stmtOw->close();
+    }
   }
 
   $stmtSt = $db->prepare("SELECT
