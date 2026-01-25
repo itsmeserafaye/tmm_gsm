@@ -59,14 +59,16 @@ if (!$inspOk) {
 $orcrOk = false;
 $hasReg = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_registrations' LIMIT 1");
 if ($hasReg && $hasReg->fetch_row()) {
-  $stmtR = $db->prepare("SELECT registration_status, orcr_no, orcr_date FROM vehicle_registrations WHERE vehicle_id=? LIMIT 1");
+  $stmtR = $db->prepare("SELECT registration_status FROM vehicle_registrations WHERE vehicle_id=? ORDER BY registration_id DESC LIMIT 1");
   if ($stmtR) {
     $stmtR->bind_param('i', $vehicleId);
     $stmtR->execute();
     $r = $stmtR->get_result()->fetch_assoc();
     $stmtR->close();
     $rs = (string)($r['registration_status'] ?? '');
-    $orcrOk = ($r && in_array($rs, ['Registered','Recorded'], true) && trim((string)($r['orcr_no'] ?? '')) !== '' && !empty($r['orcr_date']));
+    if ($r && $rs !== '' && strcasecmp($rs, 'Expired') !== 0 && strcasecmp($rs, 'Pending') !== 0) {
+      $orcrOk = true;
+    }
   }
 }
 if (!$orcrOk) {

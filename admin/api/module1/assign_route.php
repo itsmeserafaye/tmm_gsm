@@ -42,23 +42,6 @@ if ($inspection !== 'passed') {
 }
 
 $vehicleId = (int)($veh['id'] ?? 0);
-$hasOrcr = false;
-if ($vehicleId > 0) {
-    $stmtDoc = $db->prepare("SELECT doc_id FROM vehicle_documents WHERE vehicle_id=? AND doc_type='ORCR' AND COALESCE(is_verified,0)=1 LIMIT 1");
-    if ($stmtDoc) {
-        $stmtDoc->bind_param('i', $vehicleId);
-        $stmtDoc->execute();
-        $d = $stmtDoc->get_result()->fetch_assoc();
-        $stmtDoc->close();
-        $hasOrcr = $d ? true : false;
-    }
-}
-if (!$hasOrcr) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'orcr_required']);
-    exit;
-}
-
 $operatorId = (int)($veh['operator_id'] ?? 0);
 if ($operatorId <= 0) {
     $opName = trim((string)($veh['operator_name'] ?? ''));

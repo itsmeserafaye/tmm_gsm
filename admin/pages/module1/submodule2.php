@@ -21,7 +21,7 @@ function tmm_has_column_mod1_sub2(mysqli $db, string $schema, string $table, str
 }
 $vdHasVehicleId = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'vehicle_id');
 $vdHasPlate = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'plate_number');
-$orcrCond = "LOWER(vd.doc_type) IN ('orcr','or/cr','or','cr')";
+$orcrCond = "LOWER(vd.doc_type) IN ('or','cr')";
 $docsHasExpiry = tmm_has_column_mod1_sub2($db, $schema, 'documents', 'expiry_date');
 
 $statTotalVeh = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0);
@@ -311,9 +311,7 @@ $typesList = vehicle_types();
                     $label = 'Missing';
                     if ($hasOr && !$orValid) $label = 'OR expired';
                     else if ($hasOr && $hasCr) $label = 'OR & CR on file';
-                    else if ($hasOr) $label = 'OR on file';
                     else if ($hasCr) $label = 'CR on file';
-                    else if ($hasOrcr) $label = 'OR/CR on file';
                     $ok = $label !== 'Missing';
                   ?>
                   <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $ok ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'; ?>">
