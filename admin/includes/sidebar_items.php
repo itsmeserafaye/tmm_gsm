@@ -64,6 +64,14 @@ $sidebarItems = [
     ],
   ],
   [
+    'id' => 'analytics',
+    'label' => 'Analytics & Decision Support',
+    'icon' => 'bar-chart-3',
+    'subItems' => [
+      ['id' => 'decision-support', 'label' => 'Decision Support', 'path' => '/analytics/decision_support', 'anyPermissions' => ['module3.analytics','analytics.view']],
+    ],
+  ],
+  [
     'id' => 'users',
     'label' => 'User Management',
     'icon' => 'users',

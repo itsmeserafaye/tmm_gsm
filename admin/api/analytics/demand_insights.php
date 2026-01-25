@@ -34,11 +34,27 @@ if (!is_array($forecast) || !($forecast['ok'] ?? false)) {
 $spikes = $forecast['spikes'] ?? [];
 if (!is_array($spikes)) $spikes = [];
 
+$areasForecast = $forecast['areas'] ?? [];
+if (!is_array($areasForecast)) $areasForecast = [];
+$areaByRef = [];
+foreach ($areasForecast as $a) {
+  if (!is_array($a)) continue;
+  $ref = (string)($a['area_ref'] ?? '');
+  if ($ref !== '') $areaByRef[$ref] = $a;
+}
+
 $supplyByTerminalName = [];
 if ($areaType === 'terminal') {
   $res = $db->query("SELECT terminal_name, COUNT(*) AS c FROM terminal_assignments WHERE status IS NULL OR status='Authorized' GROUP BY terminal_name");
   while ($res && ($r = $res->fetch_assoc())) {
     $supplyByTerminalName[(string)$r['terminal_name']] = (int)($r['c'] ?? 0);
+  }
+}
+$supplyByRouteId = [];
+if ($areaType === 'route') {
+  $res = $db->query("SELECT route_id, COUNT(*) AS c FROM terminal_assignments WHERE status IS NULL OR status='Authorized' GROUP BY route_id");
+  while ($res && ($r = $res->fetch_assoc())) {
+    $supplyByRouteId[(string)$r['route_id']] = (int)($r['c'] ?? 0);
   }
 }
 
@@ -135,11 +151,36 @@ foreach ($spikes as $s) {
   $pred = (int)($s['predicted_peak'] ?? 0);
   $baseline = (float)($s['baseline'] ?? 0);
   $peakHour = (string)($s['peak_hour'] ?? '');
-  $weather = $s['weather'] ?? [];
+  $areaItem = ($ref !== '' && isset($areaByRef[$ref]) && is_array($areaByRef[$ref])) ? $areaByRef[$ref] : null;
+  $peakPoint = null;
+  if (is_array($areaItem) && is_array($areaItem['forecast'] ?? null)) {
+    foreach ($areaItem['forecast'] as $p) {
+      if (!is_array($p)) continue;
+      if ($peakHour !== '' && (string)($p['hour_label'] ?? '') === $peakHour) { $peakPoint = $p; break; }
+    }
+    if (!$peakPoint) {
+      $best = null;
+      foreach (array_slice($areaItem['forecast'], 0, 6) as $p) {
+        if (!is_array($p)) continue;
+        $pv = (int)($p['predicted_adjusted'] ?? $p['predicted'] ?? 0);
+        if ($best === null || $pv > (int)($best['pv'] ?? 0)) $best = ['pv' => $pv, 'p' => $p];
+      }
+      if (is_array($best) && is_array($best['p'] ?? null)) $peakPoint = $best['p'];
+    }
+  }
+  $weather = is_array($peakPoint) ? ($peakPoint['weather'] ?? []) : [];
+  $event = is_array($peakPoint) ? ($peakPoint['event'] ?? null) : null;
+  $combinedFactor = is_array($peakPoint) ? (float)($peakPoint['combined_factor'] ?? 1.0) : 1.0;
+  $trafficFactor = is_array($peakPoint) ? (float)($peakPoint['traffic_factor'] ?? 1.0) : 1.0;
+  $weatherFactor = is_array($peakPoint) ? (float)($peakPoint['weather_factor'] ?? 1.0) : 1.0;
+  $eventFactor = is_array($peakPoint) ? (float)($peakPoint['event_factor'] ?? 1.0) : 1.0;
 
   $supply = null;
   if ($areaType === 'terminal' && $label !== '') {
     $supply = $supplyByTerminalName[$label] ?? null;
+  }
+  if ($areaType === 'route' && $ref !== '') {
+    $supply = $supplyByRouteId[$ref] ?? null;
   }
 
   $severity = 'medium';
@@ -149,6 +190,8 @@ foreach ($spikes as $s) {
   $baselinePerUnit = null;
   $predPerUnit = null;
   $loadStatus = 'unknown';
+  $requiredUnits = null;
+  $additionalUnits = null;
   if (is_int($supply) && $supply > 0) {
     $baselinePerUnit = round($baseline / $supply, 3);
     $predPerUnit = round($pred / $supply, 3);
@@ -157,12 +200,17 @@ foreach ($spikes as $s) {
     } else {
       $loadStatus = ($predPerUnit >= ($baselinePerUnit * 1.3)) ? 'potential_over_demand' : 'normal';
     }
+    $targetLoad = max(1.0, (float)$baselinePerUnit);
+    $requiredUnits = (int)ceil($pred / $targetLoad);
+    $additionalUnits = max(0, $requiredUnits - $supply);
   }
 
   $constraint = 'Recommendations keep operators within their assigned routes.';
-  $traffic = null;
-  $trafficStatus = 'unavailable';
+  $traffic = is_array($areaItem) ? ($areaItem['traffic'] ?? null) : null;
+  $trafficStatus = is_array($areaItem) ? (string)($areaItem['traffic_status'] ?? 'unavailable') : 'unavailable';
   if (tmm_tomtom_api_key($db) !== '') {
+    if ($trafficStatus === 'ok' && is_array($traffic)) {
+    } else
     if ($areaType === 'terminal') {
       $tloc = tmm_load_terminal_location($db, $ref);
       if (is_array($tloc)) {
@@ -223,11 +271,20 @@ foreach ($spikes as $s) {
     'baseline' => $baseline,
     'severity' => $severity,
     'supply_units' => $supply,
+    'required_units' => $requiredUnits,
+    'additional_units' => $additionalUnits,
     'baseline_per_unit' => $baselinePerUnit,
     'predicted_per_unit' => $predPerUnit,
     'load_status' => $loadStatus,
     'constraint' => $constraint,
     'weather' => $weather,
+    'event' => $event,
+    'factors' => [
+      'combined' => round($combinedFactor, 3),
+      'traffic' => round($trafficFactor, 3),
+      'weather' => round($weatherFactor, 3),
+      'event' => round($eventFactor, 3),
+    ],
     'traffic_status' => $trafficStatus,
     'traffic' => $traffic
   ];
@@ -247,29 +304,58 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
   }
 
   foreach ($alerts as $alert) {
-    $loc = $alert['area_label'];
-    $time = explode(' ', $alert['peak_hour'])[1] ?? $alert['peak_hour']; // Extract hour
-    $sev = $alert['severity'];
-    $rain = ($alert['weather']['precip_prob'] ?? 0) > 50;
+    $loc = (string)($alert['area_label'] ?? 'Unknown');
+    $time = explode(' ', (string)($alert['peak_hour'] ?? ''))[1] ?? (string)($alert['peak_hour'] ?? '');
+    $sev = (string)($alert['severity'] ?? 'medium');
+    $pred = (int)($alert['predicted_peak'] ?? 0);
+    $base = (float)($alert['baseline'] ?? 0);
+    $deltaPct = ($base > 0) ? round((($pred - $base) / $base) * 100.0, 1) : null;
+    $supply = $alert['supply_units'] ?? null;
+    $req = $alert['required_units'] ?? null;
+    $add = $alert['additional_units'] ?? null;
+    $rainProb = is_array($alert['weather'] ?? null) ? (float)($alert['weather']['precip_prob'] ?? 0) : 0.0;
+    $rainMm = is_array($alert['weather'] ?? null) ? (float)($alert['weather']['precip_mm'] ?? 0) : 0.0;
+    $rain = $rainProb >= 60;
+    $evt = is_array($alert['event'] ?? null) ? $alert['event'] : null;
+    $evtTitle = is_array($evt) ? trim((string)($evt['title'] ?? '')) : '';
+    $f = is_array($alert['factors'] ?? null) ? $alert['factors'] : [];
+    $tf = isset($f['traffic']) ? (float)$f['traffic'] : 1.0;
+    $wf = isset($f['weather']) ? (float)$f['weather'] : 1.0;
+    $ef = isset($f['event']) ? (float)$f['event'] : 1.0;
+    $drivers = [];
+    if (abs($tf - 1.0) > 0.02) $drivers[] = 'Traffic×' . number_format($tf, 2);
+    if (abs($wf - 1.0) > 0.02) $drivers[] = 'Weather×' . number_format($wf, 2);
+    if (abs($ef - 1.0) > 0.02) $drivers[] = 'Event×' . number_format($ef, 2);
+    $driversTxt = $drivers ? (' Drivers: ' . implode(' • ', $drivers) . '.') : '';
+    $supplyTxt = (is_int($supply) && $supply > 0) ? (' Units: ' . $supply) : ' Units: —';
+    if (is_int($req)) $supplyTxt .= ' • Needed: ' . $req . (is_int($add) && $add > 0 ? (' (+' . $add . ')') : '');
+    $wxTxt = $rain ? (" Weather: rain prob {$rainProb}%" . ($rainMm > 0 ? (" • ~{$rainMm}mm") : "") . ".") : '';
+    $evtTxt = $evtTitle !== '' ? (" Event: {$evtTitle}.") : '';
 
     // Severity-based recommendations
     if ($sev === 'critical') {
-      $msg = "CRITICAL: **{$loc}** forecast to exceed baseline demand by >100% at {$time}. Immediate dispatch of route-compliant reserve units required.";
-      if ($rain) $msg .= " (High Rain Probability: Expect slower turnaround times).";
-      $insights[] = $msg;
+      $insights[] = "CRITICAL: **{$loc}** peak at {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
+      $insights[] = "Action: shorten headways by 10–15 minutes, stage route-compliant reserves, and increase bay/queue marshals to prevent spillover.";
     } elseif ($sev === 'high') {
-      $insights[] = "High Demand at **{$loc}** ({$time}). Shorten dispatch headways by 5-10 minutes to prevent queuing.";
+      $insights[] = "High demand: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
+      $insights[] = "Action: shorten headways by 5–10 minutes and pre-position standby units within the same route assignment.";
     } else {
       if ($areaType === 'terminal') {
-        $insights[] = "Moderate surge expected at **{$loc}** around {$time}. Adjust bay staffing and loading flow.";
+        $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
+        $insights[] = "Action: adjust bay staffing and loading flow; monitor queue length every 15 minutes.";
       } else {
-        $insights[] = "Moderate surge expected on **{$loc}** around {$time}. Tighten dispatch cadence within the route.";
+        $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
+        $insights[] = "Action: tighten dispatch cadence within the route and monitor boarding hotspots.";
       }
     }
 
     // Load-based recommendations
     if ($alert['load_status'] === 'potential_over_demand' && $alert['supply_units']) {
-      $insights[] = "Supply Gap: **{$loc}** has only {$alert['supply_units']} authorized units. Activate route-compliant reserve units and request additional units for the same route if demand persists.";
+      if (is_int($add) && $add > 0) {
+        $insights[] = "Supply gap: **{$loc}** likely needs ~{$add} additional unit(s) at {$time} to match baseline loading conditions.";
+      } else {
+        $insights[] = "Supply gap risk: **{$loc}** may overload with current authorized units; monitor and escalate if queues build up.";
+      }
     }
 
     $t = $alert['traffic'] ?? null;
@@ -306,7 +392,7 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
   // General rain advice if any alert has rain
   foreach ($alerts as $a) {
     if (($a['weather']['precip_prob'] ?? 0) > 60) {
-      $insights[] = "Rain Alert: Wet conditions detected. Implement 'Wet Weather Dispatch' protocol (slower speeds = need more units).";
+      $insights[] = "Rain Alert: wet conditions likely. Expect slower turnaround times and higher dwell time—keep standby units ready and adjust dispatch intervals proactively.";
       break; 
     }
   }
@@ -372,6 +458,13 @@ echo json_encode([
   'area_type' => $areaType,
   'hours' => $hours,
   'readiness' => $readiness,
+  'context' => [
+    'data_source' => (string)($forecast['data_source'] ?? 'unknown'),
+    'model' => $forecast['model'] ?? null,
+    'weather' => $forecast['weather'] ?? null,
+    'events' => $forecast['events'] ?? null,
+  ],
+  'area_lists' => $forecast['area_lists'] ?? null,
   'alerts' => $alerts,
   'playbook' => [
     'over_demand' => generate_over_demand_insights($alerts, $areaType),
