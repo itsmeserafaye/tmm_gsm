@@ -431,10 +431,11 @@ $perms = rbac_get_user_permissions($db, $userId);
 $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
-$mustOtp = gsm_require_mfa($db);
-$trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
-if ($trustDays <= 0) $mustOtp = true;
-if ($mustOtp || ($trustDays > 0 && !td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDays))) {
+  $mustOtp = gsm_require_mfa($db);
+  $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  
+  // Require OTP if trust is disabled OR device is not trusted (ignore mustOtp override)
+  if ($trustDays <= 0 || !td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDays)) {
   $_SESSION['pending_login'] = [
     'created_at' => time(),
     'user_type' => 'rbac',
