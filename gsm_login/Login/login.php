@@ -61,6 +61,18 @@ function gsm_send($ok, $message, $data = null, $httpCode = 200)
   exit;
 }
 
+function gsm_require_mfa(mysqli $db): bool
+{
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key='require_mfa' LIMIT 1");
+  if (!$stmt)
+    return false;
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  $v = strtolower(trim((string) ($row['setting_value'] ?? '0')));
+  return $v === '1' || $v === 'true' || $v === 'yes' || $v === 'on';
+}
+
 function td_ensure_schema(mysqli $db): void
 {
   $db->query("CREATE TABLE IF NOT EXISTS trusted_devices (
@@ -289,7 +301,8 @@ if ($action === 'operator_login') {
   }
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
-  if ($opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash)) {
+  $mustOtp = gsm_require_mfa($db);
+  if (!$mustOtp && $opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash)) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
       'user' => [
@@ -347,7 +360,8 @@ $perms = rbac_get_user_permissions($db, $userId);
 $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
-if (!td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
+$mustOtp = gsm_require_mfa($db);
+if ($mustOtp || !td_is_trusted($db, 'rbac', $userId, $deviceHash)) {
   $_SESSION['pending_login'] = [
     'created_at' => time(),
     'user_type' => 'rbac',

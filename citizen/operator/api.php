@@ -7,6 +7,39 @@ require_once __DIR__ . '/../../includes/operator_portal.php';
 
 header('Content-Type: application/json');
 
+function op_get_setting(mysqli $db, string $key, string $default = ''): string {
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+  if (!$stmt) return $default;
+  $stmt->bind_param('s', $key);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  $val = $row ? (string)($row['setting_value'] ?? '') : '';
+  return $val !== '' ? $val : $default;
+}
+
+function op_enforce_session_timeout(mysqli $db): void {
+  if (empty($_SESSION['operator_user_id'])) return;
+  $min = (int)trim(op_get_setting($db, 'session_timeout', '30'));
+  if ($min <= 0) $min = 30;
+  if ($min > 1440) $min = 1440;
+  $ttl = $min * 60;
+  $now = time();
+  $last = (int)($_SESSION['operator_last_activity'] ?? 0);
+  if ($last > 0 && ($now - $last) > $ttl) {
+    $_SESSION = [];
+    @session_unset();
+    @session_destroy();
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'error' => 'session_expired']);
+    exit;
+  }
+  $_SESSION['operator_last_activity'] = $now;
+}
+
+$db = db();
+op_enforce_session_timeout($db);
+
 if (empty($_SESSION['operator_user_id'])) {
   http_response_code(401);
   echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
@@ -17,7 +50,6 @@ if (empty($_SESSION['operator_csrf'])) {
   $_SESSION['operator_csrf'] = bin2hex(random_bytes(32));
 }
 
-$db = db();
 $action = (string) ($_REQUEST['action'] ?? '');
 $userId = (int) $_SESSION['operator_user_id'];
 $activePlate = strtoupper((string) ($_SESSION['operator_plate'] ?? ''));

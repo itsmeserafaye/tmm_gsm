@@ -36,12 +36,22 @@ if ($rootUrl === '/') $rootUrl = '';
         <input type="hidden" name="vehicle_id" id="vehicleId" value="<?php echo (int)$prefillVehicleId; ?>">
 
         <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 1: Search Vehicle (PUV Database)</div>
-          <div class="mt-3 flex flex-col sm:flex-row gap-2">
-            <input id="vehSearch" class="flex-1 px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / engine / chassis / operator">
-            <button type="button" id="btnVehSearch" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-sm font-bold">Search</button>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 1: Select Vehicle (PUV Database)</div>
+          <div class="mt-3 relative">
+            <button type="button" id="vehDropdownBtn" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-left flex items-center justify-between gap-3">
+              <span id="vehDropdownLabel" class="truncate">Select vehicle</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500"></i>
+            </button>
+            <div id="vehDropdownPanel" class="hidden absolute z-50 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+              <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-2">
+                  <input id="vehDropdownSearch" class="flex-1 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / engine / chassis / operator">
+                  <button type="button" id="btnVehSearch" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-sm font-bold">Search</button>
+                </div>
+              </div>
+              <div id="vehDropdownList" class="max-h-80 overflow-auto p-2"></div>
+            </div>
           </div>
-          <div id="vehResults" class="mt-3 hidden"></div>
         </div>
 
         <div id="vehInfo" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
@@ -131,9 +141,12 @@ if ($rootUrl === '/') $rootUrl = '';
     const form = document.getElementById('formRegister');
     const btn = document.getElementById('btnRegister');
     const vehIdEl = document.getElementById('vehicleId');
-    const vehSearch = document.getElementById('vehSearch');
+    const vehDropdownBtn = document.getElementById('vehDropdownBtn');
+    const vehDropdownLabel = document.getElementById('vehDropdownLabel');
+    const vehDropdownPanel = document.getElementById('vehDropdownPanel');
+    const vehDropdownSearch = document.getElementById('vehDropdownSearch');
     const btnVehSearch = document.getElementById('btnVehSearch');
-    const vehResults = document.getElementById('vehResults');
+    const vehDropdownList = document.getElementById('vehDropdownList');
     const vehInfo = document.getElementById('vehInfo');
     const regWrap = document.getElementById('regWrap');
     const vehTitle = document.getElementById('vehTitle');
@@ -167,6 +180,21 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    function openVehDropdown() {
+      if (!vehDropdownPanel) return;
+      vehDropdownPanel.classList.remove('hidden');
+      if (vehDropdownSearch) vehDropdownSearch.focus();
+    }
+
+    function closeVehDropdown() {
+      if (!vehDropdownPanel) return;
+      vehDropdownPanel.classList.add('hidden');
+    }
+
+    function isVehDropdownOpen() {
+      return vehDropdownPanel && !vehDropdownPanel.classList.contains('hidden');
+    }
 
     function computeStatus() {
       const exp = (orExpiry && orExpiry.value) ? String(orExpiry.value) : '';
@@ -233,26 +261,29 @@ if ($rootUrl === '/') $rootUrl = '';
         const vs = String(v.status || '');
         opStatusHint.textContent = vs ? ('Operation status: ' + vs) : '';
       }
+      if (vehDropdownLabel) {
+        const label = String(v.plate_number || '-') + ' • ' + String(v.operator_name || '-');
+        vehDropdownLabel.textContent = label;
+      }
     }
 
     async function doSearch() {
-      const q = (vehSearch && vehSearch.value) ? String(vehSearch.value).trim() : '';
-      if (!vehResults) return;
-      vehResults.classList.remove('hidden');
-      vehResults.innerHTML = '<div class="text-sm text-slate-500 italic">Loading...</div>';
+      const q = (vehDropdownSearch && vehDropdownSearch.value) ? String(vehDropdownSearch.value).trim() : '';
+      if (!vehDropdownList) return;
+      vehDropdownList.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500 italic">Loading...</div>';
       const res = await fetch(rootUrl + '/admin/api/module4/search_vehicles.php?q=' + encodeURIComponent(q));
       const data = await res.json().catch(() => null);
       const rows = data && data.ok && Array.isArray(data.data) ? data.data : [];
       if (!rows.length) {
-        vehResults.innerHTML = '<div class="text-sm text-slate-500 italic">No matches.</div>';
+        vehDropdownList.innerHTML = '<div class="px-3 py-2 text-sm text-slate-500 italic">No matches.</div>';
         return;
       }
-      vehResults.innerHTML = rows.map((r) => {
+      vehDropdownList.innerHTML = rows.map((r) => {
         const id = Number(r.id || 0);
         const plate = esc(r.plate_number || '-');
         const engine = esc(r.engine_no || '');
         const op = esc(r.operator_name || '-');
-        return `<button type="button" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all mb-2" data-pick-id="${id}">
+        return `<button type="button" class="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all mb-2" data-pick-id="${id}">
           <div class="flex items-center justify-between gap-2">
             <div class="font-black text-slate-900 dark:text-white">${plate}</div>
             <div class="text-xs font-bold text-slate-500 dark:text-slate-400">#${id}</div>
@@ -261,7 +292,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">${engine ? ('Engine: ' + engine) : ''}</div>
         </button>`;
       }).join('');
-      vehResults.querySelectorAll('[data-pick-id]').forEach((b) => {
+      vehDropdownList.querySelectorAll('[data-pick-id]').forEach((b) => {
         b.addEventListener('click', async () => {
           const id = Number(b.getAttribute('data-pick-id') || 0);
           if (!id) return;
@@ -269,6 +300,7 @@ if ($rootUrl === '/') $rootUrl = '';
           try {
             await loadVehicleInfo(id);
             showToast('Vehicle selected.', 'success');
+            closeVehDropdown();
           } catch (e) {
             showToast((e && e.message) ? String(e.message) : 'Failed', 'error');
           }
@@ -276,9 +308,30 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
+    if (vehDropdownBtn) {
+      vehDropdownBtn.addEventListener('click', () => {
+        if (isVehDropdownOpen()) closeVehDropdown();
+        else {
+          openVehDropdown();
+          doSearch().catch(() => {});
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!vehDropdownPanel || !vehDropdownBtn) return;
+      const t = e.target;
+      if (t && (vehDropdownPanel.contains(t) || vehDropdownBtn.contains(t))) return;
+      closeVehDropdown();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isVehDropdownOpen()) closeVehDropdown();
+    });
+
     if (btnVehSearch) btnVehSearch.addEventListener('click', () => { doSearch().catch(() => {}); });
-    if (vehSearch) {
-      vehSearch.addEventListener('keydown', (e) => {
+    if (vehDropdownSearch) {
+      vehDropdownSearch.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); doSearch().catch(() => {}); }
       });
     }

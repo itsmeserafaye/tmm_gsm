@@ -66,6 +66,42 @@ header('Expires: 0');
 
 $db = get_db();
 
+function commuter_get_setting(mysqli $db, string $key, string $default = ''): string
+{
+    $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+    if (!$stmt)
+        return $default;
+    $stmt->bind_param('s', $key);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $val = $row ? (string) ($row['setting_value'] ?? '') : '';
+    return $val !== '' ? $val : $default;
+}
+
+function commuter_enforce_session_timeout(mysqli $db): void
+{
+    if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'Commuter')
+        return;
+    $min = (int) trim(commuter_get_setting($db, 'session_timeout', '30'));
+    if ($min <= 0)
+        $min = 30;
+    if ($min > 1440)
+        $min = 1440;
+    $ttl = $min * 60;
+    $now = time();
+    $last = (int) ($_SESSION['commuter_last_activity'] ?? 0);
+    if ($last > 0 && ($now - $last) > $ttl) {
+        $_SESSION = [];
+        @session_unset();
+        @session_destroy();
+        return;
+    }
+    $_SESSION['commuter_last_activity'] = $now;
+}
+
+commuter_enforce_session_timeout($db);
+
 // Ensure commuter_complaints table exists with Admin-compatible columns
 $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
     id INT AUTO_INCREMENT PRIMARY KEY,

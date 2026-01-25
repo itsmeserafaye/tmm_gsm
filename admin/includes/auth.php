@@ -1,6 +1,71 @@
 <?php
 if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
 
+function tmm_get_app_setting(string $key, ?string $default = null): ?string {
+  static $cache = [];
+  $now = time();
+  if (isset($cache[$key]) && ($now - (int)($cache[$key]['ts'] ?? 0)) < 60) {
+    return $cache[$key]['val'];
+  }
+  try {
+    require_once __DIR__ . '/db.php';
+    $db = db();
+    $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+    if ($stmt) {
+      $stmt->bind_param('s', $key);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+      $val = $row ? (string)($row['setting_value'] ?? '') : '';
+      $val = $val !== '' ? $val : ($default ?? '');
+      $cache[$key] = ['ts' => $now, 'val' => $val];
+      return $val;
+    }
+  } catch (Throwable $e) {
+  }
+  $cache[$key] = ['ts' => $now, 'val' => ($default ?? '')];
+  return $default;
+}
+
+function tmm_session_timeout_seconds(): int {
+  $raw = tmm_get_app_setting('session_timeout', '30');
+  $min = (int)trim((string)$raw);
+  if ($min <= 0) $min = 30;
+  if ($min > 1440) $min = 1440;
+  return $min * 60;
+}
+
+function tmm_logout_unauthorized(string $error): void {
+  if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
+    $_SESSION = [];
+    @session_unset();
+    @session_destroy();
+    $sn = session_name();
+    if ($sn) {
+      @setcookie($sn, '', time() - 3600, '/');
+    }
+  }
+  if (defined('TMM_TEST')) {
+    throw new Exception($error);
+  }
+  http_response_code(401);
+  header('Content-Type: application/json');
+  echo json_encode(['ok' => false, 'error' => $error]);
+  exit;
+}
+
+function tmm_enforce_session_timeout(): void {
+  if (php_sapi_name() === 'cli') return;
+  if (empty($_SESSION['user_id'])) return;
+  $now = time();
+  $ttl = tmm_session_timeout_seconds();
+  $last = (int)($_SESSION['last_activity'] ?? 0);
+  if ($last > 0 && ($now - $last) > $ttl) {
+    tmm_logout_unauthorized('session_expired');
+  }
+  $_SESSION['last_activity'] = $now;
+}
+
 function rbac_get_config_auth() {
     static $config = null;
     if ($config === null) {
@@ -42,7 +107,10 @@ function current_user_role() {
 }
 
 function require_login() {
-  if (!empty($_SESSION['user_id'])) return;
+  if (!empty($_SESSION['user_id'])) {
+    tmm_enforce_session_timeout();
+    return;
+  }
   if (defined('TMM_TEST')) {
     throw new Exception('unauthorized');
   }

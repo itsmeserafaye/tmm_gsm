@@ -321,7 +321,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div id="terminalRoutesModal" class="fixed inset-0 z-[200] hidden">
     <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+      <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
         <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <div>
             <div class="text-sm font-black text-slate-900 dark:text-white">Routes & Fares</div>
@@ -331,7 +331,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
-        <div class="p-4 overflow-x-auto">
+        <div class="p-4 overflow-x-auto overflow-y-auto flex-1">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr class="text-left text-slate-500 dark:text-slate-400">
