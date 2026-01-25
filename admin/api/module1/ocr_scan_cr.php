@@ -106,26 +106,81 @@ function ocr_parse_date_to_ymd(?string $raw): ?string {
 }
 
 function ocr_extract_fields(string $raw): array {
-  $t = strtoupper($raw);
-  $t = str_replace(["\n", "\r"], " ", $t);
-  $t = preg_replace("/[ ]{2,}/", " ", $t);
+  $rawUp = strtoupper($raw);
+  $lines = preg_split("/\\r?\\n+/", $rawUp) ?: [];
+  $lines = array_values(array_filter(array_map(function ($ln) {
+    $ln = preg_replace("/[\\t\\r]+/", " ", (string)$ln);
+    $ln = preg_replace("/[ ]{2,}/", " ", $ln);
+    return trim($ln ?? '');
+  }, $lines), function ($ln) { return $ln !== ''; }));
 
-  $plate = ocr_extract_plate($t);
-  $engineRaw = ocr_extract_by_keywords($t, ['ENGINE\\s*NO', 'ENGINE\\s*NUMBER', 'ENGINE\\s*#', 'ENGINE\\s*NUM', 'ENGINE'], '([A-Z0-9\\- ]{4,30})');
-  $engine = $engineRaw ? ocr_norm_engine($engineRaw) : null;
-  $chassisRaw = ocr_extract_by_keywords($t, ['CHASSIS\\s*NO', 'CHASSIS\\s*NUMBER', 'CHASSIS\\s*#', 'CHASSIS', 'VIN'], '([A-Z0-9\\- ]{15,25})');
-  $vin = $chassisRaw ? ocr_norm_vin($chassisRaw) : '';
+  $textFlat = preg_replace("/\\s+/", " ", $rawUp);
+
+  $extractLineValue = function (array $keys) use ($lines): ?string {
+    foreach ($lines as $ln) {
+      foreach ($keys as $k) {
+        if (!preg_match('/\\b' . $k . '\\b/i', $ln)) continue;
+        $v = preg_replace('/^.*?\\b' . $k . '\\b\\s*(?:[:\\-\\|]|\\s)\\s*/i', '', $ln);
+        $v = trim((string)$v);
+        if ($v !== '' && strlen($v) <= 140) return $v;
+      }
+    }
+    return null;
+  };
+
+  $plateLine = $extractLineValue(['PLATE\\s*NUMBER', 'PLATE\\s*NO', 'PLATE']);
+  $plate = ocr_extract_plate($plateLine ? $plateLine : $textFlat);
+
+  $engineLine = $extractLineValue(['ENGINE\\s*NUMBER', 'ENGINE\\s*NO', 'ENGINE\\s*#', 'ENGINE\\s*NUM']);
+  $engine = $engineLine ? ocr_norm_engine($engineLine) : null;
+  if ($engine !== null) {
+    $engine = preg_replace('/(CHASSIS|VIN|NUMBER|MODEL|YEAR|FUEL|COLOR|OWNER).*$/', '', $engine);
+    $engine = trim((string)$engine);
+  }
+
+  $chassisLine = $extractLineValue(['CHASSIS\\s*NUMBER', 'CHASSIS\\s*NO', 'CHASSIS\\s*#', 'VIN']);
+  $vin = $chassisLine ? ocr_norm_vin($chassisLine) : '';
+  if ($vin === '' || strlen($vin) < 17) {
+    $cand = ocr_norm_vin($textFlat);
+    if (preg_match('/[A-HJ-NPR-Z0-9]{17}/', $cand, $m)) $vin = (string)$m[0];
+  }
   $chassis = ($vin !== '' && strlen($vin) === 17) ? $vin : null;
-  $make = ocr_extract_by_keywords($t, ['MAKE'], '([A-Z0-9\\- ]{2,30})');
-  $series = ocr_extract_by_keywords($t, ['SERIES', 'MODEL'], '([A-Z0-9\\- ]{2,30})');
-  $year = ocr_extract_by_keywords($t, ['YEAR\\s*MODEL', 'YEAR'], '([0-9]{4})');
-  $fuel = ocr_extract_by_keywords($t, ['FUEL', 'FUEL\\s*TYPE'], '([A-Z]{3,12})');
-  $color = ocr_extract_by_keywords($t, ['COLOR', 'COLOUR'], '([A-Z ]{3,20})');
 
-  $crNo = ocr_extract_by_keywords($t, ['CR\\s*NO', 'CR\\s*NUMBER', 'CERTIFICATE\\s*OF\\s*REGISTRATION\\s*NO', 'CERTIFICATE\\s*NO', 'REGISTRATION\\s*NO'], '([A-Z0-9\\-\\/]{4,40})');
-  $crIssueRaw = ocr_extract_by_keywords($t, ['CR\\s*ISSUE\\s*DATE', 'DATE\\s*ISSUED', 'ISSUE\\s*DATE', 'DATE\\s*OF\\s*ISSUE', 'CR\\s*DATE'], '([A-Z0-9,\\-\\/\\. ]{8,24})');
+  $make = $extractLineValue(['MAKE']);
+  if ($make) {
+    $make = preg_replace('/\\b(MODEL|YEAR|FUEL|COLOR|ENGINE|CHASSIS|OWNER)\\b.*$/', '', $make);
+    $make = trim((string)$make);
+  }
+  $series = $extractLineValue(['MODEL', 'SERIES']);
+  if ($series) {
+    $series = preg_replace('/\\b(YEAR|FUEL|COLOR|ENGINE|CHASSIS|OWNER)\\b.*$/', '', $series);
+    $series = trim((string)$series);
+  }
+
+  $year = $extractLineValue(['YEAR\\s*MODEL']);
+  if (!$year) $year = ocr_extract_by_keywords($textFlat, ['YEAR\\s*MODEL', 'YEAR'], '([0-9]{4})');
+  $fuel = $extractLineValue(['FUEL\\s*TYPE', 'FUEL']);
+  if ($fuel) {
+    $fuel = preg_replace('/\\b(TYPE|COLOR|ENGINE|CHASSIS|OWNER)\\b.*$/', '', $fuel);
+    $fuel = trim((string)$fuel);
+  }
+  $color = $extractLineValue(['COLOR', 'COLOUR']);
+  if ($color) {
+    $color = preg_replace('/\\b(ENGINE|CHASSIS|OWNER)\\b.*$/', '', $color);
+    $color = trim((string)$color);
+  }
+
+  $crNo = $extractLineValue(['CR\\s*NUMBER', 'CR\\s*NO', 'CERTIFICATE\\s*OF\\s*REGISTRATION\\s*NO', 'CERTIFICATE\\s*NO', 'REGISTRATION\\s*NO']);
+  if (!$crNo) $crNo = ocr_extract_by_keywords($textFlat, ['CR\\s*NUMBER', 'CR\\s*NO'], '([A-Z0-9\\-\\/]{4,40})');
+  $crIssueRaw = $extractLineValue(['CR\\s*ISSUE\\s*DATE', 'CR\\s*DATE', 'DATE\\s*ISSUED', 'ISSUE\\s*DATE', 'DATE\\s*OF\\s*ISSUE']);
+  if (!$crIssueRaw) $crIssueRaw = ocr_extract_by_keywords($textFlat, ['CR\\s*ISSUE\\s*DATE', 'CR\\s*DATE', 'DATE\\s*ISSUED'], '([A-Z0-9,\\-\\/\\. ]{8,24})');
   $crIssueDate = ocr_parse_date_to_ymd($crIssueRaw);
-  $owner = ocr_extract_by_keywords($t, ['REGISTERED\\s*OWNER', 'OWNER\\s*NAME', 'OWNER'], '([A-Z0-9\\-\\., ]{5,80})');
+  $owner = $extractLineValue(['REGISTERED\\s*OWNER']);
+  if (!$owner) $owner = $extractLineValue(['OWNER\\s*NAME']);
+  if ($owner) {
+    $owner = preg_replace('/\\b(OWNER\\s*ADDRESS|ADDRESS|NOTE)\\b.*$/', '', $owner);
+    $owner = trim((string)$owner);
+  }
 
   $out = [
     'plate_no' => $plate ? $plate : null,

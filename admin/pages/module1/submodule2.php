@@ -689,6 +689,24 @@ $typesList = vehicle_types();
               </div>
             </div>
 
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CR Metadata (Optional)</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Number</label>
+                  <input name="cr_number" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., CR-2026-000123">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Issue Date</label>
+                  <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Registered Owner</label>
+                  <input name="registered_owner" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
+                </div>
+              </div>
+            </div>
+
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Required Documents</div>
               <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -706,24 +724,6 @@ $typesList = vehicle_types();
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR Expiry Date</label>
                   <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
                   <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR expired → Operation blocked.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CR Metadata (Optional)</div>
-              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Number</label>
-                  <input name="cr_number" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., CR-2026-000123">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Issue Date</label>
-                  <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Registered Owner</label>
-                  <input name="registered_owner" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
                 </div>
               </div>
             </div>
@@ -976,18 +976,30 @@ $typesList = vehicle_types();
             setTimeout(() => { el.classList.remove('ring-2','ring-emerald-300'); }, 1200);
           });
 
-          if (fields.make) {
-            const makeHidden = document.getElementById('vehMakeHidden');
-            if (makeHidden) makeHidden.value = String(fields.make);
-          }
-          if (fields.model) {
-            const modelHidden = document.getElementById('vehModelHidden');
-            if (modelHidden) modelHidden.value = String(fields.model);
-          }
-          if (fields.fuel_type) {
-            const fuelHidden = document.getElementById('vehFuelHidden');
-            if (fuelHidden) fuelHidden.value = String(fields.fuel_type);
-          }
+          const pickFromSelect = (selectEl, hiddenEl, otherWrap, otherInput, value) => {
+            if (!selectEl || !hiddenEl) return;
+            const raw = (value || '').toString().trim();
+            if (!raw) return;
+            const norm = raw.toLowerCase();
+            const opts = Array.from(selectEl.options || []);
+            const found = opts.find((o) => (o.value || '').toString().trim().toLowerCase() === norm);
+            if (found) {
+              selectEl.value = found.value;
+              hiddenEl.value = found.value;
+              setWrapVisible(otherWrap, false);
+              if (otherInput) otherInput.value = '';
+              return;
+            }
+            const otherOpt = opts.find((o) => (o.value || '').toString() === '__OTHER__');
+            if (otherOpt) selectEl.value = '__OTHER__';
+            hiddenEl.value = raw;
+            setWrapVisible(otherWrap, true);
+            if (otherInput) otherInput.value = raw;
+          };
+
+          if (fields.make) pickFromSelect(makeSelect, makeHidden, makeOtherWrap, makeOtherInput, fields.make);
+          if (fields.model) pickFromSelect(modelSelect, modelHidden, modelOtherWrap, modelOtherInput, fields.model);
+          if (fields.fuel_type) pickFromSelect(fuelSelect, fuelHidden, fuelOtherWrap, fuelOtherInput, fields.fuel_type);
         };
 
         const setOcrUsed = (used) => {
