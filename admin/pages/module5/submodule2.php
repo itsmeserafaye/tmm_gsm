@@ -38,7 +38,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-visible">
     <div class="p-6 space-y-5">
       <form id="formAssign" class="space-y-5" novalidate>
         <div>
