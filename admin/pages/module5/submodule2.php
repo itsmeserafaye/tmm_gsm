@@ -19,7 +19,16 @@ LIMIT 500");
 if ($resT) while ($r = $resT->fetch_assoc()) $terminals[] = $r;
 
 $vehicles = [];
-$resV = $db->query("SELECT id, plate_number, operator_id, inspection_status, vehicle_type FROM vehicles WHERE plate_number IS NOT NULL AND plate_number <> '' ORDER BY plate_number ASC LIMIT 1500");
+$resV = $db->query("SELECT id, plate_number, operator_id, inspection_status, vehicle_type
+                    FROM vehicles
+                    WHERE COALESCE(plate_number,'') <> ''
+                      AND operator_id IS NOT NULL AND operator_id>0
+                      AND COALESCE(record_status,'') <> 'Archived'
+                      AND status='Active'
+                      AND inspection_status='Passed'
+                      AND COALESCE(vehicle_type,'') <> ''
+                    ORDER BY plate_number ASC
+                    LIMIT 1500");
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
