@@ -20,15 +20,50 @@ $hasCol = function (string $table, string $col) use ($db): bool {
   return $r && $r->num_rows > 0;
 };
 
+$hasTable = function (string $table) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $r = $db->query("SHOW TABLES LIKE '$t'");
+  return $r && (bool)$r->fetch_row();
+};
+
+$vehHasVehicleType = $hasCol('vehicles', 'vehicle_type');
+$vehHasEngine = $hasCol('vehicles', 'engine_no');
+$vehHasChassis = $hasCol('vehicles', 'chassis_no');
+$vehHasMake = $hasCol('vehicles', 'make');
+$vehHasModel = $hasCol('vehicles', 'model');
+$vehHasYear = $hasCol('vehicles', 'year_model');
+$vehHasFuel = $hasCol('vehicles', 'fuel_type');
+$vehHasColor = $hasCol('vehicles', 'color');
+$vehHasStatus = $hasCol('vehicles', 'status');
+$vehHasCrNo = $hasCol('vehicles', 'cr_number');
+$vehHasCrIssue = $hasCol('vehicles', 'cr_issue_date');
+$vehHasOwner = $hasCol('vehicles', 'registered_owner');
+$vehHasOperatorName = $hasCol('vehicles', 'operator_name');
+$vehHasCurrentOp = $hasCol('vehicles', 'current_operator_id');
+
 $vrHasOrNo = $hasCol('vehicle_registrations', 'or_number');
 $vrHasOrDate = $hasCol('vehicle_registrations', 'or_date');
 $vrHasOrExp = $hasCol('vehicle_registrations', 'or_expiry_date');
 $vrHasRegYear = $hasCol('vehicle_registrations', 'registration_year');
 
-$stmt = $db->prepare("SELECT v.id, v.plate_number, v.vehicle_type, v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color,
-                             v.status AS vehicle_status,
-                             v.cr_number, v.cr_issue_date, v.registered_owner,
-                             COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name,
+$opIdExpr = $vehHasCurrentOp ? "COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0))" : "NULLIF(v.operator_id,0)";
+$opNameExpr = "COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,'')," . ($vehHasOperatorName ? " NULLIF(v.operator_name,'')," : "") . " '-')";
+
+$stmt = $db->prepare("SELECT v.id, v.plate_number" .
+                             ($vehHasVehicleType ? ", v.vehicle_type" : ", '' AS vehicle_type") .
+                             ($vehHasEngine ? ", v.engine_no" : ", '' AS engine_no") .
+                             ($vehHasChassis ? ", v.chassis_no" : ", '' AS chassis_no") .
+                             ($vehHasMake ? ", v.make" : ", '' AS make") .
+                             ($vehHasModel ? ", v.model" : ", '' AS model") .
+                             ($vehHasYear ? ", v.year_model" : ", '' AS year_model") .
+                             ($vehHasFuel ? ", v.fuel_type" : ", '' AS fuel_type") .
+                             ($vehHasColor ? ", v.color" : ", '' AS color") .
+                             ($vehHasStatus ? ", v.status AS vehicle_status" : ", '' AS vehicle_status") .
+                             ($vehHasCrNo ? ", v.cr_number" : ", '' AS cr_number") .
+                             ($vehHasCrIssue ? ", v.cr_issue_date" : ", '' AS cr_issue_date") .
+                             ($vehHasOwner ? ", v.registered_owner" : ", '' AS registered_owner") .
+                             ",
+                             {$opNameExpr} AS operator_name,
                              vr.registration_status,
                              vr.orcr_no, vr.orcr_date" .
                       ($vrHasOrNo ? ", vr.or_number" : ", '' AS or_number") .
@@ -36,7 +71,7 @@ $stmt = $db->prepare("SELECT v.id, v.plate_number, v.vehicle_type, v.engine_no, 
                       ($vrHasOrExp ? ", vr.or_expiry_date" : ", '' AS or_expiry_date") .
                       ($vrHasRegYear ? ", vr.registration_year" : ", '' AS registration_year") . "
                       FROM vehicles v
-                      LEFT JOIN operators o ON o.id=COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0))
+                      LEFT JOIN operators o ON o.id={$opIdExpr}
                       LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id
                       WHERE v.id=? LIMIT 1");
 if (!$stmt) {
@@ -57,9 +92,17 @@ if (!$row) {
 $plate = (string)($row['plate_number'] ?? '');
 $crFile = '';
 $orFile = '';
-$hasExpiry = $hasCol('documents', 'expiry_date');
+$hasDocs = $hasTable('documents');
+$hasExpiry = $hasDocs ? $hasCol('documents', 'expiry_date') : false;
+$hasUploadedAt = $hasDocs ? $hasCol('documents', 'uploaded_at') : false;
+$hasId = $hasDocs ? $hasCol('documents', 'id') : false;
 
-$stmtDoc = $db->prepare("SELECT type, file_path" . ($hasExpiry ? ", expiry_date" : "") . " FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or') ORDER BY uploaded_at DESC, id DESC");
+$orderParts = [];
+if ($hasUploadedAt) $orderParts[] = "uploaded_at DESC";
+if ($hasId) $orderParts[] = "id DESC";
+$orderSql = $orderParts ? (" ORDER BY " . implode(", ", $orderParts)) : "";
+
+$stmtDoc = $hasDocs ? $db->prepare("SELECT type, file_path" . ($hasExpiry ? ", expiry_date" : "") . " FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or')" . $orderSql) : null;
 if ($stmtDoc) {
   $stmtDoc->bind_param('s', $plate);
   $stmtDoc->execute();

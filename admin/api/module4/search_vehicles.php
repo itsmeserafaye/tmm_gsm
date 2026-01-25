@@ -11,20 +11,44 @@ $limit = (int)($_GET['limit'] ?? 25);
 if ($limit <= 0) $limit = 25;
 if ($limit > 50) $limit = 50;
 
-$sql = "SELECT v.id, v.plate_number, v.engine_no, v.chassis_no,
-               COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && $r->num_rows > 0;
+};
+$vehHasEngine = $hasCol('vehicles', 'engine_no');
+$vehHasChassis = $hasCol('vehicles', 'chassis_no');
+$vehHasOperatorName = $hasCol('vehicles', 'operator_name');
+$vehHasCurrentOp = $hasCol('vehicles', 'current_operator_id');
+$vehHasRecordStatus = $hasCol('vehicles', 'record_status');
+
+$opIdExpr = $vehHasCurrentOp ? "COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0))" : "NULLIF(v.operator_id,0)";
+$opNameExpr = "COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,'')," . ($vehHasOperatorName ? " NULLIF(v.operator_name,'')," : "") . " '-')";
+
+$sql = "SELECT v.id, v.plate_number" .
+       ($vehHasEngine ? ", v.engine_no" : ", '' AS engine_no") .
+       ($vehHasChassis ? ", v.chassis_no" : ", '' AS chassis_no") .
+       ",
+       {$opNameExpr} AS operator_name
         FROM vehicles v
-        LEFT JOIN operators o ON o.id=COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0))
-        WHERE COALESCE(v.record_status,'') <> 'Archived'
-          AND COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0) > 0";
+        LEFT JOIN operators o ON o.id={$opIdExpr}
+        WHERE " . ($vehHasRecordStatus ? "COALESCE(v.record_status,'') <> 'Archived' AND " : "") . "
+          COALESCE({$opIdExpr}, 0) > 0";
 
 $params = [];
 $types = '';
 if ($q !== '') {
   $qq = '%' . $q . '%';
-  $sql .= " AND (v.plate_number LIKE ? OR v.engine_no LIKE ? OR v.chassis_no LIKE ? OR o.name LIKE ? OR o.full_name LIKE ? OR v.operator_name LIKE ?)";
-  $params = [$qq, $qq, $qq, $qq, $qq, $qq];
-  $types = 'ssssss';
+  $conds = ["v.plate_number LIKE ?"];
+  $params = [$qq];
+  $types = 's';
+  if ($vehHasEngine) { $conds[] = "v.engine_no LIKE ?"; $params[] = $qq; $types .= 's'; }
+  if ($vehHasChassis) { $conds[] = "v.chassis_no LIKE ?"; $params[] = $qq; $types .= 's'; }
+  $conds[] = "o.name LIKE ?"; $params[] = $qq; $types .= 's';
+  $conds[] = "o.full_name LIKE ?"; $params[] = $qq; $types .= 's';
+  if ($vehHasOperatorName) { $conds[] = "v.operator_name LIKE ?"; $params[] = $qq; $types .= 's'; }
+  $sql .= " AND (" . implode(" OR ", $conds) . ")";
 }
 $sql .= " ORDER BY v.plate_number ASC LIMIT " . (int)$limit;
 
@@ -45,4 +69,3 @@ $res = $db->query($sql);
 $rows = [];
 while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
 echo json_encode(['ok' => true, 'data' => $rows]);
-
