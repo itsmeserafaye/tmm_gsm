@@ -297,6 +297,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
               <div class="flex items-center gap-2 mt-1">
                 <span class="flex w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span class="text-sm text-slate-500 font-medium">Live Operational Signals</span>
+                <span id="insightsModePill" class="ml-2 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">TERMINALS</span>
               </div>
             </div>
           </div>
@@ -308,7 +309,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center gap-2">
                 <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">High-demand Signals</h3>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
             </div>
@@ -320,11 +321,63 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center gap-2">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Operational Recommendations</h3>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
             </div>
             <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="arrow-up-right" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Shortage</h3>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">ADD UNITS</span>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                  <tr class="text-left text-slate-500 dark:text-slate-400">
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                  </tr>
+                </thead>
+                <tbody id="miniShortageBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
+            </div>
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                  <tr class="text-left text-slate-500 dark:text-slate-400">
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                  </tr>
+                </thead>
+                <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -517,6 +570,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       var trafficNowHint = document.getElementById('trafficNowHint');
       var insightsOver = document.getElementById('insightsOver');
       var insightsUnder = document.getElementById('insightsUnder');
+      var miniShortageBody = document.getElementById('miniShortageBody');
+      var miniOversupplyBody = document.getElementById('miniOversupplyBody');
       var peakHourValue = document.getElementById('peakHourValue');
       var peakHourHint = document.getElementById('peakHourHint');
       var peakDemandValue = document.getElementById('peakDemandValue');
@@ -539,6 +594,15 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       function setActive(type) {
         currentType = type;
+        var isTerminal = type === 'terminal';
+        var scopeLabel = isTerminal ? 'Terminal' : 'Route';
+        var scopePill = isTerminal ? 'TERMINALS' : 'ROUTES';
+        var pill = document.getElementById('insightsModePill');
+        var overScope = document.getElementById('insightsOverScope');
+        var underScope = document.getElementById('insightsUnderScope');
+        if (pill) pill.textContent = scopePill;
+        if (overScope) overScope.textContent = scopeLabel;
+        if (underScope) underScope.textContent = scopeLabel;
         if (btnT && btnP) {
           if (type === 'terminal') {
             btnT.className = 'px-4 py-2 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-all';
@@ -1026,6 +1090,17 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           return;
         }
 
+        var escapeHtml = function (s) {
+          if (s === null || s === undefined) return '';
+          return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; });
+        };
+        var formatInsight = function (t) {
+          var s = escapeHtml(t || '');
+          s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>');
+          s = s.replace(/\n/g, '<br>');
+          return s;
+        };
+
         var iconColor = 'text-slate-400';
         var iconName = 'circle-dot';
         if (type === 'over') {
@@ -1036,14 +1111,46 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           iconName = 'check-circle-2';
         }
 
-        items.slice(0, 5).forEach(function (t) {
+        items.slice(0, 7).forEach(function (t) {
           var li = document.createElement('li');
-          li.className = 'flex gap-2.5 items-start text-sm text-slate-600 dark:text-slate-300';
+          li.className = 'flex gap-2.5 items-start text-sm text-slate-700 dark:text-slate-200 p-3 rounded-xl bg-white/70 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-700';
           var iconHtml = '<i data-lucide="' + iconName + '" class="w-4 h-4 ' + iconColor + ' mt-0.5 shrink-0"></i>';
-          li.innerHTML = iconHtml + '<span class="leading-snug">' + t + '</span>';
+          li.innerHTML = iconHtml + '<span class="leading-snug">' + formatInsight(t) + '</span>';
           listEl.appendChild(li);
         });
         if (window.lucide) window.lucide.createIcons();
+      }
+
+      function renderMiniTable(bodyEl, rows, mode) {
+        if (!bodyEl) return;
+        bodyEl.innerHTML = '';
+        if (!rows || !rows.length) {
+          bodyEl.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">No items.</td></tr>';
+          return;
+        }
+        var esc = function (s) {
+          if (s === null || s === undefined) return '';
+          return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; });
+        };
+        rows.slice(0, 5).forEach(function (r) {
+          var tr = document.createElement('tr');
+          var area = esc((r && r.area_label) ? r.area_label : '-');
+          var peak = (r && r.peak_hour) ? String(r.peak_hour) : '';
+          var peakVal = (r && r.peak_predicted !== undefined) ? String(r.peak_predicted) : '0';
+          var supply = (r && r.supply_units !== null && r.supply_units !== undefined) ? String(r.supply_units) : '—';
+          var delta = (r && r.suggested_delta !== undefined && r.suggested_delta !== null) ? Number(r.suggested_delta) : 0;
+          var sign = delta > 0 ? '+' : (delta < 0 ? '−' : '');
+          var abs = Math.abs(delta);
+          var deltaTxt = (sign ? (sign + abs) : '—');
+          var deltaCls = delta > 0 ? 'text-rose-700 dark:text-rose-400' : (delta < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500');
+          var peakTxt = peak ? (peak + ' • ' + peakVal) : peakVal;
+          tr.innerHTML =
+            '<td class="py-3 px-3 font-black text-slate-900 dark:text-white">' + area + '</td>' +
+            '<td class="py-3 px-3 text-right font-semibold text-slate-600 dark:text-slate-300">' + esc(peakTxt) + '</td>' +
+            '<td class="py-3 px-3 text-right font-black text-slate-900 dark:text-white">' + esc(supply) + '</td>' +
+            '<td class="py-3 px-3 text-right font-black ' + deltaCls + '">' + esc(deltaTxt) + '</td>';
+          bodyEl.appendChild(tr);
+        });
       }
 
       function renderRouteSupply(data) {
@@ -1108,6 +1215,13 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             setReadinessUI(data.readiness);
             renderPlaybook(insightsOver, (data.playbook && data.playbook.over_demand) ? data.playbook.over_demand : [], 'over');
             renderPlaybook(insightsUnder, (data.playbook && data.playbook.under_demand) ? data.playbook.under_demand : [], 'under');
+            if (data.mini_tables) {
+              renderMiniTable(miniShortageBody, data.mini_tables.shortage || [], 'shortage');
+              renderMiniTable(miniOversupplyBody, data.mini_tables.oversupply || [], 'oversupply');
+            } else {
+              renderMiniTable(miniShortageBody, [], 'shortage');
+              renderMiniTable(miniOversupplyBody, [], 'oversupply');
+            }
             insightsByLabel = {};
             if (Array.isArray(data.alerts)) {
               data.alerts.forEach(function (a) {

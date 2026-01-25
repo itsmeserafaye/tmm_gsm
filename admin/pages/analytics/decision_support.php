@@ -267,8 +267,9 @@ if ($rootUrl === '/') $rootUrl = '';
       const pb = data.playbook || {};
       const over = Array.isArray(pb.over_demand) ? pb.over_demand : [];
       const under = Array.isArray(pb.under_demand) ? pb.under_demand : [];
-      if (playbookOver) playbookOver.innerHTML = over.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${esc(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
-      if (playbookUnder) playbookUnder.innerHTML = under.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${esc(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
+      const fmt = (t) => esc(t || '').replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>').replace(/\n/g, '<br>');
+      if (playbookOver) playbookOver.innerHTML = over.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${fmt(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
+      if (playbookUnder) playbookUnder.innerHTML = under.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${fmt(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
 
       if (!alerts.length) {
         terminalAlerts.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No significant alerts detected.</td></tr>';

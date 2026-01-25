@@ -400,41 +400,68 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
   return array_unique($insights);
 }
 
-function generate_under_demand_insights(array $forecastData, array $alerts, string $areaType): array {
+function generate_under_demand_insights(array $forecastData, array $alerts, string $areaType, array $supplyByTerminalName, array $supplyByRouteId): array {
   $insights = [];
   $overloadedAreas = array_column($alerts, 'area_label');
   
   // Find areas with low predicted peaks compared to baseline or capacity
   $lowDemandAreas = [];
+  $oversupply = [];
   
   if (isset($forecastData['areas']) && is_array($forecastData['areas'])) {
     foreach ($forecastData['areas'] as $area) {
-      $name = $area['area_label'];
+      $name = (string)($area['area_label'] ?? '');
+      $ref = (string)($area['area_ref'] ?? '');
       if (in_array($name, $overloadedAreas)) continue; // Skip overloaded areas
 
       // Calculate peak for this area
       $peak = 0;
       if (isset($area['forecast']) && is_array($area['forecast'])) {
         foreach ($area['forecast'] as $p) {
-          $peak = max($peak, $p['predicted']);
+          $pv = isset($p['predicted_adjusted']) ? (int)$p['predicted_adjusted'] : (int)($p['predicted'] ?? 0);
+          $peak = max($peak, $pv);
         }
       }
 
-      // Logic: If peak is very low (< 5 or < 20% of capacity if known)
-      // For now, simple threshold
+      $supply = null;
+      if ($areaType === 'terminal' && $name !== '') $supply = $supplyByTerminalName[$name] ?? null;
+      if ($areaType === 'route' && $ref !== '') $supply = $supplyByRouteId[$ref] ?? null;
+
       if ($peak < 5) {
-        $lowDemandAreas[] = $name;
+        $lowDemandAreas[] = ['name' => $name, 'peak' => $peak, 'supply' => $supply];
+      }
+      if (is_int($supply) && $supply > 0) {
+        $util = $peak / $supply;
+        if ($supply >= 5 && $util < 0.30) {
+          $oversupply[] = ['name' => $name, 'peak' => $peak, 'supply' => $supply, 'util' => $util];
+        }
       }
     }
   }
 
+  if (!empty($oversupply)) {
+    usort($oversupply, function($a, $b){ return ($b['supply'] ?? 0) <=> ($a['supply'] ?? 0); });
+    $top = array_slice($oversupply, 0, 3);
+    foreach ($top as $o) {
+      $nm = (string)($o['name'] ?? 'Unknown');
+      $su = (int)($o['supply'] ?? 0);
+      $pk = (int)($o['peak'] ?? 0);
+      $insights[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}. Hold/rotate units, reduce loading bays, and avoid queue congestion.";
+    }
+    if (count($oversupply) > 3) {
+      $insights[] = "Oversupply detected in " . (count($oversupply) - 3) . " other " . ($areaType === 'terminal' ? "terminals" : "routes") . ". Use rotation and maintenance windows.";
+    }
+  }
+
   if (!empty($lowDemandAreas)) {
-    $list = implode(', ', array_slice($lowDemandAreas, 0, 3));
+    usort($lowDemandAreas, function($a, $b){ return ($a['peak'] ?? 0) <=> ($b['peak'] ?? 0); });
+    $names = array_map(function($x){ return (string)($x['name'] ?? ''); }, array_slice($lowDemandAreas, 0, 3));
+    $list = implode(', ', array_filter($names));
     if (count($lowDemandAreas) > 3) $list .= " and " . (count($lowDemandAreas)-3) . " others";
-    
-    $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways to conserve fuel/energy.";
-    $insights[] = "Optimization: Reduce dispatch frequency on these routes/terminals and prioritize service on the same assigned routes where demand is higher.";
-    $insights[] = "Maintenance Opportunity: Schedule inspections/repairs for units assigned to {$list}.";
+    $scopeWord = $areaType === 'terminal' ? 'terminals' : 'routes';
+    $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways and reduce staging to keep operations smooth.";
+    $insights[] = "Optimization: prioritize dispatch within the same assigned routes where demand is higher; decongest low-activity {$scopeWord}.";
+    $insights[] = "Maintenance Opportunity: schedule inspections/repairs during low-activity windows at {$list}.";
   } else {
     $insights[] = "No significant under-utilization detected across the network.";
     $insights[] = "Standard rotation applies for all routes.";
@@ -453,6 +480,82 @@ $readiness = [
 $need = max(0, 40 - (int)$readiness['data_points']);
 $readiness['needed_points'] = $need;
 
+$miniShortage = [];
+foreach ($alerts as $a) {
+  if (!is_array($a)) continue;
+  $add = $a['additional_units'] ?? null;
+  if (!is_int($add) || $add <= 0) continue;
+  $miniShortage[] = [
+    'area_ref' => (string)($a['area_ref'] ?? ''),
+    'area_label' => (string)($a['area_label'] ?? ''),
+    'peak_hour' => (string)($a['peak_hour'] ?? ''),
+    'peak_predicted' => (int)($a['predicted_peak'] ?? 0),
+    'supply_units' => is_int($a['supply_units'] ?? null) ? (int)$a['supply_units'] : null,
+    'recommended_units' => is_int($a['required_units'] ?? null) ? (int)$a['required_units'] : null,
+    'suggested_delta' => $add,
+  ];
+}
+usort($miniShortage, function($x, $y){
+  $dx = (int)($x['suggested_delta'] ?? 0);
+  $dy = (int)($y['suggested_delta'] ?? 0);
+  if ($dx === $dy) return ((int)($y['peak_predicted'] ?? 0)) <=> ((int)($x['peak_predicted'] ?? 0));
+  return $dy <=> $dx;
+});
+$miniShortage = array_slice($miniShortage, 0, 5);
+
+$miniOversupply = [];
+$overloadedLabels = array_column($alerts, 'area_label');
+if (isset($forecast['areas']) && is_array($forecast['areas'])) {
+  foreach ($forecast['areas'] as $area) {
+    if (!is_array($area)) continue;
+    $label = (string)($area['area_label'] ?? '');
+    if ($label !== '' && in_array($label, $overloadedLabels, true)) continue;
+    $ref = (string)($area['area_ref'] ?? '');
+    $supply = null;
+    if ($areaType === 'terminal' && $label !== '') $supply = $supplyByTerminalName[$label] ?? null;
+    if ($areaType === 'route' && $ref !== '') $supply = $supplyByRouteId[$ref] ?? null;
+    if (!is_int($supply) || $supply <= 0) continue;
+
+    $peakPred = 0;
+    $peakHour = '';
+    $baselineAtPeak = 0.0;
+    if (isset($area['forecast']) && is_array($area['forecast'])) {
+      foreach ($area['forecast'] as $p) {
+        if (!is_array($p)) continue;
+        $pv = isset($p['predicted_adjusted']) ? (int)$p['predicted_adjusted'] : (int)($p['predicted'] ?? 0);
+        if ($pv > $peakPred) {
+          $peakPred = $pv;
+          $peakHour = (string)($p['hour_label'] ?? '');
+          $baselineAtPeak = (float)($p['baseline'] ?? 0.0);
+        }
+      }
+    }
+
+    $baselinePerUnit = $supply > 0 ? ($baselineAtPeak / $supply) : 0.0;
+    $targetLoad = max(1.0, (float)$baselinePerUnit);
+    $recommended = (int)max(0, ceil($peakPred / $targetLoad));
+    $reduce = max(0, $supply - $recommended);
+    if ($reduce < 3) continue;
+
+    $miniOversupply[] = [
+      'area_ref' => $ref,
+      'area_label' => $label,
+      'peak_hour' => $peakHour,
+      'peak_predicted' => $peakPred,
+      'supply_units' => $supply,
+      'recommended_units' => $recommended,
+      'suggested_delta' => -$reduce,
+    ];
+  }
+}
+usort($miniOversupply, function($x, $y){
+  $dx = abs((int)($x['suggested_delta'] ?? 0));
+  $dy = abs((int)($y['suggested_delta'] ?? 0));
+  if ($dx === $dy) return ((int)($y['supply_units'] ?? 0)) <=> ((int)($x['supply_units'] ?? 0));
+  return $dy <=> $dx;
+});
+$miniOversupply = array_slice($miniOversupply, 0, 5);
+
 echo json_encode([
   'ok' => true,
   'area_type' => $areaType,
@@ -466,8 +569,12 @@ echo json_encode([
   ],
   'area_lists' => $forecast['area_lists'] ?? null,
   'alerts' => $alerts,
+  'mini_tables' => [
+    'shortage' => $miniShortage,
+    'oversupply' => $miniOversupply,
+  ],
   'playbook' => [
     'over_demand' => generate_over_demand_insights($alerts, $areaType),
-    'under_demand' => generate_under_demand_insights($forecast, $alerts, $areaType),
+    'under_demand' => generate_under_demand_insights($forecast, $alerts, $areaType, $supplyByTerminalName, $supplyByRouteId),
   ],
 ]);
