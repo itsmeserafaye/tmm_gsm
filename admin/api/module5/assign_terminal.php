@@ -29,7 +29,7 @@ $term = $stmtT->get_result()->fetch_assoc();
 $stmtT->close();
 if (!$term) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'terminal_not_found']); exit; }
 
-$stmtV = $db->prepare("SELECT id, plate_number, operator_id, inspection_status FROM vehicles WHERE id=? LIMIT 1");
+$stmtV = $db->prepare("SELECT id, plate_number, operator_id, inspection_status, vehicle_type, route_id FROM vehicles WHERE id=? LIMIT 1");
 if (!$stmtV) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmtV->bind_param('i', $vehicleId);
 $stmtV->execute();
@@ -40,6 +40,8 @@ if (!$veh) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'ve
 $plate = (string)($veh['plate_number'] ?? '');
 $operatorId = (int)($veh['operator_id'] ?? 0);
 $inspectionStatus = (string)($veh['inspection_status'] ?? '');
+$vehicleType = (string)($veh['vehicle_type'] ?? '');
+$vehicleRoute = (string)($veh['route_id'] ?? '');
 
 if ($operatorId <= 0) {
   http_response_code(400);
@@ -116,14 +118,52 @@ if ($capacity > 0) {
   }
 }
 
-$routeId = null;
-$stmtRoute = $db->prepare("SELECT route_id FROM vehicles WHERE id=? LIMIT 1");
-if ($stmtRoute) {
-  $stmtRoute->bind_param('i', $vehicleId);
-  $stmtRoute->execute();
-  $rowR = $stmtRoute->get_result()->fetch_assoc();
-  $stmtRoute->close();
-  $routeId = isset($rowR['route_id']) && $rowR['route_id'] !== '' ? (string)$rowR['route_id'] : null;
+$routeId = $vehicleRoute !== '' ? $vehicleRoute : null;
+
+$vehicleTypeNorm = trim($vehicleType) !== '' ? $vehicleType : null;
+if ($routeId !== null && $vehicleTypeNorm !== null) {
+  $stmtRt = $db->prepare("SELECT vehicle_type FROM routes WHERE (route_id=? OR route_code=?) LIMIT 1");
+  if ($stmtRt) {
+    $stmtRt->bind_param('ss', $routeId, $routeId);
+    $stmtRt->execute();
+    $rowRt = $stmtRt->get_result()->fetch_assoc();
+    $stmtRt->close();
+    $routeVehType = isset($rowRt['vehicle_type']) ? (string)$rowRt['vehicle_type'] : '';
+    if ($routeVehType !== '' && strcasecmp($routeVehType, $vehicleTypeNorm) !== 0) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'vehicle_type_mismatch_route']);
+      exit;
+    }
+  }
+}
+
+if ($vehicleTypeNorm !== null) {
+  $stmtAllowed = $db->prepare("SELECT DISTINCT r.vehicle_type
+                               FROM terminal_routes tr
+                               JOIN routes r ON r.route_id=tr.route_id OR r.route_code=tr.route_id
+                               WHERE tr.terminal_id=? AND r.vehicle_type IS NOT NULL AND r.vehicle_type<>''");
+  if ($stmtAllowed) {
+    $stmtAllowed->bind_param('i', $terminalId);
+    $stmtAllowed->execute();
+    $resAllowed = $stmtAllowed->get_result();
+    $allowedTypes = [];
+    while ($resAllowed && ($rowA = $resAllowed->fetch_assoc())) {
+      $t = (string)($rowA['vehicle_type'] ?? '');
+      if ($t !== '') $allowedTypes[] = $t;
+    }
+    $stmtAllowed->close();
+    if ($allowedTypes) {
+      $okType = false;
+      foreach ($allowedTypes as $t) {
+        if (strcasecmp($t, $vehicleTypeNorm) === 0) { $okType = true; break; }
+      }
+      if (!$okType) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'vehicle_type_not_allowed_for_terminal']);
+        exit;
+      }
+    }
+  }
 }
 
 $colTA = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments'");

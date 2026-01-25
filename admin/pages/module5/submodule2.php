@@ -8,11 +8,18 @@ $db = db();
 $prefillTerminalId = (int)($_GET['terminal_id'] ?? 0);
 
 $terminals = [];
-$resT = $db->query("SELECT id, name, capacity FROM terminals WHERE type <> 'Parking' ORDER BY name ASC LIMIT 500");
+$resT = $db->query("SELECT t.id, t.name, t.capacity, GROUP_CONCAT(DISTINCT r.vehicle_type) AS allowed_types
+FROM terminals t
+LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
+LEFT JOIN routes r ON r.route_id=tr.route_id OR r.route_code=tr.route_id
+WHERE t.type <> 'Parking'
+GROUP BY t.id
+ORDER BY t.name ASC
+LIMIT 500");
 if ($resT) while ($r = $resT->fetch_assoc()) $terminals[] = $r;
 
 $vehicles = [];
-$resV = $db->query("SELECT id, plate_number, operator_id, inspection_status FROM vehicles WHERE plate_number IS NOT NULL AND plate_number <> '' ORDER BY plate_number ASC LIMIT 1500");
+$resV = $db->query("SELECT id, plate_number, operator_id, inspection_status, vehicle_type FROM vehicles WHERE plate_number IS NOT NULL AND plate_number <> '' ORDER BY plate_number ASC LIMIT 1500");
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -46,7 +53,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <select name="terminal_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             <option value="">Select terminal</option>
             <?php foreach ($terminals as $t): ?>
-              <option value="<?php echo (int)$t['id']; ?>" <?php echo ($prefillTerminalId > 0 && (int)$t['id'] === $prefillTerminalId) ? 'selected' : ''; ?>>
+              <option value="<?php echo (int)$t['id']; ?>" data-allowed-types="<?php echo htmlspecialchars((string)($t['allowed_types'] ?? ''), ENT_QUOTES); ?>" <?php echo ($prefillTerminalId > 0 && (int)$t['id'] === $prefillTerminalId) ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars((string)$t['name']); ?><?php if ((int)($t['capacity'] ?? 0) > 0) echo ' (cap ' . (int)$t['capacity'] . ')'; ?>
               </option>
             <?php endforeach; ?>
@@ -93,7 +100,11 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehicleDropdownList = document.getElementById('vehicleDropdownList');
 
     const allVehicles = <?php echo json_encode(array_map(function($v){
-      return ['id'=>(int)($v['id'] ?? 0), 'label'=>(string)($v['plate_number'] ?? '')];
+      return [
+        'id'=>(int)($v['id'] ?? 0),
+        'label'=>(string)($v['plate_number'] ?? ''),
+        'type'=>(string)($v['vehicle_type'] ?? '')
+      ];
     }, $vehicles)); ?>;
 
     function showToast(message, type) {
@@ -107,6 +118,45 @@ if ($rootUrl === '/') $rootUrl = '';
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    const terminalSelect = document.querySelector('select[name="terminal_id"]');
+    const vehicleById = {};
+    allVehicles.forEach((v) => {
+      const id = Number(v.id || 0);
+      if (id > 0) vehicleById[id] = v;
+    });
+
+    function filterTerminalsForVehicle(vehicleType) {
+      if (!terminalSelect) return;
+      const vt = (vehicleType || '').toString().trim().toLowerCase();
+      const opts = terminalSelect.options;
+      for (let i = 0; i < opts.length; i++) {
+        const opt = opts[i];
+        const val = opt.value || '';
+        if (val === '') {
+          opt.hidden = false;
+          continue;
+        }
+        const raw = (opt.getAttribute('data-allowed-types') || '').toString().toLowerCase();
+        if (vt === '' || raw === '') {
+          opt.hidden = false;
+          continue;
+        }
+        const parts = raw.split(',').map((s) => s.trim()).filter(Boolean);
+        if (!parts.length) {
+          opt.hidden = false;
+          continue;
+        }
+        let ok = false;
+        for (let j = 0; j < parts.length; j++) {
+          if (parts[j] === vt) { ok = true; break; }
+        }
+        opt.hidden = !ok;
+      }
+      if (terminalSelect.value && terminalSelect.selectedOptions.length && terminalSelect.selectedOptions[0].hidden) {
+        terminalSelect.value = '';
+      }
     }
 
     function openVehicleDropdown() {
@@ -127,6 +177,9 @@ if ($rootUrl === '/') $rootUrl = '';
     function pickVehicle(id, label) {
       if (vehicleId) vehicleId.value = String(id || '');
       if (vehicleDropdownLabel) vehicleDropdownLabel.textContent = (label || 'Select vehicle').toString();
+      const v = vehicleById[id] || null;
+      const vt = v && v.type ? v.type : '';
+      filterTerminalsForVehicle(vt);
       closeVehicleDropdown();
     }
 
