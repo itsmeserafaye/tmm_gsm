@@ -35,6 +35,20 @@ function tmm_session_timeout_seconds(): int {
   return $min * 60;
 }
 
+function tmm_is_api_request(): bool {
+  $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+  if ($script !== '' && strpos($script, '/admin/api/') !== false) return true;
+  $headers = function_exists('headers_list') ? headers_list() : [];
+  foreach ($headers as $h) {
+    if (stripos($h, 'Content-Type: application/json') !== false) return true;
+  }
+  $accept = (string)($_SERVER['HTTP_ACCEPT'] ?? '');
+  if ($accept !== '' && stripos($accept, 'application/json') !== false && stripos($accept, 'text/html') === false) {
+    return true;
+  }
+  return false;
+}
+
 function tmm_logout_unauthorized(string $error): void {
   if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
     $_SESSION = [];
@@ -48,9 +62,18 @@ function tmm_logout_unauthorized(string $error): void {
   if (defined('TMM_TEST')) {
     throw new Exception($error);
   }
-  http_response_code(401);
-  header('Content-Type: application/json');
-  echo json_encode(['ok' => false, 'error' => $error]);
+  if (tmm_is_api_request()) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => false, 'error' => $error]);
+  } else {
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $root = '';
+    $pos = strpos($script, '/admin/');
+    if ($pos !== false) $root = substr($script, 0, $pos);
+    if ($root === '/') $root = '';
+    header('Location: ' . $root . '/index.php');
+  }
   exit;
 }
 
@@ -114,9 +137,18 @@ function require_login() {
   if (defined('TMM_TEST')) {
     throw new Exception('unauthorized');
   }
-  http_response_code(401);
-  header('Content-Type: application/json');
-  echo json_encode(['ok' => false, 'error' => 'unauthorized']);
+  if (tmm_is_api_request()) {
+    http_response_code(401);
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => false, 'error' => 'unauthorized']);
+  } else {
+    $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $root = '';
+    $pos = strpos($script, '/admin/');
+    if ($pos !== false) $root = substr($script, 0, $pos);
+    if ($root === '/') $root = '';
+    header('Location: ' . $root . '/index.php');
+  }
   exit;
 }
 
