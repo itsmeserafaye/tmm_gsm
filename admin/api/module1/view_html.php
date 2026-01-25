@@ -619,12 +619,29 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
   document.querySelectorAll('input[type="file"]').forEach(input => {
     input.addEventListener('change', function() {
         var label = this.parentElement;
+        var span = label.querySelector('span');
         if(this.files && this.files.length > 0) {
+            var file = this.files[0];
+            var fileName = file.name;
+            // Truncate if longer than 10 chars
+            if(fileName.length > 10) {
+                var ext = fileName.split('.').pop();
+                var name = fileName.substring(0, 6);
+                fileName = name + '....' + ext;
+            }
+
             label.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
             label.classList.remove('border-slate-300', 'dark:border-slate-600');
+            
+            if(span) {
+                span.textContent = fileName;
+                span.classList.add('text-blue-700', 'dark:text-blue-300');
+                span.classList.remove('text-slate-500');
+            }
+
             var icon = label.querySelector('i');
             if(icon) {
-                icon.setAttribute('data-lucide', 'check');
+                icon.setAttribute('data-lucide', 'file-check'); // Changed to file-check for better visual
                 icon.classList.remove('text-slate-400');
                 icon.classList.add('text-blue-500');
                 if(window.lucide&&window.lucide.createIcons) window.lucide.createIcons();
