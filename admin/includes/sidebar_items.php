@@ -69,8 +69,15 @@ $sidebarItems = [
     'icon' => 'users',
     'subItems' => [
       ['id' => 'accounts', 'label' => 'Accounts & Roles', 'path' => '/users/accounts', 'roles' => ['SuperAdmin']],
-      ['id' => 'security', 'label' => 'Security Policy', 'path' => '/users/security', 'anyPermissions' => ['settings.manage']],
       ['id' => 'activity', 'label' => 'Activity Logs', 'path' => '/users/activity', 'roles' => ['SuperAdmin']],
+    ],
+  ],
+  [
+    'id' => 'security',
+    'label' => 'Security',
+    'icon' => 'shield',
+    'subItems' => [
+      ['id' => 'settings', 'label' => 'Security Settings', 'path' => '/security/settings', 'anyPermissions' => ['settings.manage']],
     ],
   ],
   [
