@@ -170,15 +170,18 @@ if (!empty($_SESSION['user_id'])) {
                             </div>
                         </div>
                         <div class="mt-6 text-center">
-                            <div class="text-xl font-bold text-slate-900">Commuter Portal</div>
-                            <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information.</div>
+                            <div class="text-xl font-bold text-slate-900">
+                                Commuter Portal
+                                <span class="ml-2 px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-full align-middle">PUBLIC</span>
+                            </div>
+                            <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information. No login required.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
                                     class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-pink-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                                    Enter <i class="fas fa-arrow-right text-xs"></i>
+                                    Enter as Guest <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="showRegister"
-                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300">Register</button>
+                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300">Register (Optional)</button>
                             </div>
                         </div>
                     </div>
@@ -309,8 +312,8 @@ if (!empty($_SESSION['user_id'])) {
                                 </div>
                             </div>
                             <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                <h3 class="text-xl font-bold text-white mb-2">2. Authenticate</h3>
-                                <p class="text-white/80 text-sm">Log in securely or register a new account to verify your identity.</p>
+                                <h3 class="text-xl font-bold text-white mb-2">2. Authenticate (Optional)</h3>
+                                <p class="text-white/80 text-sm">Log in as Staff/Operator, or access Commuter services as a guest.</p>
                             </div>
                         </div>
 
