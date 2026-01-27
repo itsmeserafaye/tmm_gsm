@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -23,6 +23,9 @@ if (!empty($_SESSION['user_id'])) {
     }
     exit;
 }
+
+header('Location: ' . $baseUrl . '/gsm_login/index.php');
+exit;
 ?>
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -357,7 +360,7 @@ if (!empty($_SESSION['user_id'])) {
     </footer>
 
 
-    <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
+    <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
             <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
                 <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Create your GoServePH account</h2>
@@ -435,15 +438,12 @@ if (!empty($_SESSION['user_id'])) {
                                 <i class="far fa-eye"></i>
                             </button>
                         </div>
-                        <div id="confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
                     </div>
                 </div>
 
-                <?php if ($recaptchaSiteKey !== ''): ?>
-                    <div>
-                        <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
-                    </div>
-                <?php endif; ?>
+                <div>
+                    <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                </div>
 
                 <div class="space-y-2">
                     <div class="flex items-center text-sm">
@@ -520,9 +520,7 @@ if (!empty($_SESSION['user_id'])) {
                     </div>
                 </div>
 
-                <?php if ($recaptchaSiteKey !== ''): ?>
-                    <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
-                <?php endif; ?>
+                <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
 
                 <div class="flex justify-end space-x-3 pt-2">
                     <button type="button" id="btnOperatorRegisterCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
@@ -875,10 +873,7 @@ if (!empty($_SESSION['user_id'])) {
                     const f = e.target;
                     const pwd = (f.regPassword ? String(f.regPassword.value || '') : '').trim();
                     const confirmPwd = (f.confirmPassword ? String(f.confirmPassword.value || '') : '').trim();
-                    const confirmError = document.getElementById('confirm-error');
-                    if (confirmError) confirmError.classList.add('hidden');
                     if (pwd === '' || confirmPwd === '' || pwd !== confirmPwd) {
-                        if (confirmError) confirmError.classList.remove('hidden');
                         alert('Passwords do not match.');
                         return;
                     }
@@ -890,7 +885,8 @@ if (!empty($_SESSION['user_id'])) {
                     }
                     let captchaToken = '';
                     const captchaEl = f.querySelector('.g-recaptcha');
-                    if (captchaEl) {
+                    const captchaSiteKey = captchaEl ? String(captchaEl.getAttribute('data-sitekey') || '').trim() : '';
+                    if (captchaEl && captchaSiteKey) {
                         const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
                         captchaToken = ta ? String(ta.value || '') : '';
                         if (!captchaToken && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
@@ -957,7 +953,8 @@ if (!empty($_SESSION['user_id'])) {
                     }
                     let captchaToken = '';
                     const opCaptchaEl = document.getElementById('opRecaptcha');
-                    if (opCaptchaEl) {
+                    const opCaptchaSiteKey = opCaptchaEl ? String(opCaptchaEl.getAttribute('data-sitekey') || '').trim() : '';
+                    if (opCaptchaEl && opCaptchaSiteKey) {
                         tryRenderOpRecaptcha();
                         captchaToken = (window.grecaptcha && operatorRecaptchaWidgetId !== null) ? String(window.grecaptcha.getResponse(operatorRecaptchaWidgetId) || '') : '';
                         if (!captchaToken) {
