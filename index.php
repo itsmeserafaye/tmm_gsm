@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -23,9 +23,6 @@ if (!empty($_SESSION['user_id'])) {
     }
     exit;
 }
-
-header('Location: ' . $baseUrl . '/gsm_login/index.php');
-exit;
 ?>
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
