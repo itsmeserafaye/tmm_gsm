@@ -772,21 +772,37 @@ function db()
     FOREIGN KEY (application_id) REFERENCES franchise_applications(application_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
-  $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
-    fv_id INT AUTO_INCREMENT PRIMARY KEY,
-    franchise_id INT DEFAULT NULL,
-    franchise_ref_number VARCHAR(64) DEFAULT NULL,
-    route_id INT DEFAULT NULL,
-    vehicle_id INT NOT NULL,
-    status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_franchise_id (franchise_id),
-    INDEX idx_franchise_ref (franchise_ref_number),
-    INDEX idx_route_status (route_id, status),
-    INDEX idx_vehicle_status (vehicle_id, status),
-    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
-    FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL
-  ) ENGINE=InnoDB");
+  try {
+    $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
+      fv_id INT AUTO_INCREMENT PRIMARY KEY,
+      franchise_id INT DEFAULT NULL,
+      franchise_ref_number VARCHAR(64) DEFAULT NULL,
+      route_id INT DEFAULT NULL,
+      vehicle_id INT NOT NULL,
+      status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_franchise_id (franchise_id),
+      INDEX idx_franchise_ref (franchise_ref_number),
+      INDEX idx_route_status (route_id, status),
+      INDEX idx_vehicle_status (vehicle_id, status),
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+      FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL
+    ) ENGINE=InnoDB");
+  } catch (Throwable $e) {
+    $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
+      fv_id INT AUTO_INCREMENT PRIMARY KEY,
+      franchise_id INT DEFAULT NULL,
+      franchise_ref_number VARCHAR(64) DEFAULT NULL,
+      route_id INT DEFAULT NULL,
+      vehicle_id INT NOT NULL,
+      status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_franchise_id (franchise_id),
+      INDEX idx_franchise_ref (franchise_ref_number),
+      INDEX idx_route_status (route_id, status),
+      INDEX idx_vehicle_status (vehicle_id, status)
+    ) ENGINE=InnoDB");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (
     case_id INT AUTO_INCREMENT PRIMARY KEY,
