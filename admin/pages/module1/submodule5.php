@@ -37,11 +37,11 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Record transfer requests for operational tracking. Legal ownership remains under LTO.</p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="?page=module1/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=puv-database/vehicle-encoding" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="bus" class="w-4 h-4"></i>
         Vehicle Encoding
       </a>
-      <a href="?page=module1/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=puv-database/link-vehicle-to-operator" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Vehicle–Operator Linking
       </a>

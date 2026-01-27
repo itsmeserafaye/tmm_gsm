@@ -141,12 +141,12 @@ $typesList = vehicle_types();
         operate—activation depends on franchise approval, OR/CR recording, and a passed inspection.</p>
     </div>
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-      <a href="?page=module1/submodule1"
+      <a href="?page=puv-database/operator-encoding"
         class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="users" class="w-4 h-4"></i>
         Operators
       </a>
-      <a href="?page=module1/submodule4"
+      <a href="?page=puv-database/link-vehicle-to-operator"
         class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Link Operator
@@ -206,7 +206,7 @@ $typesList = vehicle_types();
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
     <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
-      <input type="hidden" name="page" value="module1/submodule2">
+      <input type="hidden" name="page" value="puv-database/vehicle-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-sm group">
           <i data-lucide="search"
@@ -258,7 +258,7 @@ $typesList = vehicle_types();
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=module1/submodule2"
+        <a href="?page=puv-database/vehicle-encoding"
           class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
@@ -402,7 +402,7 @@ $typesList = vehicle_types();
                         data-plate="<?php echo htmlspecialchars($plateUp, ENT_QUOTES); ?>" title="Upload / View Docs">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                       </button>
-                      <a href="?page=module1/submodule4&plate=<?php echo urlencode($plateUp); ?>"
+                      <a href="?page=puv-database/link-vehicle-to-operator&plate=<?php echo urlencode($plateUp); ?>"
                         class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center"
                         title="Link Operator">
                         <i data-lucide="link-2" class="w-4 h-4"></i>
@@ -714,7 +714,7 @@ $typesList = vehicle_types();
               await loadDocs();
               setTimeout(() => {
                 const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'module1/submodule2');
+                params.set('page', 'puv-database/vehicle-encoding');
                 if (plate) params.set('highlight_plate', plate);
                 window.location.search = params.toString();
               }, 400);
@@ -1214,7 +1214,7 @@ $typesList = vehicle_types();
             else if (st === 'Blocked') showToast('Vehicle saved. Status: BLOCKED (OR expired)', 'error');
             else showToast('Vehicle saved. Status: INACTIVE (missing OR)');
             const params = new URLSearchParams(window.location.search || '');
-            params.set('page', 'module1/submodule2');
+            params.set('page', 'puv-database/vehicle-encoding');
             if (plate) params.set('highlight_plate', plate);
             window.location.search = params.toString();
           } catch (err) {

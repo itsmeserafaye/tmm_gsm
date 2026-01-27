@@ -163,7 +163,7 @@ if ($params) {
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
-      <input type="hidden" name="page" value="module1/submodule6">
+      <input type="hidden" name="page" value="puv-database/routes-lptrp">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-md group">
           <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
@@ -193,7 +193,7 @@ if ($params) {
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=module1/submodule6" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <a href="?page=puv-database/routes-lptrp" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
       </div>
@@ -767,7 +767,7 @@ if ($params) {
                 await saveRoute(form);
                 showToast('Route saved.');
                 const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'module1/submodule6');
+                params.set('page', 'puv-database/routes-lptrp');
                 window.location.search = params.toString();
               } catch (err) {
                 showToast((err && err.message) ? err.message : 'Failed', 'error');
@@ -803,7 +803,7 @@ if ($params) {
                 await saveRoute(form);
                 showToast('Route saved.');
                 const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'module1/submodule6');
+                params.set('page', 'puv-database/routes-lptrp');
                 window.location.search = params.toString();
               } catch (err) {
                 showToast((err && err.message) ? err.message : 'Failed', 'error');
@@ -841,7 +841,7 @@ if ($params) {
             if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
             showToast(next === 'Active' ? 'Route activated.' : 'Route deactivated.');
             const params = new URLSearchParams(window.location.search || '');
-            params.set('page', 'module1/submodule6');
+            params.set('page', 'puv-database/routes-lptrp');
             window.location.search = params.toString();
           } catch (err) {
             showToast((err && err.message) ? err.message : 'Failed', 'error');

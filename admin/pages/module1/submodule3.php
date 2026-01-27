@@ -185,7 +185,7 @@ function tmm_required_doc_list(string $operatorType): array {
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div class="inline-flex items-center gap-2">
-                    <a href="?page=module1/submodule4&highlight_operator_id=<?php echo (int)$rid; ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors" title="Link Vehicle to Operator">
+                    <a href="?page=puv-database/link-vehicle-to-operator&highlight_operator_id=<?php echo (int)$rid; ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors" title="Link Vehicle to Operator">
                       <i data-lucide="link-2" class="w-4 h-4"></i>
                       Link Vehicle
                     </a>

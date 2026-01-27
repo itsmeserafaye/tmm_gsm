@@ -23,15 +23,52 @@ if (php_sapi_name() !== 'cli') {
   }
 }
 
-$page = isset($_GET['page']) ? trim($_GET['page'], '/') : 'dashboard';
-$page = preg_replace('/[^a-z0-9\/\-]/i', '', $page);
-$pagesRoot = $baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR;
-$pageFile = $pagesRoot . str_replace('/', DIRECTORY_SEPARATOR, $page) . '.php';
-if (!is_file($pageFile)) {
-  $pageFile = $pagesRoot . 'dashboard.php';
+$requestedPage = isset($_GET['page']) ? trim((string)$_GET['page'], '/') : 'dashboard';
+$requestedPage = preg_replace('/[^a-z0-9\/\-]/i', '', $requestedPage);
+
+$tmmCanonicalToLegacy = [];
+$tmmLegacyToCanonical = [];
+$tmmCollectRouteAliases = function (array $node) use (&$tmmCanonicalToLegacy, &$tmmLegacyToCanonical): void {
+  if (!isset($node['path'], $node['page']))
+    return;
+  $canonical = ltrim((string)$node['path'], '/');
+  $legacy = trim((string)$node['page'], '/');
+  if ($canonical === '' || $legacy === '')
+    return;
+  $tmmCanonicalToLegacy[$canonical] = $legacy;
+  $tmmLegacyToCanonical[$legacy] = $canonical;
+};
+foreach ($sidebarItems as $item) {
+  $tmmCollectRouteAliases($item);
+  if (!empty($item['subItems']) && is_array($item['subItems'])) {
+    foreach ($item['subItems'] as $sub) {
+      if (is_array($sub))
+        $tmmCollectRouteAliases($sub);
+    }
+  }
 }
 
-$currentPath = '/' . $page;
+$includePage = $requestedPage;
+$currentPath = '/' . $requestedPage;
+if (isset($tmmCanonicalToLegacy[$requestedPage])) {
+  $includePage = $tmmCanonicalToLegacy[$requestedPage];
+} elseif (isset($tmmLegacyToCanonical[$requestedPage])) {
+  $currentPath = '/' . $tmmLegacyToCanonical[$requestedPage];
+  if (php_sapi_name() !== 'cli' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET')) {
+    $qs = $_GET;
+    $qs['page'] = $tmmLegacyToCanonical[$requestedPage];
+    header('Location: ' . $baseUrl . '/index.php?' . http_build_query($qs));
+    exit;
+  }
+}
+
+$includePage = preg_replace('/[^a-z0-9\/\-]/i', '', $includePage);
+$pagesRoot = $baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR;
+$pageFile = $pagesRoot . str_replace('/', DIRECTORY_SEPARATOR, $includePage) . '.php';
+if (!is_file($pageFile)) {
+  $pageFile = $pagesRoot . 'dashboard.php';
+  $currentPath = '/dashboard';
+}
 $tmm_node_allowed = function (array $node): bool {
   if (!empty($node['roles']) && is_array($node['roles'])) {
     return in_array(current_user_role(), $node['roles'], true);

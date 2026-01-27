@@ -131,11 +131,11 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">View operators and their linked vehicles, then link additional vehicles as needed.</p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="?page=module1/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=puv-database/vehicle-encoding" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="bus" class="w-4 h-4"></i>
         Vehicle Encoding
       </a>
-      <a href="?page=module1/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=puv-database/operator-encoding" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="users" class="w-4 h-4"></i>
         Operator Encoding
       </a>
@@ -146,7 +146,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
-      <input type="hidden" name="page" value="module1/submodule4">
+      <input type="hidden" name="page" value="puv-database/link-vehicle-to-operator">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-sm group">
           <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
@@ -176,7 +176,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=module1/submodule4" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <a href="?page=puv-database/link-vehicle-to-operator" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
       </div>
@@ -247,7 +247,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
                         <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)$v['plate_number']); ?></div>
                         <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars(trim((string)$v['vehicle_type'] . ($v['status'] ? (' • ' . $v['status']) : ''))); ?></div>
                       </div>
-                      <a href="?page=module1/submodule2&highlight_plate=<?php echo urlencode((string)$v['plate_number']); ?>" class="shrink-0 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Open</a>
+                      <a href="?page=puv-database/vehicle-encoding&highlight_plate=<?php echo urlencode((string)$v['plate_number']); ?>" class="shrink-0 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Open</a>
                     </div>
                   <?php endforeach; ?>
                 </div>
@@ -404,7 +404,7 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'link_failed');
           showToast('Vehicle linked successfully.');
           const params = new URLSearchParams(window.location.search || '');
-          params.set('page', 'module1/submodule4');
+          params.set('page', 'puv-database/link-vehicle-to-operator');
           params.set('highlight_operator_id', String(operatorId));
           window.location.search = params.toString();
         } catch (err) {
