@@ -713,6 +713,36 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             }
         }
 
+        async function loadForecast() {
+            const levelEl = document.getElementById('crowd-level');
+            const descEl = document.getElementById('forecast-desc');
+
+            // Set loading state
+            levelEl.innerText = '...';
+
+            const data = await fetchAPI('get_travel_info');
+            if (data.ok && data.data) {
+                const info = data.data;
+                const level = info.crowding_level || 'Normal';
+
+                levelEl.innerText = level;
+
+                // Update description based on level
+                let desc = `Estimated wait time: ${info.estimated_wait_time}. `;
+                if (level === 'High') {
+                    desc += "Heavy volume expected. Please allow extra travel time.";
+                } else if (level === 'Moderate') {
+                    desc += "Regular traffic flow. Minimal delays expected.";
+                } else {
+                    desc += "Traffic is smooth. Good time to travel.";
+                }
+                descEl.innerText = desc;
+            } else {
+                levelEl.innerText = 'Normal';
+                descEl.innerText = 'Unable to fetch real-time data. Using standard schedule.';
+            }
+        }
+
         // Init
         window.addEventListener('DOMContentLoaded', () => {
             const h = new Date().getHours();
