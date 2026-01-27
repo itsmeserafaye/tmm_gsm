@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -357,15 +357,10 @@ if (!empty($_SESSION['user_id'])) {
     </footer>
 
 
-    <!-- Commuter Registration Modal -->
     <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
             <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-primary">Create your TMM account</h2>
-                <div class="mt-1 text-xs text-gray-500">
-                    Registering as an operator?
-                    <button type="button" id="openOperatorRegisterFromCitizen" class="text-custom-primary font-semibold hover:underline">Register here</button>
-                </div>
+                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Create your GoServePH account</h2>
             </div>
             <form id="registerForm" class="space-y-5 pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,102 +375,153 @@ if (!empty($_SESSION['user_id'])) {
                     <div>
                         <label class="block text-sm mb-1">Middle Name<span id="middleAsterisk" class="required-asterisk">*</span></label>
                         <input type="text" id="middleName" name="middleName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                        <div class="mt-1 flex items-center">
-                            <input type="checkbox" id="noMiddleName" class="w-4 h-4 text-custom-primary border-gray-300 rounded focus:ring-custom-primary">
-                            <label for="noMiddleName" class="ml-2 text-xs text-gray-500">I do not have a middle name</label>
-                        </div>
+                        <label class="inline-flex items-center mt-2 text-sm">
+                            <input type="checkbox" id="noMiddleName" class="mr-2"> No middle name
+                        </label>
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">Suffix (Optional)</label>
-                        <input type="text" name="suffix" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <label class="block text-sm mb-1">Suffix</label>
+                        <input type="text" name="suffix" placeholder="Jr., Sr., III (optional)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
-                    <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="relative">
+                    <div>
+                        <label class="block text-sm mb-1">Birthdate<span class="required-asterisk">*</span></label>
+                        <input type="date" name="birthdate" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
+                        <input type="email" name="regEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Mobile Number<span class="required-asterisk">*</span></label>
+                        <input type="tel" name="mobile" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09XXXXXXXXX">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Address<span class="required-asterisk">*</span></label>
+                        <input type="text" name="address" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Lot/Unit, Building, Subdivision">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">House #<span class="required-asterisk">*</span></label>
+                        <input type="text" name="houseNumber" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Street<span class="required-asterisk">*</span></label>
+                        <input type="text" name="street" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Barangay<span class="required-asterisk">*</span></label>
+                        <input type="text" name="barangay" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
                         <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                        <input type="password" name="password" id="regPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="regPassword" style="top: 24px;">
-                            <i class="far fa-eye"></i>
-                        </button>
+                        <div class="relative">
+                            <input type="password" id="regPassword" name="regPassword" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" aria-describedby="pwdChecklist">
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle password visibility" data-target="regPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <ul id="pwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
+                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
+                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
+                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
+                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
+                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
+                        </ul>
                     </div>
-                    <div class="relative">
+                    <div>
                         <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
-                        <input type="password" name="confirm_password" id="regConfirmPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="regConfirmPassword" style="top: 24px;">
-                            <i class="far fa-eye"></i>
-                        </button>
+                        <div class="relative">
+                            <input type="password" id="confirmPassword" name="confirmPassword" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle confirm password visibility" data-target="confirmPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
                     </div>
                 </div>
+
                 <?php if ($recaptchaSiteKey !== ''): ?>
-                    <div><div id="citizenRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div></div>
+                    <div>
+                        <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                    </div>
                 <?php endif; ?>
+
+                <div class="space-y-2">
+                    <div class="flex items-center text-sm">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="agreeTerms" class="mr-2" required>
+                            <span>I have read, understood, and agreed to the</span>
+                        </label>
+                        <button type="button" id="openTerms" class="ml-2 text-custom-secondary hover:underline">Terms of Use</button>
+                    </div>
+                    <div class="flex items-center text-sm">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="agreePrivacy" class="mr-2" required>
+                            <span>I have read, understood, and agreed to the</span>
+                        </label>
+                        <button type="button" id="openPrivacy" class="ml-2 text-custom-secondary hover:underline">Data Privacy Policy</button>
+                    </div>
+                    <p class="text-xs text-gray-600">By clicking on the register button below, I hereby agree to both the Terms of Use and Data Privacy Policy</p>
+                </div>
+
                 <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" id="closeRegister" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" id="btnRegisterSubmit" class="bg-custom-primary text-white px-4 py-2 rounded-lg">Register</button>
+                    <button type="button" id="cancelRegister" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
+                    <button type="submit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg">Register</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Operator Registration Modal -->
-    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-20 px-4 overflow-y-auto z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
-            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-primary">Operator Registration</h2>
+    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold text-center w-full">Operator Registration</h3>
+                <button type="button" id="btnOperatorRegisterCancel" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
             </div>
-            <form id="operatorRegisterForm" class="space-y-5 pt-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm mb-1">First Name<span class="required-asterisk">*</span></label>
-                        <input type="text" name="firstName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Last Name<span class="required-asterisk">*</span></label>
-                        <input type="text" name="lastName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Middle Name</label>
-                        <input type="text" name="middleName" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Suffix</label>
-                        <input type="text" name="suffix" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
+            <form id="operatorRegisterForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
+                    <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase">
                 </div>
                 <div>
-                    <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
+                    <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
+                    <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Email<span class="required-asterisk">*</span></label>
                     <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div>
-                    <label class="block text-sm mb-1">Vehicle Plate Number<span class="required-asterisk">*</span></label>
-                    <input type="text" name="plate_number" required placeholder="ABC-1234" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
                     <div class="relative">
-                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                        <input type="password" name="password" id="opRegPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegPassword" style="top: 24px;">
+                        <input type="password" id="opRegPassword" name="password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegPassword">
                             <i class="far fa-eye"></i>
                         </button>
                     </div>
+                    <ul id="opPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
+                        <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
+                        <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
+                        <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
+                        <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
+                        <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
+                    </ul>
+                    <div id="op-confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
                     <div class="relative">
-                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
-                        <input type="password" name="confirm_password" id="opRegConfirmPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegConfirmPassword" style="top: 24px;">
+                        <input type="password" id="opRegConfirmPassword" name="confirm_password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegConfirmPassword">
                             <i class="far fa-eye"></i>
                         </button>
                     </div>
                 </div>
                 <?php if ($recaptchaSiteKey !== ''): ?>
-                    <div><div id="operatorRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div></div>
+                    <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
                 <?php endif; ?>
-                <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" id="btnOperatorRegisterCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" id="btnOperatorRegisterSubmit" class="bg-custom-primary text-white px-4 py-2 rounded-lg">Register</button>
+                <div class="flex justify-end pt-2">
+                    <button type="submit" id="btnOperatorRegisterSubmit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold">Register</button>
                 </div>
             </form>
         </div>
@@ -746,19 +792,28 @@ if (!empty($_SESSION['user_id'])) {
             // Register Modals Logic
             const regModal = document.getElementById('registerFormContainer');
             const showRegBtn = document.getElementById('showRegister');
-            const closeRegBtn = document.getElementById('closeRegister');
+            const closeRegBtn = document.getElementById('cancelRegister');
             
             if (showRegBtn && regModal) {
                 showRegBtn.addEventListener('click', () => {
                     regModal.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
-                    tryRenderCitizenRecaptcha();
                 });
             }
             if (closeRegBtn && regModal) {
                 closeRegBtn.addEventListener('click', () => {
                     regModal.classList.add('hidden');
                     document.body.style.overflow = '';
+                    try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
+                });
+            }
+            if (regModal) {
+                regModal.addEventListener('click', (e) => {
+                    if (e.target === regModal) {
+                        regModal.classList.add('hidden');
+                        document.body.style.overflow = '';
+                        try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
+                    }
                 });
             }
 
@@ -785,12 +840,162 @@ if (!empty($_SESSION['user_id'])) {
                     opRegModal.classList.add('hidden');
                     opRegModal.classList.remove('flex');
                     document.body.style.overflow = '';
+                    try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
+                });
+            }
+            if (opRegModal) {
+                opRegModal.addEventListener('click', (e) => {
+                    if (e.target === opRegModal) {
+                        opRegModal.classList.add('hidden');
+                        opRegModal.classList.remove('flex');
+                        document.body.style.overflow = '';
+                        try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
+                    }
+                });
+            }
+
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const f = e.target;
+                    const pwd = (f.regPassword ? String(f.regPassword.value || '') : '').trim();
+                    const confirmPwd = (f.confirmPassword ? String(f.confirmPassword.value || '') : '').trim();
+                    const confirmError = document.getElementById('confirm-error');
+                    if (confirmError) confirmError.classList.add('hidden');
+                    if (pwd === '' || confirmPwd === '' || pwd !== confirmPwd) {
+                        if (confirmError) confirmError.classList.remove('hidden');
+                        alert('Passwords do not match.');
+                        return;
+                    }
+                    const agreeTerms = document.getElementById('agreeTerms');
+                    const agreePrivacy = document.getElementById('agreePrivacy');
+                    if ((agreeTerms && !agreeTerms.checked) || (agreePrivacy && !agreePrivacy.checked)) {
+                        alert('You must agree to the Terms and Data Privacy Policy.');
+                        return;
+                    }
+                    let captchaToken = '';
+                    const captchaEl = f.querySelector('.g-recaptcha');
+                    if (captchaEl) {
+                        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
+                        captchaToken = ta ? String(ta.value || '') : '';
+                        if (!captchaToken && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
+                            captchaToken = String(window.grecaptcha.getResponse() || '');
+                        }
+                        if (!captchaToken) {
+                            alert('Please complete the reCAPTCHA.');
+                            return;
+                        }
+                    }
+                    const payload = {
+                        firstName: (f.firstName ? String(f.firstName.value || '') : '').trim(),
+                        lastName: (f.lastName ? String(f.lastName.value || '') : '').trim(),
+                        middleName: (f.middleName ? String(f.middleName.value || '') : '').trim(),
+                        suffix: (f.suffix ? String(f.suffix.value || '') : '').trim(),
+                        birthdate: (f.birthdate ? String(f.birthdate.value || '') : '').trim(),
+                        regEmail: (f.regEmail ? String(f.regEmail.value || '') : '').trim(),
+                        email: (f.regEmail ? String(f.regEmail.value || '') : '').trim(),
+                        mobile: (f.mobile ? String(f.mobile.value || '') : '').trim(),
+                        address: (f.address ? String(f.address.value || '') : '').trim(),
+                        houseNumber: (f.houseNumber ? String(f.houseNumber.value || '') : '').trim(),
+                        street: (f.street ? String(f.street.value || '') : '').trim(),
+                        barangay: (f.barangay ? String(f.barangay.value || '') : '').trim(),
+                        regPassword: pwd,
+                        password: pwd,
+                        confirmPassword: confirmPwd,
+                        recaptcha_token: captchaToken
+                    };
+                    const url = (BASE_URL || '') + '/gsm_login/Login/register.php';
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!data || !data.ok) {
+                            alert((data && data.message) ? data.message : 'Registration failed.');
+                            return;
+                        }
+                        alert(data.message || 'Registration submitted.');
+                        regModal && regModal.classList.add('hidden');
+                        document.body.style.overflow = '';
+                        try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
+                    } catch (err) {
+                        alert('Network error. Please try again.');
+                    }
+                });
+            }
+
+            const operatorRegisterForm = document.getElementById('operatorRegisterForm');
+            if (operatorRegisterForm) {
+                operatorRegisterForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const f = e.target;
+                    const pwd = (f.password ? String(f.password.value || '') : '').trim();
+                    const confirmPwd = (f.confirm_password ? String(f.confirm_password.value || '') : '').trim();
+                    const err = document.getElementById('op-confirm-error');
+                    if (err) err.classList.add('hidden');
+                    if (pwd === '' || confirmPwd === '' || pwd !== confirmPwd) {
+                        if (err) err.classList.remove('hidden');
+                        alert('Passwords do not match.');
+                        return;
+                    }
+                    let captchaToken = '';
+                    const opCaptchaEl = document.getElementById('opRecaptcha');
+                    if (opCaptchaEl) {
+                        tryRenderOpRecaptcha();
+                        captchaToken = (window.grecaptcha && operatorRecaptchaWidgetId !== null) ? String(window.grecaptcha.getResponse(operatorRecaptchaWidgetId) || '') : '';
+                        if (!captchaToken) {
+                            alert('Please complete the reCAPTCHA.');
+                            return;
+                        }
+                    }
+                    const payload = {
+                        plate_number: (f.plate_number ? String(f.plate_number.value || '') : '').trim(),
+                        full_name: (f.full_name ? String(f.full_name.value || '') : '').trim(),
+                        email: (f.email ? String(f.email.value || '') : '').trim(),
+                        password: pwd,
+                        confirm_password: confirmPwd,
+                        recaptcha_token: captchaToken
+                    };
+                    const url = (BASE_URL || '') + '/gsm_login/Login/operator_register.php';
+                    try {
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!data || !data.ok) {
+                            alert((data && data.message) ? data.message : 'Registration failed.');
+                            return;
+                        }
+                        const redirect = data && data.data && data.data.redirect ? String(data.data.redirect) : '';
+                        if (redirect) {
+                            if (redirect.indexOf('citizen/operator') !== -1) {
+                                window.location.href = (BASE_URL || '') + '/citizen/operator/index.php';
+                            } else {
+                                window.location.href = redirect;
+                            }
+                            return;
+                        }
+                        alert(data.message || 'Registration successful. Please login as operator.');
+                        opRegModal && opRegModal.classList.add('hidden');
+                        opRegModal && opRegModal.classList.remove('flex');
+                        document.body.style.overflow = '';
+                        try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
+                    } catch (err) {
+                        alert('Network error. Please try again.');
+                    }
                 });
             }
 
             // Terms & Privacy
             const termsModal = document.getElementById('termsModal');
             const privacyModal = document.getElementById('privacyModal');
+            const openTerms = document.getElementById('openTerms');
+            const openPrivacy = document.getElementById('openPrivacy');
             const footerTerms = document.getElementById('footerTerms');
             const footerPrivacy = document.getElementById('footerPrivacy');
             const closeTerms = document.getElementById('closeTerms');
@@ -800,10 +1005,12 @@ if (!empty($_SESSION['user_id'])) {
 
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => termsModal.classList.remove('hidden', 'flex'));
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
+            if(openTerms && termsModal) openTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
             if(closeTerms) closeTerms.addEventListener('click', () => termsModal.classList.add('hidden'));
             if(closeTermsBottom) closeTermsBottom.addEventListener('click', () => termsModal.classList.add('hidden'));
 
             if(footerPrivacy && privacyModal) footerPrivacy.addEventListener('click', () => { privacyModal.classList.remove('hidden'); privacyModal.classList.add('flex'); });
+            if(openPrivacy && privacyModal) openPrivacy.addEventListener('click', () => { privacyModal.classList.remove('hidden'); privacyModal.classList.add('flex'); });
             if(closePrivacy) closePrivacy.addEventListener('click', () => privacyModal.classList.add('hidden'));
             if(closePrivacyBottom) closePrivacyBottom.addEventListener('click', () => privacyModal.classList.add('hidden'));
 
@@ -815,17 +1022,9 @@ if (!empty($_SESSION['user_id'])) {
             if (el) el.textContent = now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
 
-        let citizenRecaptchaWidgetId = null;
-        function tryRenderCitizenRecaptcha() {
-            const el = document.getElementById('citizenRecaptcha');
-            if (!el || !window.grecaptcha || citizenRecaptchaWidgetId !== null) return;
-            const siteKey = el.getAttribute('data-sitekey');
-            if (siteKey) citizenRecaptchaWidgetId = window.grecaptcha.render(el, { sitekey: siteKey });
-        }
-
         let operatorRecaptchaWidgetId = null;
         function tryRenderOpRecaptcha() {
-            const el = document.getElementById('operatorRecaptcha');
+            const el = document.getElementById('opRecaptcha');
             if (!el || !window.grecaptcha || operatorRecaptchaWidgetId !== null) return;
             const siteKey = el.getAttribute('data-sitekey');
             if (siteKey) operatorRecaptchaWidgetId = window.grecaptcha.render(el, { sitekey: siteKey });
