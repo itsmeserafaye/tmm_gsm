@@ -692,6 +692,32 @@ if ($action === 'get_complaint_status') {
     exit;
 }
 
+if ($action === 'deactivate_account') {
+    if (!$isLoggedIn) {
+        echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+
+    $uid = (int)$userId;
+    // Update status to Inactive
+    $stmt = $db->prepare("UPDATE rbac_users SET status='Inactive' WHERE id=?");
+    if (!$stmt) {
+        echo json_encode(['ok' => false, 'error' => 'Database error']);
+        exit;
+    }
+    $stmt->bind_param('i', $uid);
+    if ($stmt->execute()) {
+        // Log out
+        $_SESSION = [];
+        @session_unset();
+        @session_destroy();
+        echo json_encode(['ok' => true]);
+    } else {
+        echo json_encode(['ok' => false, 'error' => 'Failed to deactivate account']);
+    }
+    exit;
+}
+
 if ($action === 'get_my_complaints') {
     if (!$isLoggedIn) {
         echo json_encode(['ok' => false, 'error' => 'Unauthorized']);

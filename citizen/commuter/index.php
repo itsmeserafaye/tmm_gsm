@@ -166,7 +166,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
         <div class="mt-auto p-6 border-t border-slate-100">
             <?php if ($isLoggedIn): ?>
-                <div class="bg-slate-50 p-4 rounded-2xl flex items-center gap-3 border border-slate-100">
+                <div onclick="openProfileModal()" class="bg-slate-50 p-4 rounded-2xl flex items-center gap-3 border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors">
                     <div
                         class="w-10 h-10 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
                         <?= $userInitials ?>
@@ -175,9 +175,9 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                         <p class="text-sm font-bold text-slate-900 truncate"><?= htmlspecialchars($userName) ?></p>
                         <p class="text-xs text-slate-400">Commuter</p>
                     </div>
-                    <a href="logout.php" class="text-slate-400 hover:text-red-500 transition-colors">
+                    <button onclick="event.stopPropagation(); window.location.href='logout.php'" class="text-slate-400 hover:text-red-500 transition-colors">
                         <i data-lucide="log-out" class="w-5 h-5"></i>
-                    </a>
+                    </button>
                 </div>
             <?php else: ?>
                 <a href="../../gsm_login/index.php"
@@ -201,8 +201,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 <span class="font-bold text-slate-900">CityLoop</span>
             </div>
             <?php if ($isLoggedIn): ?>
-                <div
-                    class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                <div onclick="openProfileModal()"
+                    class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 cursor-pointer">
                     <?= $userInitials ?>
                 </div>
             <?php else: ?>
@@ -919,6 +919,124 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             loadTerminals();
             initGuestRecaptcha();
         });
+    </script>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeProfileModal()"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-slate-800" id="modal-title">My Profile</h3>
+                        <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-500 transition-colors">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="px-6 py-6 space-y-6">
+                        <!-- User Info (Read Only) -->
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Name</label>
+                                <div class="font-bold text-slate-900 text-lg"><?= htmlspecialchars($userName) ?></div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Account Type</label>
+                                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-800">
+                                    Commuter
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-6">
+                            <h4 class="text-sm font-bold text-slate-900 mb-2">Account Management</h4>
+                            <p class="text-sm text-slate-500 mb-4">
+                                Manage your account status. Deactivating your account will disable your access and remove your personal data from active view, though some records may be retained for legal compliance.
+                            </p>
+                            <button onclick="openDeactivateConfirm()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-rose-200">
+                                <i data-lucide="user-x" class="w-5 h-5"></i>
+                                Deactivate Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deactivate Confirmation Modal -->
+    <div id="deactivateConfirmModal" class="fixed inset-0 z-[110] hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeDeactivateConfirm()"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md border border-slate-200">
+                    <div class="p-6 text-center">
+                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 mb-6">
+                            <i data-lucide="alert-triangle" class="h-8 w-8 text-rose-600"></i>
+                        </div>
+                        <h3 class="text-lg font-black text-slate-900 mb-2">Deactivate Account?</h3>
+                        <p class="text-sm text-slate-500 mb-8">
+                            Are you sure you want to deactivate your account? You will be logged out immediately. This action cannot be undone by yourself.
+                        </p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button type="button" onclick="closeDeactivateConfirm()" class="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold py-3 px-4 rounded-xl border border-slate-200 transition-colors">
+                                Cancel
+                            </button>
+                            <button type="button" onclick="submitDeactivation()" id="btn-confirm-deactivate" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-200 transition-colors flex items-center justify-center gap-2">
+                                <span>Yes, Deactivate</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openProfileModal() {
+            const modal = document.getElementById('profileModal');
+            modal.classList.remove('hidden');
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.add('hidden');
+        }
+
+        function openDeactivateConfirm() {
+            closeProfileModal();
+            const modal = document.getElementById('deactivateConfirmModal');
+            modal.classList.remove('hidden');
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function closeDeactivateConfirm() {
+            document.getElementById('deactivateConfirmModal').classList.add('hidden');
+        }
+
+        async function submitDeactivation() {
+            const btn = document.getElementById('btn-confirm-deactivate');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processing...';
+            if(window.lucide) window.lucide.createIcons();
+
+            try {
+                const data = await fetchAPI('deactivate_account');
+                if (data.ok) {
+                    alert('Your account has been deactivated. You will now be logged out.');
+                    window.location.href = '../../gsm_login/index.php';
+                } else {
+                    alert(data.error || 'Failed to deactivate account.');
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                }
+            } catch (e) {
+                alert('Connection error. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        }
     </script>
 </body>
 
