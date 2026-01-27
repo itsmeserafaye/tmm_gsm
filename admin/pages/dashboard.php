@@ -63,121 +63,112 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 }
 ?>
 
-<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100">
+<div class="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8 py-6 font-sans text-slate-900 dark:text-slate-100">
   <!-- Header Section -->
-  <div
-    class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 border-b border-slate-200 dark:border-slate-700 pb-6">
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 pb-6 border-b-2 border-gradient-to-r from-blue-200 via-green-200 to-blue-200 dark:from-blue-900/30 dark:via-green-900/30 dark:to-blue-900/30 animate-slide-up">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+      <h1 class="text-4xl font-black tracking-tight" style="background: linear-gradient(135deg, #4a90e2, #66bb6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
         Transport & Mobility Intelligence
       </h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Operational system + analytics-ready platform (trend-based forecasting).</p>
+      <p class="text-sm text-slate-600 dark:text-slate-400 mt-2 font-medium">Operational system + analytics-ready platform (trend-based forecasting)</p>
     </div>
-    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+    <div class="flex gap-2 p-1.5 rounded-xl border-2 shadow-sm" style="background: linear-gradient(135deg, rgba(91, 163, 245, 0.1), rgba(102, 187, 106, 0.1)); border-color: rgba(91, 163, 245, 0.3);">
       <button id="btnAreaTerminal"
-        class="px-4 py-2 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-all">Terminals</button>
+        class="px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 transform hover:scale-105" style="background: linear-gradient(135deg, #5ba3f5, #4a90e2); color: white; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">Terminals</button>
       <button id="btnAreaParking"
-        class="px-4 py-2 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-sm font-medium transition-all">Routes</button>
+        class="px-5 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-sm font-semibold transition-all duration-200 hover:bg-white/50 dark:hover:bg-slate-700/50">Routes</button>
     </div>
   </div>
 
   <!-- System Overview -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in">
     <!-- Revenue -->
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+    <div class="group bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 rounded-2xl p-6 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover-lift">
       <div class="flex items-center justify-between mb-4">
-        <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-emerald-600 dark:text-emerald-400">
-          <i data-lucide="wallet" class="w-6 h-6"></i>
+        <div class="p-3 rounded-xl shadow-lg" style="background: linear-gradient(135deg, #10b981, #059669);">
+          <i data-lucide="wallet" class="w-6 h-6 text-white"></i>
         </div>
-        <span
-          class="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded">
+        <span class="flex items-center text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full shadow-sm">
           <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i> +8.4%
         </span>
       </div>
-      <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Revenue</h3>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+      <h3 class="text-slate-600 dark:text-slate-400 text-sm font-bold uppercase tracking-wide">Total Revenue</h3>
+      <div class="text-3xl font-black text-slate-900 dark:text-white mt-2">
         ₱<?php echo number_format($totalRevenue, 2); ?>
       </div>
     </div>
 
     <!-- Active Units -->
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+    <div class="group bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-blue-900/10 rounded-2xl p-6 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover-lift">
       <div class="flex items-center justify-between mb-4">
-        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
-          <i data-lucide="bus" class="w-6 h-6"></i>
+        <div class="p-3 rounded-xl shadow-lg" style="background: linear-gradient(135deg, #5ba3f5, #2e7bc4);">
+          <i data-lucide="bus" class="w-6 h-6 text-white"></i>
         </div>
-        <span
-          class="flex items-center text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+        <span class="flex items-center text-xs font-black text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-3 py-1.5 rounded-full shadow-sm">
           <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i> +2.1%
         </span>
       </div>
-      <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Units</h3>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+      <h3 class="text-slate-600 dark:text-slate-400 text-sm font-bold uppercase tracking-wide">Active Units</h3>
+      <div class="text-3xl font-black text-slate-900 dark:text-white mt-2">
         <?php echo number_format($totalVehicles); ?>
       </div>
     </div>
 
     <!-- Total Violations -->
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+    <div class="group bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 rounded-2xl p-6 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover-lift">
       <div class="flex items-center justify-between mb-4">
-        <div class="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-lg text-rose-600 dark:text-rose-400">
-          <i data-lucide="alert-circle" class="w-6 h-6"></i>
+        <div class="p-3 rounded-xl shadow-lg" style="background: linear-gradient(135deg, #f43f5e, #e11d48);">
+          <i data-lucide="alert-circle" class="w-6 h-6 text-white"></i>
         </div>
-        <span
-          class="flex items-center text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-2 py-1 rounded">
+        <span class="flex items-center text-xs font-black text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-3 py-1.5 rounded-full shadow-sm">
           <i data-lucide="arrow-up" class="w-3 h-3 mr-1"></i> +5.2%
         </span>
       </div>
-      <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Violations</h3>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+      <h3 class="text-slate-600 dark:text-slate-400 text-sm font-bold uppercase tracking-wide">Violations</h3>
+      <div class="text-3xl font-black text-slate-900 dark:text-white mt-2">
         <?php echo number_format($totalViolations); ?>
       </div>
     </div>
 
     <!-- System Health (Operators) -->
-    <div
-      class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+    <div class="group bg-gradient-to-br from-white to-violet-50/30 dark:from-slate-800 dark:to-violet-900/10 rounded-2xl p-6 border-2 border-violet-100 dark:border-violet-900/30 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 hover-lift">
       <div class="flex items-center justify-between mb-4">
-        <div class="p-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg text-violet-600 dark:text-violet-400">
-          <i data-lucide="users" class="w-6 h-6"></i>
+        <div class="p-3 rounded-xl shadow-lg" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+          <i data-lucide="users" class="w-6 h-6 text-white"></i>
         </div>
-        <span
-          class="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded">
+        <span class="flex items-center text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-3 py-1.5 rounded-full shadow-sm">
           <i data-lucide="activity" class="w-3 h-3 mr-1"></i> 98.5%
         </span>
       </div>
-      <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Active Operators</h3>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+      <h3 class="text-slate-600 dark:text-slate-400 text-sm font-bold uppercase tracking-wide">Active Operators</h3>
+      <div class="text-3xl font-black text-slate-900 dark:text-white mt-2">
         <?php echo number_format($totalOperators); ?>
       </div>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Violation Frequency (7-day avg)</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($violations7dAvg, 1); ?>/day</div>
-      <div class="mt-1 text-xs text-slate-500">Based on recorded tickets</div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Violation Frequency (7-day avg)</div>
+      <div class="text-3xl font-black text-slate-900 dark:text-white"><?php echo number_format($violations7dAvg, 1); ?>/day</div>
+      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium">Based on recorded tickets</div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Terminal Occupancy</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Terminal Occupancy</div>
+      <div class="text-3xl font-black text-slate-900 dark:text-white">
         <?php echo $terminalOccupancyPct === null ? '—' : number_format($terminalOccupancyPct, 1) . '%'; ?>
       </div>
-      <div class="mt-1 text-xs text-slate-500"><?php echo $slotTotals['total'] > 0 ? (number_format($slotTotals['occupied']) . ' / ' . number_format($slotTotals['total']) . ' slots occupied') : 'No slot data found'; ?></div>
+      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium"><?php echo $slotTotals['total'] > 0 ? (number_format($slotTotals['occupied']) . ' / ' . number_format($slotTotals['total']) . ' slots occupied') : 'No slot data found'; ?></div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Enforcement Hotspots (7 days)</div>
-      <div class="mt-2 text-sm text-slate-700 dark:text-slate-200 space-y-1">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Enforcement Hotspots (7 days)</div>
+      <div class="mt-2 text-sm text-slate-700 dark:text-slate-200 space-y-2 font-medium">
         <?php if (!$hotspots) { ?>
           <div class="text-xs text-slate-500 italic">No hotspot data yet</div>
         <?php } else { foreach ($hotspots as $h) { ?>
-          <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
             <div class="truncate"><?php echo htmlspecialchars($h['location']); ?></div>
-            <div class="shrink-0 text-xs font-bold text-slate-500"><?php echo (int)$h['count']; ?></div>
+            <div class="shrink-0 text-xs font-black text-white bg-rose-500 px-2 py-1 rounded-full"><?php echo (int)$h['count']; ?></div>
           </div>
         <?php } } ?>
       </div>
