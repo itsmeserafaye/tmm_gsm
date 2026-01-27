@@ -1082,6 +1082,65 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           });
       }
 
+      var tmmMoreModal = null;
+      var tmmMoreModalTitle = null;
+      var tmmMoreModalList = null;
+
+      function ensureMoreModal() {
+        if (tmmMoreModal) return;
+        tmmMoreModal = document.createElement('div');
+        tmmMoreModal.className = 'fixed inset-0 z-[80] hidden items-center justify-center bg-slate-900/60 p-4';
+        tmmMoreModal.innerHTML = ''
+          + '<div class="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">'
+          +   '<div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">'
+          +     '<div class="text-sm font-black text-slate-900 dark:text-white" data-tmm-more-title></div>'
+          +     '<button type="button" class="text-xs font-black text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded-lg" data-tmm-more-close>Close</button>'
+          +   '</div>'
+          +   '<div class="p-5">'
+          +     '<ul class="max-h-[60vh] overflow-auto space-y-2 text-sm text-slate-700 dark:text-slate-200" data-tmm-more-list></ul>'
+          +   '</div>'
+          + '</div>';
+        document.body.appendChild(tmmMoreModal);
+        tmmMoreModalTitle = tmmMoreModal.querySelector('[data-tmm-more-title]');
+        tmmMoreModalList = tmmMoreModal.querySelector('[data-tmm-more-list]');
+        var closeBtn = tmmMoreModal.querySelector('[data-tmm-more-close]');
+        if (closeBtn) closeBtn.addEventListener('click', function () { closeMoreModal(); });
+        tmmMoreModal.addEventListener('click', function (e) {
+          if (e && e.target === tmmMoreModal) closeMoreModal();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e && e.key === 'Escape') closeMoreModal();
+        });
+      }
+
+      function openMoreModal(title, items) {
+        ensureMoreModal();
+        if (tmmMoreModalTitle) tmmMoreModalTitle.textContent = String(title || 'More');
+        if (tmmMoreModalList) {
+          tmmMoreModalList.innerHTML = '';
+          (items || []).forEach(function (it) {
+            var li = document.createElement('li');
+            li.className = 'flex gap-2 items-start';
+            var dot = document.createElement('span');
+            dot.className = 'mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0';
+            var txt = document.createElement('span');
+            txt.className = 'leading-snug';
+            txt.textContent = String(it || '');
+            li.appendChild(dot);
+            li.appendChild(txt);
+            tmmMoreModalList.appendChild(li);
+          });
+        }
+        tmmMoreModal.classList.remove('hidden');
+        tmmMoreModal.classList.add('flex');
+      }
+
+      function closeMoreModal() {
+        if (!tmmMoreModal) return;
+        tmmMoreModal.classList.add('hidden');
+        tmmMoreModal.classList.remove('flex');
+      }
+
       function renderPlaybook(listEl, items, type) {
         if (!listEl) return;
         listEl.innerHTML = '';
@@ -1099,6 +1158,20 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>');
           s = s.replace(/\n/g, '<br>');
           return s;
+        };
+
+        var extractLongAreaList = function (raw) {
+          var text = String(raw || '');
+          var m = text.match(/\*\*([^*]+)\*\*/);
+          if (!m) return null;
+          var inner = String(m[1] || '');
+          if (inner.indexOf(',') === -1) return null;
+          var parts = inner.split(',').map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x !== ''; });
+          if (parts.length <= 6) return null;
+          var prefix = '';
+          var idx = text.indexOf(':');
+          if (idx > 0) prefix = text.slice(0, idx).trim();
+          return { bold: m[0], items: parts, prefix: prefix };
         };
 
         var iconColor = 'text-slate-400';
@@ -1119,7 +1192,29 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             li.dataset.hidden = 'true';
           }
           var iconHtml = '<i data-lucide="' + iconName + '" class="w-4 h-4 ' + iconColor + ' mt-0.5 shrink-0"></i>';
-          li.innerHTML = iconHtml + '<span class="leading-snug">' + formatInsight(t) + '</span>';
+          var info = extractLongAreaList(t);
+          var displayText = t;
+          if (info) {
+            var shown = info.items.slice(0, 6).join(', ');
+            displayText = String(t || '').replace(info.bold, '**' + shown + '**');
+          }
+          li.innerHTML = iconHtml;
+          var span = document.createElement('span');
+          span.className = 'leading-snug';
+          span.innerHTML = formatInsight(displayText);
+          li.appendChild(span);
+          if (info) {
+            var more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'ml-auto text-xs font-black text-indigo-600 dark:text-indigo-400 hover:underline shrink-0';
+            more.textContent = 'More';
+            more.addEventListener('click', function () {
+              var kind = currentType === 'terminal' ? 'Terminals' : 'Routes';
+              var title = (info.prefix ? (info.prefix + ' — ') : '') + kind + ' (' + info.items.length + ')';
+              openMoreModal(title, info.items);
+            });
+            li.appendChild(more);
+          }
           listEl.appendChild(li);
         });
 
@@ -1133,7 +1228,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             btnContainer.remove();
             Array.from(listEl.children).forEach(function(child) {
               if (child.dataset.hidden === 'true') {
-                child.style.display = 'flex'; // Restore flex display
+                child.style.display = 'flex';
               }
             });
           };
