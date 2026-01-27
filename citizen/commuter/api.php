@@ -742,5 +742,82 @@ if ($action === 'get_my_complaints') {
     exit;
 }
 
+if ($action === 'get_profile') {
+    if (!$isLoggedIn) {
+        echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+    $stmt = $db->prepare("SELECT u.first_name, u.last_name, u.email, p.mobile, p.house_number, p.street, p.barangay, p.address_line
+                          FROM rbac_users u
+                          LEFT JOIN user_profiles p ON p.user_id = u.id
+                          WHERE u.id = ?");
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $data = $res->fetch_assoc();
+    echo json_encode(['ok' => true, 'data' => $data]);
+    exit;
+}
+
+if ($action === 'update_profile') {
+    if (!$isLoggedIn) {
+        echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+
+    $fname = trim($input['first_name'] ?? '');
+    $lname = trim($input['last_name'] ?? '');
+    $mobile = trim($input['mobile'] ?? '');
+    $house = trim($input['house_number'] ?? '');
+    $street = trim($input['street'] ?? '');
+    $brgy = trim($input['barangay'] ?? '');
+    $password = $input['password'] ?? '';
+    $confirm = $input['confirm_password'] ?? '';
+
+    if ($fname === '' || $lname === '') {
+        echo json_encode(['ok' => false, 'error' => 'First and Last Name are required']);
+        exit;
+    }
+
+    if ($password !== '' && $password !== $confirm) {
+        echo json_encode(['ok' => false, 'error' => 'Passwords do not match']);
+        exit;
+    }
+
+    $db->begin_transaction();
+    try {
+        // Update User
+        if ($password !== '') {
+            if (strlen($password) < 6) throw new Exception("Password must be at least 6 characters");
+            $hash = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $db->prepare("UPDATE rbac_users SET first_name=?, last_name=?, password_hash=? WHERE id=?");
+            $stmt->bind_param('sssi', $fname, $lname, $hash, $userId);
+        } else {
+            $stmt = $db->prepare("UPDATE rbac_users SET first_name=?, last_name=? WHERE id=?");
+            $stmt->bind_param('ssi', $fname, $lname, $userId);
+        }
+        if (!$stmt->execute()) throw new Exception("Failed to update user info");
+
+        // Update Profile
+        // Construct address_line for backward compatibility/display
+        $addressLine = trim("$house $street, $brgy", " ,");
+        
+        $stmt = $db->prepare("INSERT INTO user_profiles (user_id, mobile, house_number, street, barangay, address_line) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE mobile=?, house_number=?, street=?, barangay=?, address_line=?");
+        $stmt->bind_param('issssssssss', $userId, $mobile, $house, $street, $brgy, $addressLine, $mobile, $house, $street, $brgy, $addressLine);
+        if (!$stmt->execute()) throw new Exception("Failed to update profile details");
+
+        $db->commit();
+
+        // Update Session
+        $_SESSION['name'] = "$fname $lname";
+
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) {
+        $db->rollback();
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 echo json_encode(['ok' => false, 'error' => 'Invalid action']);
 ?>

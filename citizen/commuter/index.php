@@ -928,30 +928,73 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
                 <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg border border-slate-200">
                     <div class="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-slate-800" id="modal-title">My Profile</h3>
+                        <h3 class="text-lg font-bold text-slate-800" id="modal-title">Edit Profile</h3>
                         <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-500 transition-colors">
                             <i data-lucide="x" class="w-5 h-5"></i>
                         </button>
                     </div>
                     <div class="px-6 py-6 space-y-6">
-                        <!-- User Info (Read Only) -->
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Name</label>
-                                <div class="font-bold text-slate-900 text-lg"><?= htmlspecialchars($userName) ?></div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Account Type</label>
-                                <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-800">
-                                    Commuter
+                        <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-4">
+                            <!-- Name -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">First Name</label>
+                                    <input type="text" id="pf-firstname" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors" required>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Last Name</label>
+                                    <input type="text" id="pf-lastname" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors" required>
                                 </div>
                             </div>
-                        </div>
+                            
+                            <!-- Contact -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email (Read Only)</label>
+                                <input type="email" id="pf-email" class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Mobile Number</label>
+                                <input type="text" id="pf-mobile" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors" placeholder="09xxxxxxxxx">
+                            </div>
+
+                            <!-- Address -->
+                            <div class="space-y-3">
+                                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Address</label>
+                                 <div class="grid grid-cols-2 gap-3">
+                                     <input type="text" id="pf-house" placeholder="House/Unit #" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors">
+                                     <input type="text" id="pf-street" placeholder="Street" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors">
+                                 </div>
+                                 <input type="text" id="pf-brgy" placeholder="Barangay" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors">
+                            </div>
+
+                            <!-- Password Change -->
+                            <div class="pt-4 border-t border-slate-100">
+                                <button type="button" onclick="togglePasswordFields()" class="text-sm text-brand-600 font-bold hover:text-brand-700 flex items-center gap-1">
+                                    <i data-lucide="lock" class="w-4 h-4"></i> Change Password
+                                </button>
+                                <div id="pf-password-section" class="hidden mt-3 space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">New Password</label>
+                                        <input type="password" id="pf-password" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors" placeholder="Min. 6 characters">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Confirm Password</label>
+                                        <input type="password" id="pf-confirm" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 flex gap-3">
+                                <button type="submit" id="btn-save-profile" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-brand-200 transition-colors flex items-center justify-center gap-2">
+                                    <i data-lucide="save" class="w-4 h-4"></i> Save Changes
+                                </button>
+                            </div>
+                        </form>
 
                         <div class="border-t border-slate-100 pt-6">
                             <h4 class="text-sm font-bold text-slate-900 mb-2">Account Management</h4>
                             <p class="text-sm text-slate-500 mb-4">
-                                Manage your account status. Deactivating your account will disable your access and remove your personal data from active view, though some records may be retained for legal compliance.
+                                Manage your account status. Deactivating your account will disable your access.
                             </p>
                             <button onclick="openDeactivateConfirm()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-rose-200">
                                 <i data-lucide="user-x" class="w-5 h-5"></i>
@@ -997,6 +1040,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             const modal = document.getElementById('profileModal');
             modal.classList.remove('hidden');
             if(window.lucide) window.lucide.createIcons();
+            loadProfile();
         }
 
         function closeProfileModal() {
@@ -1035,6 +1079,73 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 alert('Connection error. Please try again.');
                 btn.disabled = false;
                 btn.innerHTML = orig;
+            }
+        }
+
+        function togglePasswordFields() {
+            document.getElementById('pf-password-section').classList.toggle('hidden');
+        }
+
+        async function loadProfile() {
+            try {
+                const data = await fetchAPI('get_profile');
+                if(data.ok && data.data) {
+                    const d = data.data;
+                    document.getElementById('pf-firstname').value = d.first_name || '';
+                    document.getElementById('pf-lastname').value = d.last_name || '';
+                    document.getElementById('pf-email').value = d.email || '';
+                    document.getElementById('pf-mobile').value = d.mobile || '';
+                    document.getElementById('pf-house').value = d.house_number || '';
+                    document.getElementById('pf-street').value = d.street || '';
+                    document.getElementById('pf-brgy').value = d.barangay || '';
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function saveProfile(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-profile');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving...';
+            if(window.lucide) window.lucide.createIcons();
+
+            const payload = {
+                action: 'update_profile',
+                first_name: document.getElementById('pf-firstname').value,
+                last_name: document.getElementById('pf-lastname').value,
+                mobile: document.getElementById('pf-mobile').value,
+                house_number: document.getElementById('pf-house').value,
+                street: document.getElementById('pf-street').value,
+                barangay: document.getElementById('pf-brgy').value,
+                password: document.getElementById('pf-password').value,
+                confirm_password: document.getElementById('pf-confirm').value
+            };
+
+            try {
+                const res = await fetch('api.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.ok) {
+                    alert('Profile updated successfully!');
+                    document.getElementById('pf-password').value = '';
+                    document.getElementById('pf-confirm').value = '';
+                    document.getElementById('pf-password-section').classList.add('hidden');
+                    location.reload(); 
+                } else {
+                    alert(data.error || 'Failed to update profile');
+                }
+            } catch(e) {
+                alert('Connection error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                if(window.lucide) window.lucide.createIcons();
             }
         }
     </script>

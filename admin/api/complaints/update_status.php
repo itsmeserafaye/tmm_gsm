@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 
 try {
     $db = db();
-    require_role(['SuperAdmin', 'Admin', 'Franchise Officer']);
+    require_role(['SuperAdmin', 'Admin', 'Admin / Transport Officer', 'Franchise Officer']);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Method not allowed');

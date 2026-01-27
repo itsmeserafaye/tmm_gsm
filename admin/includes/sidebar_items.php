@@ -72,7 +72,7 @@ $sidebarItems = [
       ['id' => 'accounts', 'label' => 'Accounts & Roles', 'path' => '/users/accounts', 'roles' => ['SuperAdmin']],
       ['id' => 'operator-accounts', 'label' => 'Operator Portal Accounts', 'path' => '/users/operator-accounts', 'roles' => ['SuperAdmin']],
       ['id' => 'commuter-accounts', 'label' => 'Commuter Accounts', 'path' => '/users/commuters', 'roles' => ['SuperAdmin']],
-      ['id' => 'public-portal-reports', 'label' => 'Public Portal Reports', 'path' => '/portal/commuter-reports', 'roles' => ['SuperAdmin', 'Admin', 'Franchise Officer']],
+      ['id' => 'public-portal-reports', 'label' => 'Public Portal Reports', 'path' => '/portal/commuter-reports', 'page' => 'portal/commuter-reports', 'roles' => ['SuperAdmin', 'Admin', 'Admin / Transport Officer', 'Franchise Officer']],
       ['id' => 'activity', 'label' => 'Activity Logs', 'path' => '/users/activity', 'roles' => ['SuperAdmin']],
     ],
   ],

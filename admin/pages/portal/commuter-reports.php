@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_role(['SuperAdmin', 'Admin', 'Franchise Officer']);
+require_role(['SuperAdmin', 'Admin', 'Admin / Transport Officer', 'Franchise Officer']);
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">

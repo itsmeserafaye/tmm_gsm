@@ -42,7 +42,7 @@ if (!empty($_SESSION['user_id'])) {
 </head>
 
 <body class="bg-custom-bg min-h-screen flex flex-col" style="background-color: #fbfbfb;">
-    <header class="fixed top-0 left-0 right-0 py-4 bg-gradient-to-r from-white via-blue-50 to-blue-100 border-b-4 border-gradient-to-r from-blue-500 via-blue-600 to-blue-700 shadow-lg z-50" style="background: linear-gradient(to right, #ffffff, #e3f2fd, #bbdefb); border-bottom: 4px solid #4a90e2;">
+    <header class="fixed top-0 left-0 right-0 py-4 bg-gradient-to-r from-white via-blue-50 to-blue-100 border-b-4 border-gradient-to-r from-blue-500 via-blue-600 to-blue-700 shadow-lg z-50" style="background: linear-gradient(to right, #ffffff, #e8f4f8, #d6eaf5); border-bottom: 4px solid #4a90e2;">
         <div class="container mx-auto px-6">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
@@ -73,7 +73,7 @@ if (!empty($_SESSION['user_id'])) {
 
     <main class="flex-1 pt-24">
         <section id="home" class="container mx-auto px-6 pt-6">
-            <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #4a90e2 0%, #357abd 50%, #5ba3f5 100%);">
+            <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #5ba3f5 0%, #4a90e2 50%, #2e7bc4 100%);">
                 <!-- Animated overlay -->
                 <div class="absolute inset-0 opacity-30">
                     <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 4s;"></div>
@@ -87,19 +87,19 @@ if (!empty($_SESSION['user_id'])) {
                                 alt="TMM" class="h-20 md:h-24 w-auto">
                         </div>
                         <div class="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
-                            Transport & Mobility<br /><span class="text-green-300" style="color: #81c784;">Management</span>
+                            Transport & Mobility<br /><span class="text-green-300" style="color: #66bb6a;">Management</span>
                         </div>
                         <div class="mt-4 text-xl md:text-2xl font-semibold text-white/90 drop-shadow">
                             Your Gateway to Smart Transportation Solutions
                         </div>
                         <div class="mt-8 flex gap-4">
                             <a href="#systems"
-                                class="inline-flex items-center gap-2 bg-white text-blue-700 px-6 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300" style="background: #ffffff; color: #4a90e2;">
+                                class="inline-flex items-center gap-2 bg-white text-blue-700 px-6 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300" style="background: #ffffff; color: #2e7bc4;">
                                 Explore Portals
                                 <i class="fas fa-arrow-down text-sm"></i>
                             </a>
                             <a href="#features"
-                                class="inline-flex items-center gap-2 bg-blue-900/30 backdrop-blur-sm text-white border-2 border-white/50 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-blue-900/50 transform hover:scale-105 transition-all duration-300" style="background: rgba(66, 144, 226, 0.3); border-color: rgba(255, 255, 255, 0.5);">
+                                class="inline-flex items-center gap-2 bg-blue-900/30 backdrop-blur-sm text-white border-2 border-white/50 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-blue-900/50 transform hover:scale-105 transition-all duration-300" style="background: rgba(46, 123, 196, 0.25); border-color: rgba(255, 255, 255, 0.6);">
                                 Learn More
                                 <i class="fas fa-info-circle text-sm"></i>
                             </a>
@@ -118,10 +118,10 @@ if (!empty($_SESSION['user_id'])) {
             <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Staff Portal -->
                 <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-blue-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e3f2fd, #bbdefb);"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f4f8, #d1e9f6);"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4a90e2, #357abd);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #5ba3f5, #2e7bc4);">
                                 <i class="fas fa-user-shield text-white text-3xl"></i>
                             </div>
                         </div>
@@ -129,7 +129,7 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="text-xl font-bold text-slate-900">Staff Portal</div>
                             <div class="mt-2 text-sm text-slate-600">Administration and management access for authorized personnel.</div>
                             <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff"
-                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #4a90e2, #357abd);">
+                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #5ba3f5, #2e7bc4);">
                                 Access System <i class="fas fa-arrow-right text-xs"></i>
                             </a>
                         </div>
@@ -137,11 +137,11 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
 
                 <!-- Operator Portal -->
-                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-gray-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #f5f5f5, #e0e0e0);"></div>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style="background: #ffffff; border-color: transparent;">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #fff3e0, #ffe0b2);"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #9aa5b1, #7a8591);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #ff9800, #f57c00);">
                                 <i class="fas fa-bus text-white text-3xl"></i>
                             </div>
                         </div>
@@ -150,11 +150,11 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="mt-2 text-sm text-slate-600">PUV operator services and fleet management tools.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator"
-                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #9aa5b1, #7a8591);">
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #ff9800, #f57c00);">
                                     Login <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="btnOperatorRegisterOpen"
-                                    class="inline-flex items-center gap-2 border-2 border-gray-500 text-gray-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300" style="border-color: #9aa5b1; color: #9aa5b1;">Register</button>
+                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300" style="border-color: #ff9800; color: #f57c00;">Register</button>
                             </div>
                         </div>
                     </div>
@@ -162,10 +162,10 @@ if (!empty($_SESSION['user_id'])) {
 
                 <!-- Commuter Portal -->
                 <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-green-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c8e6c9);"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c5e1a5);"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4caf50, #388e3c);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
                                 <i class="fas fa-users text-white text-3xl"></i>
                             </div>
                         </div>
@@ -177,11 +177,11 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information. No login required.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
-                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #4caf50, #388e3c);">
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #66bb6a, #43a047);">
                                     Enter as Guest <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="showRegister"
-                                    class="inline-flex items-center gap-2 border-2 border-green-500 text-green-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-green-50 transition-all duration-300" style="border-color: #4caf50; color: #4caf50;">Register (Optional)</button>
+                                    class="inline-flex items-center gap-2 border-2 border-green-500 text-green-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-green-50 transition-all duration-300" style="border-color: #66bb6a; color: #43a047;">Register (Optional)</button>
                             </div>
                         </div>
                     </div>
@@ -223,9 +223,9 @@ if (!empty($_SESSION['user_id'])) {
                 
                 <!-- Feature 3 -->
                 <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c8e6c9);"></div>
+                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c5e1a5);"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4caf50, #388e3c);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
                             <i class="fas fa-clipboard-check text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Inspection Workflows</div>
@@ -234,10 +234,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 4 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e3f2fd, #bbdefb);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #fff3e0, #ffe0b2);"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4a90e2, #357abd);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #ff9800, #f57c00);">
                             <i class="fas fa-square-parking text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Terminal & Parking Operations</div>
@@ -246,10 +246,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 5 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-gray-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #f5f5f5, #e0e0e0);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f4f8, #d1e9f6);"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #9aa5b1, #7a8591);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #2e7bc4, #1976d2);">
                             <i class="fas fa-shield-halved text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Role-Based Access</div>
@@ -258,10 +258,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 6 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
-                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-gray-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
+                    <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #f5f5f5, #e8eaed);"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4caf50, #388e3c);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #78909c, #546e7a);">
                             <i class="fas fa-chart-line text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Analytics</div>
@@ -320,7 +320,7 @@ if (!empty($_SESSION['user_id'])) {
                         <!-- Step 3 -->
                         <div class="relative z-10 text-center group">
                             <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(to bottom right, #4caf50, #388e3c);">
+                                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
                                     <i class="fas fa-rocket text-3xl"></i>
                                 </div>
                             </div>

@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 
 try {
     $db = db();
-    require_role(['SuperAdmin', 'Admin', 'Franchise Officer']);
+    require_role(['SuperAdmin', 'Admin', 'Admin / Transport Officer', 'Franchise Officer']);
 
     // Ensure table exists (it should be created by commuter portal, but just in case)
     $db->query("CREATE TABLE IF NOT EXISTS commuter_complaints (
