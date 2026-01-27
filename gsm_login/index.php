@@ -15,7 +15,7 @@ $mode = $_GET['mode'] ?? 'commuter';
 $msTitles = [
   'staff' => 'Staff Portal Access',
   'operator' => 'Operator Dashboard',
-  'commuter' => 'Citizen ServicesLogin'
+  'commuter' => 'Public Portal'
 ];
 $msDescs = [
   'staff' => 'Secure login for authorized personnel and administrators.',

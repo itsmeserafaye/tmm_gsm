@@ -26,7 +26,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
     <link rel="icon" type="image/jpeg" href="images/logo.jpg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -90,7 +91,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             color: white;
             box-shadow: 0 8px 16px -4px rgba(124, 58, 237, 0.4);
         }
-        
+
         .sidebar-item:hover:not(.sidebar-active) {
             background-color: #f1f5f9;
             color: #0f172a;
@@ -100,6 +101,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
+
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -108,9 +110,17 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         .fade-enter {
             animation: fadeEnter 0.3s ease-out forwards;
         }
+
         @keyframes fadeEnter {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
@@ -131,19 +141,23 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             </div>
 
             <nav class="space-y-2">
-                <button onclick="nav('dashboard')" id="side-dashboard" class="sidebar-active sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group">
+                <button onclick="nav('dashboard')" id="side-dashboard"
+                    class="sidebar-active sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group">
                     <i data-lucide="layout-grid" class="w-5 h-5"></i>
                     <span class="font-semibold text-sm">Dashboard</span>
                 </button>
-                <button onclick="nav('routes')" id="side-routes" class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
+                <button onclick="nav('routes')" id="side-routes"
+                    class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
                     <i data-lucide="map" class="w-5 h-5"></i>
                     <span class="font-semibold text-sm">Routes & Fares</span>
                 </button>
-                <button onclick="nav('terminals')" id="side-terminals" class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
+                <button onclick="nav('terminals')" id="side-terminals"
+                    class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
                     <i data-lucide="warehouse" class="w-5 h-5"></i>
                     <span class="font-semibold text-sm">Terminals</span>
                 </button>
-                <button onclick="nav('complaints')" id="side-complaints" class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
+                <button onclick="nav('complaints')" id="side-complaints"
+                    class="sidebar-item w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 text-slate-500 group">
                     <i data-lucide="message-square-warning" class="w-5 h-5"></i>
                     <span class="font-semibold text-sm">Help Center</span>
                 </button>
@@ -153,7 +167,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         <div class="mt-auto p-6 border-t border-slate-100">
             <?php if ($isLoggedIn): ?>
                 <div class="bg-slate-50 p-4 rounded-2xl flex items-center gap-3 border border-slate-100">
-                    <div class="w-10 h-10 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
+                    <div
+                        class="w-10 h-10 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm">
                         <?= $userInitials ?>
                     </div>
                     <div class="flex-1 min-w-0">
@@ -165,7 +180,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                     </a>
                 </div>
             <?php else: ?>
-                <a href="../../gsm_login/index.php" class="flex items-center justify-center gap-2 w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg">
+                <a href="../../gsm_login/index.php"
+                    class="flex items-center justify-center gap-2 w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg">
                     <span>Login / Sign Up</span>
                     <i data-lucide="arrow-right" class="w-4 h-4"></i>
                 </a>
@@ -176,7 +192,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
     <!-- MAIN CONTENT -->
     <main class="flex-1 h-screen overflow-y-auto overflow-x-hidden relative">
         <!-- Mobile Header -->
-        <div class="md:hidden sticky top-0 z-40 glass-panel px-6 py-4 flex items-center justify-between border-b border-slate-200/50">
+        <div
+            class="md:hidden sticky top-0 z-40 glass-panel px-6 py-4 flex items-center justify-between border-b border-slate-200/50">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center">
                     <i data-lucide="bus" class="w-4 h-4"></i>
@@ -184,7 +201,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 <span class="font-bold text-slate-900">CityLoop</span>
             </div>
             <?php if ($isLoggedIn): ?>
-                <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                <div
+                    class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
                     <?= $userInitials ?>
                 </div>
             <?php else: ?>
@@ -193,7 +211,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         </div>
 
         <div class="p-4 md:p-10 max-w-7xl mx-auto pb-24 md:pb-10">
-            
+
             <!-- VIEW: DASHBOARD -->
             <div id="view-dashboard" class="fade-enter space-y-6">
                 <!-- Welcome & Status Header -->
@@ -204,10 +222,12 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                             <span id="greeting">Hello</span>, <?= htmlspecialchars($userName) ?>
                         </h2>
                     </div>
-                    <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-soft border border-slate-100">
+                    <div
+                        class="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-soft border border-slate-100">
                         <span class="relative flex h-3 w-3">
-                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                         </span>
                         <span class="text-xs font-bold text-slate-600 uppercase tracking-wide">System Operational</span>
                     </div>
@@ -215,31 +235,38 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
                 <!-- Widgets Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    
+
                     <!-- Weather/Crowd Widget -->
-                    <div class="md:col-span-2 bg-gradient-to-br from-brand-500 to-brand-700 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-8 opacity-10 transform group-hover:scale-110 transition-transform duration-700">
+                    <div
+                        class="md:col-span-2 bg-gradient-to-br from-brand-500 to-brand-700 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden group">
+                        <div
+                            class="absolute top-0 right-0 p-8 opacity-10 transform group-hover:scale-110 transition-transform duration-700">
                             <i data-lucide="cloud-sun" class="w-40 h-40"></i>
                         </div>
                         <div class="relative z-10">
-                            <h3 class="text-brand-100 font-medium text-sm uppercase tracking-wider mb-8">Commuter Forecast</h3>
+                            <h3 class="text-brand-100 font-medium text-sm uppercase tracking-wider mb-8">Commuter
+                                Forecast</h3>
                             <div class="flex items-end gap-4 mb-2">
                                 <span class="text-5xl font-bold" id="crowd-level">Normal</span>
                             </div>
-                            <p class="text-brand-100 max-w-sm">Traffic flow is currently smooth. Expect moderate build-up around 5:00 PM.</p>
+                            <p class="text-brand-100 max-w-sm" id="forecast-desc">Traffic flow is currently smooth.
+                                Expect moderate build-up around 5:00 PM.</p>
                         </div>
                     </div>
 
                     <!-- Quick Action Widget -->
-                    <div class="bg-white rounded-3xl p-6 shadow-soft border border-slate-100 flex flex-col justify-between">
+                    <div
+                        class="bg-white rounded-3xl p-6 shadow-soft border border-slate-100 flex flex-col justify-between">
                         <div>
-                            <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
+                            <div
+                                class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
                                 <i data-lucide="alert-triangle" class="w-6 h-6"></i>
                             </div>
                             <h3 class="font-bold text-lg text-slate-900">Report Issue</h3>
                             <p class="text-sm text-slate-500 mt-2">Encountered a problem? Let us know immediately.</p>
                         </div>
-                        <button onclick="nav('complaints')" class="mt-6 w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors">
+                        <button onclick="nav('complaints')"
+                            class="mt-6 w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors">
                             File Report
                         </button>
                     </div>
@@ -250,7 +277,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 <div>
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="font-bold text-lg text-slate-800">Live Advisories</h3>
-                        <button onclick="loadAdvisories()" class="text-slate-400 hover:text-brand-600 transition-colors">
+                        <button onclick="loadAdvisories()"
+                            class="text-slate-400 hover:text-brand-600 transition-colors">
                             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -280,7 +308,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                         </div>
                         <div class="relative w-full md:w-auto">
                             <i data-lucide="search" class="absolute left-3 top-3 w-4 h-4 text-slate-400"></i>
-                            <input type="text" placeholder="Search routes..." class="w-full md:w-64 pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border-none text-sm font-medium focus:ring-2 focus:ring-brand-500/20 outline-none">
+                            <input type="text" placeholder="Search routes..."
+                                class="w-full md:w-64 pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border-none text-sm font-medium focus:ring-2 focus:ring-brand-500/20 outline-none">
                         </div>
                     </div>
 
@@ -326,10 +355,14 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                         <h2 class="text-2xl font-bold text-slate-900">Help Center</h2>
                         <p class="text-slate-500">Report incidents or track your ticket status.</p>
                     </div>
-                    
+
                     <div class="grid grid-cols-2 border-b border-slate-100">
-                        <button onclick="toggleComplaintTab('new')" id="tab-btn-new" class="py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white">New Report</button>
-                        <button onclick="toggleComplaintTab('track')" id="tab-btn-track" class="py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100">Track Status</button>
+                        <button onclick="toggleComplaintTab('new')" id="tab-btn-new"
+                            class="py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white">New
+                            Report</button>
+                        <button onclick="toggleComplaintTab('track')" id="tab-btn-track"
+                            class="py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100">Track
+                            Status</button>
                     </div>
 
                     <div class="p-8">
@@ -338,7 +371,8 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-2">
                                     <label class="text-xs font-bold uppercase text-slate-500">Issue Type</label>
-                                    <select name="type" required class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium">
+                                    <select name="type" required
+                                        class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium">
                                         <option value="">Select...</option>
                                         <option value="Overcharging">Overcharging</option>
                                         <option value="Reckless Driving">Reckless Driving</option>
@@ -349,23 +383,28 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                                 </div>
                                 <div class="space-y-2">
                                     <label class="text-xs font-bold uppercase text-slate-500">Route (Optional)</label>
-                                    <select name="route_id" id="complaint-route-select" class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium">
+                                    <select name="route_id" id="complaint-route-select"
+                                        class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium">
                                         <option value="">Select Route...</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <div class="space-y-2">
                                 <label class="text-xs font-bold uppercase text-slate-500">What happened?</label>
-                                <textarea name="description" rows="4" required class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all resize-none" placeholder="Describe the incident details..."></textarea>
+                                <textarea name="description" rows="4" required
+                                    class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all resize-none"
+                                    placeholder="Describe the incident details..."></textarea>
                             </div>
 
                             <div class="space-y-2">
                                 <label class="text-xs font-bold uppercase text-slate-500">Evidence (Photo)</label>
-                                <input type="file" name="media" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
+                                <input type="file" name="media" accept="image/*"
+                                    class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
                             </div>
 
-                            <button type="submit" id="btn-submit" class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2">
+                            <button type="submit" id="btn-submit"
+                                class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2">
                                 <span>Submit Report</span>
                                 <i data-lucide="send" class="w-4 h-4"></i>
                             </button>
@@ -373,15 +412,19 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
                         <!-- Track Form -->
                         <div id="form-track-complaint" class="hidden space-y-6 text-center py-8">
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                            <div
+                                class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
                                 <i data-lucide="search" class="w-8 h-8"></i>
                             </div>
                             <h3 class="font-bold text-slate-900">Track Ticket</h3>
                             <div class="max-w-xs mx-auto space-y-4">
-                                <input type="text" id="trackRef" placeholder="COM-XXXXXX" class="w-full px-4 py-3 text-center uppercase tracking-widest font-mono font-bold rounded-xl bg-slate-50 border border-slate-200 focus:border-brand-500 outline-none">
-                                <button onclick="trackComplaint()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">Search</button>
+                                <input type="text" id="trackRef" placeholder="COM-XXXXXX"
+                                    class="w-full px-4 py-3 text-center uppercase tracking-widest font-mono font-bold rounded-xl bg-slate-50 border border-slate-200 focus:border-brand-500 outline-none">
+                                <button onclick="trackComplaint()"
+                                    class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">Search</button>
                             </div>
-                            <div id="trackResult" class="hidden mt-8 text-left bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                            <div id="trackResult"
+                                class="hidden mt-8 text-left bg-slate-50 p-6 rounded-2xl border border-slate-200">
                                 <!-- Result injected -->
                             </div>
                         </div>
@@ -393,30 +436,35 @@ $userInitials = strtoupper(substr($userName, 0, 1));
     </main>
 
     <!-- MOBILE BOTTOM NAV -->
-    <nav class="md:hidden fixed bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-2 z-50 shadow-2xl flex justify-around items-center border border-white/10">
-        <button onclick="nav('dashboard')" class="nav-mobile-btn p-3 rounded-xl bg-white/10 text-brand-300" data-target="dashboard">
+    <nav
+        class="md:hidden fixed bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-2 z-50 shadow-2xl flex justify-around items-center border border-white/10">
+        <button onclick="nav('dashboard')" class="nav-mobile-btn p-3 rounded-xl bg-white/10 text-brand-300"
+            data-target="dashboard">
             <i data-lucide="layout-grid" class="w-5 h-5"></i>
         </button>
-        <button onclick="nav('routes')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5" data-target="routes">
+        <button onclick="nav('routes')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5"
+            data-target="routes">
             <i data-lucide="map" class="w-5 h-5"></i>
         </button>
-        <button onclick="nav('terminals')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5" data-target="terminals">
+        <button onclick="nav('terminals')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5"
+            data-target="terminals">
             <i data-lucide="warehouse" class="w-5 h-5"></i>
         </button>
-        <button onclick="nav('complaints')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5" data-target="complaints">
+        <button onclick="nav('complaints')" class="nav-mobile-btn p-3 rounded-xl text-slate-400 hover:bg-white/5"
+            data-target="complaints">
             <i data-lucide="message-square-warning" class="w-5 h-5"></i>
         </button>
     </nav>
 
     <script>
         const API_URL = 'api.php';
-        
+
         // Navigation Logic
         function nav(viewId) {
             // Update Views
             document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
             document.getElementById('view-' + viewId).classList.remove('hidden');
-            window.scrollTo({top: 0});
+            window.scrollTo({ top: 0 });
 
             // Update Desktop Sidebar
             document.querySelectorAll('.sidebar-item').forEach(el => {
@@ -433,33 +481,33 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 el.classList.add('text-slate-400');
             });
             const activeMob = document.querySelector(`.nav-mobile-btn[data-target="${viewId}"]`);
-            if(activeMob) {
+            if (activeMob) {
                 activeMob.classList.remove('text-slate-400');
                 activeMob.classList.add('bg-white/10', 'text-brand-300');
             }
 
             // Lazy Load
-            if(viewId === 'routes') loadRoutes();
-            if(viewId === 'terminals') loadTerminals();
+            if (viewId === 'routes') loadRoutes();
+            if (viewId === 'terminals') loadTerminals();
         }
 
         // Utils
         function icons() {
-            if(window.lucide) window.lucide.createIcons();
+            if (window.lucide) window.lucide.createIcons();
         }
-        
+
         async function fetchAPI(action, params = {}) {
             const url = new URL(API_URL, window.location.href);
             url.searchParams.append('action', action);
             url.searchParams.append('_ts', Date.now());
             Object.keys(params).forEach(k => url.searchParams.append(k, params[k]));
-            
+
             try {
                 const res = await fetch(url);
                 return await res.json();
-            } catch(e) {
+            } catch (e) {
                 console.error(e);
-                return {ok: false, error: 'Network error'};
+                return { ok: false, error: 'Network error' };
             }
         }
 
@@ -467,15 +515,15 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         async function loadAdvisories() {
             const feed = document.getElementById('advisories-feed');
             feed.innerHTML = '<div class="text-center py-4 text-slate-400 italic">Checking for updates...</div>';
-            
+
             const data = await fetchAPI('get_advisories');
-            if(data.ok && data.data.length) {
+            if (data.ok && data.data.length) {
                 feed.innerHTML = data.data.map(item => {
                     const isAlert = item.type === 'alert' || item.type === 'warning';
                     const icon = isAlert ? 'alert-triangle' : 'info';
                     const color = isAlert ? 'text-red-600 bg-red-50' : 'text-brand-600 bg-brand-50';
                     const border = isAlert ? 'border-red-100' : 'border-brand-100';
-                    const time = new Date(item.posted_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    const time = new Date(item.posted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                     let suggestionHtml = '';
                     if (item.suggestion) {
@@ -523,10 +571,10 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         async function loadRoutes() {
             const desktop = document.getElementById('routes-desktop-list');
             const mobile = document.getElementById('routes-mobile-list');
-            if(desktop.getAttribute('data-loaded')) return;
+            if (desktop.getAttribute('data-loaded')) return;
 
             const data = await fetchAPI('get_routes');
-            if(data.ok && data.data.length) {
+            if (data.ok && data.data.length) {
                 // Desktop
                 desktop.innerHTML = data.data.map(r => `
                     <tr class="hover:bg-slate-50/80 transition-colors">
@@ -559,10 +607,10 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 `).join('');
 
                 desktop.setAttribute('data-loaded', 'true');
-                
+
                 // Populate Select
                 const sel = document.getElementById('complaint-route-select');
-                if(sel) {
+                if (sel) {
                     sel.innerHTML = '<option value="">Select Route...</option>' + data.data.map(r => `<option value="${r.route_id}">${r.route_name}</option>`).join('');
                 }
             }
@@ -571,10 +619,10 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
         async function loadTerminals() {
             const grid = document.getElementById('terminals-grid');
-            if(grid.getAttribute('data-loaded')) return;
+            if (grid.getAttribute('data-loaded')) return;
 
             const data = await fetchAPI('get_terminals');
-            if(data.ok && data.data.length) {
+            if (data.ok && data.data.length) {
                 grid.innerHTML = data.data.map(t => `
                     <div class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-brand-200 transition-all duration-300 cursor-default">
                         <div class="flex justify-between items-start mb-6">
@@ -600,11 +648,11 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         function toggleComplaintTab(mode) {
             document.getElementById('form-new-complaint').classList.add('hidden');
             document.getElementById('form-track-complaint').classList.add('hidden');
-            
+
             document.getElementById('tab-btn-new').className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
             document.getElementById('tab-btn-track').className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
-            
-            if(mode === 'new') {
+
+            if (mode === 'new') {
                 document.getElementById('form-new-complaint').classList.remove('hidden');
                 document.getElementById('tab-btn-new').className = 'py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white';
             } else {
@@ -623,9 +671,9 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             try {
                 const fd = new FormData(e.target);
                 fd.append('action', 'submit_complaint');
-                const res = await fetch(API_URL, {method:'POST', body:fd});
+                const res = await fetch(API_URL, { method: 'POST', body: fd });
                 const data = await res.json();
-                if(data.ok) {
+                if (data.ok) {
                     toggleComplaintTab('track');
                     document.getElementById('trackRef').value = data.ref_number;
                     trackComplaint();
@@ -633,7 +681,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 } else {
                     alert(data.error || 'Error submitting');
                 }
-            } catch(err) {
+            } catch (err) {
                 alert('Connection Error');
             } finally {
                 btn.innerHTML = orig;
@@ -644,13 +692,13 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
         async function trackComplaint() {
             const ref = document.getElementById('trackRef').value;
-            if(!ref) return;
-            
+            if (!ref) return;
+
             const resDiv = document.getElementById('trackResult');
-            const data = await fetchAPI('get_complaint_status', {ref_number: ref});
-            
+            const data = await fetchAPI('get_complaint_status', { ref_number: ref });
+
             resDiv.classList.remove('hidden');
-            if(data.ok) {
+            if (data.ok) {
                 const statusColor = data.data.status === 'Resolved' ? 'text-emerald-600' : 'text-brand-600';
                 resDiv.innerHTML = `
                     <div class="flex items-center gap-3 mb-2">
@@ -670,12 +718,14 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             const h = new Date().getHours();
             const g = h < 12 ? 'Good Morning' : (h < 18 ? 'Good Afternoon' : 'Good Evening');
             document.getElementById('greeting').innerText = g;
-            
-            document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
-            
+
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
             icons();
             loadAdvisories();
+            loadForecast();
         });
     </script>
 </body>
+
 </html>

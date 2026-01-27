@@ -171,8 +171,8 @@ if (!empty($_SESSION['user_id'])) {
                         </div>
                         <div class="mt-6 text-center">
                             <div class="text-xl font-bold text-slate-900">
-                                Commuter Portal
-                                <span class="ml-2 px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-full align-middle">PUBLIC</span>
+                                Public Portal
+                                <span class="ml-2 px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-full align-middle">OPEN ACCESS</span>
                             </div>
                             <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information. No login required.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
