@@ -274,61 +274,60 @@ if (!empty($_SESSION['user_id'])) {
 
         <!-- Streamlined Access Section -->
         <section class="container mx-auto px-6 pb-12">
-            <div class="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400" style="background: linear-gradient(to bottom right, #357abd, #4a90e2, #5ba3f5);">
-                <!-- Animated overlay -->
-                <div class="absolute inset-0 opacity-20">
-                    <div class="absolute top-10 right-10 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 5s;"></div>
-                    <div class="absolute bottom-10 left-10 w-72 h-72 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 7s; animation-delay: 1s;"></div>
-                </div>
-                
-                <div class="relative px-6 py-16">
-                    <div class="text-center mb-16">
-                        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Streamlined Access</h2>
-                        <p class="text-white/90 max-w-2xl mx-auto text-lg drop-shadow">Access transportation services securely and efficiently in just three simple steps.</p>
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">How It Works</h2>
+                <p class="mt-2 text-slate-600 max-w-2xl mx-auto">Get started with TMM in three simple steps</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                <!-- Connector Line -->
+                <div class="hidden md:block absolute top-20 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-blue-200 via-gray-200 to-green-200" style="background: linear-gradient(to right, #bbdefb, #e0e0e0, #c5e1a5);"></div>
+
+                <!-- Step 1 -->
+                <div class="relative">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-blue-200">
+                        <div class="flex justify-center mb-6">
+                            <div class="relative">
+                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style="background: linear-gradient(135deg, #5ba3f5, #2e7bc4);">
+                                    <i class="fas fa-th-large text-white text-2xl"></i>
+                                </div>
+                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md" style="background: #4a90e2;">1</div>
+                            </div>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Select Portal</h3>
+                        <p class="text-slate-600 text-center text-sm leading-relaxed">Choose the dedicated portal for your role: Staff, Operator, or Public Portal</p>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-                        <!-- Connector Line (Desktop) -->
-                        <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-white/30 -translate-y-1/2 z-0 transform scale-x-75"></div>
-
-                        <!-- Step 1 -->
-                        <div class="relative z-10 text-center group">
-                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(to bottom right, #4a90e2, #357abd);">
-                                    <i class="fas fa-th-large text-3xl"></i>
+                <!-- Step 2 -->
+                <div class="relative">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-gray-200">
+                        <div class="flex justify-center mb-6">
+                            <div class="relative">
+                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style="background: linear-gradient(135deg, #9aa5b1, #78909c);">
+                                    <i class="fas fa-user-check text-white text-2xl"></i>
                                 </div>
-                            </div>
-                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                <h3 class="text-xl font-bold text-white mb-2">1. Select Portal</h3>
-                                <p class="text-white/80 text-sm">Choose the dedicated portal for your role (Staff, Operator, or Commuter).</p>
+                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md" style="background: #9aa5b1;">2</div>
                             </div>
                         </div>
+                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Authenticate</h3>
+                        <p class="text-slate-600 text-center text-sm leading-relaxed">Log in with your credentials or access public services as a guest</p>
+                    </div>
+                </div>
 
-                        <!-- Step 2 -->
-                        <div class="relative z-10 text-center group">
-                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-16 h-16 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(to bottom right, #9aa5b1, #7a8591);">
-                                    <i class="fas fa-user-check text-3xl"></i>
+                <!-- Step 3 -->
+                <div class="relative">
+                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 border-2 border-transparent hover:border-green-200">
+                        <div class="flex justify-center mb-6">
+                            <div class="relative">
+                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg" style="background: linear-gradient(135deg, #66bb6a, #43a047);">
+                                    <i class="fas fa-rocket text-white text-2xl"></i>
                                 </div>
-                            </div>
-                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                <h3 class="text-xl font-bold text-white mb-2">2. Authenticate (Optional)</h3>
-                                <p class="text-white/80 text-sm">Log in as Staff/Operator, or access Commuter services as a guest.</p>
+                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md" style="background: #4caf50;">3</div>
                             </div>
                         </div>
-
-                        <!-- Step 3 -->
-                        <div class="relative z-10 text-center group">
-                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
-                                    <i class="fas fa-rocket text-3xl"></i>
-                                </div>
-                            </div>
-                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                                <h3 class="text-xl font-bold text-white mb-2">3. Manage</h3>
-                                <p class="text-white/80 text-sm">Access your dashboard, manage applications, or view real-time data.</p>
-                            </div>
-                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Start Managing</h3>
+                        <p class="text-slate-600 text-center text-sm leading-relaxed">Access your dashboard and manage applications or view real-time data</p>
                     </div>
                 </div>
             </div>
