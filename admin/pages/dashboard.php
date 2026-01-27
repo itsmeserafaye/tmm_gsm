@@ -1111,13 +1111,35 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           iconName = 'check-circle-2';
         }
 
-        items.slice(0, 7).forEach(function (t) {
+        items.forEach(function (t, i) {
           var li = document.createElement('li');
           li.className = 'flex gap-2.5 items-start text-sm text-slate-700 dark:text-slate-200 p-3 rounded-xl bg-white/70 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-700';
+          if (i >= 7) {
+            li.style.display = 'none';
+            li.dataset.hidden = 'true';
+          }
           var iconHtml = '<i data-lucide="' + iconName + '" class="w-4 h-4 ' + iconColor + ' mt-0.5 shrink-0"></i>';
           li.innerHTML = iconHtml + '<span class="leading-snug">' + formatInsight(t) + '</span>';
           listEl.appendChild(li);
         });
+
+        if (items.length > 7) {
+          var btnContainer = document.createElement('li');
+          btnContainer.className = 'list-none';
+          var btn = document.createElement('button');
+          btn.className = 'w-full text-center py-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer';
+          btn.textContent = 'Show ' + (items.length - 7) + ' more insights...';
+          btn.onclick = function() {
+            btnContainer.remove();
+            Array.from(listEl.children).forEach(function(child) {
+              if (child.dataset.hidden === 'true') {
+                child.style.display = 'flex'; // Restore flex display
+              }
+            });
+          };
+          btnContainer.appendChild(btn);
+          listEl.appendChild(btnContainer);
+        }
         if (window.lucide) window.lucide.createIcons();
       }
 
