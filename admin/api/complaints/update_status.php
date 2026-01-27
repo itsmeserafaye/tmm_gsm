@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 header('Content-Type: application/json');
 
 try {
+    $db = db();
     require_role(['SuperAdmin', 'Admin', 'Franchise Officer']);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

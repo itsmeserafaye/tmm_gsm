@@ -54,13 +54,29 @@ $sidebarItems = [
   ],
   [
     'id' => 'module5',
-    'label' => 'Terminal & Parking',
+    'label' => 'Terminals',
     'icon' => 'map-pin',
     'subItems' => [
-      ['id' => 'submodule1', 'label' => 'Terminal & Parking List', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.manage_terminal','module5.read']],
+      ['id' => 'submodule1', 'label' => 'Terminal List', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.manage_terminal','module5.read']],
       ['id' => 'submodule2', 'label' => 'Assign Vehicle', 'path' => '/module5/submodule2', 'anyPermissions' => ['module5.assign_vehicle']],
-      ['id' => 'submodule3', 'label' => 'Parking Slots & Payments', 'path' => '/module5/submodule3', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
       ['id' => 'submodule4', 'label' => 'Terminal Slots & Payments', 'path' => '/module5/submodule4', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
+    ],
+  ],
+  [
+    'id' => 'parking',
+    'label' => 'Parking',
+    'icon' => 'car',
+    'subItems' => [
+      ['id' => 'list', 'label' => 'Parking List', 'path' => '/parking/list', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
+      ['id' => 'slots-payments', 'label' => 'Slots & Payments', 'path' => '/parking/slots-payments', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
+    ],
+  ],
+  [
+    'id' => 'portal',
+    'label' => 'Public Portal',
+    'icon' => 'globe',
+    'subItems' => [
+      ['id' => 'commuter-reports', 'label' => 'Commuter Reports', 'path' => '/portal/commuter-reports', 'roles' => ['SuperAdmin', 'Admin', 'Franchise Officer']],
     ],
   ],
   [

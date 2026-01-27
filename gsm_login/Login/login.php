@@ -26,6 +26,7 @@ require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../includes/rbac.php';
 require_once __DIR__ . '/../../includes/operator_portal.php';
 require_once __DIR__ . '/../../includes/otp.php';
+require_once __DIR__ . '/../../includes/recaptcha.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
@@ -48,6 +49,27 @@ $gsm_root_url = (function (): string{
 
 $db = db();
 rbac_ensure_schema($db);
+$gsmRecaptchaCfg = recaptcha_config($db);
+$gsmRecaptchaSiteKey = (string)($gsmRecaptchaCfg['site_key'] ?? '');
+$gsmRecaptchaSecretKey = (string)($gsmRecaptchaCfg['secret_key'] ?? '');
+
+function gsm_verify_recaptcha_or_fail(string $siteKey, string $secretKey, array $input): void {
+  $siteKey = trim($siteKey);
+  $secretKey = trim($secretKey);
+  if ($siteKey === '') return;
+  $token = trim((string)($input['recaptcha_token'] ?? ''));
+  if ($token === '') {
+    gsm_send(false, 'Please complete the reCAPTCHA.', null, 400);
+  }
+  if ($secretKey === '') {
+    gsm_send(false, 'reCAPTCHA not configured', null, 500);
+  }
+  $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+  $v = recaptcha_verify($secretKey, $token, $ip);
+  if (empty($v['ok'])) {
+    gsm_send(false, 'reCAPTCHA verification failed.', null, 400);
+  }
+}
 
 function gsm_send($ok, $message, $data = null, $httpCode = 200)
 {
@@ -184,6 +206,10 @@ if ($action !== 'login_otp_verify' && $action !== 'login_otp_resend' && $action 
   if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     gsm_send(false, 'Invalid email', null, 400);
   }
+}
+
+if ($action === 'login' || $action === 'operator_login') {
+  gsm_verify_recaptcha_or_fail($gsmRecaptchaSiteKey, $gsmRecaptchaSecretKey, $input);
 }
 
 if ($action === 'check_email') {

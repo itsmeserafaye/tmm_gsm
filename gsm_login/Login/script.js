@@ -655,6 +655,8 @@ function handleLoginSubmit(event) {
     const plate = (form.plate_number ? String(form.plate_number.value || '').trim() : '');
     const operatorWrap = document.getElementById('operatorPlateWrap');
     const operatorMode = !!operatorWrap && !operatorWrap.classList.contains('hidden');
+    const captchaEl = form.querySelector('.g-recaptcha');
+    const captchaResponse = (captchaEl && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') ? window.grecaptcha.getResponse() : '';
     
     // Validate email
     if (!validateEmail(form.email)) {
@@ -677,6 +679,17 @@ function handleLoginSubmit(event) {
         ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
         : { action: 'login', email, password, device_id: deviceId };
 
+    if (captchaEl) {
+        if (!captchaResponse) {
+            const msg = 'Please complete the reCAPTCHA.';
+            showNotification(msg, 'warning');
+            setLoginAlert(msg, 'warning');
+            if (submitButton) resetLoadingState(submitButton);
+            return;
+        }
+        payload.recaptcha_token = captchaResponse || '';
+    }
+
     if (operatorMode && plate === '') {
         const msg = 'Plate number is required for operator login.';
         showNotification(msg, 'warning');
@@ -691,6 +704,7 @@ function handleLoginSubmit(event) {
                 const msg = (res && res.message) ? res.message : 'Login failed';
                 setLoginAlert(msg, 'error');
                 showNotification(msg, 'error');
+                if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset();
                 return;
             }
             const otpRequired = !!(res.data && res.data.otp_required);
@@ -711,6 +725,7 @@ function handleLoginSubmit(event) {
         .catch(() => {
             setLoginAlert('Network error. Please try again.', 'error');
             showNotification('Network error. Please try again.', 'error');
+            if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset();
         })
         .finally(() => {
             if (submitButton) resetLoadingState(submitButton);

@@ -146,6 +146,35 @@ function get_setting($key, $default = '') {
             </div>
         </div>
 
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+                <div class="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 dark:text-white">reCAPTCHA</h2>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Anti-bot protection</p>
+                </div>
+            </div>
+            <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Site Key</label>
+                    <input type="text" name="recaptcha_site_key" value="<?php echo htmlspecialchars(get_setting('recaptcha_site_key')); ?>"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder="Site key (public)">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">Leave blank to disable reCAPTCHA in the UI and API enforcement.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Secret Key</label>
+                    <input type="password" name="recaptcha_secret_key" value=""
+                        autocomplete="new-password"
+                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all"
+                        placeholder="Secret key (server-only)">
+                    <p class="mt-2 text-xs text-slate-400 font-medium">For security, this is never shown. Leave blank to keep the current secret.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- AI Forecast Tuning -->
         <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">

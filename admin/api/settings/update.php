@@ -22,6 +22,8 @@ $allowed = [
   'events_country',
   'events_city',
   'events_rss_url',
+  'recaptcha_site_key',
+  'recaptcha_secret_key',
 
   // AI / Analytics weights
   'ai_weather_weight',
@@ -55,6 +57,9 @@ foreach ($allowed as $k) {
   if (array_key_exists($k, $_POST)) {
     $v = trim((string)$_POST[$k]);
     if ($k === 'smtp_pass' && $v === '') {
+      continue;
+    }
+    if ($k === 'recaptcha_secret_key' && $v === '') {
       continue;
     }
     $updates[$k] = $v;

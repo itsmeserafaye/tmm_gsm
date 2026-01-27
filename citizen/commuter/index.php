@@ -353,16 +353,18 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                 <div class="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
                     <div class="p-8 border-b border-slate-100 bg-slate-50/50">
                         <h2 class="text-2xl font-bold text-slate-900">Help Center</h2>
-                        <p class="text-slate-500">Report incidents or track your ticket status.</p>
+                        <p class="text-slate-500">Report incidents. Logged-in commuters can track status and view history.</p>
                     </div>
 
-                    <div class="grid grid-cols-2 border-b border-slate-100">
+                    <div class="grid <?php echo $isLoggedIn ? 'grid-cols-2' : 'grid-cols-1'; ?> border-b border-slate-100">
                         <button onclick="toggleComplaintTab('new')" id="tab-btn-new"
                             class="py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white">New
                             Report</button>
-                        <button onclick="toggleComplaintTab('track')" id="tab-btn-track"
-                            class="py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100">Track
-                            Status</button>
+                        <?php if ($isLoggedIn): ?>
+                            <button onclick="toggleComplaintTab('my')" id="tab-btn-my"
+                                class="py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100">My
+                                Reports</button>
+                        <?php endif; ?>
                     </div>
 
                     <div class="p-8">
@@ -390,6 +392,29 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold uppercase text-slate-500">Plate Number (Optional)</label>
+                                    <input type="text" name="plate_number" maxlength="16"
+                                        class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-mono font-bold uppercase tracking-widest"
+                                        placeholder="ABC-1234">
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold uppercase text-slate-500">Terminal (Optional)</label>
+                                    <select name="terminal_id" id="complaint-terminal-select"
+                                        class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium">
+                                        <option value="">Select Terminal...</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-xs font-bold uppercase text-slate-500">Location Details (Optional)</label>
+                                <input type="text" name="location" maxlength="255"
+                                        class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium"
+                                        placeholder="e.g., near gate 2, loading bay, etc.">
+                            </div>
+
                             <div class="space-y-2">
                                 <label class="text-xs font-bold uppercase text-slate-500">What happened?</label>
                                 <textarea name="description" rows="4" required
@@ -403,6 +428,27 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                                     class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100">
                             </div>
 
+                            <?php if (!$isLoggedIn): ?>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold uppercase text-slate-500">Contact Email (Optional)</label>
+                                        <input type="email" name="contact_email"
+                                            class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium"
+                                            placeholder="you@email.com">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="text-xs font-bold uppercase text-slate-500">Contact Phone (Optional)</label>
+                                        <input type="tel" name="contact_phone" maxlength="64"
+                                            class="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:ring-2 focus:ring-brand-500/20 outline-none transition-all font-medium"
+                                            placeholder="09xx xxx xxxx">
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div id="guestRecaptcha" class="min-h-[78px]"></div>
+                                    <p class="text-xs text-slate-500">Guests can submit reports but cannot track status. Create an account for tracking and report history.</p>
+                                </div>
+                            <?php endif; ?>
+
                             <button type="submit" id="btn-submit"
                                 class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2">
                                 <span>Submit Report</span>
@@ -410,24 +456,18 @@ $userInitials = strtoupper(substr($userName, 0, 1));
                             </button>
                         </form>
 
-                        <!-- Track Form -->
-                        <div id="form-track-complaint" class="hidden space-y-6 text-center py-8">
-                            <div
-                                class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
-                                <i data-lucide="search" class="w-8 h-8"></i>
+                        <?php if ($isLoggedIn): ?>
+                            <div id="form-my-complaints" class="hidden space-y-6">
+                                <div class="flex items-center justify-between">
+                                    <div class="font-bold text-slate-900">My Reports</div>
+                                    <button type="button" onclick="loadMyComplaints()"
+                                        class="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors text-sm">Refresh</button>
+                                </div>
+                                <div id="myComplaintsList" class="space-y-3">
+                                    <!-- Injected -->
+                                </div>
                             </div>
-                            <h3 class="font-bold text-slate-900">Track Ticket</h3>
-                            <div class="max-w-xs mx-auto space-y-4">
-                                <input type="text" id="trackRef" placeholder="COM-XXXXXX"
-                                    class="w-full px-4 py-3 text-center uppercase tracking-widest font-mono font-bold rounded-xl bg-slate-50 border border-slate-200 focus:border-brand-500 outline-none">
-                                <button onclick="trackComplaint()"
-                                    class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">Search</button>
-                            </div>
-                            <div id="trackResult"
-                                class="hidden mt-8 text-left bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                                <!-- Result injected -->
-                            </div>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -623,6 +663,10 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
             const data = await fetchAPI('get_terminals');
             if (data.ok && data.data.length) {
+                const sel = document.getElementById('complaint-terminal-select');
+                if (sel) {
+                    sel.innerHTML = '<option value="">Select Terminal...</option>' + data.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                }
                 grid.innerHTML = data.data.map(t => `
                     <div class="group bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-brand-200 transition-all duration-300 cursor-default">
                         <div class="flex justify-between items-start mb-6">
@@ -645,19 +689,79 @@ $userInitials = strtoupper(substr($userName, 0, 1));
         }
 
         // Complaints Logic
-        function toggleComplaintTab(mode) {
-            document.getElementById('form-new-complaint').classList.add('hidden');
-            document.getElementById('form-track-complaint').classList.add('hidden');
+        let tmmDeviceId = '';
+        let guestRecaptchaWidgetId = null;
+        let guestRecaptchaSiteKey = '';
 
-            document.getElementById('tab-btn-new').className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
-            document.getElementById('tab-btn-track').className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
+        function ensureDeviceId() {
+            try {
+                const key = 'tmm_device_id';
+                let v = localStorage.getItem(key) || '';
+                if (!v) {
+                    v = 'dev_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+                    localStorage.setItem(key, v);
+                }
+                tmmDeviceId = v;
+            } catch (_) {
+                tmmDeviceId = '';
+            }
+        }
+
+        async function initGuestRecaptcha() {
+            const wrap = document.getElementById('guestRecaptcha');
+            if (!wrap) return;
+            try {
+                const cfg = await fetchAPI('get_recaptcha_site_key');
+                const siteKey = (cfg && cfg.ok) ? (cfg.site_key || '') : '';
+                guestRecaptchaSiteKey = siteKey;
+                if (!siteKey) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+                if (!document.querySelector('script[data-tmm-recaptcha="1"]')) {
+                    const s = document.createElement('script');
+                    s.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+                    s.async = true;
+                    s.defer = true;
+                    s.setAttribute('data-tmm-recaptcha', '1');
+                    document.head.appendChild(s);
+                }
+                const wait = async () => {
+                    for (let i = 0; i < 80; i++) {
+                        if (window.grecaptcha && typeof window.grecaptcha.render === 'function') return true;
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    return false;
+                };
+                const ok = await wait();
+                if (!ok) return;
+                if (guestRecaptchaWidgetId === null) {
+                    wrap.innerHTML = '';
+                    guestRecaptchaWidgetId = window.grecaptcha.render(wrap, { sitekey: siteKey });
+                }
+            } catch (_) { }
+        }
+
+        function toggleComplaintTab(mode) {
+            const formNew = document.getElementById('form-new-complaint');
+            const formMy = document.getElementById('form-my-complaints');
+            const btnNew = document.getElementById('tab-btn-new');
+            const btnMy = document.getElementById('tab-btn-my');
+
+            if (formNew) formNew.classList.add('hidden');
+            if (formMy) formMy.classList.add('hidden');
+
+            if (btnNew) btnNew.className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
+            if (btnMy) btnMy.className = 'py-4 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100';
 
             if (mode === 'new') {
-                document.getElementById('form-new-complaint').classList.remove('hidden');
-                document.getElementById('tab-btn-new').className = 'py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white';
-            } else {
-                document.getElementById('form-track-complaint').classList.remove('hidden');
-                document.getElementById('tab-btn-track').className = 'py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white';
+                if (formNew) formNew.classList.remove('hidden');
+                if (btnNew) btnNew.className = 'py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white';
+                initGuestRecaptcha();
+            } else if (mode === 'my') {
+                if (formMy) formMy.classList.remove('hidden');
+                if (btnMy) btnMy.className = 'py-4 text-sm font-bold text-brand-600 border-b-2 border-brand-600 bg-white';
+                loadMyComplaints();
             }
         }
 
@@ -671,15 +775,46 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             try {
                 const fd = new FormData(e.target);
                 fd.append('action', 'submit_complaint');
+                if (tmmDeviceId) fd.append('device_id', tmmDeviceId);
+
+                const isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
+                if (!isLoggedIn && guestRecaptchaSiteKey) {
+                    if (!window.grecaptcha || typeof window.grecaptcha.getResponse !== 'function') {
+                        alert('Captcha is loading. Please try again.');
+                        return;
+                    }
+                    const token = window.grecaptcha.getResponse(guestRecaptchaWidgetId);
+                    if (!token) {
+                        alert('Please complete the captcha.');
+                        return;
+                    }
+                    fd.append('recaptcha_token', token);
+                }
+
                 const res = await fetch(API_URL, { method: 'POST', body: fd });
                 const data = await res.json();
                 if (data.ok) {
-                    toggleComplaintTab('track');
-                    document.getElementById('trackRef').value = data.ref_number;
-                    trackComplaint();
+                    if (!isLoggedIn) {
+                        alert('Report submitted. Reference: ' + data.ref_number + '\n\nGuests cannot track status. Register/login to track and view your report history.');
+                        if (window.grecaptcha && typeof window.grecaptcha.reset === 'function' && guestRecaptchaWidgetId !== null) {
+                            window.grecaptcha.reset(guestRecaptchaWidgetId);
+                        }
+                    } else {
+                        toggleComplaintTab('my');
+                    }
                     e.target.reset();
                 } else {
-                    alert(data.error || 'Error submitting');
+                    const msg = (data.error === 'rate_limited')
+                        ? 'Rate limit reached. Please try again tomorrow.'
+                        : (data.error === 'captcha_required')
+                            ? 'Captcha is required.'
+                            : (data.error === 'captcha_failed')
+                                ? 'Captcha failed. Please try again.'
+                                : (data.error || 'Error submitting');
+                    alert(msg);
+                    if (window.grecaptcha && typeof window.grecaptcha.reset === 'function' && guestRecaptchaWidgetId !== null) {
+                        window.grecaptcha.reset(guestRecaptchaWidgetId);
+                    }
                 }
             } catch (err) {
                 alert('Connection Error');
@@ -690,26 +825,51 @@ $userInitials = strtoupper(substr($userName, 0, 1));
             }
         }
 
-        async function trackComplaint() {
-            const ref = document.getElementById('trackRef').value;
-            if (!ref) return;
-
-            const resDiv = document.getElementById('trackResult');
-            const data = await fetchAPI('get_complaint_status', { ref_number: ref });
-
-            resDiv.classList.remove('hidden');
-            if (data.ok) {
-                const statusColor = data.data.status === 'Resolved' ? 'text-emerald-600' : 'text-brand-600';
-                resDiv.innerHTML = `
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-2 h-2 rounded-full bg-current ${statusColor}"></div>
-                        <span class="font-bold text-lg ${statusColor}">${data.data.status}</span>
-                    </div>
-                    <p class="text-sm text-slate-600 italic bg-white p-3 rounded-xl border border-slate-100">"${data.data.description}"</p>
-                    <div class="mt-2 text-xs text-slate-400 font-bold text-right">${new Date(data.data.created_at).toLocaleDateString()}</div>
-                `;
-            } else {
-                resDiv.innerHTML = `<p class="text-red-500 font-bold text-center">Ticket not found.</p>`;
+        async function loadMyComplaints() {
+            const list = document.getElementById('myComplaintsList');
+            if (!list) return;
+            list.innerHTML = '<div class="text-center text-slate-500 font-bold py-6">Loading...</div>';
+            try {
+                const data = await fetchAPI('get_my_complaints');
+                if (!data.ok) {
+                    list.innerHTML = '<div class="text-center text-red-500 font-bold py-6">Failed to load reports.</div>';
+                    return;
+                }
+                const rows = Array.isArray(data.data) ? data.data : [];
+                if (!rows.length) {
+                    list.innerHTML = '<div class="text-center text-slate-500 font-bold py-10">No reports yet.</div>';
+                    return;
+                }
+                list.innerHTML = rows.map((r) => {
+                    const st = (r.status || '').toString();
+                    const stClass = st === 'Resolved' ? 'bg-emerald-100 text-emerald-700' : (st === 'Under Review' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700');
+                    const when = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                    const media = r.media_path ? `<a class="text-brand-700 font-bold hover:underline" target="_blank" href="${r.media_path}">View Attachment</a>` : '';
+                    const extra = [
+                        r.route_id ? ('Route: ' + r.route_id) : '',
+                        r.terminal_name ? ('Terminal: ' + r.terminal_name) : (r.terminal_id ? ('Terminal ID: ' + r.terminal_id) : ''),
+                        r.plate_number ? ('Plate: ' + r.plate_number) : '',
+                        r.location ? ('Location: ' + r.location) : ''
+                    ].filter(Boolean).join(' • ');
+                    return `
+                        <div class="p-5 rounded-2xl border border-slate-100 bg-slate-50/60">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <div class="font-black text-slate-900">${r.ref_number || ''}</div>
+                                    <div class="text-xs text-slate-500 font-bold mt-1">${when}</div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-black ${stClass}">${st}</span>
+                            </div>
+                            <div class="mt-2 text-sm font-bold text-slate-700">${r.complaint_type || ''}</div>
+                            ${extra ? `<div class="mt-1 text-xs text-slate-500 font-bold">${extra}</div>` : ''}
+                            <div class="mt-3 text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100">${(r.description || '').toString().slice(0, 220)}${(r.description || '').toString().length > 220 ? '…' : ''}</div>
+                            ${media ? `<div class="mt-3 text-sm">${media}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                icons();
+            } catch (_) {
+                list.innerHTML = '<div class="text-center text-red-500 font-bold py-6">Failed to load reports.</div>';
             }
         }
 
@@ -745,6 +905,7 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
         // Init
         window.addEventListener('DOMContentLoaded', () => {
+            ensureDeviceId();
             const h = new Date().getHours();
             const g = h < 12 ? 'Good Morning' : (h < 18 ? 'Good Afternoon' : 'Good Evening');
             document.getElementById('greeting').innerText = g;
@@ -753,7 +914,10 @@ $userInitials = strtoupper(substr($userName, 0, 1));
 
             icons();
             loadAdvisories();
+            loadRoutes();
             loadForecast();
+            loadTerminals();
+            initGuestRecaptcha();
         });
     </script>
 </body>

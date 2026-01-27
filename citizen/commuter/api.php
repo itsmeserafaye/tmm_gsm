@@ -6,6 +6,7 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
 // Standalone DB connection to avoid legacy schema migration issues
 require_once __DIR__ . '/../../includes/env.php';
 tmm_load_env(__DIR__ . '/../../.env');
+require_once __DIR__ . '/../../includes/recaptcha.php';
 
 function get_db()
 {
@@ -120,6 +121,11 @@ $cols = $db->query("SHOW COLUMNS FROM commuter_complaints");
 $hasRouteId = false;
 $hasPlateNumber = false;
 $hasLocation = false;
+$hasDeviceId = false;
+$hasIp = false;
+$hasContactEmail = false;
+$hasContactPhone = false;
+$hasTerminalId = false;
 if ($cols) {
     while ($c = $cols->fetch_assoc()) {
         if ($c['Field'] === 'route_id')
@@ -128,6 +134,16 @@ if ($cols) {
             $hasPlateNumber = true;
         if ($c['Field'] === 'location')
             $hasLocation = true;
+        if ($c['Field'] === 'device_id')
+            $hasDeviceId = true;
+        if ($c['Field'] === 'ip_address')
+            $hasIp = true;
+        if ($c['Field'] === 'contact_email')
+            $hasContactEmail = true;
+        if ($c['Field'] === 'contact_phone')
+            $hasContactPhone = true;
+        if ($c['Field'] === 'terminal_id')
+            $hasTerminalId = true;
     }
 }
 if (!$hasRouteId) {
@@ -138,6 +154,21 @@ if (!$hasPlateNumber) {
 }
 if (!$hasLocation) {
     $db->query("ALTER TABLE commuter_complaints ADD COLUMN location VARCHAR(255) DEFAULT NULL");
+}
+if (!$hasDeviceId) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN device_id VARCHAR(80) DEFAULT NULL");
+}
+if (!$hasIp) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN ip_address VARCHAR(64) DEFAULT NULL");
+}
+if (!$hasContactEmail) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN contact_email VARCHAR(190) DEFAULT NULL");
+}
+if (!$hasContactPhone) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN contact_phone VARCHAR(64) DEFAULT NULL");
+}
+if (!$hasTerminalId) {
+    $db->query("ALTER TABLE commuter_complaints ADD COLUMN terminal_id INT DEFAULT NULL");
 }
 
 $action = $_REQUEST['action'] ?? '';
@@ -162,6 +193,13 @@ if ($action === 'check_session') {
     exit;
 }
 
+if ($action === 'get_recaptcha_site_key') {
+    $cfg = recaptcha_config($db);
+    $siteKey = (string)($cfg['site_key'] ?? '');
+    echo json_encode(['ok' => true, 'site_key' => $siteKey]);
+    exit;
+}
+
 // ----------------------------------------------------------------------
 // PUBLIC ENDPOINTS (No Login Required)
 // ----------------------------------------------------------------------
@@ -183,7 +221,7 @@ if ($action === 'get_routes') {
 if ($action === 'get_terminals') {
     // Fetches list of terminals (Matches Admin 'terminals' table)
     $terminals = [];
-    $res = $db->query("SELECT id, name, location, capacity, city, address FROM terminals ORDER BY name ASC");
+    $res = $db->query("SELECT id, name, location, capacity, city, address FROM terminals WHERE (type IS NULL OR type <> 'Parking') ORDER BY name ASC");
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $terminals[] = $row;
@@ -493,10 +531,67 @@ if ($action === 'submit_complaint') {
     $routeId = $_POST['route_id'] ?? null; // ID from Admin routes
     $plate = $_POST['plate_number'] ?? '';
     $location = $_POST['location'] ?? '';
+    $terminalId = isset($_POST['terminal_id']) ? (int)$_POST['terminal_id'] : 0;
+    $deviceId = trim((string)($_POST['device_id'] ?? ''));
+    $contactEmail = trim((string)($_POST['contact_email'] ?? ''));
+    $contactPhone = trim((string)($_POST['contact_phone'] ?? ''));
+    $remoteIp = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
 
     if (!$type || !$desc) {
         echo json_encode(['ok' => false, 'error' => 'Type and description are required']);
         exit;
+    }
+
+    $cfg = recaptcha_config($db);
+    $siteKey = (string)($cfg['site_key'] ?? '');
+    $secretKey = (string)($cfg['secret_key'] ?? '');
+    if (!$isLoggedIn && $siteKey !== '') {
+        $token = trim((string)($_POST['recaptcha_token'] ?? ''));
+        if ($token === '') {
+            echo json_encode(['ok' => false, 'error' => 'captcha_required']);
+            exit;
+        }
+        if ($secretKey === '') {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'captcha_not_configured']);
+            exit;
+        }
+        $v = recaptcha_verify($secretKey, $token, $remoteIp);
+        if (empty($v['ok'])) {
+            echo json_encode(['ok' => false, 'error' => 'captcha_failed']);
+            exit;
+        }
+    }
+
+    if (!$isLoggedIn) {
+        $maxPerDay = 5;
+        $start = date('Y-m-d 00:00:00');
+        $end = date('Y-m-d 23:59:59');
+        if ($deviceId !== '') {
+            $st = $db->prepare("SELECT COUNT(*) AS c FROM commuter_complaints WHERE device_id=? AND created_at BETWEEN ? AND ?");
+            if ($st) {
+                $st->bind_param('sss', $deviceId, $start, $end);
+                $st->execute();
+                $row = $st->get_result()->fetch_assoc();
+                $st->close();
+                if ((int)($row['c'] ?? 0) >= $maxPerDay) {
+                    echo json_encode(['ok' => false, 'error' => 'rate_limited']);
+                    exit;
+                }
+            }
+        } elseif ($remoteIp !== '') {
+            $st = $db->prepare("SELECT COUNT(*) AS c FROM commuter_complaints WHERE ip_address=? AND created_at BETWEEN ? AND ?");
+            if ($st) {
+                $st->bind_param('sss', $remoteIp, $start, $end);
+                $st->execute();
+                $row = $st->get_result()->fetch_assoc();
+                $st->close();
+                if ((int)($row['c'] ?? 0) >= $maxPerDay) {
+                    echo json_encode(['ok' => false, 'error' => 'rate_limited']);
+                    exit;
+                }
+            }
+        }
     }
 
     $mediaPath = null;
@@ -529,8 +624,37 @@ if ($action === 'submit_complaint') {
     // We now have a dedicated location column, but we'll keep it in description for backward compatibility if needed, 
     // or just store it separately. Let's store separately.
 
-    $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags, route_id, plate_number, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param('sisssssss', $ref, $userId, $type, $desc, $mediaPath, $aiTagsStr, $routeId, $plate, $location);
+    $terminalName = '';
+    if ($terminalId > 0) {
+        $st = $db->prepare("SELECT name FROM terminals WHERE id=? LIMIT 1");
+        if ($st) {
+            $st->bind_param('i', $terminalId);
+            $st->execute();
+            $rr = $st->get_result()->fetch_assoc();
+            $st->close();
+            $terminalName = trim((string)($rr['name'] ?? ''));
+        }
+    }
+    if ($location === '' && $terminalName !== '') {
+        $location = $terminalName;
+    }
+
+    if ($isLoggedIn) {
+        $userIdInt = (int)$userId;
+        $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, user_id, complaint_type, description, media_path, ai_tags, route_id, plate_number, location, terminal_id, device_id, ip_address, contact_email, contact_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        if (!$stmt) {
+            echo json_encode(['ok' => false, 'error' => 'Database error']);
+            exit;
+        }
+        $stmt->bind_param('sissssssisssss', $ref, $userIdInt, $type, $desc, $mediaPath, $aiTagsStr, $routeId, $plate, $location, $terminalId, $deviceId, $remoteIp, $contactEmail, $contactPhone);
+    } else {
+        $stmt = $db->prepare("INSERT INTO commuter_complaints (ref_number, complaint_type, description, media_path, ai_tags, route_id, plate_number, location, terminal_id, device_id, ip_address, contact_email, contact_phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        if (!$stmt) {
+            echo json_encode(['ok' => false, 'error' => 'Database error']);
+            exit;
+        }
+        $stmt->bind_param('ssssssssisssss', $ref, $type, $desc, $mediaPath, $aiTagsStr, $routeId, $plate, $location, $terminalId, $deviceId, $remoteIp, $contactEmail, $contactPhone);
+    }
 
     if ($stmt->execute()) {
         echo json_encode(['ok' => true, 'ref_number' => $ref, 'ai_tags' => $aiTags]);
@@ -541,14 +665,22 @@ if ($action === 'submit_complaint') {
 }
 
 if ($action === 'get_complaint_status') {
+    if (!$isLoggedIn) {
+        echo json_encode(['ok' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
     $ref = $_GET['ref_number'] ?? '';
     if (!$ref) {
         echo json_encode(['ok' => false, 'error' => 'Reference number is required']);
         exit;
     }
 
-    $stmt = $db->prepare("SELECT ref_number, status, created_at, description FROM commuter_complaints WHERE ref_number = ?");
-    $stmt->bind_param('s', $ref);
+    $uid = (int) $userId;
+    $stmt = $db->prepare("SELECT c.ref_number, c.status, c.created_at, c.description, c.complaint_type, c.route_id, c.plate_number, c.location, c.media_path, c.terminal_id, t.name AS terminal_name
+                          FROM commuter_complaints c
+                          LEFT JOIN terminals t ON t.id=c.terminal_id
+                          WHERE c.ref_number = ? AND c.user_id = ?");
+    $stmt->bind_param('si', $ref, $uid);
     $stmt->execute();
     $res = $stmt->get_result();
 
@@ -566,7 +698,11 @@ if ($action === 'get_my_complaints') {
         exit;
     }
 
-    $stmt = $db->prepare("SELECT ref_number, complaint_type, status, created_at, description FROM commuter_complaints WHERE user_id = ? ORDER BY created_at DESC");
+    $stmt = $db->prepare("SELECT c.ref_number, c.complaint_type, c.status, c.created_at, c.description, c.route_id, c.plate_number, c.location, c.media_path, c.terminal_id, t.name AS terminal_name
+                          FROM commuter_complaints c
+                          LEFT JOIN terminals t ON t.id=c.terminal_id
+                          WHERE c.user_id = ?
+                          ORDER BY c.created_at DESC");
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     $res = $stmt->get_result();

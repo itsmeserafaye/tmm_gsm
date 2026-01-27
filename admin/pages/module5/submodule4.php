@@ -53,10 +53,6 @@ if ($rootUrl === '/') $rootUrl = '';
           Export Excel
         </a>
       <?php endif; ?>
-      <a href="?page=module5/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-        <i data-lucide="layout-grid" class="w-4 h-4"></i>
-        Parking
-      </a>
       <a href="?page=module5/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="home" class="w-4 h-4"></i>
         Terminal List
@@ -101,7 +97,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div id="panelSlots" class="<?php echo $tab === 'slots' ? '' : 'hidden'; ?>">
     <?php if (!$canSlots): ?>
       <div class="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 font-semibold">
-        You do not have permission to manage parking slots.
+        You do not have permission to manage terminal slots.
       </div>
     <?php else: ?>
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">

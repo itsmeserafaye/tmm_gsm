@@ -5,8 +5,7 @@ require_permission('module5.manage_terminal');
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
-$initialTab = trim((string)($_GET['tab'] ?? 'terminals'));
-if (!in_array($initialTab, ['terminals','parking'], true)) $initialTab = 'terminals';
+$initialTab = 'terminals';
 
 $statTerminals = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
 $statAssignments = (int)($db->query("SELECT COUNT(*) AS c FROM terminal_assignments WHERE terminal_id IS NOT NULL")->fetch_assoc()['c'] ?? 0);
@@ -59,7 +58,7 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal & Parking List</h1>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal List</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create terminals and view assignments, slots, and payments.</p>
     </div>
     <div class="flex items-center gap-3">
@@ -88,9 +87,11 @@ if ($rootUrl === '/') $rootUrl = '';
         <button type="button" id="tabBtnTerminals" role="tab" aria-selected="true" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700">
           Terminals
         </button>
-        <button type="button" id="tabBtnParking" role="tab" aria-selected="false" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
-          Parking
-        </button>
+        <?php if (false): ?>
+          <button type="button" id="tabBtnParking" role="tab" aria-selected="false" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
+            Parking
+          </button>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -211,6 +212,7 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     </div>
 
+    <?php if (false): ?>
     <div id="tabPanelParking" role="tabpanel" class="p-6 space-y-6 hidden">
       <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -314,6 +316,7 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
       </div>
     </div>
+    <?php endif; ?>
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
