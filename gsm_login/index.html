@@ -193,7 +193,7 @@
                 </div>
 
                 <div>
-                    <div id="registerRecaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
+                    <div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
                 </div>
 
                 <div class="space-y-2">
@@ -222,54 +222,59 @@
         </div>
     </div>
 
-    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-semibold text-center w-full">Operator Registration</h3>
-                <button type="button" id="btnOperatorRegisterCancel" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
+    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
+                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Operator Registration</h2>
+                <button type="button" id="btnOperatorRegisterClose" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
             </div>
-            <form id="operatorRegisterForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                    <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
-                    <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Email<span class="required-asterisk">*</span></label>
-                    <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                    <div class="relative">
-                        <input type="password" id="opRegPassword" name="password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegPassword">
-                            <i class="far fa-eye"></i>
-                        </button>
+            <form id="operatorRegisterForm" class="space-y-5 pt-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
+                        <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" placeholder="ABC-1234">
                     </div>
-                    <ul id="opPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
-                        <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
-                        <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
-                        <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
-                        <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
-                        <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
-                    </ul>
-                    <div id="op-confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
-                </div>
-                <div>
-                    <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
-                    <div class="relative">
-                        <input type="password" id="opRegConfirmPassword" name="confirm_password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegConfirmPassword">
-                            <i class="far fa-eye"></i>
-                        </button>
+                    <div>
+                        <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
+                        <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
+                        <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
+                        <div class="relative">
+                            <input type="password" id="opRegPassword" name="password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle password visibility" data-target="opRegPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <ul id="opPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
+                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
+                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
+                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
+                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
+                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
+                        <div class="relative">
+                            <input type="password" id="opRegConfirmPassword" name="confirm_password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle confirm password visibility" data-target="opRegConfirmPassword">
+                                <i class="far fa-eye"></i>
+                            </button>
+                        </div>
+                        <div id="op-confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
                     </div>
                 </div>
+
                 <div id="opRecaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
-                <div class="flex justify-end pt-2">
+
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" id="btnOperatorRegisterCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
                     <button type="submit" id="btnOperatorRegisterSubmit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold">Register</button>
                 </div>
             </form>

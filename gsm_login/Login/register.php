@@ -158,6 +158,20 @@ if (!$ok) {
 
 $userId = (int)$db->insert_id;
 
+$commuterRoleId = rbac_role_id($db, 'Commuter');
+if (!$commuterRoleId) {
+  rbac_seed_roles_permissions($db);
+  $commuterRoleId = rbac_role_id($db, 'Commuter');
+}
+if ($userId > 0 && $commuterRoleId) {
+  $stmtR = $db->prepare("INSERT IGNORE INTO rbac_user_roles(user_id, role_id) VALUES(?, ?)");
+  if ($stmtR) {
+    $stmtR->bind_param('ii', $userId, $commuterRoleId);
+    $stmtR->execute();
+    $stmtR->close();
+  }
+}
+
 $stmtP = $db->prepare("INSERT INTO user_profiles(user_id, birthdate, mobile, address_line, house_number, street, barangay) VALUES(?, ?, ?, ?, ?, ?, ?)");
 if ($stmtP) {
   $bd = $birthdate !== '' ? $birthdate : null;

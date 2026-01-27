@@ -41,7 +41,6 @@ $html = str_replace(
 
 if ($recaptchaSiteKey === '') {
   $html = str_replace('<div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>', '', $html);
-  $html = str_replace('<div id="registerRecaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>', '', $html);
   $html = str_replace('<div id="opRecaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>', '', $html);
 } else {
   $html = str_replace('YOUR_RECAPTCHA_SITE_KEY', $recaptchaSiteKey, $html);

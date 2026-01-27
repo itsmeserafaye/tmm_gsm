@@ -85,6 +85,7 @@ $sidebarItems = [
     'icon' => 'users',
     'subItems' => [
       ['id' => 'accounts', 'label' => 'Accounts & Roles', 'path' => '/users/accounts', 'roles' => ['SuperAdmin']],
+      ['id' => 'operator-accounts', 'label' => 'Operator Portal Accounts', 'path' => '/users/operator-accounts', 'roles' => ['SuperAdmin']],
       ['id' => 'activity', 'label' => 'Activity Logs', 'path' => '/users/activity', 'roles' => ['SuperAdmin']],
     ],
   ],

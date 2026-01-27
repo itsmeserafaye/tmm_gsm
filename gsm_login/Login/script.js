@@ -135,6 +135,7 @@ function setupEventListeners() {
     const opRegModal = document.getElementById('operatorRegisterModal');
     const opRegOpen = document.getElementById('btnOperatorRegisterOpen');
     const opRegCancel = document.getElementById('btnOperatorRegisterCancel');
+    const opRegClose = document.getElementById('btnOperatorRegisterClose');
     const opRegForm = document.getElementById('operatorRegisterForm');
     const opRegSubmit = document.getElementById('btnOperatorRegisterSubmit');
     if (opRegOpen && (portalMode === 'staff' || portalMode === 'operator')) {
@@ -165,6 +166,7 @@ function setupEventListeners() {
         };
         opRegOpen.addEventListener('click', open);
         opRegCancel.addEventListener('click', close);
+        if (opRegClose) opRegClose.addEventListener('click', close);
         opRegModal.addEventListener('click', (e) => { if (e.target === opRegModal) close(); });
 
         const opPwd = document.getElementById('opRegPassword');
@@ -678,7 +680,14 @@ function handleLoginSubmit(event) {
     const operatorWrap = document.getElementById('operatorPlateWrap');
     const operatorMode = !!operatorWrap && !operatorWrap.classList.contains('hidden');
     const captchaEl = form.querySelector('.g-recaptcha');
-    const captchaResponse = (captchaEl && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') ? window.grecaptcha.getResponse() : '';
+    let captchaResponse = '';
+    if (captchaEl) {
+        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
+        captchaResponse = ta ? String(ta.value || '') : '';
+        if (!captchaResponse && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
+            captchaResponse = String(window.grecaptcha.getResponse() || '');
+        }
+    }
     
     // Validate email
     if (!validateEmail(form.email)) {
@@ -788,7 +797,6 @@ function showRegisterForm() {
     if (container && mainCard) {
         container.classList.remove('hidden');
         container.classList.add('flex');
-        tryRenderRegisterRecaptcha();
         // Optionally dim the main card
         mainCard.classList.add('opacity-40');
     }
@@ -801,19 +809,8 @@ function hideRegisterForm() {
         container.classList.add('hidden');
         container.classList.remove('flex');
         mainCard.classList.remove('opacity-40');
-        try { if (window.grecaptcha && registerRecaptchaWidgetId !== null) window.grecaptcha.reset(registerRecaptchaWidgetId); } catch (e) {}
+        try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
     }
-}
-
-let registerRecaptchaWidgetId = null;
-function tryRenderRegisterRecaptcha() {
-    try {
-        const el = document.getElementById('registerRecaptcha');
-        if (!el || !window.grecaptcha || registerRecaptchaWidgetId !== null) return;
-        const siteKey = String(el.getAttribute('data-sitekey') || '').trim();
-        if (!siteKey) return;
-        registerRecaptchaWidgetId = window.grecaptcha.render(el, { sitekey: siteKey });
-    } catch (e) {}
 }
 
 function handleRegisterSubmit(event) {
@@ -822,11 +819,14 @@ function handleRegisterSubmit(event) {
     const data = serializeForm(form);
     if (!validateRegPassword(document.getElementById('regPassword'), true)) return;
     if (!validateConfirmPassword(true)) return;
-    const captchaEl = document.getElementById('registerRecaptcha');
+    const captchaEl = form.querySelector('.g-recaptcha');
     let captchaResponse = '';
-    if (captchaEl && window.grecaptcha) {
-        tryRenderRegisterRecaptcha();
-        captchaResponse = (registerRecaptchaWidgetId !== null) ? window.grecaptcha.getResponse(registerRecaptchaWidgetId) : '';
+    if (captchaEl) {
+        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
+        captchaResponse = ta ? String(ta.value || '') : '';
+        if (!captchaResponse && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
+            captchaResponse = String(window.grecaptcha.getResponse() || '');
+        }
     }
     if (captchaEl && !captchaResponse) {
         showNotification('Please complete the reCAPTCHA.', 'warning');
@@ -869,7 +869,7 @@ function handleRegisterSubmit(event) {
             }
             showNotification(res.message || 'Registration submitted!', 'success');
             hideRegisterForm();
-            try { if (window.grecaptcha && registerRecaptchaWidgetId !== null) window.grecaptcha.reset(registerRecaptchaWidgetId); } catch (e) {}
+            try { if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
         })
         .catch(() => {})
         .finally(() => {
