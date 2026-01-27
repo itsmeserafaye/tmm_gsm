@@ -18,6 +18,11 @@ function resolveInputEl(arg) {
     return (arg && arg.target) ? arg.target : arg;
 }
 
+function getPortalMode() {
+    const mode = new URLSearchParams(window.location.search).get('mode') || '';
+    return (mode === 'operator') ? 'operator' : ((mode === 'commuter') ? 'commuter' : 'staff');
+}
+
 function getRootUrl() {
     const path = String(window.location.pathname || '');
     if (path.includes('/gsm_login/')) {
@@ -80,8 +85,9 @@ function initializePage() {
     addSmoothScrolling();
 
     try {
-        const remembered = localStorage.getItem('gsm_remember') === '1';
-        const email = localStorage.getItem('gsm_email') || '';
+        const portalMode = getPortalMode();
+        const remembered = localStorage.getItem('gsm_remember_' + portalMode) === '1';
+        const email = localStorage.getItem('gsm_email_' + portalMode) || '';
         const rememberEl = document.getElementById('rememberMe');
         const emailEl = document.getElementById('email');
         if (rememberEl) rememberEl.checked = remembered;
@@ -106,8 +112,7 @@ function setupEventListeners() {
         if (isOperator) plateInput.focus();
     }
 
-    const mode = new URLSearchParams(window.location.search).get('mode') || '';
-    const portalMode = (mode === 'operator') ? 'operator' : ((mode === 'commuter') ? 'commuter' : 'staff');
+    const portalMode = getPortalMode();
     const openForgotBtn = document.getElementById('openForgotPassword');
     if (openForgotBtn) openForgotBtn.classList.toggle('hidden', portalMode === 'staff');
 
@@ -117,11 +122,11 @@ function setupEventListeners() {
             try {
                 const remember = !!(rememberEl && rememberEl.checked);
                 if (remember) {
-                    localStorage.setItem('gsm_remember', '1');
-                    localStorage.setItem('gsm_email', String((document.getElementById('email') && document.getElementById('email').value) || '').trim());
+                    localStorage.setItem('gsm_remember_' + portalMode, '1');
+                    localStorage.setItem('gsm_email_' + portalMode, String((document.getElementById('email') && document.getElementById('email').value) || '').trim());
                 } else {
-                    localStorage.removeItem('gsm_remember');
-                    localStorage.removeItem('gsm_email');
+                    localStorage.removeItem('gsm_remember_' + portalMode);
+                    localStorage.removeItem('gsm_email_' + portalMode);
                 }
             } catch (e) {}
         });
@@ -132,6 +137,10 @@ function setupEventListeners() {
     const opRegCancel = document.getElementById('btnOperatorRegisterCancel');
     const opRegForm = document.getElementById('operatorRegisterForm');
     const opRegSubmit = document.getElementById('btnOperatorRegisterSubmit');
+    if (opRegOpen && (portalMode === 'staff' || portalMode === 'operator')) {
+        const row = opRegOpen.closest('p') || opRegOpen;
+        row.classList.add('hidden');
+    }
     if (opRegOpen && opRegModal && opRegCancel && opRegForm) {
         const opRecaptcha = document.getElementById('opRecaptcha');
         let opRecaptchaWidgetId = null;
@@ -260,8 +269,21 @@ function setupEventListeners() {
     
     // Register toggle
     const showRegister = document.getElementById('showRegister');
+    const hideInline = (el) => {
+        if (!el) return;
+        const row = el.closest('p') || el;
+        row.classList.add('hidden');
+    };
     if (showRegister) {
-        showRegister.addEventListener('click', showRegisterForm);
+        if (portalMode === 'staff') {
+            hideInline(showRegister);
+        } else if (portalMode === 'operator') {
+            showRegister.textContent = 'Register as Operator';
+            if (opRegOpen) hideInline(opRegOpen);
+            showRegister.addEventListener('click', () => { if (opRegOpen) opRegOpen.click(); });
+        } else {
+            showRegister.addEventListener('click', showRegisterForm);
+        }
     }
     const cancelRegister = document.getElementById('cancelRegister');
     if (cancelRegister) {
@@ -765,6 +787,7 @@ function showRegisterForm() {
     const mainCard = document.querySelector('.glass-card');
     if (container && mainCard) {
         container.classList.remove('hidden');
+        container.classList.add('flex');
         // Optionally dim the main card
         mainCard.classList.add('opacity-40');
     }
@@ -775,6 +798,7 @@ function hideRegisterForm() {
     const mainCard = document.querySelector('.glass-card');
     if (container && mainCard) {
         container.classList.add('hidden');
+        container.classList.remove('flex');
         mainCard.classList.remove('opacity-40');
     }
 }
