@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -39,53 +39,14 @@ if (!empty($_SESSION['user_id'])) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js?v=<?php echo time(); ?>" defer></script>
-    <style>
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(74, 144, 226, 0.3); }
-            50% { box-shadow: 0 0 40px rgba(74, 144, 226, 0.6); }
-        }
-        @keyframes slide-in-left {
-            from { opacity: 0; transform: translateX(-50px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes slide-in-right {
-            from { opacity: 0; transform: translateX(50px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
-        .animate-slide-in-left { animation: slide-in-left 0.8s ease-out; }
-        .animate-slide-in-right { animation: slide-in-right 0.8s ease-out; }
-        .animate-fade-in-up { animation: fade-in-up 0.8s ease-out; }
-        .delay-100 { animation-delay: 0.1s; }
-        .delay-200 { animation-delay: 0.2s; }
-        .delay-300 { animation-delay: 0.3s; }
-        .delay-400 { animation-delay: 0.4s; }
-        .delay-500 { animation-delay: 0.5s; }
-        .delay-600 { animation-delay: 0.6s; }
-        .gradient-text {
-            background: linear-gradient(135deg, #5ba3f5, #66bb6a);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-    </style>
 </head>
 
-<body class="bg-custom-bg min-h-screen flex flex-col" style="background-color: #fbfbfb;">
-    <header class="fixed top-0 left-0 right-0 py-4 bg-gradient-to-r from-white via-blue-50 to-blue-100 border-b-4 border-gradient-to-r from-blue-500 via-blue-600 to-blue-700 shadow-lg z-50" style="background: linear-gradient(to right, #ffffff, #e8f4f8, #d6eaf5); border-bottom: 4px solid #4a90e2;">
+<body class="bg-custom-bg min-h-screen flex flex-col">
+    <header class="fixed top-0 left-0 right-0 py-4 bg-gradient-to-r from-white via-purple-50 to-pink-50 border-b-4 border-gradient-to-r from-purple-500 via-pink-500 to-orange-500 shadow-lg z-50">
         <div class="container mx-auto px-6">
             <div class="flex justify-between items-center">
                 <div class="flex items-center space-x-4">
-                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-xl p-0.5" style="background: linear-gradient(to bottom right, #4a90e2, #357abd);">
+                    <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-xl p-0.5">
                         <div class="w-full h-full bg-white rounded-full flex items-center justify-center">
                             <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
                                 alt="TMM Logo" class="h-10 w-auto">
@@ -94,15 +55,15 @@ if (!empty($_SESSION['user_id'])) {
                     <div class="leading-tight">
                         <h1 class="text-xl lg:text-2xl font-bold" style="font-weight: 700;">
                             <span class="text-slate-800">Transport & Mobility</span> <span
-                                class="bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #357abd); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Management</span>
+                                class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Management</span>
                         </h1>
-                        <div class="text-xs font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #357abd); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Transport & Mobility Management System</div>
+                        <div class="text-xs font-semibold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Transport & Mobility Management System</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-8">
                     <div class="text-right">
                         <div class="text-sm">
-                            <div id="currentDateTime" class="font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #357abd); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></div>
+                            <div id="currentDateTime" class="font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"></div>
                         </div>
                     </div>
                 </div>
@@ -112,34 +73,33 @@ if (!empty($_SESSION['user_id'])) {
 
     <main class="flex-1 pt-24">
         <section id="home" class="container mx-auto px-6 pt-6">
-            <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #5ba3f5 0%, #4a90e2 50%, #2e7bc4 100%);">
+            <div class="relative overflow-hidden rounded-3xl shadow-2xl" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
                 <!-- Animated overlay -->
                 <div class="absolute inset-0 opacity-30">
                     <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 4s;"></div>
-                    <div class="absolute bottom-0 right-0 w-96 h-96 bg-green-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 6s; animation-delay: 1s;"></div>
-                    <div class="absolute top-1/2 left-1/2 w-64 h-64 bg-orange-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 5s; animation-delay: 2s;"></div>
+                    <div class="absolute bottom-0 right-0 w-96 h-96 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 6s; animation-delay: 1s;"></div>
                 </div>
                 
                 <div class="relative px-6 py-16 md:py-24">
                     <div class="flex flex-col items-center text-center">
-                        <div class="w-24 h-24 md:w-28 md:h-28 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl mb-6 animate-float animate-pulse-glow">
+                        <div class="w-24 h-24 md:w-28 md:h-28 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl mb-6 animate-bounce" style="animation-duration: 3s;">
                             <img src="<?php echo htmlspecialchars($baseUrl); ?>/includes/TRANSPORT%20%26%20MOBILITY%20MANAGEMENT%20(3).png"
                                 alt="TMM" class="h-20 md:h-24 w-auto">
                         </div>
-                        <div class="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg animate-fade-in-up">
-                            Transport & Mobility<br /><span class="gradient-text" style="color: #66bb6a; background: linear-gradient(135deg, #66bb6a, #81c784); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Management</span>
+                        <div class="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
+                            Transport & Mobility<br /><span class="text-yellow-300">Management</span>
                         </div>
-                        <div class="mt-4 text-xl md:text-2xl font-semibold text-white/90 drop-shadow animate-fade-in-up delay-200">
+                        <div class="mt-4 text-xl md:text-2xl font-semibold text-white/90 drop-shadow">
                             Your Gateway to Smart Transportation Solutions
                         </div>
-                        <div class="mt-8 flex gap-4 animate-fade-in-up delay-300">
+                        <div class="mt-8 flex gap-4">
                             <a href="#systems"
-                                class="inline-flex items-center gap-2 bg-white text-blue-700 px-6 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 hover:-translate-y-1" style="background: #ffffff; color: #2e7bc4;">
+                                class="inline-flex items-center gap-2 bg-white text-purple-700 px-6 py-3 rounded-xl font-bold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
                                 Explore Portals
                                 <i class="fas fa-arrow-down text-sm"></i>
                             </a>
                             <a href="#features"
-                                class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white border-2 border-white/50 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-white/30 transform hover:scale-105 transition-all duration-300 hover:-translate-y-1" style="background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.6);">
+                                class="inline-flex items-center gap-2 bg-purple-900/30 backdrop-blur-sm text-white border-2 border-white/50 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-purple-900/50 transform hover:scale-105 transition-all duration-300">
                                 Learn More
                                 <i class="fas fa-info-circle text-sm"></i>
                             </a>
@@ -150,19 +110,18 @@ if (!empty($_SESSION['user_id'])) {
         </section>
 
         <section id="systems" class="container mx-auto px-6 py-12">
-            <div class="text-center animate-fade-in-up">
+            <div class="text-center">
                 <h2 class="text-3xl md:text-4xl font-bold text-slate-900">TMM PORTALS</h2>
-                <div class="mt-2 text-sm text-slate-600">Click any system to access its dedicated portal</div>
+                <div class="mt-2 text-sm text-custom-secondary">Click any system to access its dedicated portal</div>
             </div>
 
             <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Staff Portal -->
-                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-blue-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up delay-100" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f4f8, #d1e9f6);"></div>
-                    <div class="absolute -top-3 -right-3 w-16 h-16 bg-blue-500 rounded-full opacity-20 group-hover:opacity-30 transition-opacity duration-300" style="background: #5ba3f5;"></div>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-indigo-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" style="background: linear-gradient(to bottom right, #5ba3f5, #2e7bc4);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
                                 <i class="fas fa-user-shield text-white text-3xl"></i>
                             </div>
                         </div>
@@ -170,7 +129,7 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="text-xl font-bold text-slate-900">Staff Portal</div>
                             <div class="mt-2 text-sm text-slate-600">Administration and management access for authorized personnel.</div>
                             <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff"
-                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #5ba3f5, #2e7bc4);">
+                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                                 Access System <i class="fas fa-arrow-right text-xs"></i>
                             </a>
                         </div>
@@ -178,12 +137,11 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
 
                 <!-- Operator Portal -->
-                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up delay-200" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #fff3e0, #ffe0b2);"></div>
-                    <div class="absolute -top-3 -right-3 w-16 h-16 bg-orange-500 rounded-full opacity-20 group-hover:opacity-30 transition-opacity duration-300" style="background: #ff9800;"></div>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-teal-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" style="background: linear-gradient(to bottom right, #ff9800, #f57c00);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
                                 <i class="fas fa-bus text-white text-3xl"></i>
                             </div>
                         </div>
@@ -192,23 +150,22 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="mt-2 text-sm text-slate-600">PUV operator services and fleet management tools.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator"
-                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #ff9800, #f57c00);">
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                                     Login <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="btnOperatorRegisterOpen"
-                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300" style="border-color: #ff9800; color: #f57c00;">Register</button>
+                                    class="inline-flex items-center gap-2 border-2 border-teal-500 text-teal-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-teal-50 transition-all duration-300">Register</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Commuter Portal -->
-                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-green-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 animate-fade-in-up delay-300" style="background: #ffffff; border-color: transparent;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c5e1a5);"></div>
-                    <div class="absolute -top-3 -right-3 w-16 h-16 bg-green-500 rounded-full opacity-20 group-hover:opacity-30 transition-opacity duration-300" style="background: #66bb6a;"></div>
+                <div class="group relative bg-white rounded-3xl shadow-xl border-2 border-transparent p-8 hover:border-orange-500 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-pink-50 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
                         <div class="flex items-center justify-center">
-                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
+                            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
                                 <i class="fas fa-users text-white text-3xl"></i>
                             </div>
                         </div>
@@ -220,11 +177,11 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="mt-2 text-sm text-slate-600">Citizen services and real-time transit information. No login required.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/citizen/commuter/index.php"
-                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #66bb6a, #43a047);">
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-pink-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                                     Enter as Guest <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="showRegister"
-                                    class="inline-flex items-center gap-2 border-2 border-green-500 text-green-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-green-50 transition-all duration-300" style="border-color: #66bb6a; color: #43a047;">Register (Optional)</button>
+                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300">Register (Optional)</button>
                             </div>
                         </div>
                     </div>
@@ -241,10 +198,10 @@ if (!empty($_SESSION['user_id'])) {
 
             <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Feature 1 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e3f2fd, #bbdefb);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-purple-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #4a90e2, #357abd);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-id-card text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Franchise & Operator Records</div>
@@ -253,10 +210,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 2 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-gray-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #f5f5f5, #e0e0e0);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-teal-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #9aa5b1, #7a8591);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-receipt text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Ticketing & Treasury Processing</div>
@@ -265,10 +222,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 3 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f5e9, #c5e1a5);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #66bb6a, #43a047);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-clipboard-check text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Inspection Workflows</div>
@@ -277,10 +234,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 4 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-orange-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #fff3e0, #ffe0b2);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-pink-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #ff9800, #f57c00);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-square-parking text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Terminal & Parking Operations</div>
@@ -289,10 +246,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 5 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-blue-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #e8f4f8, #d1e9f6);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-indigo-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #2e7bc4, #1976d2);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-shield-halved text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Role-Based Access</div>
@@ -301,10 +258,10 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Feature 6 -->
-                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-gray-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1" style="background: #ffffff;">
-                    <div class="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style="background: linear-gradient(to bottom right, #f5f5f5, #e8eaed);"></div>
+                <div class="group relative bg-white rounded-2xl shadow-lg border-2 border-transparent p-6 hover:border-green-400 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative">
-                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300" style="background: linear-gradient(to bottom right, #78909c, #546e7a);">
+                        <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform duration-300">
                             <i class="fas fa-chart-line text-white text-xl"></i>
                         </div>
                         <div class="mt-4 font-bold text-slate-900">Analytics</div>
@@ -317,71 +274,60 @@ if (!empty($_SESSION['user_id'])) {
 
         <!-- Streamlined Access Section -->
         <section class="container mx-auto px-6 pb-12">
-            <div class="text-center mb-10 animate-fade-in-up">
-                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">How It Works</h2>
-                <p class="mt-2 text-slate-600 max-w-2xl mx-auto">Get started with TMM in three simple steps</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-                <!-- Connector Line -->
-                <div class="hidden md:block absolute top-20 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-blue-200 via-gray-200 to-green-200" style="background: linear-gradient(to right, #bbdefb, #e0e0e0, #c5e1a5);"></div>
-
-                <!-- Step 1 -->
-                <div class="relative animate-fade-in-up delay-100">
-                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all duration-500 border-2 border-transparent hover:border-blue-200 transform hover:-translate-y-2">
-                        <div class="flex justify-center mb-6">
-                            <div class="relative">
-                                <div class="absolute inset-0 rounded-full animate-pulse" style="background: linear-gradient(135deg, #5ba3f5, #2e7bc4); opacity: 0.2;"></div>
-                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg relative z-10 transform transition-transform duration-500 hover:scale-110 hover:rotate-12" style="background: linear-gradient(135deg, #5ba3f5, #2e7bc4);">
-                                    <i class="fas fa-th-large text-white text-2xl"></i>
-                                </div>
-                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md z-20 animate-pulse" style="background: #4a90e2;">1</div>
-                            </div>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Select Portal</h3>
-                        <p class="text-slate-600 text-center text-sm leading-relaxed">Choose the dedicated portal for your role: Staff, Operator, or Public Portal</p>
-                        <div class="mt-4 flex justify-center">
-                            <div class="w-12 h-1 rounded-full" style="background: linear-gradient(to right, #5ba3f5, #2e7bc4);"></div>
-                        </div>
-                    </div>
+            <div class="relative overflow-hidden rounded-3xl shadow-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
+                <!-- Animated overlay -->
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute top-10 right-10 w-72 h-72 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 5s;"></div>
+                    <div class="absolute bottom-10 left-10 w-72 h-72 bg-yellow-200 rounded-full mix-blend-overlay filter blur-3xl animate-pulse" style="animation-duration: 7s; animation-delay: 1s;"></div>
                 </div>
-
-                <!-- Step 2 -->
-                <div class="relative animate-fade-in-up delay-300">
-                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all duration-500 border-2 border-transparent hover:border-gray-200 transform hover:-translate-y-2">
-                        <div class="flex justify-center mb-6">
-                            <div class="relative">
-                                <div class="absolute inset-0 rounded-full animate-pulse" style="background: linear-gradient(135deg, #9aa5b1, #78909c); opacity: 0.2; animation-delay: 0.5s;"></div>
-                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg relative z-10 transform transition-transform duration-500 hover:scale-110 hover:rotate-12" style="background: linear-gradient(135deg, #9aa5b1, #78909c);">
-                                    <i class="fas fa-user-check text-white text-2xl"></i>
-                                </div>
-                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md z-20 animate-pulse" style="background: #9aa5b1; animation-delay: 0.5s;">2</div>
-                            </div>
-                        </div>
-                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Authenticate</h3>
-                        <p class="text-slate-600 text-center text-sm leading-relaxed">Log in with your credentials or access public services as a guest</p>
-                        <div class="mt-4 flex justify-center">
-                            <div class="w-12 h-1 rounded-full" style="background: linear-gradient(to right, #9aa5b1, #78909c);"></div>
-                        </div>
+                
+                <div class="relative px-6 py-16">
+                    <div class="text-center mb-16">
+                        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Streamlined Access</h2>
+                        <p class="text-white/90 max-w-2xl mx-auto text-lg drop-shadow">Access transportation services securely and efficiently in just three simple steps.</p>
                     </div>
-                </div>
 
-                <!-- Step 3 -->
-                <div class="relative animate-fade-in-up delay-500">
-                    <div class="bg-white rounded-2xl shadow-lg p-8 hover:shadow-2xl transition-all duration-500 border-2 border-transparent hover:border-green-200 transform hover:-translate-y-2">
-                        <div class="flex justify-center mb-6">
-                            <div class="relative">
-                                <div class="absolute inset-0 rounded-full animate-pulse" style="background: linear-gradient(135deg, #66bb6a, #43a047); opacity: 0.2; animation-delay: 1s;"></div>
-                                <div class="w-20 h-20 rounded-full flex items-center justify-center shadow-lg relative z-10 transform transition-transform duration-500 hover:scale-110 hover:rotate-12" style="background: linear-gradient(135deg, #66bb6a, #43a047);">
-                                    <i class="fas fa-rocket text-white text-2xl"></i>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                        <!-- Connector Line (Desktop) -->
+                        <div class="hidden md:block absolute top-1/2 left-0 w-full h-1 bg-white/30 -translate-y-1/2 z-0 transform scale-x-75"></div>
+
+                        <!-- Step 1 -->
+                        <div class="relative z-10 text-center group">
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-th-large text-3xl"></i>
                                 </div>
-                                <div class="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md z-20 animate-pulse" style="background: #4caf50; animation-delay: 1s;">3</div>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">1. Select Portal</h3>
+                                <p class="text-white/80 text-sm">Choose the dedicated portal for your role (Staff, Operator, or Commuter).</p>
                             </div>
                         </div>
-                        <h3 class="text-xl font-bold text-slate-900 text-center mb-3">Start Managing</h3>
-                        <p class="text-slate-600 text-center text-sm leading-relaxed">Access your dashboard and manage applications or view real-time data</p>
-                        <div class="mt-4 flex justify-center">
-                            <div class="w-12 h-1 rounded-full" style="background: linear-gradient(to right, #66bb6a, #43a047);"></div>
+
+                        <!-- Step 2 -->
+                        <div class="relative z-10 text-center group">
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-user-check text-3xl"></i>
+                                </div>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">2. Authenticate (Optional)</h3>
+                                <p class="text-white/80 text-sm">Log in as Staff/Operator, or access Commuter services as a guest.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="relative z-10 text-center group">
+                            <div class="w-24 h-24 mx-auto bg-white rounded-2xl shadow-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                                <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl flex items-center justify-center text-white">
+                                    <i class="fas fa-rocket text-3xl"></i>
+                                </div>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                                <h3 class="text-xl font-bold text-white mb-2">3. Manage</h3>
+                                <p class="text-white/80 text-sm">Access your dashboard, manage applications, or view real-time data.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -390,7 +336,7 @@ if (!empty($_SESSION['user_id'])) {
 
     </main>
 
-    <footer class="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-6 mt-8" style="background: linear-gradient(to right, #357abd, #4a90e2);">
+    <footer class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white py-6 mt-8">
         <div class="container mx-auto px-6">
             <div class="flex flex-col lg:flex-row justify-between items-center">
                 <div class="text-center lg:text-left mb-2 lg:mb-0">
@@ -411,10 +357,15 @@ if (!empty($_SESSION['user_id'])) {
     </footer>
 
 
-    <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto" style="background: #ffffff !important;">
-            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center" style="background: #ffffff !important;">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Create your GoServePH account</h2>
+    <!-- Commuter Registration Modal -->
+    <div id="registerFormContainer" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
+                <h2 class="text-xl md:text-2xl font-semibold text-custom-primary">Create your TMM account</h2>
+                <div class="mt-1 text-xs text-gray-500">
+                    Registering as an operator?
+                    <button type="button" id="openOperatorRegisterFromCitizen" class="text-custom-primary font-semibold hover:underline">Register here</button>
+                </div>
             </div>
             <form id="registerForm" class="space-y-5 pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -429,153 +380,104 @@ if (!empty($_SESSION['user_id'])) {
                     <div>
                         <label class="block text-sm mb-1">Middle Name<span id="middleAsterisk" class="required-asterisk">*</span></label>
                         <input type="text" id="middleName" name="middleName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                        <label class="inline-flex items-center mt-2 text-sm">
-                            <input type="checkbox" id="noMiddleName" class="mr-2"> No middle name
-                        </label>
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Suffix</label>
-                        <input type="text" name="suffix" placeholder="Jr., Sr., III (optional)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Birthdate<span class="required-asterisk">*</span></label>
-                        <input type="date" name="birthdate" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
-                        <input type="email" name="regEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Mobile Number<span class="required-asterisk">*</span></label>
-                        <input type="tel" name="mobile" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09XXXXXXXXX">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm mb-1">Address<span class="required-asterisk">*</span></label>
-                        <input type="text" name="address" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Lot/Unit, Building, Subdivision">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">House #<span class="required-asterisk">*</span></label>
-                        <input type="text" name="houseNumber" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Street<span class="required-asterisk">*</span></label>
-                        <input type="text" name="street" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm mb-1">Barangay<span class="required-asterisk">*</span></label>
-                        <input type="text" name="barangay" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="regPassword" name="regPassword" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" aria-describedby="pwdChecklist">
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle password visibility" data-target="regPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
+                        <div class="mt-1 flex items-center">
+                            <input type="checkbox" id="noMiddleName" class="w-4 h-4 text-custom-primary border-gray-300 rounded focus:ring-custom-primary">
+                            <label for="noMiddleName" class="ml-2 text-xs text-gray-500">I do not have a middle name</label>
                         </div>
-                        <ul id="pwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
-                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
-                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
-                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
-                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
-                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
-                        </ul>
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="confirmPassword" name="confirmPassword" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle confirm password visibility" data-target="confirmPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
-                        </div>
+                        <label class="block text-sm mb-1">Suffix (Optional)</label>
+                        <input type="text" name="suffix" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                     </div>
                 </div>
-
                 <div>
-                    <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                    <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
+                    <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
-
-                <div class="space-y-2">
-                    <div class="flex items-center text-sm">
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" id="agreeTerms" class="mr-2" required>
-                            <span>I have read, understood, and agreed to the</span>
-                        </label>
-                        <button type="button" id="openTerms" class="ml-2 text-custom-secondary hover:underline">Terms of Use</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
+                        <input type="password" name="password" id="regPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="regPassword" style="top: 24px;">
+                            <i class="far fa-eye"></i>
+                        </button>
                     </div>
-                    <div class="flex items-center text-sm">
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" id="agreePrivacy" class="mr-2" required>
-                            <span>I have read, understood, and agreed to the</span>
-                        </label>
-                        <button type="button" id="openPrivacy" class="ml-2 text-custom-secondary hover:underline">Data Privacy Policy</button>
+                    <div class="relative">
+                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
+                        <input type="password" name="confirm_password" id="regConfirmPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="regConfirmPassword" style="top: 24px;">
+                            <i class="far fa-eye"></i>
+                        </button>
                     </div>
-                    <p class="text-xs text-gray-600">By clicking on the register button below, I hereby agree to both the Terms of Use and Data Privacy Policy</p>
                 </div>
-
+                <?php if ($recaptchaSiteKey !== ''): ?>
+                    <div><div id="citizenRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div></div>
+                <?php endif; ?>
                 <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" id="cancelRegister" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg">Register</button>
+                    <button type="button" id="closeRegister" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
+                    <button type="submit" id="btnRegisterSubmit" class="bg-custom-primary text-white px-4 py-2 rounded-lg">Register</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto" style="background: #ffffff !important;">
-            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center" style="background: #ffffff !important;">
-                <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Operator Registration</h2>
-                <button type="button" id="btnOperatorRegisterClose" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
+    <!-- Operator Registration Modal -->
+    <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 hidden items-start justify-center pt-20 px-4 overflow-y-auto z-50">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center">
+                <h2 class="text-xl md:text-2xl font-semibold text-custom-primary">Operator Registration</h2>
             </div>
             <form id="operatorRegisterForm" class="space-y-5 pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                        <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" placeholder="ABC-1234">
+                        <label class="block text-sm mb-1">Operator Type<span class="required-asterisk">*</span></label>
+                        <select name="operator_type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="Individual">Individual</option>
+                            <option value="Coop">Coop</option>
+                            <option value="Corp">Corp</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
-                        <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
-                        <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com">
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="opRegPassword" name="password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle password visibility" data-target="opRegPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
-                        </div>
-                        <ul id="opPwdChecklist" class="text-xs text-gray-600 mt-2 space-y-1">
-                            <li class="req-item" data-check="length"><span class="req-dot"></span> At least 10 characters</li>
-                            <li class="req-item" data-check="upper"><span class="req-dot"></span> Has uppercase letter</li>
-                            <li class="req-item" data-check="lower"><span class="req-dot"></span> Has lowercase letter</li>
-                            <li class="req-item" data-check="number"><span class="req-dot"></span> Has a number</li>
-                            <li class="req-item" data-check="special"><span class="req-dot"></span> Has a special character</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
-                        <div class="relative">
-                            <input type="password" id="opRegConfirmPassword" name="confirm_password" minlength="10" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
-                            <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" aria-label="Toggle confirm password visibility" data-target="opRegConfirmPassword">
-                                <i class="far fa-eye"></i>
-                            </button>
-                        </div>
-                        <div id="op-confirm-error" class="text-red-500 text-sm mt-1 hidden">Passwords do not match.</div>
+                        <label class="block text-sm mb-1">Contact Number<span class="required-asterisk">*</span></label>
+                        <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
                     </div>
                 </div>
-
-                <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
-
+                <div>
+                    <label class="block text-sm mb-1">Operator Name<span class="required-asterisk">*</span></label>
+                    <input type="text" name="operator_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz / Coop Name / Corp Name">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
+                    <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
+                        <input type="password" name="password" id="opRegPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegPassword" style="top: 24px;">
+                            <i class="far fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <label class="block text-sm mb-1">Confirm Password<span class="required-asterisk">*</span></label>
+                        <input type="password" name="confirm_password" id="opRegConfirmPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10">
+                        <button type="button" class="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700 toggle-password" data-target="opRegConfirmPassword" style="top: 24px;">
+                            <i class="far fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="opAgreeTerms" class="w-4 h-4 text-custom-primary border-gray-300 rounded" required>
+                    <label for="opAgreeTerms" class="text-sm text-gray-700">
+                        I agree to the <button type="button" id="openTermsFromOperatorReg" class="text-custom-primary font-semibold hover:underline">Terms of Service</button>
+                    </label>
+                </div>
+                <?php if ($recaptchaSiteKey !== ''): ?>
+                    <div><div id="operatorRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div></div>
+                <?php endif; ?>
                 <div class="flex justify-end space-x-3 pt-2">
                     <button type="button" id="btnOperatorRegisterCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" id="btnOperatorRegisterSubmit" class="bg-custom-secondary text-white px-4 py-2 rounded-lg font-semibold">Register</button>
+                    <button type="submit" id="btnOperatorRegisterSubmit" class="bg-custom-primary text-white px-4 py-2 rounded-lg">Register</button>
                 </div>
             </form>
         </div>
@@ -792,12 +694,6 @@ if (!empty($_SESSION['user_id'])) {
                     <li>Data handling protocols.</li>
                 </ul>
                 <p>We reserve the right to suspend your Account or the Services if necessary to maintain system integrity and security, or to prevent harm. You waive any right to claim losses that result from a Breach or any action we take to prevent harm.</p>
-                <h4 class="font-semibold">5. Contact Us / Data Protection Officer</h4>
-                <p>If you have any questions, concerns, or wish to exercise your rights regarding your personal data, please contact our Data Protection Officer (DPO):</p>
-                <ul class="list-none pl-5">
-                    <li><strong>Email:</strong> govserve.tmm@gmail.com</li>
-                    <li><strong>Phone:</strong> (02) 8123-4567</li>
-                </ul>
             </div>
             <div class="border-t px-6 py-3 flex justify-end">
                 <button type="button" id="closePrivacyBottom" class="px-4 py-2 rounded-lg bg-custom-primary text-white">Close</button>
@@ -852,35 +748,25 @@ if (!empty($_SESSION['user_id'])) {
             // Register Modals Logic
             const regModal = document.getElementById('registerFormContainer');
             const showRegBtn = document.getElementById('showRegister');
-            const closeRegBtn = document.getElementById('cancelRegister');
+            const closeRegBtn = document.getElementById('closeRegister');
             
             if (showRegBtn && regModal) {
                 showRegBtn.addEventListener('click', () => {
                     regModal.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
+                    tryRenderCitizenRecaptcha();
                 });
             }
             if (closeRegBtn && regModal) {
                 closeRegBtn.addEventListener('click', () => {
                     regModal.classList.add('hidden');
                     document.body.style.overflow = '';
-                    try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
-                });
-            }
-            if (regModal) {
-                regModal.addEventListener('click', (e) => {
-                    if (e.target === regModal) {
-                        regModal.classList.add('hidden');
-                        document.body.style.overflow = '';
-                        try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
-                    }
                 });
             }
 
             const opRegModal = document.getElementById('operatorRegisterModal');
             const opRegBtn = document.getElementById('btnOperatorRegisterOpen');
             const opRegCancel = document.getElementById('btnOperatorRegisterCancel');
-            const opRegClose = document.getElementById('btnOperatorRegisterClose');
             const openOpFromCit = document.getElementById('openOperatorRegisterFromCitizen');
 
             function openOpReg() {
@@ -901,160 +787,101 @@ if (!empty($_SESSION['user_id'])) {
                     opRegModal.classList.add('hidden');
                     opRegModal.classList.remove('flex');
                     document.body.style.overflow = '';
-                    try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
-                });
-            }
-            if (opRegClose && opRegModal) {
-                opRegClose.addEventListener('click', () => {
-                    opRegModal.classList.add('hidden');
-                    opRegModal.classList.remove('flex');
-                    document.body.style.overflow = '';
-                    try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
-                });
-            }
-            if (opRegModal) {
-                opRegModal.addEventListener('click', (e) => {
-                    if (e.target === opRegModal) {
-                        opRegModal.classList.add('hidden');
-                        opRegModal.classList.remove('flex');
-                        document.body.style.overflow = '';
-                        try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
-                    }
                 });
             }
 
-            const registerForm = document.getElementById('registerForm');
-            if (registerForm) {
-                registerForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const f = e.target;
-                    const pwd = (f.regPassword ? String(f.regPassword.value || '') : '').trim();
-                    const confirmPwd = (f.confirmPassword ? String(f.confirmPassword.value || '') : '').trim();
-                    if (pwd === '' || confirmPwd === '' || pwd !== confirmPwd) {
-                        alert('Passwords do not match.');
-                        return;
-                    }
-                    const agreeTerms = document.getElementById('agreeTerms');
-                    const agreePrivacy = document.getElementById('agreePrivacy');
-                    if ((agreeTerms && !agreeTerms.checked) || (agreePrivacy && !agreePrivacy.checked)) {
-                        alert('You must agree to the Terms and Data Privacy Policy.');
-                        return;
-                    }
-                    let captchaToken = '';
-                    const captchaEl = f.querySelector('.g-recaptcha');
-                    const captchaSiteKey = captchaEl ? String(captchaEl.getAttribute('data-sitekey') || '').trim() : '';
-                    if (captchaEl && captchaSiteKey) {
-                        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
-                        captchaToken = ta ? String(ta.value || '') : '';
-                        if (!captchaToken && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
-                            captchaToken = String(window.grecaptcha.getResponse() || '');
-                        }
-                        if (!captchaToken) {
-                            alert('Please complete the reCAPTCHA.');
-                            return;
-                        }
-                    }
-                    const payload = {
-                        firstName: (f.firstName ? String(f.firstName.value || '') : '').trim(),
-                        lastName: (f.lastName ? String(f.lastName.value || '') : '').trim(),
-                        middleName: (f.middleName ? String(f.middleName.value || '') : '').trim(),
-                        suffix: (f.suffix ? String(f.suffix.value || '') : '').trim(),
-                        birthdate: (f.birthdate ? String(f.birthdate.value || '') : '').trim(),
-                        regEmail: (f.regEmail ? String(f.regEmail.value || '') : '').trim(),
-                        email: (f.regEmail ? String(f.regEmail.value || '') : '').trim(),
-                        mobile: (f.mobile ? String(f.mobile.value || '') : '').trim(),
-                        address: (f.address ? String(f.address.value || '') : '').trim(),
-                        houseNumber: (f.houseNumber ? String(f.houseNumber.value || '') : '').trim(),
-                        street: (f.street ? String(f.street.value || '') : '').trim(),
-                        barangay: (f.barangay ? String(f.barangay.value || '') : '').trim(),
-                        regPassword: pwd,
-                        password: pwd,
-                        confirmPassword: confirmPwd,
-                        recaptcha_token: captchaToken
-                    };
-                    const url = (BASE_URL || '') + '/gsm_login/Login/register.php';
-                    try {
-                        const res = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-                        const data = await res.json().catch(() => null);
-                        if (!data || !data.ok) {
-                            alert((data && data.message) ? data.message : 'Registration failed.');
-                            return;
-                        }
-                        alert(data.message || 'Registration submitted.');
-                        regModal && regModal.classList.add('hidden');
-                        document.body.style.overflow = '';
-                        try { if (window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
-                    } catch (err) {
-                        alert('Network error. Please try again.');
-                    }
+            const openTermsFromOperatorReg = document.getElementById('openTermsFromOperatorReg');
+            if (openTermsFromOperatorReg) {
+                openTermsFromOperatorReg.addEventListener('click', () => {
+                    const tm = document.getElementById('termsModal');
+                    if (!tm) return;
+                    tm.classList.remove('hidden');
+                    tm.classList.add('flex');
                 });
             }
 
             const operatorRegisterForm = document.getElementById('operatorRegisterForm');
+            const btnOperatorRegisterSubmit = document.getElementById('btnOperatorRegisterSubmit');
             if (operatorRegisterForm) {
                 operatorRegisterForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const f = e.target;
-                    const pwd = (f.password ? String(f.password.value || '') : '').trim();
-                    const confirmPwd = (f.confirm_password ? String(f.confirm_password.value || '') : '').trim();
-                    const err = document.getElementById('op-confirm-error');
-                    if (err) err.classList.add('hidden');
-                    if (pwd === '' || confirmPwd === '' || pwd !== confirmPwd) {
-                        if (err) err.classList.remove('hidden');
+                    const fd = new FormData(operatorRegisterForm);
+                    const operator_type = String(fd.get('operator_type') || 'Individual');
+                    const operator_name = String(fd.get('operator_name') || '').trim();
+                    const contact_number = String(fd.get('contact_number') || '').trim();
+                    const email = String(fd.get('email') || '').trim();
+                    const password = String(fd.get('password') || '');
+                    const confirm_password = String(fd.get('confirm_password') || '');
+                    const agree_terms = !!(document.getElementById('opAgreeTerms') && document.getElementById('opAgreeTerms').checked);
+
+                    if (!operator_name || !email || !password || !confirm_password || !contact_number) {
+                        alert('Please complete all required fields.');
+                        return;
+                    }
+                    if (password !== confirm_password) {
                         alert('Passwords do not match.');
                         return;
                     }
-                    let captchaToken = '';
-                    const opCaptchaEl = document.getElementById('opRecaptcha');
-                    const opCaptchaSiteKey = opCaptchaEl ? String(opCaptchaEl.getAttribute('data-sitekey') || '').trim() : '';
-                    if (opCaptchaEl && opCaptchaSiteKey) {
-                        tryRenderOpRecaptcha();
-                        captchaToken = (window.grecaptcha && operatorRecaptchaWidgetId !== null) ? String(window.grecaptcha.getResponse(operatorRecaptchaWidgetId) || '') : '';
-                        if (!captchaToken) {
+                    if (!agree_terms) {
+                        alert('You must agree to the Terms to register.');
+                        return;
+                    }
+
+                    let recaptcha_token = '';
+                    if (window.grecaptcha && operatorRecaptchaWidgetId !== null) {
+                        recaptcha_token = String(window.grecaptcha.getResponse(operatorRecaptchaWidgetId) || '');
+                        if (!recaptcha_token) {
                             alert('Please complete the reCAPTCHA.');
                             return;
                         }
                     }
-                    const payload = {
-                        plate_number: (f.plate_number ? String(f.plate_number.value || '') : '').trim(),
-                        full_name: (f.full_name ? String(f.full_name.value || '') : '').trim(),
-                        email: (f.email ? String(f.email.value || '') : '').trim(),
-                        password: pwd,
-                        confirm_password: confirmPwd,
-                        recaptcha_token: captchaToken
-                    };
-                    const url = (BASE_URL || '') + '/gsm_login/Login/operator_register.php';
+
+                    if (btnOperatorRegisterSubmit) {
+                        btnOperatorRegisterSubmit.disabled = true;
+                        btnOperatorRegisterSubmit.textContent = 'Registering...';
+                    }
+
                     try {
-                        const res = await fetch(url, {
+                        const res = await fetch((BASE_URL || '') + '/gsm_login/Login/operator_register.php', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                            body: JSON.stringify(payload)
+                            body: JSON.stringify({
+                                operator_type,
+                                operator_name,
+                                contact_number,
+                                email,
+                                password,
+                                confirm_password,
+                                agree_terms,
+                                recaptcha_token
+                            })
                         });
-                        const data = await res.json().catch(() => null);
+                        const data = await res.json();
                         if (!data || !data.ok) {
-                            alert((data && data.message) ? data.message : 'Registration failed.');
+                            alert((data && data.message) ? data.message : 'Operator registration failed.');
                             return;
                         }
-                        const redirect = data && data.data && data.data.redirect ? String(data.data.redirect) : '';
+                        const redirect = data.data && data.data.redirect ? String(data.data.redirect) : '';
+                        if (opRegModal) {
+                            opRegModal.classList.add('hidden');
+                            opRegModal.classList.remove('flex');
+                            document.body.style.overflow = '';
+                        }
                         if (redirect) {
-                            if (redirect.indexOf('citizen/operator') !== -1) {
-                                window.location.href = (BASE_URL || '') + '/citizen/operator/index.php';
-                            } else {
-                                window.location.href = redirect;
-                            }
-                            return;
+                            window.location.href = (BASE_URL || '') + '/gsm_login/Login/' + redirect;
+                        } else {
+                            alert(data.message || 'Registration submitted.');
                         }
-                        alert(data.message || 'Registration successful. Please login as operator.');
-                        opRegModal && opRegModal.classList.add('hidden');
-                        opRegModal && opRegModal.classList.remove('flex');
-                        document.body.style.overflow = '';
-                        try { if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId); } catch (e) {}
                     } catch (err) {
                         alert('Network error. Please try again.');
+                    } finally {
+                        if (btnOperatorRegisterSubmit) {
+                            btnOperatorRegisterSubmit.disabled = false;
+                            btnOperatorRegisterSubmit.textContent = 'Register';
+                        }
+                        try {
+                            if (window.grecaptcha && operatorRecaptchaWidgetId !== null) window.grecaptcha.reset(operatorRecaptchaWidgetId);
+                        } catch (e2) {}
                     }
                 });
             }
@@ -1062,8 +889,6 @@ if (!empty($_SESSION['user_id'])) {
             // Terms & Privacy
             const termsModal = document.getElementById('termsModal');
             const privacyModal = document.getElementById('privacyModal');
-            const openTerms = document.getElementById('openTerms');
-            const openPrivacy = document.getElementById('openPrivacy');
             const footerTerms = document.getElementById('footerTerms');
             const footerPrivacy = document.getElementById('footerPrivacy');
             const closeTerms = document.getElementById('closeTerms');
@@ -1073,12 +898,10 @@ if (!empty($_SESSION['user_id'])) {
 
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => termsModal.classList.remove('hidden', 'flex'));
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
-            if(openTerms && termsModal) openTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
             if(closeTerms) closeTerms.addEventListener('click', () => termsModal.classList.add('hidden'));
             if(closeTermsBottom) closeTermsBottom.addEventListener('click', () => termsModal.classList.add('hidden'));
 
             if(footerPrivacy && privacyModal) footerPrivacy.addEventListener('click', () => { privacyModal.classList.remove('hidden'); privacyModal.classList.add('flex'); });
-            if(openPrivacy && privacyModal) openPrivacy.addEventListener('click', () => { privacyModal.classList.remove('hidden'); privacyModal.classList.add('flex'); });
             if(closePrivacy) closePrivacy.addEventListener('click', () => privacyModal.classList.add('hidden'));
             if(closePrivacyBottom) closePrivacyBottom.addEventListener('click', () => privacyModal.classList.add('hidden'));
 
@@ -1090,9 +913,17 @@ if (!empty($_SESSION['user_id'])) {
             if (el) el.textContent = now.toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
 
+        let citizenRecaptchaWidgetId = null;
+        function tryRenderCitizenRecaptcha() {
+            const el = document.getElementById('citizenRecaptcha');
+            if (!el || !window.grecaptcha || citizenRecaptchaWidgetId !== null) return;
+            const siteKey = el.getAttribute('data-sitekey');
+            if (siteKey) citizenRecaptchaWidgetId = window.grecaptcha.render(el, { sitekey: siteKey });
+        }
+
         let operatorRecaptchaWidgetId = null;
         function tryRenderOpRecaptcha() {
-            const el = document.getElementById('opRecaptcha');
+            const el = document.getElementById('operatorRecaptcha');
             if (!el || !window.grecaptcha || operatorRecaptchaWidgetId !== null) return;
             const siteKey = el.getAttribute('data-sitekey');
             if (siteKey) operatorRecaptchaWidgetId = window.grecaptcha.render(el, { sitekey: siteKey });

@@ -261,6 +261,23 @@ if (empty($_SESSION['operator_csrf'])) {
                         </div>
                     </div>
 
+                    <div id="approvalBanner" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <div class="text-xs font-bold uppercase tracking-wider text-amber-700">Account Verification</div>
+                                <div class="mt-1 text-sm font-semibold text-slate-800" id="approvalBannerTitle">Your operator account is pending approval.</div>
+                                <div class="mt-1 text-xs text-slate-600" id="approvalBannerSub">Upload your documents so the admin/LGU can verify your account.</div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="openVerificationModal()"
+                                    class="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition">Upload Documents</button>
+                                <button type="button" onclick="loadVerificationStatus(true)"
+                                    class="px-4 py-2.5 rounded-xl bg-white border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition">Refresh</button>
+                            </div>
+                        </div>
+                        <div id="approvalBannerRemarks" class="hidden mt-3 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3"></div>
+                    </div>
+
                     <!-- KPI Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div

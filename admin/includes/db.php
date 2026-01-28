@@ -687,10 +687,60 @@ function db()
     full_name VARCHAR(128) DEFAULT NULL,
     contact_info VARCHAR(64) DEFAULT NULL,
     association_name VARCHAR(128) DEFAULT NULL,
+    operator_type VARCHAR(16) DEFAULT 'Individual',
+    approval_status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    verification_submitted_at DATETIME DEFAULT NULL,
+    approval_remarks TEXT DEFAULT NULL,
+    approved_at DATETIME DEFAULT NULL,
+    approved_by INT DEFAULT NULL,
+    terms_accepted_at DATETIME DEFAULT NULL,
     status ENUM('Active','Inactive','Locked') NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_approval_status (approval_status)
+  ) ENGINE=InnoDB");
+
+  $opUserCols = [
+    'operator_type' => "VARCHAR(16) DEFAULT 'Individual'",
+    'approval_status' => "ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending'",
+    'verification_submitted_at' => "DATETIME DEFAULT NULL",
+    'approval_remarks' => "TEXT DEFAULT NULL",
+    'approved_at' => "DATETIME DEFAULT NULL",
+    'approved_by' => "INT DEFAULT NULL",
+    'terms_accepted_at' => "DATETIME DEFAULT NULL",
+  ];
+  foreach ($opUserCols as $col => $def) {
+    $check = $conn->query("SHOW COLUMNS FROM operator_portal_users LIKE '$col'");
+    if ($check && $check->num_rows == 0) {
+      $conn->query("ALTER TABLE operator_portal_users ADD COLUMN $col $def");
+    }
+  }
+  $opApprovalCol = $conn->query("SHOW COLUMNS FROM operator_portal_users LIKE 'approval_status'");
+  if ($opApprovalCol && ($row = $opApprovalCol->fetch_assoc())) {
+    $t = (string)($row['Type'] ?? '');
+    if (stripos($t, 'pending') === false || stripos($t, 'approved') === false || stripos($t, 'rejected') === false) {
+      $conn->query("ALTER TABLE operator_portal_users MODIFY COLUMN approval_status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending'");
+    }
+  }
+  $idxOpApproval = $conn->query("SHOW INDEX FROM operator_portal_users WHERE Key_name='idx_approval_status'");
+  if (!$idxOpApproval || $idxOpApproval->num_rows == 0) {
+    $conn->query("ALTER TABLE operator_portal_users ADD INDEX idx_approval_status (approval_status)");
+  }
+
+  $conn->query("CREATE TABLE IF NOT EXISTS operator_portal_documents (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    doc_key VARCHAR(64) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    status ENUM('Pending','Valid','Invalid') NOT NULL DEFAULT 'Pending',
+    remarks TEXT DEFAULT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME DEFAULT NULL,
+    reviewed_by INT DEFAULT NULL,
+    UNIQUE KEY uniq_user_doc (user_id, doc_key),
+    INDEX idx_user_status (user_id, status),
+    CONSTRAINT fk_operator_portal_documents_user FOREIGN KEY (user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
   $conn->query("CREATE TABLE IF NOT EXISTS operator_portal_user_plates (
@@ -772,37 +822,21 @@ function db()
     FOREIGN KEY (application_id) REFERENCES franchise_applications(application_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
-  try {
-    $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
-      fv_id INT AUTO_INCREMENT PRIMARY KEY,
-      franchise_id INT DEFAULT NULL,
-      franchise_ref_number VARCHAR(64) DEFAULT NULL,
-      route_id INT DEFAULT NULL,
-      vehicle_id INT NOT NULL,
-      status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
-      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_franchise_id (franchise_id),
-      INDEX idx_franchise_ref (franchise_ref_number),
-      INDEX idx_route_status (route_id, status),
-      INDEX idx_vehicle_status (vehicle_id, status),
-      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
-      FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL
-    ) ENGINE=InnoDB");
-  } catch (Throwable $e) {
-    $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
-      fv_id INT AUTO_INCREMENT PRIMARY KEY,
-      franchise_id INT DEFAULT NULL,
-      franchise_ref_number VARCHAR(64) DEFAULT NULL,
-      route_id INT DEFAULT NULL,
-      vehicle_id INT NOT NULL,
-      status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
-      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_franchise_id (franchise_id),
-      INDEX idx_franchise_ref (franchise_ref_number),
-      INDEX idx_route_status (route_id, status),
-      INDEX idx_vehicle_status (vehicle_id, status)
-    ) ENGINE=InnoDB");
-  }
+  $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
+    fv_id INT AUTO_INCREMENT PRIMARY KEY,
+    franchise_id INT DEFAULT NULL,
+    franchise_ref_number VARCHAR(64) DEFAULT NULL,
+    route_id INT DEFAULT NULL,
+    vehicle_id INT NOT NULL,
+    status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_franchise_id (franchise_id),
+    INDEX idx_franchise_ref (franchise_ref_number),
+    INDEX idx_route_status (route_id, status),
+    INDEX idx_vehicle_status (vehicle_id, status),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+    FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL
+  ) ENGINE=InnoDB");
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (
     case_id INT AUTO_INCREMENT PRIMARY KEY,

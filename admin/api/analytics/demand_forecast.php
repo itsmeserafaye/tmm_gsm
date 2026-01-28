@@ -13,14 +13,6 @@ $areaType = in_array($areaType, ['terminal', 'route'], true) ? $areaType : 'term
 $hoursAhead = (int)($_GET['hours'] ?? 24);
 if ($hoursAhead < 6) $hoursAhead = 6;
 if ($hoursAhead > 72) $hoursAhead = 72;
-$includeTraffic = ((int)($_GET['include_traffic'] ?? 0)) === 1;
-
-$cacheKey = 'demand_forecast:v3:' . $areaType . ':' . $hoursAhead . ':it=' . ($includeTraffic ? '1' : '0');
-$cached = tmm_cache_get($db, $cacheKey);
-if (is_array($cached) && ($cached['ok'] ?? false)) {
-  echo json_encode($cached);
-  return;
-}
 
 $now = time();
 $startTs = $now - (28 * 24 * 3600);
@@ -322,7 +314,6 @@ $eventsMap = tmm_get_events_map($db, $holidayMap, $eventsRssUrl, $hoursAhead > 4
 
 $areas = [];
 $areaLists = ['terminal' => [], 'route' => []];
-$obsAlias = ['terminal' => [], 'route' => []];
 if ($areaType === 'route') {
   $res = $db->query("SELECT route_id, route_name, origin, destination, max_vehicle_limit FROM routes WHERE status IS NULL OR status='Active' ORDER BY route_name");
   while ($res && ($r = $res->fetch_assoc())) {
@@ -348,37 +339,13 @@ if ($areaType === 'route') {
 }
 {
   $resT = $db->query("SELECT id, name FROM terminals ORDER BY name");
-  while ($resT && ($r = $resT->fetch_assoc())) {
-    $id = (string)$r['id'];
-    $name = trim((string)$r['name']);
-    $areaLists['terminal'][] = ['ref' => $id, 'label' => $name];
-    if ($id !== '') {
-      $obsAlias['terminal'][$id] = $id;
-      $obsAlias['terminal'][strtolower($id)] = $id;
-    }
-    if ($name !== '') {
-      $obsAlias['terminal'][$name] = $id;
-      $obsAlias['terminal'][strtolower($name)] = $id;
-    }
-  }
+  while ($resT && ($r = $resT->fetch_assoc())) $areaLists['terminal'][] = ['ref' => (string)$r['id'], 'label' => (string)$r['name']];
   $resR = $db->query("SELECT route_id, route_name FROM routes WHERE status IS NULL OR status='Active' ORDER BY route_name");
-  while ($resR && ($r = $resR->fetch_assoc())) {
-    $id = (string)$r['route_id'];
-    $name = trim((string)$r['route_name']);
-    $areaLists['route'][] = ['ref' => $id, 'label' => $name];
-    if ($id !== '') {
-      $obsAlias['route'][$id] = $id;
-      $obsAlias['route'][strtolower($id)] = $id;
-    }
-    if ($name !== '') {
-      $obsAlias['route'][$name] = $id;
-      $obsAlias['route'][strtolower($name)] = $id;
-    }
-  }
+  while ($resR && ($r = $resR->fetch_assoc())) $areaLists['route'][] = ['ref' => (string)$r['route_id'], 'label' => (string)$r['route_name']];
 }
 
 $seriesByArea = [];
-function load_series_from_observations(mysqli $db, string $areaType, string $startStr, array $aliasMap): array {
+function load_series_from_observations(mysqli $db, string $areaType, string $startStr): array {
   $out = [];
   $stmt = $db->prepare("
     SELECT area_ref, DATE_FORMAT(observed_at, '%Y-%m-%d %H:00:00') AS hour_start, SUM(demand_count) AS cnt
@@ -391,15 +358,7 @@ function load_series_from_observations(mysqli $db, string $areaType, string $sta
   $stmt->execute();
   $res = $stmt->get_result();
   while ($res && ($r = $res->fetch_assoc())) {
-    $raw = trim((string)$r['area_ref']);
-    $key = $raw;
-    if ($raw !== '') {
-      if (isset($aliasMap[$raw])) $key = (string)$aliasMap[$raw];
-      else {
-        $low = strtolower($raw);
-        if (isset($aliasMap[$low])) $key = (string)$aliasMap[$low];
-      }
-    }
+    $key = (string)$r['area_ref'];
     if (!isset($out[$key])) $out[$key] = [];
     $out[$key][] = ['hour_start' => (string)$r['hour_start'], 'cnt' => (int)($r['cnt'] ?? 0)];
   }
@@ -407,18 +366,10 @@ function load_series_from_observations(mysqli $db, string $areaType, string $sta
   return $out;
 }
 
-$seriesObs = load_series_from_observations($db, $areaType, $startStr, $obsAlias[$areaType] ?? []);
-$knownRefs = [];
-foreach ($areas as $a) {
-  if (is_array($a) && isset($a['ref'])) $knownRefs[(string)$a['ref']] = true;
-}
-$seriesObsKnown = [];
-foreach ($seriesObs as $k => $rows) {
-  if (isset($knownRefs[(string)$k])) $seriesObsKnown[(string)$k] = $rows;
-}
-$useObservations = !empty($seriesObsKnown);
+$seriesObs = load_series_from_observations($db, $areaType, $startStr);
+$useObservations = !empty($seriesObs);
 if ($useObservations) {
-  $seriesByArea = $seriesObsKnown;
+  $seriesByArea = $seriesObs;
 } elseif ($areaType === 'route') {
   $sqlA = "
     SELECT 
@@ -520,7 +471,7 @@ foreach ($seasonWeights as $w) {
   if ($pts === $bestPoints && $acc > $bestAcc) { $bestW = (float)$w; $bestAcc = $acc; }
 }
 
-$tomtomConfigured = $includeTraffic && (tmm_tomtom_api_key($db) !== '');
+$tomtomConfigured = tmm_tomtom_api_key($db) !== '';
 
 foreach ($areas as $a) {
   $ref = (string)$a['ref'];
@@ -710,7 +661,7 @@ $accuracyOk = ($points >= 40) && ($accuracy >= $accuracyTarget);
 
 $dataSource = $useObservations ? 'puv_demand_observations' : ($areaType === 'route' ? 'terminal_assignments_and_vehicles' : 'parking_transactions_and_violations');
 
-$payload = [
+echo json_encode([
   'ok' => true,
   'area_type' => $areaType,
   'hours' => $hoursAhead,
@@ -729,7 +680,4 @@ $payload = [
   'spikes' => $spikes,
   'areas' => $forecastItems,
   'area_lists' => $areaLists,
-];
-
-tmm_cache_set($db, $cacheKey, $payload, 60);
-echo json_encode($payload);
+]);

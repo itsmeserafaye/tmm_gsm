@@ -23,52 +23,15 @@ if (php_sapi_name() !== 'cli') {
   }
 }
 
-$requestedPage = isset($_GET['page']) ? trim((string)$_GET['page'], '/') : 'dashboard';
-$requestedPage = preg_replace('/[^a-z0-9\/\-]/i', '', $requestedPage);
-
-$tmmCanonicalToLegacy = [];
-$tmmLegacyToCanonical = [];
-$tmmCollectRouteAliases = function (array $node) use (&$tmmCanonicalToLegacy, &$tmmLegacyToCanonical): void {
-  if (!isset($node['path'], $node['page']))
-    return;
-  $canonical = ltrim((string)$node['path'], '/');
-  $legacy = trim((string)$node['page'], '/');
-  if ($canonical === '' || $legacy === '')
-    return;
-  $tmmCanonicalToLegacy[$canonical] = $legacy;
-  $tmmLegacyToCanonical[$legacy] = $canonical;
-};
-foreach ($sidebarItems as $item) {
-  $tmmCollectRouteAliases($item);
-  if (!empty($item['subItems']) && is_array($item['subItems'])) {
-    foreach ($item['subItems'] as $sub) {
-      if (is_array($sub))
-        $tmmCollectRouteAliases($sub);
-    }
-  }
-}
-
-$includePage = $requestedPage;
-$currentPath = '/' . $requestedPage;
-if (isset($tmmCanonicalToLegacy[$requestedPage])) {
-  $includePage = $tmmCanonicalToLegacy[$requestedPage];
-} elseif (isset($tmmLegacyToCanonical[$requestedPage])) {
-  $currentPath = '/' . $tmmLegacyToCanonical[$requestedPage];
-  if (php_sapi_name() !== 'cli' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET')) {
-    $qs = $_GET;
-    $qs['page'] = $tmmLegacyToCanonical[$requestedPage];
-    header('Location: ' . $baseUrl . '/index.php?' . http_build_query($qs));
-    exit;
-  }
-}
-
-$includePage = preg_replace('/[^a-z0-9\/\-]/i', '', $includePage);
+$page = isset($_GET['page']) ? trim($_GET['page'], '/') : 'dashboard';
+$page = preg_replace('/[^a-z0-9\/\-]/i', '', $page);
 $pagesRoot = $baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR;
-$pageFile = $pagesRoot . str_replace('/', DIRECTORY_SEPARATOR, $includePage) . '.php';
+$pageFile = $pagesRoot . str_replace('/', DIRECTORY_SEPARATOR, $page) . '.php';
 if (!is_file($pageFile)) {
   $pageFile = $pagesRoot . 'dashboard.php';
-  $currentPath = '/dashboard';
 }
+
+$currentPath = '/' . $page;
 $tmm_node_allowed = function (array $node): bool {
   if (!empty($node['roles']) && is_array($node['roles'])) {
     return in_array(current_user_role(), $node['roles'], true);
@@ -145,34 +108,6 @@ if ($ts !== false) $formJsVer = (int)$ts;
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="includes/unified.css">
-  <style>
-    @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(20px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes shimmer {
-      0% { background-position: -1000px 0; }
-      100% { background-position: 1000px 0; }
-    }
-    .animate-slide-in { animation: slideInRight 0.3s ease-out; }
-    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-    .hover-lift { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.15); }
-    .gradient-border {
-      position: relative;
-      background: linear-gradient(white, white) padding-box,
-                  linear-gradient(135deg, #5ba3f5, #66bb6a) border-box;
-      border: 2px solid transparent;
-    }
-    .dark .gradient-border {
-      background: linear-gradient(rgb(30 41 59), rgb(30 41 59)) padding-box,
-                  linear-gradient(135deg, #5ba3f5, #66bb6a) border-box;
-    }
-  </style>
   <script>
     window.TMM_ROOT_URL = <?php echo json_encode($rootUrl, JSON_UNESCAPED_SLASHES); ?>;
     window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
@@ -180,13 +115,13 @@ if ($ts !== false) $formJsVer = (int)$ts;
   <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string)$formJsVer; ?>" defer></script>
 </head>
 
-<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-200 font-sans">
+<body class="min-h-screen bg-slate-50 dark:bg-slate-800 transition-colors duration-200 font-sans">
   <div class="flex h-screen overflow-hidden">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>
     <div class="flex-1 flex flex-col">
       <?php include $baseDir . '/includes/header.php'; ?>
-      <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 animate-fade-in">
+      <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
         <?php
         try {
           include $pageFile;
@@ -200,24 +135,24 @@ if ($ts !== false) $formJsVer = (int)$ts;
       </main>
     </div>
   </div>
-  <div id="tmm-session-toast" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-[420px] z-[100] animate-slide-in">
-    <div class="pointer-events-auto px-5 py-5 rounded-2xl shadow-2xl border-2 border-amber-200 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 hover-lift">
+  <div id="tmm-session-toast" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-[420px] z-[100]">
+    <div class="pointer-events-auto px-4 py-4 rounded-2xl shadow-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3">
-          <div class="mt-0.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+          <div class="mt-0.5 p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
             <i data-lucide="timer" class="w-5 h-5"></i>
           </div>
           <div>
-            <div class="text-sm font-black text-amber-900 dark:text-amber-100">Session expiring soon</div>
+            <div class="text-sm font-black">Session expiring soon</div>
             <div id="tmm-session-toast-msg" class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200"></div>
           </div>
         </div>
-        <button type="button" id="tmm-session-toast-close" class="p-2 rounded-lg hover:bg-amber-100 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white transition-all duration-200">
+        <button type="button" id="tmm-session-toast-close" class="p-2 rounded-lg hover:bg-amber-100 dark:hover:bg-slate-800/60 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
       <div class="mt-4 flex items-center justify-end gap-2">
-        <button type="button" id="tmm-session-stay" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">Stay Logged In</button>
+        <button type="button" id="tmm-session-stay" class="px-4 py-2.5 rounded-md bg-amber-700 hover:bg-amber-800 text-white font-semibold">Stay Logged In</button>
       </div>
     </div>
   </div>

@@ -15,14 +15,11 @@ $hours = (int)($_GET['hours'] ?? 24);
 if ($hours < 6) $hours = 6;
 if ($hours > 72) $hours = 72;
 
-$includeTraffic = ((int)($_GET['include_traffic'] ?? 0)) === 1;
-
 $demandUrl = __DIR__ . '/demand_forecast.php';
 
 ob_start();
 $_GET['area_type'] = $areaType;
 $_GET['hours'] = (string)$hours;
-$_GET['include_traffic'] = $includeTraffic ? '1' : '0';
 include $demandUrl;
 $raw = ob_get_clean();
 $forecast = json_decode((string)$raw, true);
@@ -58,12 +55,6 @@ if ($areaType === 'route') {
   $res = $db->query("SELECT route_id, COUNT(*) AS c FROM terminal_assignments WHERE status IS NULL OR status='Authorized' GROUP BY route_id");
   while ($res && ($r = $res->fetch_assoc())) {
     $supplyByRouteId[(string)$r['route_id']] = (int)($r['c'] ?? 0);
-  }
-  if (empty($supplyByRouteId)) {
-    $res2 = $db->query("SELECT route_id, COUNT(*) AS c FROM vehicles WHERE route_id IS NOT NULL AND route_id<>'' AND (status IS NULL OR status='Active') GROUP BY route_id");
-    while ($res2 && ($r = $res2->fetch_assoc())) {
-      $supplyByRouteId[(string)$r['route_id']] = (int)($r['c'] ?? 0);
-    }
   }
 }
 
@@ -450,18 +441,23 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
 
   if (!empty($oversupply)) {
     usort($oversupply, function($a, $b){ return ($b['supply'] ?? 0) <=> ($a['supply'] ?? 0); });
-    foreach ($oversupply as $o) {
+    $top = array_slice($oversupply, 0, 3);
+    foreach ($top as $o) {
       $nm = (string)($o['name'] ?? 'Unknown');
       $su = (int)($o['supply'] ?? 0);
       $pk = (int)($o['peak'] ?? 0);
       $insights[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}. Hold/rotate units, reduce loading bays, and avoid queue congestion.";
     }
+    if (count($oversupply) > 3) {
+      $insights[] = "Oversupply detected in " . (count($oversupply) - 3) . " other " . ($areaType === 'terminal' ? "terminals" : "routes") . ". Use rotation and maintenance windows.";
+    }
   }
 
   if (!empty($lowDemandAreas)) {
     usort($lowDemandAreas, function($a, $b){ return ($a['peak'] ?? 0) <=> ($b['peak'] ?? 0); });
-    $names = array_map(function($x){ return (string)($x['name'] ?? ''); }, $lowDemandAreas);
+    $names = array_map(function($x){ return (string)($x['name'] ?? ''); }, array_slice($lowDemandAreas, 0, 3));
     $list = implode(', ', array_filter($names));
+    if (count($lowDemandAreas) > 3) $list .= " and " . (count($lowDemandAreas)-3) . " others";
     $scopeWord = $areaType === 'terminal' ? 'terminals' : 'routes';
     $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways and reduce staging to keep operations smooth.";
     $insights[] = "Optimization: prioritize dispatch within the same assigned routes where demand is higher; decongest low-activity {$scopeWord}.";

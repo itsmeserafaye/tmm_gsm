@@ -90,19 +90,51 @@ function op_user_plates(mysqli $db, int $userId): array
   return $plates;
 }
 
+function op_get_user_row(mysqli $db, int $userId): ?array
+{
+  $stmt = $db->prepare("SELECT id, email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks, status FROM operator_portal_users WHERE id=? LIMIT 1");
+  if (!$stmt)
+    return null;
+  $stmt->bind_param('i', $userId);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $row = $res ? $res->fetch_assoc() : null;
+  $stmt->close();
+  return is_array($row) ? $row : null;
+}
+
+function op_is_approved(?array $userRow): bool
+{
+  if (!$userRow)
+    return false;
+  return ((string) ($userRow['approval_status'] ?? '')) === 'Approved' && ((string) ($userRow['status'] ?? '')) === 'Active';
+}
+
+function op_require_approved(mysqli $db, int $userId): void
+{
+  $u = op_get_user_row($db, $userId);
+  if (!op_is_approved($u)) {
+    op_send(false, ['error' => 'Operator account is pending approval. Please submit verification documents or wait for admin approval.'], 403);
+  }
+}
+
 if ($action === 'get_session') {
   $plates = op_user_plates($db, $userId);
+  $u = op_get_user_row($db, $userId);
   op_send(true, [
     'data' => [
       'active_plate' => $activePlate,
       'plates' => $plates,
       'csrf_token' => (string) ($_SESSION['operator_csrf'] ?? ''),
+      'approval_status' => $u ? (string) ($u['approval_status'] ?? '') : '',
+      'operator_type' => $u ? (string) ($u['operator_type'] ?? '') : '',
     ]
   ]);
 }
 
 if ($action === 'set_active_plate') {
   op_require_csrf();
+  op_require_approved($db, $userId);
   $plate = strtoupper(trim((string) ($_POST['plate_number'] ?? '')));
   if ($plate === '')
     op_send(false, ['error' => 'Missing plate number'], 400);
@@ -298,7 +330,7 @@ if ($action === 'get_applications') {
 }
 
 if ($action === 'get_profile') {
-  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name FROM operator_portal_users WHERE id=? LIMIT 1");
+  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks FROM operator_portal_users WHERE id=? LIMIT 1");
   if (!$stmt)
     op_send(false, ['error' => 'Query failed'], 500);
   $stmt->bind_param('i', $userId);
@@ -312,9 +344,134 @@ if ($action === 'get_profile') {
       'email' => $row['email'] ?? ($_SESSION['operator_email'] ?? ''),
       'contact_info' => $row['contact_info'] ?? '',
       'association_name' => $row['association_name'] ?? '',
+      'operator_type' => $row['operator_type'] ?? 'Individual',
+      'approval_status' => $row['approval_status'] ?? 'Pending',
+      'verification_submitted_at' => $row['verification_submitted_at'] ?? null,
+      'approval_remarks' => $row['approval_remarks'] ?? null,
       'plate_number' => $activePlate,
     ]
   ]);
+}
+
+if ($action === 'get_verification') {
+  $u = op_get_user_row($db, $userId);
+  if (!$u)
+    op_send(false, ['error' => 'Profile not found'], 404);
+  $docs = [];
+  $stmt = $db->prepare("SELECT doc_key, file_path, status, remarks, uploaded_at, reviewed_at FROM operator_portal_documents WHERE user_id=? ORDER BY doc_key ASC");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) {
+      $docs[] = [
+        'doc_key' => (string) ($r['doc_key'] ?? ''),
+        'file_path' => (string) ($r['file_path'] ?? ''),
+        'status' => (string) ($r['status'] ?? ''),
+        'remarks' => $r['remarks'] ?? null,
+        'uploaded_at' => (string) ($r['uploaded_at'] ?? ''),
+        'reviewed_at' => $r['reviewed_at'] ?? null,
+      ];
+    }
+    $stmt->close();
+  }
+  op_send(true, [
+    'data' => [
+      'operator_type' => (string) ($u['operator_type'] ?? 'Individual'),
+      'approval_status' => (string) ($u['approval_status'] ?? 'Pending'),
+      'verification_submitted_at' => $u['verification_submitted_at'] ?? null,
+      'approval_remarks' => $u['approval_remarks'] ?? null,
+      'documents' => $docs,
+    ]
+  ]);
+}
+
+if ($action === 'upload_verification_docs') {
+  op_require_csrf();
+  $u = op_get_user_row($db, $userId);
+  if (!$u)
+    op_send(false, ['error' => 'Profile not found'], 404);
+  if (((string) ($u['status'] ?? '')) !== 'Active')
+    op_send(false, ['error' => 'Account is not active'], 403);
+
+  $operatorType = (string) ($u['operator_type'] ?? 'Individual');
+  $allowedDocKeysByType = [
+    'Individual' => ['valid_id'],
+    'Coop' => ['cda_registration', 'board_resolution'],
+    'Corp' => ['sec_registration', 'authority_to_operate'],
+  ];
+  $allowedKeys = $allowedDocKeysByType[$operatorType] ?? ['valid_id'];
+
+  if (empty($_FILES)) {
+    op_send(false, ['error' => 'No files uploaded'], 400);
+  }
+
+  $targetDir = __DIR__ . '/uploads/';
+  if (!is_dir($targetDir)) {
+    @mkdir($targetDir, 0777, true);
+  }
+
+  $saved = [];
+  foreach ($_FILES as $docKey => $file) {
+    $docKey = (string) $docKey;
+    if (!in_array($docKey, $allowedKeys, true))
+      continue;
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)
+      continue;
+    if ((int) ($file['size'] ?? 0) > (5 * 1024 * 1024))
+      continue;
+    $original = (string) ($file['name'] ?? '');
+    $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+    $allowedExt = ['jpg', 'jpeg', 'png', 'pdf'];
+    if ($ext === '' || !in_array($ext, $allowedExt, true))
+      continue;
+    $tmp = (string) ($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp))
+      continue;
+    $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+    $mime = $finfo ? finfo_file($finfo, $tmp) : null;
+    if ($finfo)
+      finfo_close($finfo);
+    $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
+    if ($mime && !in_array($mime, $allowedMime, true))
+      continue;
+
+    $filename = 'verif_' . $docKey . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    if (!@move_uploaded_file((string) ($file['tmp_name'] ?? ''), $targetDir . $filename))
+      continue;
+
+    $relPath = 'uploads/' . $filename;
+    $stmt = $db->prepare("INSERT INTO operator_portal_documents(user_id, doc_key, file_path, status, remarks, reviewed_at, reviewed_by) VALUES(?, ?, ?, 'Pending', NULL, NULL, NULL)
+      ON DUPLICATE KEY UPDATE file_path=VALUES(file_path), status='Pending', remarks=NULL, reviewed_at=NULL, reviewed_by=NULL");
+    if ($stmt) {
+      $stmt->bind_param('iss', $userId, $docKey, $relPath);
+      $stmt->execute();
+      $stmt->close();
+      $saved[] = $docKey;
+    }
+  }
+
+  if (!$saved) {
+    op_send(false, ['error' => 'No valid files were uploaded'], 400);
+  }
+
+  $now = date('Y-m-d H:i:s');
+  $stmtU = $db->prepare("UPDATE operator_portal_users SET verification_submitted_at=?, approval_status=IF(approval_status='Approved','Approved','Pending') WHERE id=?");
+  if ($stmtU) {
+    $stmtU->bind_param('si', $now, $userId);
+    $stmtU->execute();
+    $stmtU->close();
+  }
+  $title = 'Verification submitted';
+  $message = 'Your verification documents were submitted and are pending review.';
+  $type = 'info';
+  $stmtN = $db->prepare("INSERT INTO operator_portal_notifications(user_id, title, message, type) VALUES(?, ?, ?, ?)");
+  if ($stmtN) {
+    $stmtN->bind_param('isss', $userId, $title, $message, $type);
+    $stmtN->execute();
+    $stmtN->close();
+  }
+  op_send(true, ['message' => 'Documents uploaded', 'data' => ['saved' => $saved]]);
 }
 
 if ($action === 'update_profile') {
@@ -378,6 +535,7 @@ if ($action === 'update_profile') {
 
 if ($action === 'submit_application') {
   op_require_csrf();
+  op_require_approved($db, $userId);
   $type = trim((string) ($_POST['type'] ?? ''));
   $notes = trim((string) ($_POST['notes'] ?? ''));
   if ($type === '')
@@ -436,6 +594,7 @@ if ($action === 'submit_application') {
 
 if ($action === 'add_vehicle') {
   op_require_csrf();
+  op_require_approved($db, $userId);
   $plate = strtoupper(trim((string) ($_POST['plate_number'] ?? '')));
   if ($plate === '')
     op_send(false, ['error' => 'Plate number required'], 400);
@@ -508,6 +667,7 @@ if ($action === 'get_fees') {
 
 if ($action === 'upload_payment') {
   op_require_csrf();
+  op_require_approved($db, $userId);
   $feeId = (int) ($_POST['fee_id'] ?? 0);
   if ($feeId <= 0)
     op_send(false, ['error' => 'Invalid Fee ID'], 400);
