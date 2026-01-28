@@ -232,14 +232,33 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         <label class="<?php echo $labelClass; ?> mb-3">Link Vehicle to Operator</label>
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                            <div>
-                                <input name="operator_id" inputmode="numeric" maxlength="10" pattern="^[0-9]{1,10}$" data-tmm-numeric-only="1" class="<?php echo $inputClass; ?>" placeholder="Operator ID (preferred)">
+                            
+                            <!-- Searchable Dropdown Container -->
+                            <div class="md:col-span-2 relative">
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Search Operator</label>
+                                <div class="relative">
+                                    <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo (int)($v['operator_id'] ?? 0) ?: ''; ?>">
+                                    <div class="relative">
+                                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                        <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9" 
+                                               placeholder="Search by name or ID..." 
+                                               autocomplete="off" 
+                                               value="<?php echo htmlspecialchars($v['operator_display'] ?? ''); ?>">
+                                        <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>">
+                                            <i data-lucide="x" class="w-3 h-3"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Dropdown Results -->
+                                    <div id="linkOpResults" class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden">
+                                        <!-- Items will be injected here -->
+                                    </div>
+                                </div>
+                                <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400" id="linkOpHint">Type to search existing operators</div>
                             </div>
+
                             <div>
-                                <input name="operator_name" class="<?php echo $inputClass; ?>" placeholder="Operator Name (fallback)" value="<?php echo htmlspecialchars($v['operator_display'] ?? ''); ?>">
-                            </div>
-                            <div>
-                                <button class="<?php echo $btnClass; ?> w-full">Link Operator</button>
+                                <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp">Link Operator</button>
                             </div>
                         </form>
                     </div>
@@ -600,12 +619,29 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
   document.querySelectorAll('input[type="file"]').forEach(input => {
     input.addEventListener('change', function() {
         var label = this.parentElement;
+        var span = label.querySelector('span');
         if(this.files && this.files.length > 0) {
+            var file = this.files[0];
+            var fileName = file.name;
+            // Truncate if longer than 10 chars
+            if(fileName.length > 10) {
+                var ext = fileName.split('.').pop();
+                var name = fileName.substring(0, 6);
+                fileName = name + '....' + ext;
+            }
+
             label.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
             label.classList.remove('border-slate-300', 'dark:border-slate-600');
+            
+            if(span) {
+                span.textContent = fileName;
+                span.classList.add('text-blue-700', 'dark:text-blue-300');
+                span.classList.remove('text-slate-500');
+            }
+
             var icon = label.querySelector('i');
             if(icon) {
-                icon.setAttribute('data-lucide', 'check');
+                icon.setAttribute('data-lucide', 'file-check'); // Changed to file-check for better visual
                 icon.classList.remove('text-slate-400');
                 icon.classList.add('text-blue-500');
                 if(window.lucide&&window.lucide.createIcons) window.lucide.createIcons();
@@ -674,22 +710,139 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
       xhr.onreadystatechange=function(){
         if(xhr.readyState===4){
           if(xhr.status>=200 && xhr.status<300){
-            msg.textContent="Documents uploaded successfully";
-            msg.className = "text-xs mt-2 font-medium text-center text-emerald-600";
-            setTimeout(refresh, 500);
+            try {
+                var res = JSON.parse(xhr.responseText);
+                if(res.ok) {
+                    msg.textContent="Documents uploaded successfully";
+                    msg.className = "text-xs mt-2 font-medium text-center text-emerald-600";
+                    setTimeout(refresh, 500);
+                } else {
+                    throw new Error(res.error || 'Unknown error');
+                }
+            } catch(e) {
+                // If JSON parse fails or res.ok is false
+                msg.textContent = "Upload success, refreshing..."; // Fallback if valid JSON but logic error handled above
+                 if (e.message) {
+                     msg.textContent = "Error: " + e.message;
+                     msg.className = "text-xs mt-2 font-medium text-center text-red-600";
+                 }
+                 setTimeout(refresh, 500);
+            }
           } else {
-            msg.textContent="Upload failed. Please try again.";
+            var errMsg = "Upload failed.";
+            try {
+                var res = JSON.parse(xhr.responseText);
+                if(res.error) errMsg = "Error: " + res.error;
+            } catch(e) {}
+            msg.textContent = errMsg;
             msg.className = "text-xs mt-2 font-medium text-center text-red-600";
           }
           setTimeout(function(){
             wrap.classList.add("hidden");
             bar.style.width="0%";
-          }, 2000);
+          }, 3000);
         }
       };
       xhr.open("POST", fu.action);
       xhr.send(fd);
     });
   }
+
+  // Operator Search Logic
+  function setupOperatorSearch(){
+    var search = document.getElementById('linkOpSearch');
+    var idInput = document.getElementById('linkOpId');
+    var results = document.getElementById('linkOpResults');
+    var clearBtn = document.getElementById('linkOpClear');
+    var hint = document.getElementById('linkOpHint');
+    
+    if(!search || !results) return;
+
+    var debounce = null;
+    
+    function showResults(show){
+        if(show) results.classList.remove('hidden');
+        else results.classList.add('hidden');
+    }
+
+    function selectOperator(id, name){
+        idInput.value = id;
+        search.value = name;
+        showResults(false);
+        if(clearBtn) clearBtn.classList.remove('hidden');
+        if(hint) hint.textContent = "Selected: ID " + id;
+    }
+
+    if(clearBtn) {
+        clearBtn.addEventListener('click', function(){
+            search.value = '';
+            idInput.value = '';
+            clearBtn.classList.add('hidden');
+            if(hint) hint.textContent = "Type to search existing operators";
+            search.focus();
+        });
+    }
+
+    // Event delegation for results
+    results.addEventListener('click', function(e){
+        var item = e.target.closest('[data-op-id]');
+        if(item){
+            var id = item.getAttribute('data-op-id');
+            var name = item.getAttribute('data-op-name');
+            selectOperator(id, name);
+        }
+    });
+
+    search.addEventListener('input', function(){
+        var q = this.value.trim();
+        if(q === '') {
+            showResults(false);
+            if(clearBtn) clearBtn.classList.add('hidden');
+            return;
+        }
+        if(clearBtn) clearBtn.classList.remove('hidden');
+
+        if(debounce) clearTimeout(debounce);
+        debounce = setTimeout(function(){
+            fetch("<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/list_operators.php?limit=10&q=" + encodeURIComponent(q))
+                .then(r => r.json())
+                .then(res => {
+                    if(res.ok && res.data && res.data.length > 0){
+                        var html = '';
+                        res.data.forEach(op => {
+                            var meta = [];
+                            if(op.operator_type) meta.push(op.operator_type);
+                            if(op.contact_no) meta.push(op.contact_no);
+                            var safeName = op.name.replace(/"/g, '&quot;');
+                            
+                            html += `
+                            <div class="p-3 border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                                 data-op-id="${op.operator_id}" data-op-name="${safeName}">
+                                <div class="font-bold text-sm text-slate-900 dark:text-white">${op.name}</div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
+                                    <span>${meta.join(' • ')}</span>
+                                    <span class="font-mono">ID: ${op.operator_id}</span>
+                                </div>
+                            </div>
+                            `;
+                        });
+                        results.innerHTML = html;
+                        showResults(true);
+                    } else {
+                        results.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
+                        showResults(true);
+                    }
+                });
+        }, 300);
+    });
+
+    // Close on click outside
+    document.addEventListener('click', function(e){
+        if(!search.contains(e.target) && !results.contains(e.target)){
+            showResults(false);
+        }
+    });
+  }
+  setupOperatorSearch();
 })();
 </script>
