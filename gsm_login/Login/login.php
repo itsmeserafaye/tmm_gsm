@@ -158,9 +158,11 @@ function td_is_trusted(mysqli $db, string $userType, int $userId, string $device
   $stmt->close();
   if (!$row)
     return false;
-  $stmtU = $db->prepare("UPDATE trusted_devices SET last_used_at=NOW() WHERE user_type=? AND user_id=? AND device_hash=? LIMIT 1");
+  
+  // Extend expiration and update last_used_at when device is trusted
+  $stmtU = $db->prepare("UPDATE trusted_devices SET expires_at=DATE_ADD(NOW(), INTERVAL ? DAY), last_used_at=NOW() WHERE user_type=? AND user_id=? AND device_hash=? LIMIT 1");
   if ($stmtU) {
-    $stmtU->bind_param('sis', $userType, $userId, $deviceHash);
+    $stmtU->bind_param('isis', $extendDays, $userType, $userId, $deviceHash);
     $stmtU->execute();
     $stmtU->close();
   }
