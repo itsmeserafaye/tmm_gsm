@@ -400,34 +400,33 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Peak Demand Insight -->
-          <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:col-span-2">
+            <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
               </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
+              <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
             </div>
-            <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+
+            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
+              </div>
+              <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+            </div>
           </div>
 
-          <!-- Optimization Insight -->
-          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
-              </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
-            </div>
-            <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
-          </div>
-        </div>
-
-        <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
+          <div class="space-y-6">
+            <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <i data-lucide="arrow-up-right" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
@@ -452,11 +451,11 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             </div>
           </div>
 
-          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
-            <div class="flex items-center justify-between">
+            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
               <div class="flex items-center gap-2">
                 <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
                 <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
+              </div>
               </div>
               <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
             </div>
@@ -474,6 +473,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
                   <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
                 </tbody>
               </table>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -1314,9 +1315,36 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
                           prefix = text.slice(0, idx).trim();
                           prefix = prefix.replace(/\*\*/g, '');
                       }
-                      return { bold: match[0], items: parts, prefix: prefix };
+                      return { replaceText: match[0], items: parts, prefix: prefix, mode: 'bold' };
                   }
              }
+          }
+
+          var colonIdx = text.indexOf(':');
+          var tailStart = -1;
+          var lower = text.toLowerCase();
+          var atIdx = lower.lastIndexOf(' at ');
+          if (atIdx !== -1) tailStart = atIdx + 4;
+          else if (colonIdx !== -1) tailStart = colonIdx + 1;
+
+          if (tailStart !== -1) {
+            var tail = text.slice(tailStart);
+            var tailTrim = String(tail || '').trim();
+            if (tailTrim) {
+              var tailNoTrail = tailTrim.replace(/\s*\.*\s*$/, '');
+              if (tailNoTrail.indexOf(',') !== -1) {
+                var parts2 = tailNoTrail.split(',').map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x !== ''; });
+                var shouldTruncate2 = parts2.length > 6 || (parts2.length > 2 && tailNoTrail.length > 100);
+                if (shouldTruncate2) {
+                  var prefix2 = '';
+                  if (colonIdx > 0) {
+                    prefix2 = text.slice(0, colonIdx).trim();
+                    prefix2 = prefix2.replace(/\*\*/g, '');
+                  }
+                  return { replaceText: tail, items: parts2, prefix: prefix2, mode: 'plain' };
+                }
+              }
+            }
           }
           return null;
         };
@@ -1371,7 +1399,9 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             var remaining = info.items.length - showCount;
             
             if (remaining > 0) {
-                 displayText = String(t || '').replace(info.bold, '**' + shown + '**');
+                 var endsWithDot = /\.\s*$/.test(String(info.replaceText || ''));
+                 var replacement = '**' + shown + '**' + (endsWithDot ? '.' : '');
+                 displayText = String(t || '').replace(String(info.replaceText || ''), replacement);
                  moreBtn = '<button type="button" class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-more-action>' + 
                            '<span>+' + remaining + ' more</span>' +
                            '</button>';
@@ -1389,18 +1419,17 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
              wrapper.className = 'inline';
              wrapper.innerHTML = moreBtn;
              contentDiv.appendChild(wrapper);
-             
-             setTimeout(function() {
-                 var btn = li.querySelector('[data-more-action]');
-                 if (btn) {
-                     btn.addEventListener('click', function (e) {
-                         e.stopPropagation();
-                         var kind = currentType === 'terminal' ? 'Terminals' : 'Routes';
-                         var title = (info.prefix ? (info.prefix) : 'Locations') + ' <span class="text-slate-400 font-normal">(' + info.items.length + ')</span>';
-                         openMoreModal(title, info.items);
-                     });
-                 }
-             }, 0);
+
+             var btn = wrapper.querySelector('[data-more-action]');
+             if (btn) {
+               (function (captured) {
+                 btn.addEventListener('click', function (e) {
+                   e.stopPropagation();
+                   var title = (captured.prefix ? captured.prefix : 'Locations') + ' <span class="text-slate-400 font-normal">(' + captured.items.length + ')</span>';
+                   openMoreModal(title, captured.items);
+                 });
+               })(info);
+             }
           }
           
           li.appendChild(contentDiv);
@@ -1431,7 +1460,10 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         if (!bodyEl) return;
         bodyEl.innerHTML = '';
         if (!rows || !rows.length) {
-          bodyEl.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">No items.</td></tr>';
+          var msg = 'No items.';
+          if (mode === 'shortage') msg = 'No shortage suggestions yet. Log demand observations and ensure authorized units exist.';
+          else if (mode === 'oversupply') msg = 'No oversupply suggestions yet. Ensure authorized units exist and demand observations are logged.';
+          bodyEl.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">' + msg + '</td></tr>';
           return;
         }
         var esc = function (s) {

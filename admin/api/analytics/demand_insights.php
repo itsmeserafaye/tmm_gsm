@@ -59,6 +59,12 @@ if ($areaType === 'route') {
   while ($res && ($r = $res->fetch_assoc())) {
     $supplyByRouteId[(string)$r['route_id']] = (int)($r['c'] ?? 0);
   }
+  if (empty($supplyByRouteId)) {
+    $res2 = $db->query("SELECT route_id, COUNT(*) AS c FROM vehicles WHERE route_id IS NOT NULL AND route_id<>'' AND (status IS NULL OR status='Active') GROUP BY route_id");
+    while ($res2 && ($r = $res2->fetch_assoc())) {
+      $supplyByRouteId[(string)$r['route_id']] = (int)($r['c'] ?? 0);
+    }
+  }
 }
 
 function tmm_congestion_class(float $currentSpeed, float $freeFlowSpeed): string {
