@@ -69,12 +69,9 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 }
 ?>
 
-<!-- DASHBOARD ENHANCED v2.0 - <?php echo date('Y-m-d H:i:s'); ?> -->
-<div class="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8 py-6 font-sans text-slate-900 dark:text-slate-100">
-  <!-- Version Indicator (Remove after confirming) -->
-  <div class="mb-4 px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 text-white text-xs font-black rounded-lg shadow-lg text-center">
-    ✓ DASHBOARD ENHANCED v2.0 - LOADED AT <?php echo date('H:i:s'); ?>
-  </div>
+<!-- DASHBOARD v3.0 - RESTRUCTURED -->
+<div class="mx-auto max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 font-sans text-slate-900 dark:text-slate-100">
+
   
   <!-- Header Section -->
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 pb-6 border-b-2 border-gradient-to-r from-blue-200 via-green-200 to-blue-200 dark:from-blue-900/30 dark:via-green-900/30 dark:to-blue-900/30 animate-slide-up">
@@ -160,27 +157,42 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-slide-up" style="animation-delay: 0.1s;">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Violation Frequency (7-day avg)</div>
-      <div class="text-3xl font-black text-slate-900 dark:text-white"><?php echo number_format($violations7dAvg, 1); ?>/day</div>
-      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium">Based on recorded tickets</div>
+    <div class="bg-gradient-to-br from-white to-amber-50/20 dark:from-slate-800 dark:to-amber-900/10 rounded-2xl p-6 border-2 border-amber-100 dark:border-amber-900/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md">
+          <i data-lucide="alert-octagon" class="w-4 h-4 text-white"></i>
+        </div>
+        <div class="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Violation Frequency</div>
+      </div>
+      <div class="text-3xl font-black text-slate-900 dark:text-white"><?php echo number_format($violations7dAvg, 1); ?><span class="text-lg text-slate-500">/day</span></div>
+      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-semibold">7-day average • Based on recorded tickets</div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Terminal Occupancy</div>
+    <div class="bg-gradient-to-br from-white to-cyan-50/20 dark:from-slate-800 dark:to-cyan-900/10 rounded-2xl p-6 border-2 border-cyan-100 dark:border-cyan-900/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 shadow-md">
+          <i data-lucide="gauge" class="w-4 h-4 text-white"></i>
+        </div>
+        <div class="text-xs font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Terminal Occupancy</div>
+      </div>
       <div class="text-3xl font-black text-slate-900 dark:text-white">
         <?php echo $terminalOccupancyPct === null ? '—' : number_format($terminalOccupancyPct, 1) . '%'; ?>
       </div>
-      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium"><?php echo $slotTotals['total'] > 0 ? (number_format($slotTotals['occupied']) . ' / ' . number_format($slotTotals['total']) . ' slots occupied') : 'No slot data found'; ?></div>
+      <div class="mt-2 text-xs text-slate-600 dark:text-slate-400 font-semibold"><?php echo $slotTotals['total'] > 0 ? (number_format($slotTotals['occupied']) . ' / ' . number_format($slotTotals['total']) . ' slots occupied') : 'No slot data available'; ?></div>
     </div>
-    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-      <div class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Enforcement Hotspots (7 days)</div>
+    <div class="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-800 dark:to-rose-900/10 rounded-2xl p-6 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-red-600 shadow-md">
+          <i data-lucide="map-pin" class="w-4 h-4 text-white"></i>
+        </div>
+        <div class="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-widest">Enforcement Hotspots</div>
+      </div>
       <div class="mt-2 text-sm text-slate-700 dark:text-slate-200 space-y-2 font-medium">
         <?php if (!$hotspots) { ?>
           <div class="text-xs text-slate-500 italic">No hotspot data yet</div>
         <?php } else { foreach ($hotspots as $h) { ?>
-          <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-            <div class="truncate"><?php echo htmlspecialchars($h['location']); ?></div>
-            <div class="shrink-0 text-xs font-black text-white bg-rose-500 px-2 py-1 rounded-full"><?php echo (int)$h['count']; ?></div>
+          <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-gradient-to-r from-slate-50 to-rose-50/30 dark:from-slate-700/50 dark:to-rose-900/20 border border-slate-200 dark:border-slate-600">
+            <div class="truncate font-semibold"><?php echo htmlspecialchars($h['location']); ?></div>
+            <div class="shrink-0 text-xs font-black text-white bg-gradient-to-r from-rose-500 to-red-600 px-2.5 py-1 rounded-full shadow-sm"><?php echo (int)$h['count']; ?></div>
           </div>
         <?php } } ?>
       </div>
@@ -190,58 +202,58 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
   <!-- Context Widgets -->
   <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
     <!-- Forecast Readiness -->
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="p-5 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-md hover:shadow-lg transition-all duration-300">
       <div class="flex items-center gap-3 mb-3">
-        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="line-chart" class="w-4 h-4"></i>
+        <div class="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md">
+          <i data-lucide="line-chart" class="w-4 h-4 text-white"></i>
         </div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Analytics Readiness</div>
+        <div class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wide">Analytics</div>
       </div>
-      <div id="readinessValue" class="text-2xl font-bold text-slate-900 dark:text-white">—</div>
-      <div id="readinessHint" class="text-xs text-slate-500 mt-1"></div>
+      <div id="readinessValue" class="text-2xl font-black text-slate-900 dark:text-white">—</div>
+      <div id="readinessHint" class="text-xs text-slate-600 dark:text-slate-400 mt-1 font-semibold"></div>
     </div>
 
     <!-- Weather Now -->
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="p-5 rounded-xl bg-gradient-to-br from-white to-sky-50/30 dark:from-slate-800 dark:to-sky-900/10 border-2 border-sky-100 dark:border-sky-900/30 shadow-md hover:shadow-lg transition-all duration-300">
       <div class="flex items-center gap-3 mb-3">
-        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="cloud-rain" class="w-4 h-4"></i>
+        <div class="p-2 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-md">
+          <i data-lucide="cloud-rain" class="w-4 h-4 text-white"></i>
         </div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Weather Now</div>
+        <div class="text-xs font-black text-sky-700 dark:text-sky-400 uppercase tracking-wide">Weather</div>
       </div>
-      <div id="weatherNowValue" class="text-2xl font-bold text-slate-900 dark:text-white">—</div>
-      <div id="weatherNowHint" class="text-xs text-slate-500 mt-1"></div>
+      <div id="weatherNowValue" class="text-2xl font-black text-slate-900 dark:text-white">—</div>
+      <div id="weatherNowHint" class="text-xs text-slate-600 dark:text-slate-400 mt-1 font-semibold"></div>
     </div>
 
     <!-- Upcoming Event -->
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="p-5 rounded-xl bg-gradient-to-br from-white to-violet-50/30 dark:from-slate-800 dark:to-violet-900/10 border-2 border-violet-100 dark:border-violet-900/30 shadow-md hover:shadow-lg transition-all duration-300">
       <div class="flex items-center gap-3 mb-3">
-        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="calendar-days" class="w-4 h-4"></i>
+        <div class="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 shadow-md">
+          <i data-lucide="calendar-days" class="w-4 h-4 text-white"></i>
         </div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Upcoming Event</div>
+        <div class="text-xs font-black text-violet-700 dark:text-violet-400 uppercase tracking-wide">Events</div>
       </div>
-      <div id="eventsValue" class="text-2xl font-bold text-slate-900 dark:text-white">—</div>
-      <div id="eventsHint" class="text-xs text-slate-500 mt-1"></div>
+      <div id="eventsValue" class="text-2xl font-black text-slate-900 dark:text-white">—</div>
+      <div id="eventsHint" class="text-xs text-slate-600 dark:text-slate-400 mt-1 font-semibold"></div>
     </div>
 
     <!-- Traffic Now -->
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="p-5 rounded-xl bg-gradient-to-br from-white to-orange-50/30 dark:from-slate-800 dark:to-orange-900/10 border-2 border-orange-100 dark:border-orange-900/30 shadow-md hover:shadow-lg transition-all duration-300">
       <div class="flex items-center gap-3 mb-3">
-        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="traffic-cone" class="w-4 h-4"></i>
+        <div class="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 shadow-md">
+          <i data-lucide="traffic-cone" class="w-4 h-4 text-white"></i>
         </div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">Traffic Now</div>
+        <div class="text-xs font-black text-orange-700 dark:text-orange-400 uppercase tracking-wide">Traffic</div>
       </div>
-      <div id="trafficNowValue" class="text-2xl font-bold text-slate-900 dark:text-white">—</div>
-      <div id="trafficNowHint" class="text-xs text-slate-500 mt-1"></div>
+      <div id="trafficNowValue" class="text-2xl font-black text-slate-900 dark:text-white">—</div>
+      <div id="trafficNowHint" class="text-xs text-slate-600 dark:text-slate-400 mt-1 font-semibold"></div>
     </div>
   </div>
 
   <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
     <div class="xl:col-span-2 space-y-6">
       <!-- Main Forecast Chart -->
-      <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/50 border-2 border-slate-200 dark:border-slate-700 shadow-lg">
         <div class="flex items-start justify-between gap-4 mb-2">
           <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -259,20 +271,20 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Peak Operating Hour</div>
-            <div id="peakHourValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
-            <div id="peakHourHint" class="mt-1 text-xs text-slate-500"></div>
+          <div class="p-5 rounded-xl bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800 border-2 border-blue-100 dark:border-blue-900/30 shadow-md">
+            <div class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Peak Operating Hour</div>
+            <div id="peakHourValue" class="mt-2 text-2xl font-black text-slate-900 dark:text-white">—</div>
+            <div id="peakHourHint" class="mt-1 text-xs text-slate-600 dark:text-slate-400 font-semibold"></div>
           </div>
-          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Peak Demand (Next 24h)</div>
-            <div id="peakDemandValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
-            <div id="peakDemandHint" class="mt-1 text-xs text-slate-500"></div>
+          <div class="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-md">
+            <div class="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Peak Demand (24h)</div>
+            <div id="peakDemandValue" class="mt-2 text-2xl font-black text-slate-900 dark:text-white">—</div>
+            <div id="peakDemandHint" class="mt-1 text-xs text-slate-600 dark:text-slate-400 font-semibold"></div>
           </div>
-          <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Suggested PUV Units</div>
-            <div id="requiredUnitsValue" class="mt-2 text-2xl font-bold text-slate-900 dark:text-white">—</div>
-            <div id="requiredUnitsHint" class="mt-1 text-xs text-slate-500"></div>
+          <div class="p-5 rounded-xl bg-gradient-to-br from-violet-50 to-white dark:from-slate-800 dark:to-slate-800 border-2 border-violet-100 dark:border-violet-900/30 shadow-md">
+            <div class="text-xs font-black text-violet-600 dark:text-violet-400 uppercase tracking-wider">Suggested Units</div>
+            <div id="requiredUnitsValue" class="mt-2 text-2xl font-black text-slate-900 dark:text-white">—</div>
+            <div id="requiredUnitsHint" class="mt-1 text-xs text-slate-600 dark:text-slate-400 font-semibold"></div>
           </div>
         </div>
 
@@ -289,7 +301,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       </div>
 
       <!-- Analytics Insights Section -->
-      <div class="p-6 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm ring-1 ring-slate-200/50">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-900/50 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-4">
             <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
@@ -386,7 +398,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       </div>
 
       <!-- Alerts Section -->
-      <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
@@ -404,7 +416,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       </div>
 
       <!-- Route Supply -->
-      <div class="p-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
             <div class="p-1.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
@@ -451,7 +463,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       <!-- Right Column: Data Inputs -->
     <div class="space-y-6">
-      <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-5">
           <div>
             <h2 class="text-base font-bold text-slate-900 dark:text-white">Data Inputs</h2>
