@@ -1262,9 +1262,12 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           if (s === null || s === undefined) return '';
           return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; });
         };
+        
         var formatInsight = function (t) {
           var s = escapeHtml(t || '');
-          s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>');
+          // Highlight key terms
+          s = s.replace(/^(Maintenance Opportunity|Low Activity|Optimization|High Demand):/i, '<span class="font-bold text-slate-800 dark:text-white">$1:</span>');
+          s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded mx-0.5">$1</strong>');
           s = s.replace(/\n/g, '<br>');
           return s;
         };
@@ -1276,7 +1279,12 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           var inner = String(m[1] || '');
           if (inner.indexOf(',') === -1) return null;
           var parts = inner.split(',').map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x !== ''; });
-          if (parts.length <= 6) return null;
+          
+          // Truncate if > 6 items OR (> 2 items and total length > 100 chars for long route names)
+          var shouldTruncate = parts.length > 6 || (parts.length > 2 && inner.length > 100);
+          
+          if (!shouldTruncate) return null;
+          
           var prefix = '';
           var idx = text.indexOf(':');
           if (idx > 0) prefix = text.slice(0, idx).trim();
@@ -1285,54 +1293,101 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
         var iconColor = 'text-slate-400';
         var iconName = 'circle-dot';
+        var containerClass = 'border-slate-100 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30';
+        
         if (type === 'over') {
           iconColor = 'text-rose-500';
-          iconName = 'check-circle-2';
+          iconName = 'alert-circle';
+          containerClass = 'border-rose-100 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-900/10';
         } else if (type === 'under') {
           iconColor = 'text-emerald-500';
           iconName = 'check-circle-2';
+          containerClass = 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10';
         }
 
         items.forEach(function (t, i) {
           var li = document.createElement('li');
-          li.className = 'flex gap-2.5 items-start text-sm text-slate-700 dark:text-slate-200 p-3 rounded-xl bg-white/70 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-700';
+          li.className = 'flex gap-3 items-start text-sm text-slate-600 dark:text-slate-300 p-4 rounded-xl border transition-all hover:shadow-sm ' + containerClass;
+          
           if (i >= 7) {
             li.style.display = 'none';
             li.dataset.hidden = 'true';
           }
-          var iconHtml = '<i data-lucide="' + iconName + '" class="w-4 h-4 ' + iconColor + ' mt-0.5 shrink-0"></i>';
+          
+          // Custom icon based on content
+          var currentIconName = iconName;
+          var currentIconColor = iconColor;
+          
+          if (t.includes('Maintenance Opportunity')) {
+            currentIconName = 'wrench';
+            currentIconColor = 'text-amber-500';
+            li.className = li.className.replace(containerClass, 'border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10');
+          } else if (t.includes('Optimization')) {
+             currentIconName = 'zap';
+             currentIconColor = 'text-violet-500';
+             li.className = li.className.replace(containerClass, 'border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-900/10');
+          }
+
+          var iconHtml = '<div class="mt-0.5 shrink-0"><i data-lucide="' + currentIconName + '" class="w-5 h-5 ' + currentIconColor + '"></i></div>';
+          
           var info = extractLongAreaList(t);
           var displayText = t;
+          var moreBtn = '';
+          
           if (info) {
-            var shown = info.items.slice(0, 6).join(', ');
-            displayText = String(t || '').replace(info.bold, '**' + shown + '**');
+            // Show fewer items for long lists to keep UI clean
+            var showCount = 3;
+            if (info.items.length <= 4) showCount = info.items.length; // Show all if small enough
+            
+            var shown = info.items.slice(0, showCount).join(', ');
+            var remaining = info.items.length - showCount;
+            
+            if (remaining > 0) {
+                 displayText = String(t || '').replace(info.bold, '**' + shown + '**');
+                 moreBtn = '<button type="button" class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 shadow-sm text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-slate-50 transition-colors whitespace-nowrap" data-more-action>' + 
+                           '<span>+' + remaining + ' more</span>' +
+                           '</button>';
+            }
           }
+          
           li.innerHTML = iconHtml;
-          var span = document.createElement('span');
-          span.className = 'leading-snug';
-          span.innerHTML = formatInsight(displayText);
-          li.appendChild(span);
-          if (info) {
-            var more = document.createElement('button');
-            more.type = 'button';
-            more.className = 'ml-auto text-xs font-black text-indigo-600 dark:text-indigo-400 hover:underline shrink-0';
-            more.textContent = 'More';
-            more.addEventListener('click', function () {
-              var kind = currentType === 'terminal' ? 'Terminals' : 'Routes';
-              var title = (info.prefix ? (info.prefix + ' — ') : '') + kind + ' (' + info.items.length + ')';
-              openMoreModal(title, info.items);
-            });
-            li.appendChild(more);
+          
+          var contentDiv = document.createElement('div');
+          contentDiv.className = 'flex-1 leading-relaxed';
+          contentDiv.innerHTML = formatInsight(displayText);
+          
+          if (moreBtn) {
+             // Append button to the bolded part or at the end? 
+             // The formatInsight wraps bold parts. We can append the button after the text.
+             var wrapper = document.createElement('div');
+             wrapper.className = 'inline';
+             wrapper.innerHTML = moreBtn;
+             contentDiv.appendChild(wrapper);
+             
+             // Add event listener to the button we just added
+             setTimeout(function() {
+                 var btn = li.querySelector('[data-more-action]');
+                 if (btn) {
+                     btn.addEventListener('click', function (e) {
+                         e.stopPropagation();
+                         var kind = currentType === 'terminal' ? 'Terminals' : 'Routes';
+                         var title = (info.prefix ? (info.prefix) : 'Locations') + ' <span class="text-slate-400 font-normal">(' + info.items.length + ')</span>';
+                         openMoreModal(title, info.items);
+                     });
+                 }
+             }, 0);
           }
+          
+          li.appendChild(contentDiv);
           listEl.appendChild(li);
         });
 
         if (items.length > 7) {
           var btnContainer = document.createElement('li');
-          btnContainer.className = 'list-none';
+          btnContainer.className = 'list-none pt-2';
           var btn = document.createElement('button');
-          btn.className = 'w-full text-center py-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer';
-          btn.textContent = 'Show ' + (items.length - 7) + ' more insights...';
+          btn.className = 'w-full text-center py-2.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 dashed';
+          btn.textContent = 'Show ' + (items.length - 7) + ' more insights';
           btn.onclick = function() {
             btnContainer.remove();
             Array.from(listEl.children).forEach(function(child) {
