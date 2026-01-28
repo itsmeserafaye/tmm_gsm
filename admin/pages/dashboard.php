@@ -713,12 +713,29 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         if (overScope) overScope.textContent = scopeLabel;
         if (underScope) underScope.textContent = scopeLabel;
         if (btnT && btnP) {
+          var base = 'px-5 py-2.5 rounded-lg text-sm transition-all duration-200';
+          var active = base + ' font-bold transform hover:scale-105';
+          var inactive = base + ' font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50';
+          var activeBg = 'linear-gradient(135deg, #5ba3f5, #4a90e2)';
+          var activeShadow = '0 4px 12px rgba(74, 144, 226, 0.3)';
           if (type === 'terminal') {
-            btnT.className = 'px-4 py-2 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-all';
-            btnP.className = 'px-4 py-2 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-sm font-medium transition-all';
+            btnT.className = active;
+            btnP.className = inactive;
+            btnT.style.background = activeBg;
+            btnT.style.color = 'white';
+            btnT.style.boxShadow = activeShadow;
+            btnP.style.background = '';
+            btnP.style.color = '';
+            btnP.style.boxShadow = '';
           } else {
-            btnP.className = 'px-4 py-2 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-all';
-            btnT.className = 'px-4 py-2 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-sm font-medium transition-all';
+            btnP.className = active;
+            btnT.className = inactive;
+            btnP.style.background = activeBg;
+            btnP.style.color = 'white';
+            btnP.style.boxShadow = activeShadow;
+            btnT.style.background = '';
+            btnT.style.color = '';
+            btnT.style.boxShadow = '';
           }
         }
       }
@@ -1062,9 +1079,16 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         var target = (data && data.accuracy_target) ? Number(data.accuracy_target) : 80;
         var acc = (data && data.accuracy) ? Number(data.accuracy) : 0;
         var enough = !!(data && data.accuracy_ok);
+        var pts = (data && data.data_points !== undefined && data.data_points !== null) ? Number(data.data_points) : 0;
         if (!data || !data.ok) {
           accuracyEl.textContent = '—';
           if (accuracyHint) accuracyHint.textContent = '';
+          return;
+        }
+        if (!pts || pts < 8) {
+          accuracyEl.textContent = '—';
+          accuracyEl.className = 'text-xl font-bold text-slate-500';
+          if (accuracyHint) accuracyHint.textContent = 'Collecting...';
           return;
         }
         accuracyEl.textContent = acc.toFixed(1) + '%';
@@ -1224,7 +1248,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       function openMoreModal(title, items) {
         ensureMoreModal();
-        if (tmmMoreModalTitle) tmmMoreModalTitle.textContent = String(title || 'More');
+        if (tmmMoreModalTitle) tmmMoreModalTitle.innerHTML = String(title || 'More');
         if (tmmMoreModalList) {
           tmmMoreModalList.innerHTML = '';
           (items || []).forEach(function (it) {
@@ -1265,7 +1289,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         
         var formatInsight = function (t) {
           var s = escapeHtml(t || '');
-          // Highlight key terms
           s = s.replace(/^(Maintenance Opportunity|Low Activity|Optimization|High Demand):/i, '<span class="font-bold text-slate-800 dark:text-white">$1:</span>');
           s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded mx-0.5">$1</strong>');
           s = s.replace(/\n/g, '<br>');
@@ -1274,21 +1297,28 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
         var extractLongAreaList = function (raw) {
           var text = String(raw || '');
-          var m = text.match(/\*\*([^*]+)\*\*/);
-          if (!m) return null;
-          var inner = String(m[1] || '');
-          if (inner.indexOf(',') === -1) return null;
-          var parts = inner.split(',').map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x !== ''; });
+          var regex = /\*\*([^*]+)\*\*/g;
+          var match;
           
-          // Truncate if > 6 items OR (> 2 items and total length > 100 chars for long route names)
-          var shouldTruncate = parts.length > 6 || (parts.length > 2 && inner.length > 100);
-          
-          if (!shouldTruncate) return null;
-          
-          var prefix = '';
-          var idx = text.indexOf(':');
-          if (idx > 0) prefix = text.slice(0, idx).trim();
-          return { bold: m[0], items: parts, prefix: prefix };
+          while ((match = regex.exec(text)) !== null) {
+             var inner = String(match[1] || '');
+             if (inner.indexOf(',') !== -1) {
+                 var parts = inner.split(',').map(function (x) { return String(x || '').trim(); }).filter(function (x) { return x !== ''; });
+                 
+                 var shouldTruncate = parts.length > 6 || (parts.length > 2 && inner.length > 100);
+                 
+                 if (shouldTruncate) {
+                      var prefix = '';
+                      var idx = text.indexOf(':');
+                      if (idx > 0) {
+                          prefix = text.slice(0, idx).trim();
+                          prefix = prefix.replace(/\*\*/g, '');
+                      }
+                      return { bold: match[0], items: parts, prefix: prefix };
+                  }
+             }
+          }
+          return null;
         };
 
         var iconColor = 'text-slate-400';
@@ -1314,7 +1344,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             li.dataset.hidden = 'true';
           }
           
-          // Custom icon based on content
           var currentIconName = iconName;
           var currentIconColor = iconColor;
           
@@ -1335,9 +1364,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           var moreBtn = '';
           
           if (info) {
-            // Show fewer items for long lists to keep UI clean
             var showCount = 3;
-            if (info.items.length <= 4) showCount = info.items.length; // Show all if small enough
+            if (info.items.length <= 4) showCount = info.items.length;
             
             var shown = info.items.slice(0, showCount).join(', ');
             var remaining = info.items.length - showCount;
@@ -1357,14 +1385,11 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           contentDiv.innerHTML = formatInsight(displayText);
           
           if (moreBtn) {
-             // Append button to the bolded part or at the end? 
-             // The formatInsight wraps bold parts. We can append the button after the text.
              var wrapper = document.createElement('div');
              wrapper.className = 'inline';
              wrapper.innerHTML = moreBtn;
              contentDiv.appendChild(wrapper);
              
-             // Add event listener to the button we just added
              setTimeout(function() {
                  var btn = li.querySelector('[data-more-action]');
                  if (btn) {
@@ -1434,6 +1459,23 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         });
       }
 
+      var loadSeq = 0;
+      var activeControllers = { forecast: null, insights: null, events: null, traffic: null, supply: null };
+      function abortController(key) {
+        var c = activeControllers[key];
+        if (c && c.abort) {
+          try { c.abort(); } catch (e) {}
+        }
+        activeControllers[key] = null;
+      }
+      function makeController(key) {
+        abortController(key);
+        if (!window.AbortController) return null;
+        var c = new AbortController();
+        activeControllers[key] = c;
+        return c;
+      }
+
       function renderRouteSupply(data) {
         if (!routeSupplyBody || !routeSupplyTitle || !routeSupplyTotal) return;
         var exportCsv = document.getElementById('routeSupplyExportCsv');
@@ -1477,22 +1519,35 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           return;
         }
         routeSupplyBody.innerHTML = '<tr><td colspan="2" class="px-6 py-8 text-center"><div class="inline-block animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent"></div></td></tr>';
-        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/route_supply.php?terminal_name=' + encodeURIComponent(terminalName), { headers: { 'Accept': 'application/json' } })
+        var ctrl = makeController('supply');
+        var opts = { headers: { 'Accept': 'application/json' } };
+        if (ctrl) opts.signal = ctrl.signal;
+        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/route_supply.php?terminal_name=' + encodeURIComponent(terminalName), opts)
           .then(function (r) { return r.json(); })
           .then(function (data) { renderRouteSupply(data); })
           .catch(function () { renderRouteSupply(null); });
       }
 
       function loadContextWidgets() {
-        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/events.php?days=7', { headers: { 'Accept': 'application/json' } })
+        var token = loadSeq;
+        abortController('events');
+        abortController('insights');
+        var ctrlE = makeController('events');
+        var ctrlI = makeController('insights');
+        var oE = { headers: { 'Accept': 'application/json' } };
+        var oI = { headers: { 'Accept': 'application/json' } };
+        if (ctrlE) oE.signal = ctrlE.signal;
+        if (ctrlI) oI.signal = ctrlI.signal;
+
+        var eventsReq = fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/events.php?days=7', oE)
           .then(function (r) { return r.json(); })
-          .then(function (data) { if (data && data.ok) setEventsUI(data.events || []); })
+          .then(function (data) { if (token === loadSeq && data && data.ok) setEventsUI(data.events || []); })
           .catch(function () { });
 
-        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_insights.php?area_type=' + encodeURIComponent(currentType) + '&hours=24', { headers: { 'Accept': 'application/json' } })
+        var insightsReq = fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_insights.php?area_type=' + encodeURIComponent(currentType) + '&hours=24&include_traffic=0', oI)
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            if (!data || !data.ok) return;
+            if (token !== loadSeq || !data || !data.ok) return;
             setReadinessUI(data.readiness);
             renderPlaybook(insightsOver, (data.playbook && data.playbook.over_demand) ? data.playbook.over_demand : [], 'over');
             renderPlaybook(insightsUnder, (data.playbook && data.playbook.under_demand) ? data.playbook.under_demand : [], 'under');
@@ -1516,6 +1571,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             loadRouteSupply(terminalForSupply);
           })
           .catch(function () { });
+
+        return Promise.all([eventsReq, insightsReq]);
       }
 
       function populateAreas(type) {
@@ -1540,10 +1597,17 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       }
 
       function load() {
+        loadSeq++;
         if (accuracyEl) accuracyEl.textContent = '...';
-        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_forecast.php?area_type=' + encodeURIComponent(currentType) + '&hours=24', { headers: { 'Accept': 'application/json' } })
+        abortController('forecast');
+        var token = loadSeq;
+        var ctrl = makeController('forecast');
+        var opts = { headers: { 'Accept': 'application/json' } };
+        if (ctrl) opts.signal = ctrl.signal;
+        fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_forecast.php?area_type=' + encodeURIComponent(currentType) + '&hours=24&include_traffic=0', opts)
           .then(function (r) { return r.json(); })
           .then(function (data) {
+            if (token !== loadSeq) return;
             if (!data || !data.ok) throw new Error('bad');
             setAccuracyUI(data);
             setWeatherNowUI(data.weather || null);
@@ -1583,6 +1647,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             if (window.lucide) window.lucide.createIcons();
           })
           .catch(function () {
+            if (token !== loadSeq) return;
             if (accuracyEl) accuracyEl.textContent = '—';
           });
       }

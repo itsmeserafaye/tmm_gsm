@@ -13,6 +13,14 @@ $areaType = in_array($areaType, ['terminal', 'route'], true) ? $areaType : 'term
 $hoursAhead = (int)($_GET['hours'] ?? 24);
 if ($hoursAhead < 6) $hoursAhead = 6;
 if ($hoursAhead > 72) $hoursAhead = 72;
+$includeTraffic = ((int)($_GET['include_traffic'] ?? 0)) === 1;
+
+$cacheKey = 'demand_forecast:v3:' . $areaType . ':' . $hoursAhead . ':it=' . ($includeTraffic ? '1' : '0');
+$cached = tmm_cache_get($db, $cacheKey);
+if (is_array($cached) && ($cached['ok'] ?? false)) {
+  echo json_encode($cached);
+  return;
+}
 
 $now = time();
 $startTs = $now - (28 * 24 * 3600);
@@ -471,7 +479,7 @@ foreach ($seasonWeights as $w) {
   if ($pts === $bestPoints && $acc > $bestAcc) { $bestW = (float)$w; $bestAcc = $acc; }
 }
 
-$tomtomConfigured = tmm_tomtom_api_key($db) !== '';
+$tomtomConfigured = $includeTraffic && (tmm_tomtom_api_key($db) !== '');
 
 foreach ($areas as $a) {
   $ref = (string)$a['ref'];
@@ -661,7 +669,7 @@ $accuracyOk = ($points >= 40) && ($accuracy >= $accuracyTarget);
 
 $dataSource = $useObservations ? 'puv_demand_observations' : ($areaType === 'route' ? 'terminal_assignments_and_vehicles' : 'parking_transactions_and_violations');
 
-echo json_encode([
+$payload = [
   'ok' => true,
   'area_type' => $areaType,
   'hours' => $hoursAhead,
@@ -680,4 +688,7 @@ echo json_encode([
   'spikes' => $spikes,
   'areas' => $forecastItems,
   'area_lists' => $areaLists,
-]);
+];
+
+tmm_cache_set($db, $cacheKey, $payload, 60);
+echo json_encode($payload);

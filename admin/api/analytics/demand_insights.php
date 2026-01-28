@@ -15,11 +15,14 @@ $hours = (int)($_GET['hours'] ?? 24);
 if ($hours < 6) $hours = 6;
 if ($hours > 72) $hours = 72;
 
+$includeTraffic = ((int)($_GET['include_traffic'] ?? 0)) === 1;
+
 $demandUrl = __DIR__ . '/demand_forecast.php';
 
 ob_start();
 $_GET['area_type'] = $areaType;
 $_GET['hours'] = (string)$hours;
+$_GET['include_traffic'] = $includeTraffic ? '1' : '0';
 include $demandUrl;
 $raw = ob_get_clean();
 $forecast = json_decode((string)$raw, true);
