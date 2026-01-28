@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -531,17 +531,24 @@ if (!empty($_SESSION['user_id'])) {
             <form id="operatorRegisterForm" class="space-y-5 pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm mb-1">Plate Number<span class="required-asterisk">*</span></label>
-                        <input type="text" name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg uppercase" placeholder="ABC-1234">
+                        <label class="block text-sm mb-1">Operator Type<span class="required-asterisk">*</span></label>
+                        <select name="operator_type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="Individual">Individual</option>
+                            <option value="Coop">Coop</option>
+                            <option value="Corp">Corp</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">Full Name<span class="required-asterisk">*</span></label>
-                        <input type="text" name="full_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz">
+                        <label class="block text-sm mb-1">Operator Name<span class="required-asterisk">*</span></label>
+                        <input type="text" name="operator_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Juan Dela Cruz / Coop Name / Corp Name">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm mb-1">Email Address<span class="required-asterisk">*</span></label>
                         <input type="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="you@email.com">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Contact Number<span class="required-asterisk">*</span></label>
+                        <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
                     </div>
                     <div>
                         <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
@@ -572,6 +579,14 @@ if (!empty($_SESSION['user_id'])) {
                 </div>
 
                 <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+
+                <div class="flex items-center text-sm">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="opAgreeTerms" class="mr-2" required>
+                        <span>I agree to the</span>
+                    </label>
+                    <button type="button" class="ml-2 text-custom-secondary hover:underline" id="openTermsFromOperatorReg">Terms of Use</button>
+                </div>
 
                 <div class="flex justify-end space-x-3 pt-2">
                     <button type="button" id="btnOperatorRegisterCancel" class="bg-red-500 text-white px-4 py-2 rounded-lg">Cancel</button>
@@ -1019,13 +1034,20 @@ if (!empty($_SESSION['user_id'])) {
                             return;
                         }
                     }
+                    const agreeTerms = !!(document.getElementById('opAgreeTerms') && document.getElementById('opAgreeTerms').checked);
+                    if (!agreeTerms) {
+                        alert('You must agree to the Terms to register.');
+                        return;
+                    }
                     const payload = {
-                        plate_number: (f.plate_number ? String(f.plate_number.value || '') : '').trim(),
-                        full_name: (f.full_name ? String(f.full_name.value || '') : '').trim(),
+                        operator_type: (f.operator_type ? String(f.operator_type.value || '') : '').trim(),
+                        operator_name: (f.operator_name ? String(f.operator_name.value || '') : '').trim(),
+                        contact_number: (f.contact_number ? String(f.contact_number.value || '') : '').trim(),
                         email: (f.email ? String(f.email.value || '') : '').trim(),
                         password: pwd,
                         confirm_password: confirmPwd,
-                        recaptcha_token: captchaToken
+                        recaptcha_token: captchaToken,
+                        agree_terms: true
                     };
                     const url = (BASE_URL || '') + '/gsm_login/Login/operator_register.php';
                     try {
@@ -1064,6 +1086,7 @@ if (!empty($_SESSION['user_id'])) {
             const privacyModal = document.getElementById('privacyModal');
             const openTerms = document.getElementById('openTerms');
             const openPrivacy = document.getElementById('openPrivacy');
+            const openTermsFromOperatorReg = document.getElementById('openTermsFromOperatorReg');
             const footerTerms = document.getElementById('footerTerms');
             const footerPrivacy = document.getElementById('footerPrivacy');
             const closeTerms = document.getElementById('closeTerms');
@@ -1074,6 +1097,7 @@ if (!empty($_SESSION['user_id'])) {
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => termsModal.classList.remove('hidden', 'flex'));
             if(footerTerms && termsModal) footerTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
             if(openTerms && termsModal) openTerms.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
+            if(openTermsFromOperatorReg && termsModal) openTermsFromOperatorReg.addEventListener('click', () => { termsModal.classList.remove('hidden'); termsModal.classList.add('flex'); });
             if(closeTerms) closeTerms.addEventListener('click', () => termsModal.classList.add('hidden'));
             if(closeTermsBottom) closeTermsBottom.addEventListener('click', () => termsModal.classList.add('hidden'));
 

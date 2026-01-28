@@ -105,11 +105,8 @@ function setupEventListeners() {
     const operatorPlateWrap = document.getElementById('operatorPlateWrap');
     const plateInput = document.getElementById('plate_number');
     if (operatorPlateWrap && plateInput) {
-        const mode = new URLSearchParams(window.location.search).get('mode') || '';
-        const isOperator = mode === 'operator';
-        operatorPlateWrap.classList.toggle('hidden', !isOperator);
-        plateInput.required = isOperator;
-        if (isOperator) plateInput.focus();
+        operatorPlateWrap.classList.add('hidden');
+        plateInput.required = false;
     }
 
     const portalMode = getPortalMode();
@@ -677,8 +674,7 @@ function handleLoginSubmit(event) {
     const email = form.email.value.trim();
     const password = form.password.value.trim();
     const plate = (form.plate_number ? String(form.plate_number.value || '').trim() : '');
-    const operatorWrap = document.getElementById('operatorPlateWrap');
-    const operatorMode = !!operatorWrap && !operatorWrap.classList.contains('hidden');
+    const operatorMode = getPortalMode() === 'operator';
     const captchaEl = form.querySelector('.g-recaptcha');
     let captchaResponse = '';
     if (captchaEl) {
@@ -719,14 +715,6 @@ function handleLoginSubmit(event) {
             return;
         }
         payload.recaptcha_token = captchaResponse || '';
-    }
-
-    if (operatorMode && plate === '') {
-        const msg = 'Plate number is required for operator login.';
-        showNotification(msg, 'warning');
-        setLoginAlert(msg, 'warning');
-        if (submitButton) resetLoadingState(submitButton);
-        return;
     }
 
     makeAPICall('login.php', payload, 'POST')

@@ -806,6 +806,36 @@ if (empty($_SESSION['operator_csrf'])) {
             </form>
         </div>
     </div>
+
+    <div id="verificationModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 md:p-7 animate-fade-in">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Upload Verification Documents</h3>
+                    <p class="text-xs text-slate-500 mt-1" id="verifHint">Upload the required documents based on your operator type.</p>
+                </div>
+                <button type="button" onclick="closeVerificationModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="verifStatusBox" class="hidden mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Status</div>
+                <div class="mt-1 text-sm font-semibold text-slate-800" id="verifStatusText">--</div>
+                <div class="mt-2 text-xs text-slate-600" id="verifRemarksText"></div>
+            </div>
+
+            <form id="verificationForm" class="space-y-4" onsubmit="submitVerificationDocs(event)">
+                <div id="verifInputs" class="space-y-3"></div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeVerificationModal()" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" id="btnVerifSubmit" class="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-dark transition">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 animate-fade-in text-center">
         <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1355,10 +1385,161 @@ if (empty($_SESSION['operator_csrf'])) {
             }
         }
 
+        function openVerificationModal() {
+            const modal = document.getElementById('verificationModal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            loadVerificationStatus(false, true);
+        }
+
+        function closeVerificationModal() {
+            const modal = document.getElementById('verificationModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            const form = document.getElementById('verificationForm');
+            if (form) form.reset();
+        }
+
+        function requiredDocsByType(type) {
+            const t = String(type || 'Individual');
+            if (t === 'Coop') {
+                return [
+                    { key: 'cda_registration', label: 'CDA Registration' },
+                    { key: 'board_resolution', label: 'Board Resolution' },
+                ];
+            }
+            if (t === 'Corp') {
+                return [
+                    { key: 'sec_registration', label: 'SEC Registration' },
+                    { key: 'authority_to_operate', label: 'Authority to Operate' },
+                ];
+            }
+            return [{ key: 'valid_id', label: 'Valid ID' }];
+        }
+
+        function setApprovalBanner(data) {
+            const banner = document.getElementById('approvalBanner');
+            if (!banner) return;
+            const title = document.getElementById('approvalBannerTitle');
+            const sub = document.getElementById('approvalBannerSub');
+            const remarks = document.getElementById('approvalBannerRemarks');
+
+            const status = data && data.approval_status ? String(data.approval_status) : '';
+            const submittedAt = data && data.verification_submitted_at ? String(data.verification_submitted_at) : '';
+            const r = data && data.approval_remarks ? String(data.approval_remarks) : '';
+
+            if (status === 'Approved') {
+                banner.classList.add('hidden');
+                if (remarks) remarks.classList.add('hidden');
+                return;
+            }
+            banner.classList.remove('hidden');
+
+            if (status === 'Rejected') {
+                if (title) title.textContent = 'Your operator account verification was rejected.';
+                if (sub) sub.textContent = 'Please review remarks, re-upload documents, and submit again.';
+            } else if (submittedAt) {
+                if (title) title.textContent = 'Your verification is submitted and pending review.';
+                if (sub) sub.textContent = 'Admin/LGU will review your documents. Some actions are restricted until approval.';
+            } else {
+                if (title) title.textContent = 'Your operator account is pending approval.';
+                if (sub) sub.textContent = 'Upload your documents so the admin/LGU can verify your account.';
+            }
+
+            if (remarks) {
+                if (r) {
+                    remarks.textContent = r;
+                    remarks.classList.remove('hidden');
+                } else {
+                    remarks.classList.add('hidden');
+                }
+            }
+        }
+
+        async function loadVerificationStatus(showToast = false, alsoRenderModal = false) {
+            let data = null;
+            try {
+                data = await apiGet('get_verification');
+            } catch (e) {
+                data = null;
+            }
+            if (!data || !data.ok) {
+                if (showToast) toast((data && data.error) ? data.error : 'Failed to load verification status', 'error');
+                return;
+            }
+            setApprovalBanner(data.data || {});
+
+            if (!alsoRenderModal) return;
+
+            const statusBox = document.getElementById('verifStatusBox');
+            const statusText = document.getElementById('verifStatusText');
+            const remarksText = document.getElementById('verifRemarksText');
+            const inputs = document.getElementById('verifInputs');
+
+            const operatorType = (data.data && data.data.operator_type) ? String(data.data.operator_type) : 'Individual';
+            const approvalStatus = (data.data && data.data.approval_status) ? String(data.data.approval_status) : 'Pending';
+            const submittedAt = (data.data && data.data.verification_submitted_at) ? String(data.data.verification_submitted_at) : '';
+            const approvalRemarks = (data.data && data.data.approval_remarks) ? String(data.data.approval_remarks) : '';
+            const docs = Array.isArray(data.data && data.data.documents) ? data.data.documents : [];
+
+            if (statusBox) statusBox.classList.remove('hidden');
+            if (statusText) statusText.textContent = approvalStatus + (submittedAt ? (' • Submitted: ' + submittedAt.slice(0, 16)) : '');
+            if (remarksText) remarksText.textContent = approvalRemarks ? ('Remarks: ' + approvalRemarks) : '';
+
+            if (inputs) {
+                const required = requiredDocsByType(operatorType);
+                inputs.innerHTML = required.map(req => {
+                    const existing = docs.find(d => String(d.doc_key || '') === req.key) || null;
+                    const st = existing ? String(existing.status || 'Pending') : 'Missing';
+                    const badge = st === 'Valid' ? 'bg-emerald-100 text-emerald-700' : (st === 'Invalid' ? 'bg-rose-100 text-rose-700' : (st === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'));
+                    const remarkLine = existing && existing.remarks ? ('<div class="mt-1 text-[11px] text-rose-700 font-semibold">Remark: ' + escapeHtml(existing.remarks) + '</div>') : '';
+                    const reqAttr = (st === 'Valid') ? '' : 'required';
+                    return `
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-sm font-bold text-slate-800">${escapeHtml(req.label)}</div>
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${escapeHtml(st)}</span>
+                            </div>
+                            ${remarkLine}
+                            <div class="mt-3">
+                                <input type="file" name="${escapeHtml(req.key)}" accept="image/*,application/pdf"
+                                    class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200" ${reqAttr}>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        async function submitVerificationDocs(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnVerifSubmit');
+            const oldText = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+            try {
+                const form = document.getElementById('verificationForm');
+                const fd = new FormData(form);
+                fd.append('action', 'upload_verification_docs');
+                const res = await apiPost(fd);
+                if (res && res.ok) {
+                    toast('Documents submitted for review.', 'success');
+                    closeVerificationModal();
+                    await loadVerificationStatus(false, false);
+                } else {
+                    toast((res && res.error) ? res.error : 'Upload failed', 'error');
+                }
+            } catch (err) {
+                toast('Upload failed', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = oldText || 'Submit'; }
+            }
+        }
+
         // Initial Load
         (async function init() {
             await initSession();
             await fetchProfile();
+            await loadVerificationStatus(false, false);
             loadStats();
             loadApplications();
         })();

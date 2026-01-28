@@ -22,11 +22,11 @@ function operator_portal_session_timeout_seconds(mysqli $db): int {
 }
 
 function operator_portal_login(mysqli $db, string $plateNumber, string $email, string $password): array {
-  $plateNumber = strtoupper(trim($plateNumber));
   $email = strtolower(trim($email));
+  $plateNumber = strtoupper(trim($plateNumber));
 
-  if ($plateNumber === '' || $email === '' || $password === '') {
-    return ['ok' => false, 'message' => 'Please enter plate number, email, and password.'];
+  if ($email === '' || $password === '') {
+    return ['ok' => false, 'message' => 'Please enter email and password.'];
   }
   if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     return ['ok' => false, 'message' => 'Invalid email format.'];
@@ -44,29 +44,30 @@ function operator_portal_login(mysqli $db, string $plateNumber, string $email, s
   if (($user['status'] ?? '') !== 'Active') return ['ok' => false, 'message' => 'Operator account is not active.'];
   if (!password_verify($password, (string)($user['password_hash'] ?? ''))) return ['ok' => false, 'message' => 'Invalid operator credentials.'];
 
-  $stmt = $db->prepare("SELECT 1 FROM vehicles WHERE plate_number=? LIMIT 1");
-  if (!$stmt) return ['ok' => false, 'message' => 'Login failed.'];
-  $stmt->bind_param('s', $plateNumber);
-  $stmt->execute();
-  $res = $stmt->get_result();
-  $exists = (bool)($res && $res->fetch_row());
-  $stmt->close();
-  if (!$exists) return ['ok' => false, 'message' => 'Plate number not found in the PUV database.'];
-
   $userId = (int)$user['id'];
-  $stmt = $db->prepare("SELECT 1 FROM operator_portal_user_plates WHERE user_id=? AND plate_number=? LIMIT 1");
-  if (!$stmt) return ['ok' => false, 'message' => 'Login failed.'];
-  $stmt->bind_param('is', $userId, $plateNumber);
-  $stmt->execute();
-  $res = $stmt->get_result();
-  $allowed = (bool)($res && $res->fetch_row());
-  $stmt->close();
+  $plates = [];
+  $stmt = $db->prepare("SELECT plate_number FROM operator_portal_user_plates WHERE user_id=? ORDER BY plate_number ASC");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($row = $res->fetch_assoc())) {
+      $plates[] = (string)($row['plate_number'] ?? '');
+    }
+    $stmt->close();
+  }
 
-  if (!$allowed) return ['ok' => false, 'message' => 'This plate number is not assigned to your operator account.'];
+  $selectedPlate = '';
+  if ($plateNumber !== '') {
+    if (!in_array($plateNumber, $plates, true)) return ['ok' => false, 'message' => 'This plate number is not assigned to your operator account.'];
+    $selectedPlate = $plateNumber;
+  } else if (!empty($plates[0])) {
+    $selectedPlate = (string)$plates[0];
+  }
 
   $_SESSION['operator_user_id'] = $userId;
   $_SESSION['operator_email'] = $email;
-  $_SESSION['operator_plate'] = $plateNumber;
+  $_SESSION['operator_plate'] = $selectedPlate;
   $_SESSION['operator_last_activity'] = time();
   return ['ok' => true, 'message' => 'Login successful.'];
 }

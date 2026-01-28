@@ -305,11 +305,23 @@ if ($action === 'login_otp_verify') {
   if ($userType === 'operator') {
     $opUserId = (int) ($pending['operator_user_id'] ?? 0);
     $plate = strtoupper(trim((string) ($pending['plate_number'] ?? '')));
-    if ($opUserId <= 0 || $plate === '')
+    if ($opUserId <= 0)
       gsm_send(false, 'Invalid OTP request.', null, 400);
 
     $trustDays = (int)($pending['trust_days'] ?? 10);
     if ($trustDays > 0) td_trust($db, 'operator', $opUserId, $deviceHash, $trustDays);
+
+    if ($plate === '') {
+      $stmtP = $db->prepare("SELECT plate_number FROM operator_portal_user_plates WHERE user_id=? ORDER BY plate_number ASC LIMIT 1");
+      if ($stmtP) {
+        $stmtP->bind_param('i', $opUserId);
+        $stmtP->execute();
+        $rP = $stmtP->get_result();
+        $rowP = $rP ? $rP->fetch_assoc() : null;
+        $stmtP->close();
+        $plate = strtoupper(trim((string)($rowP['plate_number'] ?? '')));
+      }
+    }
 
     session_regenerate_id(true);
     unset($_SESSION['pending_login']);
@@ -330,8 +342,6 @@ if ($action === 'login_otp_verify') {
 if ($action === 'operator_login') {
   $plateNumber = strtoupper(trim((string) ($input['plate_number'] ?? '')));
   $password = (string) ($input['password'] ?? '');
-  if ($plateNumber === '')
-    gsm_send(false, 'Plate number is required', null, 400);
   if ($password === '')
     gsm_send(false, 'Password is required', null, 400);
   if ($deviceId === '')
@@ -352,7 +362,7 @@ if ($action === 'operator_login') {
     gsm_send(true, 'Login successful', [
       'user' => [
         'email' => $email,
-        'plate_number' => $plateNumber,
+        'plate_number' => (string)($_SESSION['operator_plate'] ?? ''),
         'type' => 'operator',
       ],
       'redirect' => $gsm_root_url . '/citizen/operator/index.php'
@@ -363,7 +373,7 @@ if ($action === 'operator_login') {
     gsm_send(true, 'Login successful', [
       'user' => [
         'email' => $email,
-        'plate_number' => $plateNumber,
+        'plate_number' => (string)($_SESSION['operator_plate'] ?? ''),
         'type' => 'operator',
       ],
       'redirect' => $gsm_root_url . '/citizen/operator/index.php'
@@ -377,7 +387,7 @@ if ($action === 'operator_login') {
     'purpose' => 'login_operator',
     'email' => $email,
     'operator_user_id' => $opUserId,
-    'plate_number' => $plateNumber,
+    'plate_number' => (string)($_SESSION['operator_plate'] ?? ''),
     'device_hash' => $deviceHash,
     'trust_days' => $trustDays,
   ];
