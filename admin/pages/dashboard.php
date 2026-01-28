@@ -69,7 +69,13 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 }
 ?>
 
+<!-- DASHBOARD ENHANCED v2.0 - <?php echo date('Y-m-d H:i:s'); ?> -->
 <div class="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8 py-6 font-sans text-slate-900 dark:text-slate-100">
+  <!-- Version Indicator (Remove after confirming) -->
+  <div class="mb-4 px-4 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 text-white text-xs font-black rounded-lg shadow-lg text-center">
+    ✓ DASHBOARD ENHANCED v2.0 - LOADED AT <?php echo date('H:i:s'); ?>
+  </div>
+  
   <!-- Header Section -->
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 pb-6 border-b-2 border-gradient-to-r from-blue-200 via-green-200 to-blue-200 dark:from-blue-900/30 dark:via-green-900/30 dark:to-blue-900/30 animate-slide-up">
     <div>
