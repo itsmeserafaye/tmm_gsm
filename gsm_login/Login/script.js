@@ -137,6 +137,19 @@ function setupEventListeners() {
     if (openForgotBtn) openForgotBtn.classList.toggle('hidden', portalMode === 'staff');
 
     const rememberEl = document.getElementById('rememberMe');
+    const emailEl = document.getElementById('email');
+    const pwdEl = document.getElementById('password');
+    if (emailEl && pwdEl) {
+        emailEl.addEventListener('blur', () => {
+            try {
+                const remember = !!(rememberEl && rememberEl.checked);
+                if (!remember) return;
+                if (String(pwdEl.value || '').trim() !== '') return;
+                const savedPwd = localStorage.getItem('gsm_password_' + portalMode) || '';
+                if (savedPwd) pwdEl.value = savedPwd;
+            } catch (e) {}
+        });
+    }
     if (loginForm) {
         loginForm.addEventListener('submit', () => {
             try {
