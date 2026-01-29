@@ -54,7 +54,8 @@ $res = $db->query("SELECT
   t.name,
   t.location,
   t.capacity,
-  COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served
+  COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
+  COUNT(DISTINCT tr.route_id) AS route_count
 FROM terminals t
 LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
 LEFT JOIN routes r ON r.route_id=tr.route_id
@@ -202,12 +203,20 @@ if ($rootUrl === '/') $rootUrl = '';
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
-                      <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
-                        class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        title="View routes">
-                        <i data-lucide="list" class="w-4 h-4"></i>
-                        <span class="sr-only">View routes</span>
-                      </button>
+                      <?php $rc = (int)($t['route_count'] ?? 0); ?>
+                      <?php if ($rc > 0): ?>
+                        <div class="flex items-center gap-2">
+                          <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
+                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
+                            class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="View routes">
+                            <i data-lucide="list" class="w-4 h-4"></i>
+                            <span class="sr-only">View routes</span>
+                          </button>
+                        </div>
+                      <?php else: ?>
+                        <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
+                      <?php endif; ?>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
                       <?php

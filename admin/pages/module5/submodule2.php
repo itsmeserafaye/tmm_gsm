@@ -198,7 +198,9 @@ if ($rootUrl === '/') $rootUrl = '';
       if (id > 0) vehicleById[id] = v;
     });
 
-    function filterTerminalsForVehicle(vehicleType) {
+    let allowedTerminalIds = null;
+
+    function applyTerminalFilters(vehicleType) {
       if (!terminalSelect) return;
       const vt = (vehicleType || '').toString().trim().toLowerCase();
       const opts = terminalSelect.options;
@@ -208,6 +210,13 @@ if ($rootUrl === '/') $rootUrl = '';
         if (val === '') {
           opt.hidden = false;
           continue;
+        }
+        if (Array.isArray(allowedTerminalIds) && allowedTerminalIds.length) {
+          const tid = Number(val || 0);
+          if (!allowedTerminalIds.includes(tid)) {
+            opt.hidden = true;
+            continue;
+          }
         }
         const raw = (opt.getAttribute('data-allowed-types') || '').toString().toLowerCase();
         if (vt === '' || raw === '') {
@@ -227,6 +236,21 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       if (terminalSelect.value && terminalSelect.selectedOptions.length && terminalSelect.selectedOptions[0].hidden) {
         terminalSelect.value = '';
+      }
+    }
+
+    async function loadAllowedTerminalsForVehicle(vehId) {
+      const id = Number(vehId || 0);
+      if (!id) return null;
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/allowed_terminals_for_vehicle.php?vehicle_id=' + encodeURIComponent(String(id)));
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) return null;
+        if (!data.restricted) return null;
+        const ids = Array.isArray(data.terminal_ids) ? data.terminal_ids.map((x) => Number(x || 0)).filter((x) => x > 0) : [];
+        return ids;
+      } catch (e) {
+        return null;
       }
     }
 
@@ -250,7 +274,12 @@ if ($rootUrl === '/') $rootUrl = '';
       if (vehicleDropdownLabel) vehicleDropdownLabel.textContent = (label || 'Select vehicle').toString();
       const v = vehicleById[id] || null;
       const vt = v && v.type ? v.type : '';
-      filterTerminalsForVehicle(vt);
+      allowedTerminalIds = null;
+      applyTerminalFilters(vt);
+      loadAllowedTerminalsForVehicle(id).then((ids) => {
+        allowedTerminalIds = ids;
+        applyTerminalFilters(vt);
+      });
       closeVehicleDropdown();
     }
 

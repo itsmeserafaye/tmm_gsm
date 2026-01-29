@@ -120,6 +120,66 @@ if (!$verifiedOk) {
   exit;
 }
 
+$hasTable = function (string $table) use ($db): bool {
+  $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? LIMIT 1");
+  if (!$stmt) return false;
+  $stmt->bind_param('s', $table);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $ok = (bool) ($res && $res->fetch_row());
+  $stmt->close();
+  return $ok;
+};
+
+if ($hasTable('franchise_applications') && $hasTable('routes') && $hasTable('terminal_routes')) {
+  $routeDbIds = [];
+  $stmtF = $db->prepare("SELECT DISTINCT route_id FROM franchise_applications WHERE operator_id=? AND route_id IS NOT NULL AND route_id>0 AND status IN ('Approved','LTFRB-Approved')");
+  if ($stmtF) {
+    $stmtF->bind_param('i', $operatorId);
+    $stmtF->execute();
+    $resF = $stmtF->get_result();
+    while ($resF && ($r = $resF->fetch_assoc())) {
+      $rid = (int)($r['route_id'] ?? 0);
+      if ($rid > 0) $routeDbIds[] = $rid;
+    }
+    $stmtF->close();
+  }
+  $routeDbIds = array_values(array_unique($routeDbIds));
+  if ($routeDbIds) {
+    $idList = implode(',', array_map('intval', $routeDbIds));
+    $routeRefs = [];
+    $resR = $db->query("SELECT route_id, route_code FROM routes WHERE id IN ($idList)");
+    if ($resR) {
+      while ($r = $resR->fetch_assoc()) {
+        $rid = trim((string)($r['route_id'] ?? ''));
+        $rcode = trim((string)($r['route_code'] ?? ''));
+        if ($rid !== '') $routeRefs[] = $rid;
+        if ($rcode !== '') $routeRefs[] = $rcode;
+      }
+    }
+    $routeRefs = array_values(array_unique(array_filter($routeRefs, fn($x) => $x !== '')));
+    if ($routeRefs) {
+      $in = implode(',', array_map(function ($s) use ($db) {
+        return "'" . $db->real_escape_string($s) . "'";
+      }, $routeRefs));
+      $okTerm = false;
+      $stmtTr = $db->prepare("SELECT 1 FROM terminal_routes WHERE terminal_id=? AND route_id IN ($in) LIMIT 1");
+      if ($stmtTr) {
+        $stmtTr->bind_param('i', $terminalId);
+        $stmtTr->execute();
+        $resTr = $stmtTr->get_result();
+        $okTerm = (bool)($resTr && $resTr->fetch_row());
+        $stmtTr->close();
+      }
+      if (!$okTerm) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'terminal_not_connected_to_operator_route']);
+        exit;
+      }
+    }
+  }
+}
+
 $capacity = (int)($term['capacity'] ?? 0);
 if ($capacity > 0) {
   $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM terminal_assignments WHERE terminal_id=?");
