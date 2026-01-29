@@ -364,7 +364,7 @@ if ($action === 'operator_login') {
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_mfa($db);
   $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
-  if ($trustDays > 0 && $opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash, $trustDays)) {
+  if (!$mustOtp) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
       'user' => [
@@ -375,7 +375,7 @@ if ($action === 'operator_login') {
       'redirect' => $gsm_root_url . '/citizen/operator/index.php'
     ]);
   }
-  if (!$mustOtp && $trustDays <= 0) {
+  if ($trustDays > 0 && $opUserId > 0 && td_is_trusted($db, 'operator', $opUserId, $deviceHash, $trustDays)) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
       'user' => [
@@ -484,6 +484,41 @@ $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
 $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
 
+if (!$mustOtp) {
+  session_regenerate_id(true);
+  unset($_SESSION['pending_login']);
+  $_SESSION['user_id'] = $userId;
+  $_SESSION['email'] = $user['email'];
+  $_SESSION['name'] = trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
+  $_SESSION['role'] = $primaryRole;
+  $_SESSION['roles'] = $roles;
+  $_SESSION['permissions'] = $perms;
+
+  $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $stmt->close();
+  }
+  rbac_write_login_audit($db, $userId, $email, true);
+
+  $redirect = $primaryRole === 'Commuter'
+    ? ($gsm_root_url . '/citizen/commuter/index.php')
+    : ($gsm_root_url . '/admin/index.php');
+
+  gsm_send(true, 'Login successful', [
+    'user' => [
+      'id' => $userId,
+      'email' => $user['email'],
+      'name' => $_SESSION['name'],
+      'role' => $primaryRole,
+      'roles' => $roles,
+      'permissions' => $perms,
+    ],
+    'redirect' => $redirect
+  ]);
+}
+
 if ($trustDays > 0 && td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDays)) {
   session_regenerate_id(true);
   unset($_SESSION['pending_login']);
@@ -519,96 +554,25 @@ if ($trustDays > 0 && td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDay
   ]);
 }
 
-if (!$mustOtp && $trustDays <= 0) {
-  session_regenerate_id(true);
+$_SESSION['pending_login'] = [
+  'created_at' => time(),
+  'user_type' => 'rbac',
+  'purpose' => 'login_rbac',
+  'email' => $email,
+  'user_id' => $userId,
+  'device_hash' => $deviceHash,
+  'trust_days' => $trustDays,
+];
+$ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
+$_SESSION['pending_login']['otp_ttl'] = $ttl;
+$sent = otp_send($db, $email, 'login_rbac', $ttl);
+if (!($sent['ok'] ?? false)) {
   unset($_SESSION['pending_login']);
-  $_SESSION['user_id'] = $userId;
-  $_SESSION['email'] = $user['email'];
-  $_SESSION['name'] = trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
-  $_SESSION['role'] = $primaryRole;
-  $_SESSION['roles'] = $roles;
-  $_SESSION['permissions'] = $perms;
-
-  $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
-  if ($stmt) {
-    $stmt->bind_param('i', $userId);
-    $stmt->execute();
-    $stmt->close();
-  }
-  rbac_write_login_audit($db, $userId, $email, true);
-
-  $redirect = $primaryRole === 'Commuter'
-    ? ($gsm_root_url . '/citizen/commuter/index.php')
-    : ($gsm_root_url . '/admin/index.php');
-
-  gsm_send(true, 'Login successful', [
-    'user' => [
-      'id' => $userId,
-      'email' => $user['email'],
-      'name' => $_SESSION['name'],
-      'role' => $primaryRole,
-      'roles' => $roles,
-      'permissions' => $perms,
-    ],
-    'redirect' => $redirect
-  ]);
+  gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
 }
-
-if ($trustDays <= 0 || !td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDays)) {
-  $_SESSION['pending_login'] = [
-    'created_at' => time(),
-    'user_type' => 'rbac',
-    'purpose' => 'login_rbac',
-    'email' => $email,
-    'user_id' => $userId,
-    'device_hash' => $deviceHash,
-    'trust_days' => $trustDays,
-  ];
-  $ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
-  $_SESSION['pending_login']['otp_ttl'] = $ttl;
-  $sent = otp_send($db, $email, 'login_rbac', $ttl);
-  if (!($sent['ok'] ?? false)) {
-    unset($_SESSION['pending_login']);
-    gsm_send(false, (string) ($sent['message'] ?? 'Failed to send OTP.'), null, 500);
-  }
-  gsm_send(true, 'OTP required', [
-    'otp_required' => true,
-    'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
-    'otp_trust_days' => $trustDays,
-  ]);
-}
-
-session_regenerate_id(true);
-unset($_SESSION['pending_login']);
-$_SESSION['user_id'] = $userId;
-$_SESSION['email'] = $user['email'];
-$_SESSION['name'] = trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
-$_SESSION['role'] = $primaryRole;
-$_SESSION['roles'] = $roles;
-$_SESSION['permissions'] = $perms;
-
-$stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
-if ($stmt) {
-  $stmt->bind_param('i', $userId);
-  $stmt->execute();
-  $stmt->close();
-}
-
-rbac_write_login_audit($db, $userId, $email, true);
-
-$redirect = $primaryRole === 'Commuter'
-  ? ($gsm_root_url . '/citizen/commuter/index.php')
-  : ($gsm_root_url . '/admin/index.php');
-
-gsm_send(true, 'Login successful', [
-  'user' => [
-    'id' => $userId,
-    'email' => $user['email'],
-    'name' => $_SESSION['name'],
-    'role' => $primaryRole,
-    'roles' => $roles,
-    'permissions' => $perms,
-  ],
-  'redirect' => $redirect
+gsm_send(true, 'OTP required', [
+  'otp_required' => true,
+  'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
+  'otp_trust_days' => $trustDays,
 ]);
 ?>
