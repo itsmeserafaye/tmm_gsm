@@ -23,7 +23,8 @@ function tmm_load_env(string $path): void {
       $value = substr($value, 1, -1);
     }
 
-    if (getenv($key) !== false) continue;
+    $existing = getenv($key);
+    if ($existing !== false && (string)$existing !== '') continue;
 
     putenv($key . '=' . $value);
     $_ENV[$key] = $value;
