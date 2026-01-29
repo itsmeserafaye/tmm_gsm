@@ -715,20 +715,8 @@ if (empty($_SESSION['operator_csrf'])) {
                                 required>
                         </div>
 
-                        <div class="pt-4 border-t border-slate-100">
-                            <p class="text-xs text-slate-800 font-bold uppercase mb-3">Security Settings</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <input type="password" id="newPass" placeholder="New Password"
-                                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm">
-                                </div>
-                                <div>
-                                    <input type="password" id="confirmPass" placeholder="Confirm Password"
-                                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm">
-                                </div>
-                            </div>
-                            <p class="text-[10px] text-slate-400 mt-2 italic">* Leave blank if you don't want to change
-                                your password.</p>
+                        <div class="pt-4 border-t border-slate-100 hidden">
+                            <!-- Moved to Security Modal -->
                         </div>
                     </div>
 
@@ -853,6 +841,17 @@ if (empty($_SESSION['operator_csrf'])) {
                 <input type="password" id="currentPassConfirm" placeholder="Current Password"
                     class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-800 outline-none text-center font-bold tracking-widest"
                     required>
+
+                <div class="text-left pt-2 border-t border-slate-100">
+                    <p class="text-xs text-slate-800 font-bold uppercase mb-2">Change Password (Optional)</p>
+                    <div class="space-y-3">
+                        <input type="password" id="newPass" placeholder="New Password"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-800 outline-none text-sm">
+                        <input type="password" id="confirmPass" placeholder="Confirm Password"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-800 outline-none text-sm">
+                    </div>
+                </div>
+
                 <div class="flex gap-3">
                     <button type="button" onclick="document.getElementById('passwordConfirmModal').classList.add('hidden')"
                         class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition">Cancel</button>
@@ -1267,29 +1266,30 @@ if (empty($_SESSION['operator_csrf'])) {
 
         function promptPassword(e) {
             e.preventDefault();
-            const newPass = document.getElementById('newPass').value;
-            const confirmPass = document.getElementById('confirmPass').value;
-
-            if (newPass && newPass !== confirmPass) {
-                toast('New passwords do not match.', 'error');
-                return;
-            }
+            // Show modal immediately, validation happens on confirm
             document.getElementById('passwordConfirmModal').classList.remove('hidden');
         }
 
         async function confirmSaveProfile(e) {
             e.preventDefault();
             const currentPass = document.getElementById('currentPassConfirm').value;
+            const newPass = document.getElementById('newPass').value;
+            const confirmPass = document.getElementById('confirmPass').value;
 
             if (!currentPass) {
                 toast('Please enter your current password.', 'warning');
                 return;
             }
 
+            if (newPass && newPass !== confirmPass) {
+                toast('New passwords do not match.', 'error');
+                return;
+            }
+
             const formData = new FormData(document.getElementById('editMode'));
             formData.append('action', 'update_profile');
             formData.append('current_password', currentPass);
-            formData.append('new_password', document.getElementById('newPass').value);
+            formData.append('new_password', newPass);
 
             try {
                 const data = await apiPost(formData);

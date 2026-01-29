@@ -64,5 +64,36 @@ $stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, record
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmt->bind_param('iss', $resolvedIdBind, $resolvedName, $plate);
 $ok = $stmt->execute();
+
+if ($ok) {
+    // Try to link to operator portal user by name to ensure they see the plate
+    $stmtP = $db->prepare("SELECT id FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
+    if ($stmtP) {
+        $stmtP->bind_param('ss', $resolvedName, $resolvedName);
+        $stmtP->execute();
+        $resP = $stmtP->get_result();
+        if ($rowP = $resP->fetch_assoc()) {
+            $portalUserId = (int)$rowP['id'];
+            // Check if already linked in portal table
+            $stmtChk = $db->prepare("SELECT 1 FROM operator_portal_user_plates WHERE user_id=? AND plate_number=? LIMIT 1");
+            if ($stmtChk) {
+                $stmtChk->bind_param('is', $portalUserId, $plate);
+                $stmtChk->execute();
+                if (!$stmtChk->get_result()->fetch_row()) {
+                    // Insert into operator_portal_user_plates
+                    $stmtIns = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?)");
+                    if ($stmtIns) {
+                        $stmtIns->bind_param('is', $portalUserId, $plate);
+                        $stmtIns->execute();
+                        $stmtIns->close();
+                    }
+                }
+                $stmtChk->close();
+            }
+        }
+        $stmtP->close();
+    }
+}
+
 echo json_encode(['ok'=>$ok, 'plate_number'=>$plate, 'operator_id'=>$resolvedId, 'operator_name'=>$resolvedName, 'vehicle_status'=>'Linked']);
 ?> 

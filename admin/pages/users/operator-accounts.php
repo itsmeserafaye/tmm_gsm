@@ -21,6 +21,10 @@ if ($rootUrl === '/') $rootUrl = '';
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage operator portal logins (status, reset password, delete).</p>
         </div>
         <div class="flex items-center gap-2">
+            <button type="button" onclick="syncOperatorPlates()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+                <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
+                Sync Plates
+            </button>
             <button type="button" onclick="loadOperatorAccounts(true)" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
                 <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 Refresh
@@ -109,6 +113,36 @@ if ($rootUrl === '/') $rootUrl = '';
         const statusEl = document.getElementById('op-status-filter');
         const pwdModal = document.getElementById('op-pwd-modal');
         const pwdInput = document.getElementById('op-temp-password');
+
+        window.syncOperatorPlates = async function() {
+            if (!confirm('This will sync all admin-linked vehicles to operator portal users based on matching names. Proceed?')) return;
+            
+            const btn = document.querySelector('button[onclick="syncOperatorPlates()"]');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Syncing...`;
+            if (window.lucide) window.lucide.createIcons();
+
+            try {
+                const res = await fetch(rootUrl + '/admin/api/module1/sync_plates.php');
+                const data = await res.json();
+                
+                if (data.ok) {
+                    const stats = data.stats;
+                    alert(`Sync Complete!\n\nProcessed: ${stats.processed}\nSynced: ${stats.synced}\nSkipped: ${stats.skipped}\nNot Found: ${stats.not_found}\nFailed: ${stats.failed}`);
+                    loadOperatorAccounts(true);
+                } else {
+                    alert('Sync Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Sync Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        };
 
         let debounceId = null;
 
