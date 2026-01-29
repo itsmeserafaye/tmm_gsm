@@ -62,9 +62,32 @@ if (tmm_table_exists($db, 'parking_slots')) {
 
 $violations7d = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE date_issued >= DATE_SUB(NOW(), INTERVAL 7 DAY)")->fetch_assoc()['c'] ?? 0);
 $violations7dAvg = $violations7d / 7.0;
+function tmm_get_setting(mysqli $db, string $key, string $default = ''): string {
+  $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");
+  if (!$stmt) return $default;
+  $stmt->bind_param('s', $key);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  $val = trim((string)($row['setting_value'] ?? ''));
+  return $val !== '' ? $val : $default;
+}
+
+$hotspotLabel = tmm_get_setting($db, 'weather_label', 'Caloocan City');
+$hotspotCity = preg_replace('/\s+city$/i', '', trim($hotspotLabel));
+$hotspotCity = $hotspotCity !== '' ? $hotspotCity : 'Caloocan';
+$hotspotLike = '%' . strtolower($hotspotCity) . '%';
 $hotspots = [];
 if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'")->num_rows ?? 0) > 0) {
-  $resH = $db->query("SELECT location, COUNT(*) AS c FROM tickets WHERE date_issued >= DATE_SUB(NOW(), INTERVAL 7 DAY) AND location IS NOT NULL AND location<>'' GROUP BY location ORDER BY c DESC LIMIT 3");
+  $likeEsc = $db->real_escape_string($hotspotLike);
+  $resH = $db->query("SELECT location, COUNT(*) AS c
+    FROM tickets
+    WHERE date_issued >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      AND location IS NOT NULL AND location<>''
+      AND LOWER(location) LIKE '$likeEsc'
+    GROUP BY location
+    ORDER BY c DESC
+    LIMIT 3");
   if ($resH) while ($r = $resH->fetch_assoc()) $hotspots[] = ['location' => (string)$r['location'], 'count' => (int)$r['c']];
 }
 ?>
@@ -323,7 +346,9 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
         <!-- Main Forecast Chart -->
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/50 border-2 border-slate-200 dark:border-slate-700 shadow-lg">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div class="xl:col-span-2">
+            <div class="p-6 rounded-xl bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/50 border-2 border-slate-200 dark:border-slate-700 shadow-lg">
         <div class="flex items-start justify-between gap-4 mb-2">
           <div>
             <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -369,6 +394,110 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           Select data to view analysis.
         </div>
       </div>
+          </div>
+          <div class="space-y-6">
+            <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h2 class="text-base font-bold text-slate-900 dark:text-white">Data Inputs</h2>
+                  <div class="text-xs text-slate-500">Record demand observations (trend-based forecasting)</div>
+                </div>
+                <a href="?page=module5/submodule3"
+                  class="p-2 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                  title="Go to Parking Data">
+                  <i data-lucide="database" class="w-4 h-4"></i>
+                </a>
+              </div>
+
+              <form id="demand-log-form" class="space-y-4">
+                <div class="space-y-1">
+                  <label class="text-xs font-semibold text-slate-500 uppercase">Area Type</label>
+                  <div class="relative">
+                    <select id="demand-area-type" name="area_type"
+                      class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none">
+                      <option value="terminal">Terminal</option>
+                      <option value="route">Route</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-xs font-semibold text-slate-500 uppercase">Location</label>
+                  <div class="relative">
+                    <select id="demand-area-ref" name="area_ref"
+                      class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"></select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-500 uppercase">Hour</label>
+                    <input id="demand-observed-at" name="observed_at" type="datetime-local"
+                      class="w-full px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                  </div>
+                  <div class="space-y-1">
+                    <label class="text-xs font-semibold text-slate-500 uppercase">Count</label>
+                    <input id="demand-count" name="demand_count" type="number" min="0"
+                      class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="0">
+                  </div>
+                </div>
+
+                <button type="submit"
+                  class="w-full py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+                  <i data-lucide="save" class="w-4 h-4"></i>
+                  Save Observation
+                </button>
+                <div id="demand-log-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
+              </form>
+
+              <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-2 mb-4">
+                  <i data-lucide="sliders" class="w-4 h-4 text-violet-500"></i>
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">Adjustment Factors</h3>
+                </div>
+                <form id="forecast-weights-form" class="space-y-3">
+                  <div class="grid grid-cols-3 gap-2 items-center">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Weather</label>
+                    <input id="wWeather" name="ai_weather_weight" type="number" step="0.01" min="-0.50" max="0.50"
+                      class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 items-center">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Events</label>
+                    <input id="wEvent" name="ai_event_weight" type="number" step="0.01" min="-0.50" max="0.50"
+                      class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+                  </div>
+                  <div class="grid grid-cols-3 gap-2 items-center">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase">Traffic</label>
+                    <input id="wTraffic" name="ai_traffic_weight" type="number" step="0.01" min="0.00" max="2.00"
+                      class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
+                  </div>
+                  <button type="submit"
+                    class="w-full py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Save Weights
+                  </button>
+                  <div id="forecast-weights-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
+                </form>
+              </div>
+            </div>
+
+            <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
+                  </div>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Next 6 Hours</span>
+              </div>
+              <div id="forecastSpikes" class="space-y-3"></div>
+            </div>
+          </div>
+        </div>
 
       </div>
 
@@ -452,53 +581,39 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
 
             <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
-              <div class="flex items-center gap-2">
-                <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
               </div>
+              <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                    <tr class="text-left text-slate-500 dark:text-slate-400">
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                    </tr>
+                  </thead>
+                  <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                  </tbody>
+                </table>
               </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
-            </div>
-            <div class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                  <tr class="text-left text-slate-500 dark:text-slate-400">
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
-                  </tr>
-                </thead>
-                <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-                </tbody>
-              </table>
             </div>
           </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+    </div>
 
-      <!-- Alerts Section -->
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
-            </div>
-          </div>
-          <span
-            class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Next
-            6 Hours</span>
-        </div>
-        <div id="forecastSpikes" class="space-y-3"></div>
-      </div>
-
-      <!-- Route Supply -->
+      <!-- Right Column -->
+    <div class="space-y-6">
       <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
@@ -511,9 +626,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <div id="routeSupplyTitle"
-              class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
-            </div>
+            <div id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600"></div>
             <?php if (has_permission('reports.export')): ?>
               <a id="routeSupplyExportCsv" href="#"
                 class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
@@ -532,119 +645,14 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             <thead class="bg-slate-50 dark:bg-slate-700">
               <tr>
                 <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Route</th>
-                <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized
-                  Units</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized Units</th>
               </tr>
             </thead>
-            <tbody id="routeSupplyBody"
-              class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+            <tbody id="routeSupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
           </table>
         </div>
         <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
-    </div>
-    </div>
-
-      <!-- Right Column: Data Inputs -->
-    <div class="space-y-6">
-      
-      <div class="flex items-center gap-3 mb-2">
-        <div class="p-2 rounded-lg bg-emerald-600 shadow-lg shadow-emerald-500/20">
-          <i data-lucide="database" class="w-5 h-5 text-white"></i>
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-slate-900 dark:text-white">Data Management</h2>
-          <p class="text-sm text-slate-500 dark:text-slate-400">Input demand data and adjust weights</p>
-        </div>
-      </div>
-
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg">
-        <div class="flex items-center justify-between mb-5">
-          <div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">Data Inputs</h2>
-            <div class="text-xs text-slate-500">Record demand observations (trend-based forecasting)</div>
-          </div>
-          <a href="?page=module5/submodule3"
-            class="p-2 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-            title="Go to Parking Data">
-            <i data-lucide="database" class="w-4 h-4"></i>
-          </a>
-        </div>
-
-        <form id="demand-log-form" class="space-y-4">
-          <div class="space-y-1">
-            <label class="text-xs font-semibold text-slate-500 uppercase">Area Type</label>
-            <div class="relative">
-              <select id="demand-area-type" name="area_type"
-                class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none">
-                <option value="terminal">Terminal</option>
-                <option value="route">Route</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <label class="text-xs font-semibold text-slate-500 uppercase">Location</label>
-            <div class="relative">
-              <select id="demand-area-ref" name="area_ref"
-                class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"></select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500 uppercase">Hour</label>
-              <input id="demand-observed-at" name="observed_at" type="datetime-local"
-                class="w-full px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
-            </div>
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500 uppercase">Count</label>
-              <input id="demand-count" name="demand_count" type="number" min="0"
-                class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="0">
-            </div>
-          </div>
-
-          <button type="submit"
-            class="w-full py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-            <i data-lucide="save" class="w-4 h-4"></i>
-            Save Observation
-          </button>
-          <div id="demand-log-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
-        </form>
-
-        <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <div class="flex items-center gap-2 mb-4">
-            <i data-lucide="sliders" class="w-4 h-4 text-violet-500"></i>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">Adjustment Factors</h3>
-          </div>
-          <form id="forecast-weights-form" class="space-y-3">
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <label class="text-[11px] font-bold text-slate-500 uppercase">Weather</label>
-              <input id="wWeather" name="ai_weather_weight" type="number" step="0.01" min="-0.50" max="0.50"
-                class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-            </div>
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <label class="text-[11px] font-bold text-slate-500 uppercase">Events</label>
-              <input id="wEvent" name="ai_event_weight" type="number" step="0.01" min="-0.50" max="0.50"
-                class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-            </div>
-            <div class="grid grid-cols-3 gap-2 items-center">
-              <label class="text-[11px] font-bold text-slate-500 uppercase">Traffic</label>
-              <input id="wTraffic" name="ai_traffic_weight" type="number" step="0.01" min="0.00" max="2.00"
-                class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-            </div>
-            <button type="submit"
-              class="w-full py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-              <i data-lucide="save" class="w-4 h-4"></i>
-              Save Weights
-            </button>
-            <div id="forecast-weights-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
-          </form>
-        </div>
-      </div>
-
-
     </div>
 
     <!-- End main content wrapper -->
