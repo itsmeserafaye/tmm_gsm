@@ -12,6 +12,8 @@ $terminalsCount = 0;
 $parkingAreasCount = 0;
 $ticketsToday = 0;
 $parkingPaymentsToday = 0;
+$ticketPaymentsToday = 0;
+$totalPaymentsToday = 0;
 
 $r1 = $db->query("SELECT COUNT(*) AS c FROM terminals");
 if ($r1 && ($row = $r1->fetch_assoc()))
@@ -22,9 +24,19 @@ if ($r2 && ($row = $r2->fetch_assoc()))
 $r3 = $db->query("SELECT COUNT(*) AS c FROM tickets WHERE DATE(date_issued)=CURDATE()");
 if ($r3 && ($row = $r3->fetch_assoc()))
   $ticketsToday = (int) ($row['c'] ?? 0);
-$r4 = $db->query("SELECT SUM(amount) AS s FROM parking_transactions WHERE DATE(created_at)=CURDATE()");
+$slotPaymentsToday = 0.0;
+$parkingTxPaymentsToday = 0.0;
+$r4 = $db->query("SELECT SUM(amount) AS s FROM parking_payments WHERE DATE(paid_at)=CURDATE()");
 if ($r4 && ($row = $r4->fetch_assoc()))
-  $parkingPaymentsToday = (float) ($row['s'] ?? 0);
+  $slotPaymentsToday = (float) ($row['s'] ?? 0);
+$r4a = $db->query("SELECT SUM(amount) AS s FROM parking_transactions WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND DATE(COALESCE(paid_at, created_at))=CURDATE()");
+if ($r4a && ($row = $r4a->fetch_assoc()))
+  $parkingTxPaymentsToday = (float) ($row['s'] ?? 0);
+$parkingPaymentsToday = $slotPaymentsToday + $parkingTxPaymentsToday;
+$r4b = $db->query("SELECT SUM(amount_paid) AS s FROM ticket_payments WHERE DATE(paid_at)=CURDATE()");
+if ($r4b && ($row = $r4b->fetch_assoc()))
+  $ticketPaymentsToday = (float) ($row['s'] ?? 0);
+$totalPaymentsToday = $parkingPaymentsToday + $ticketPaymentsToday;
 
 // KPI Data for System Overview
 $totalVehicles = $db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0;
@@ -33,12 +45,31 @@ $activeFranchises = $db->query("SELECT COUNT(*) AS c FROM franchise_applications
 $pendingFranchises = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending'")->fetch_assoc()['c'] ?? 0;
 $totalViolations = $db->query("SELECT COUNT(*) AS c FROM tickets")->fetch_assoc()['c'] ?? 0;
 $unpaidFines = $db->query("SELECT COUNT(*) AS c FROM tickets WHERE status IN ('Pending','Validated','Escalated')")->fetch_assoc()['c'] ?? 0;
-$totalRevenue = $db->query("SELECT SUM(amount) AS s FROM parking_transactions")->fetch_assoc()['s'] ?? 0;
+$slotRevenueTotal = 0.0;
+$parkingTxRevenueTotal = 0.0;
+$parkingPaymentsTotalRes = $db->query("SELECT SUM(amount) AS s FROM parking_payments");
+if ($parkingPaymentsTotalRes && ($row = $parkingPaymentsTotalRes->fetch_assoc()))
+  $slotRevenueTotal = (float)($row['s'] ?? 0);
+$parkingTxTotalRes = $db->query("SELECT SUM(amount) AS s FROM parking_transactions WHERE UPPER(COALESCE(status,'Paid'))='PAID'");
+if ($parkingTxTotalRes && ($row = $parkingTxTotalRes->fetch_assoc()))
+  $parkingTxRevenueTotal = (float)($row['s'] ?? 0);
+$ticketRevenueTotalRow = $db->query("SELECT SUM(amount_paid) AS s FROM ticket_payments")->fetch_assoc();
+$ticketRevenueTotal = (float)($ticketRevenueTotalRow['s'] ?? 0);
+$totalRevenue = $slotRevenueTotal + $parkingTxRevenueTotal + $ticketRevenueTotal;
 
-$revenueLast7DaysRow = $db->query("SELECT SUM(amount) AS s FROM parking_transactions WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")->fetch_assoc();
-$revenueLast7Days = $revenueLast7DaysRow['s'] ?? 0;
+$revenueLast7DaysSlot = 0.0;
+$revenueLast7DaysParkingTx = 0.0;
+$revenueLast7DaysSlotRes = $db->query("SELECT SUM(amount) AS s FROM parking_payments WHERE paid_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+if ($revenueLast7DaysSlotRes && ($row = $revenueLast7DaysSlotRes->fetch_assoc()))
+  $revenueLast7DaysSlot = (float)($row['s'] ?? 0);
+$revenueLast7DaysParkingTxRes = $db->query("SELECT SUM(amount) AS s FROM parking_transactions WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND COALESCE(paid_at, created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+if ($revenueLast7DaysParkingTxRes && ($row = $revenueLast7DaysParkingTxRes->fetch_assoc()))
+  $revenueLast7DaysParkingTx = (float)($row['s'] ?? 0);
+$revenueLast7DaysTicketRow = $db->query("SELECT SUM(amount_paid) AS s FROM ticket_payments WHERE paid_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")->fetch_assoc();
+$revenueLast7DaysTicket = (float)($revenueLast7DaysTicketRow['s'] ?? 0);
+$revenueLast7Days = $revenueLast7DaysSlot + $revenueLast7DaysParkingTx + $revenueLast7DaysTicket;
 $revenue7DayAvg = $revenueLast7Days ? ($revenueLast7Days / 7) : 0;
-$revenueTodayVsAvg = $revenue7DayAvg ? (($parkingPaymentsToday - $revenue7DayAvg) / $revenue7DayAvg) * 100 : 0;
+$revenueTodayVsAvg = $revenue7DayAvg ? (($totalPaymentsToday - $revenue7DayAvg) / $revenue7DayAvg) * 100 : 0;
 
 $unpaidRate = $totalViolations ? ($unpaidFines / $totalViolations * 100) : 0;
 $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
