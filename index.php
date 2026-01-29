@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -37,7 +37,9 @@ if (!empty($_SESSION['user_id'])) {
     <link rel="stylesheet" href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/Login/styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <?php if (trim($recaptchaSiteKey) !== ''): ?>
+        <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <?php endif; ?>
     <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js?v=<?php echo time(); ?>" defer></script>
     <style>
         @keyframes float {
@@ -492,9 +494,11 @@ if (!empty($_SESSION['user_id'])) {
                     </div>
                 </div>
 
-                <div>
-                    <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
-                </div>
+                <?php if (trim($recaptchaSiteKey) !== ''): ?>
+                    <div>
+                        <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                    </div>
+                <?php endif; ?>
 
                 <div class="space-y-2">
                     <div class="flex items-center text-sm">
@@ -578,7 +582,9 @@ if (!empty($_SESSION['user_id'])) {
                     </div>
                 </div>
 
-                <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                <?php if (trim($recaptchaSiteKey) !== ''): ?>
+                    <div id="opRecaptcha" data-sitekey="<?php echo htmlspecialchars($recaptchaSiteKey); ?>"></div>
+                <?php endif; ?>
 
                 <div class="flex items-center text-sm">
                     <label class="inline-flex items-center">
