@@ -1,10 +1,11 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
 $db = db();
 
-$baseUrl = str_replace('\\', '/', (string) dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php')));
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+$baseUrl = str_replace('\\', '/', dirname((string)$scriptName));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 
 $recaptchaCfg = recaptcha_config($db);
@@ -104,7 +105,7 @@ if (!empty($_SESSION['user_id'])) {
                 <div class="flex items-center gap-8">
                     <div class="text-right">
                         <div class="text-sm">
-                            <div id="currentDateTime" class="font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #357abd); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></div>
+                            <div id="currentDateTime" class="font-semibold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #357abd); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;"></div>
                         </div>
                     </div>
                 </div>
@@ -129,7 +130,7 @@ if (!empty($_SESSION['user_id'])) {
                                 alt="TMM" class="h-20 md:h-24 w-auto">
                         </div>
                         <div class="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg animate-fade-in-up">
-                            Transport & Mobility<br /><span class="gradient-text" style="color: #66bb6a; background: linear-gradient(135deg, #66bb6a, #81c784); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Management</span>
+                            Transport & Mobility<br /><span class="gradient-text" style="color: #66bb6a; background: linear-gradient(135deg, #66bb6a, #81c784); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Management</span>
                         </div>
                         <div class="mt-4 text-xl md:text-2xl font-semibold text-white/90 drop-shadow animate-fade-in-up delay-200">
                             Your Gateway to Smart Transportation Solutions

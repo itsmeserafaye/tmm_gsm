@@ -99,8 +99,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
   <!-- Header Section -->
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8 pb-6 border-b-2 border-gradient-to-r from-blue-200 via-green-200 to-blue-200 dark:from-blue-900/30 dark:via-green-900/30 dark:to-blue-900/30 animate-slide-up">
     <div>
-      <h1 class="text-4xl font-black tracking-tight" style="background: linear-gradient(135deg, #4a90e2, #66bb6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-        Transport & Mobility Intelligence <span class="text-sm font-medium text-slate-400 align-middle ml-2 tracking-normal opacity-60">v3.1</span>
+      <h1 class="text-4xl font-black tracking-tight" style="background: linear-gradient(135deg, #4a90e2, #66bb6a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+        Transport & Mobility Intelligence <span class="text-sm font-medium text-slate-400 align-middle ml-2 tracking-normal opacity-60">v3.2</span>
       </h1>
       <p class="text-sm text-slate-600 dark:text-slate-400 mt-2 font-medium">Operational system + analytics-ready platform (trend-based forecasting)</p>
     </div>
