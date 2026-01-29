@@ -94,6 +94,63 @@ function getOrCreateDeviceId() {
     }
 }
 
+let gsmRecaptchaSiteKey = '';
+let gsmRecaptchaScriptPromise = null;
+let gsmLoginRecaptchaWidgetId = null;
+let gsmRegisterRecaptchaWidgetId = null;
+
+async function gsmFetchRecaptchaConfig() {
+    try {
+        const res = await fetch(GSM_API_BASE + 'recaptcha_config.php', { cache: 'no-store' });
+        const json = await res.json().catch(() => null);
+        const data = (json && json.data) ? json.data : {};
+        return {
+            enabled: !!data.enabled,
+            site_key: String(data.site_key || '')
+        };
+    } catch (e) {
+        return { enabled: false, site_key: '' };
+    }
+}
+
+function gsmLoadRecaptchaScript() {
+    if (gsmRecaptchaScriptPromise) return gsmRecaptchaScriptPromise;
+    gsmRecaptchaScriptPromise = new Promise((resolve) => {
+        if (window.grecaptcha && typeof window.grecaptcha.render === 'function') return resolve(true);
+        const s = document.createElement('script');
+        s.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+        s.async = true;
+        s.defer = true;
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+    });
+    return gsmRecaptchaScriptPromise;
+}
+
+function gsmRenderRecaptcha(containerId, existingWidgetId) {
+    const host = document.getElementById(containerId);
+    if (!host) return existingWidgetId;
+    if (!gsmRecaptchaSiteKey) return existingWidgetId;
+    if (!window.grecaptcha || typeof window.grecaptcha.render !== 'function') return existingWidgetId;
+    if (existingWidgetId !== null) return existingWidgetId;
+    host.innerHTML = '';
+    const el = document.createElement('div');
+    host.appendChild(el);
+    return window.grecaptcha.render(el, { sitekey: gsmRecaptchaSiteKey });
+}
+
+function gsmInitRecaptcha() {
+    gsmFetchRecaptchaConfig().then((cfg) => {
+        gsmRecaptchaSiteKey = String(cfg && cfg.enabled ? (cfg.site_key || '') : '');
+        if (!gsmRecaptchaSiteKey) return;
+        gsmLoadRecaptchaScript().then(() => {
+            gsmLoginRecaptchaWidgetId = gsmRenderRecaptcha('loginRecaptcha', gsmLoginRecaptchaWidgetId);
+            gsmRegisterRecaptchaWidgetId = gsmRenderRecaptcha('registerRecaptcha', gsmRegisterRecaptchaWidgetId);
+        }).catch(() => {});
+    }).catch(() => {});
+}
+
 function initializePage() {
     // Add loading animation to buttons
     addLoadingStates();
@@ -116,6 +173,8 @@ function initializePage() {
         if (remembered && emailEl && email) emailEl.value = email;
         if (remembered && pwdEl && pwd) pwdEl.value = pwd;
     } catch (e) {}
+
+    gsmInitRecaptcha();
 }
 
 function setupEventListeners() {
@@ -181,10 +240,13 @@ function setupEventListeners() {
         const opRecaptcha = document.getElementById('opRecaptcha');
         let opRecaptchaWidgetId = null;
         const tryRenderOpRecaptcha = () => {
-            if (!opRecaptcha || !window.grecaptcha || opRecaptchaWidgetId !== null) return;
-            const siteKey = opRecaptcha.getAttribute('data-sitekey') || '';
-            if (!siteKey) return;
-            opRecaptchaWidgetId = window.grecaptcha.render(opRecaptcha, { sitekey: siteKey });
+            if (!opRecaptcha || opRecaptchaWidgetId !== null) return;
+            if (!gsmRecaptchaSiteKey) return;
+            gsmLoadRecaptchaScript().then(() => {
+                if (!window.grecaptcha || typeof window.grecaptcha.render !== 'function') return;
+                if (opRecaptchaWidgetId !== null) return;
+                opRecaptchaWidgetId = window.grecaptcha.render(opRecaptcha, { sitekey: gsmRecaptchaSiteKey });
+            }).catch(() => {});
         };
         const open = () => {
             opRegModal.classList.remove('hidden');
@@ -713,13 +775,13 @@ function handleLoginSubmit(event) {
     const password = form.password.value.trim();
     const plate = (form.plate_number ? String(form.plate_number.value || '').trim() : '');
     const operatorMode = getPortalMode() === 'operator';
-    const captchaEl = form.querySelector('.g-recaptcha');
     let captchaResponse = '';
-    if (captchaEl) {
-        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
-        captchaResponse = ta ? String(ta.value || '') : '';
-        if (!captchaResponse && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
-            captchaResponse = String(window.grecaptcha.getResponse() || '');
+    if (gsmRecaptchaSiteKey) {
+        if (window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
+            if (gsmLoginRecaptchaWidgetId !== null) {
+                captchaResponse = String(window.grecaptcha.getResponse(gsmLoginRecaptchaWidgetId) || '');
+            }
+            if (!captchaResponse) captchaResponse = String(window.grecaptcha.getResponse() || '');
         }
     }
     
@@ -744,7 +806,7 @@ function handleLoginSubmit(event) {
         ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
         : { action: 'login', email, password, device_id: deviceId };
 
-    if (captchaEl) {
+    if (gsmRecaptchaSiteKey) {
         if (!captchaResponse) {
             const msg = 'Please complete the reCAPTCHA.';
             showNotification(msg, 'warning');
@@ -761,7 +823,10 @@ function handleLoginSubmit(event) {
                 const msg = (res && res.message) ? res.message : 'Login failed';
                 setLoginAlert(msg, 'error');
                 showNotification(msg, 'error');
-                if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset();
+                if (gsmRecaptchaSiteKey && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                    if (gsmLoginRecaptchaWidgetId !== null) window.grecaptcha.reset(gsmLoginRecaptchaWidgetId);
+                    else window.grecaptcha.reset();
+                }
                 return;
             }
             const otpRequired = !!(res.data && res.data.otp_required);
@@ -782,7 +847,10 @@ function handleLoginSubmit(event) {
         .catch(() => {
             setLoginAlert('Network error. Please try again.', 'error');
             showNotification('Network error. Please try again.', 'error');
-            if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset();
+            if (gsmRecaptchaSiteKey && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                if (gsmLoginRecaptchaWidgetId !== null) window.grecaptcha.reset(gsmLoginRecaptchaWidgetId);
+                else window.grecaptcha.reset();
+            }
         })
         .finally(() => {
             if (submitButton) resetLoadingState(submitButton);
@@ -845,18 +913,18 @@ function handleRegisterSubmit(event) {
     const data = serializeForm(form);
     if (!validateRegPassword(document.getElementById('regPassword'), true)) return;
     if (!validateConfirmPassword(true)) return;
-    const captchaEl = form.querySelector('.g-recaptcha');
     let captchaResponse = '';
-    if (captchaEl) {
-        const ta = captchaEl.querySelector('textarea[name="g-recaptcha-response"], textarea.g-recaptcha-response');
-        captchaResponse = ta ? String(ta.value || '') : '';
-        if (!captchaResponse && window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
-            captchaResponse = String(window.grecaptcha.getResponse() || '');
+    if (gsmRecaptchaSiteKey) {
+        if (window.grecaptcha && typeof window.grecaptcha.getResponse === 'function') {
+            if (gsmRegisterRecaptchaWidgetId !== null) {
+                captchaResponse = String(window.grecaptcha.getResponse(gsmRegisterRecaptchaWidgetId) || '');
+            }
+            if (!captchaResponse) captchaResponse = String(window.grecaptcha.getResponse() || '');
         }
-    }
-    if (captchaEl && !captchaResponse) {
-        showNotification('Please complete the reCAPTCHA.', 'warning');
-        return;
+        if (!captchaResponse) {
+            showNotification('Please complete the reCAPTCHA.', 'warning');
+            return;
+        }
     }
     if (!document.getElementById('agreeTerms').checked || !document.getElementById('agreePrivacy').checked) {
         showNotification('You must agree to the Terms and Privacy Policy.', 'warning');
@@ -895,7 +963,12 @@ function handleRegisterSubmit(event) {
             }
             showNotification(res.message || 'Registration submitted!', 'success');
             hideRegisterForm();
-            try { if (captchaEl && window.grecaptcha && typeof window.grecaptcha.reset === 'function') window.grecaptcha.reset(); } catch (e) {}
+            try {
+                if (gsmRecaptchaSiteKey && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                    if (gsmRegisterRecaptchaWidgetId !== null) window.grecaptcha.reset(gsmRegisterRecaptchaWidgetId);
+                    else window.grecaptcha.reset();
+                }
+            } catch (e) {}
         })
         .catch(() => {})
         .finally(() => {
