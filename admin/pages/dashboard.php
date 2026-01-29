@@ -649,8 +649,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
       </div>
     </div>
-  </div>
-
+    <!-- End Grid -->
+    
     <!-- End main content wrapper -->
   </div>
 
