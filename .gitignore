@@ -3,3 +3,7 @@
 /bin/tesseract/**
 /admin/uploads/**
 
+
+# runtime files
+/debug_auth_access.log
+/citizen/operator/uploads/
