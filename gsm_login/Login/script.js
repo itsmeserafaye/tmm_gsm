@@ -296,6 +296,8 @@ function setupEventListeners() {
             const captchaRequired = !!opRecaptcha;
             const captchaResponse = (window.grecaptcha && opRecaptchaWidgetId !== null) ? window.grecaptcha.getResponse(opRecaptchaWidgetId) : '';
             if (captchaRequired && !captchaResponse) { showNotification('Please complete the reCAPTCHA.', 'warning'); return; }
+            const agree = !!(document.getElementById('opAgreeTerms') && document.getElementById('opAgreeTerms').checked);
+            if (!agree) { showNotification('You must agree to the Terms and Privacy Policy.', 'warning'); return; }
             if (opRegSubmit) showLoadingState(opRegSubmit);
             makeAPICall('operator_register.php', {
                 plate_number: String(data.plate_number || ''),
@@ -303,10 +305,22 @@ function setupEventListeners() {
                 email: String(data.email || ''),
                 password: pwd,
                 confirm_password: cpwd,
-                recaptcha_token: captchaResponse || ''
+                recaptcha_token: captchaResponse || '',
+                device_id: getOrCreateDeviceId(),
+                agree_terms: true
             }, 'POST')
             .then((res) => {
                 if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Operator registration failed', 'error'); return; }
+                const otpRequired = !!(res.data && res.data.otp_required);
+                if (otpRequired) {
+                    const expiresIn = res.data && res.data.expires_in ? parseInt(res.data.expires_in, 10) : 180;
+                    const trustDays = res.data && res.data.otp_trust_days ? parseInt(res.data.otp_trust_days, 10) : 10;
+                    window.__otpLoginContext = { trust_days: trustDays };
+                    showNotification(res.message || 'OTP sent. Please verify to continue.', 'info');
+                    close();
+                    openOtpModal(expiresIn, trustDays);
+                    return;
+                }
                 showNotification(res.message || 'Operator registration successful!', 'success');
                 const redirect = res.data && res.data.redirect ? res.data.redirect : null;
                 close();

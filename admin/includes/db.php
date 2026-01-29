@@ -711,6 +711,8 @@ function db()
     approved_at DATETIME DEFAULT NULL,
     approved_by INT DEFAULT NULL,
     terms_accepted_at DATETIME DEFAULT NULL,
+    email_verified TINYINT(1) NOT NULL DEFAULT 0,
+    email_verified_at DATETIME DEFAULT NULL,
     status ENUM('Active','Inactive','Locked') NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -726,6 +728,8 @@ function db()
     'approved_at' => "DATETIME DEFAULT NULL",
     'approved_by' => "INT DEFAULT NULL",
     'terms_accepted_at' => "DATETIME DEFAULT NULL",
+    'email_verified' => "TINYINT(1) NOT NULL DEFAULT 0",
+    'email_verified_at' => "DATETIME DEFAULT NULL",
   ];
   foreach ($opUserCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM operator_portal_users LIKE '$col'");

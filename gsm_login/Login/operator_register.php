@@ -4,6 +4,7 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
 require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../includes/recaptcha.php';
 require_once __DIR__ . '/../../includes/operator_portal.php';
+require_once __DIR__ . '/../../includes/otp.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -56,6 +57,7 @@ $confirmPassword = (string)($input['confirm_password'] ?? ($input['confirmPasswo
 $contactInfo = trim((string)($input['contact_number'] ?? ($input['contact_info'] ?? '')));
 $association = trim((string)($input['association_name'] ?? ''));
 $agreeTerms = (bool)($input['agree_terms'] ?? false);
+$deviceId = trim((string)($input['device_id'] ?? ''));
 
 if ($email === '' || $password === '' || $confirmPassword === '') {
   opreg_send(false, 'Please complete email and password.', null, 400);
@@ -108,7 +110,7 @@ if ($recaptchaConfigured) {
 $hash = password_hash($password, PASSWORD_DEFAULT);
 if ($hash === false) opreg_send(false, 'Registration failed.', null, 500);
 
-$status = 'Active';
+$status = 'Inactive';
 $approvalStatus = 'Pending';
 $termsAcceptedAt = date('Y-m-d H:i:s');
 $stmt = $db->prepare("INSERT INTO operator_portal_users(email, password_hash, full_name, contact_info, association_name, operator_type, approval_status, terms_accepted_at, status) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -132,8 +134,42 @@ if (!$ok) {
 
 $userId = (int)$db->insert_id;
 
-opreg_send(true, 'Registration successful. Please login to continue.', [
+if ($deviceId === '' || strlen($deviceId) < 12) {
+  $db->query("DELETE FROM operator_portal_users WHERE id=" . (int)$userId . " LIMIT 1");
+  opreg_send(false, 'Device verification failed. Please refresh and try again.', null, 400);
+}
+
+$deviceHash = hash('sha256', $deviceId);
+$ttl = (int)trim($setting('otp_ttl_seconds', '120'));
+if ($ttl < 60) $ttl = 60;
+if ($ttl > 900) $ttl = 900;
+$trustDays = (int)trim($setting('mfa_trust_days', '10'));
+if ($trustDays < 0) $trustDays = 0;
+if ($trustDays > 30) $trustDays = 30;
+
+$_SESSION['pending_login'] = [
+  'created_at' => time(),
+  'user_type' => 'operator_register',
+  'purpose' => 'register_operator',
+  'email' => $email,
+  'operator_user_id' => $userId,
+  'plate_number' => '',
+  'device_hash' => $deviceHash,
+  'trust_days' => $trustDays,
+  'otp_ttl' => $ttl,
+];
+
+$sent = otp_send($db, $email, 'register_operator', $ttl);
+if (!($sent['ok'] ?? false)) {
+  unset($_SESSION['pending_login']);
+  $db->query("DELETE FROM operator_portal_users WHERE id=" . (int)$userId . " LIMIT 1");
+  opreg_send(false, (string)($sent['message'] ?? 'Failed to send OTP.'), null, 500);
+}
+
+opreg_send(true, 'OTP sent. Please verify to activate your operator account.', [
   'registered' => true,
+  'otp_required' => true,
+  'expires_in' => (int)(($sent['data']['expires_in'] ?? $ttl)),
+  'otp_trust_days' => $trustDays,
   'recaptcha_configured' => $recaptchaConfigured,
-  'redirect' => '../../gsm_login/index.php?mode=operator'
 ]);

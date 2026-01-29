@@ -113,6 +113,12 @@ function gsm_require_mfa(mysqli $db): bool
   return $v === '1' || $v === 'true' || $v === 'yes' || $v === 'on';
 }
 
+function gsm_require_operator_mfa(mysqli $db): bool
+{
+  $v = strtolower(trim(gsm_setting($db, 'require_operator_mfa', '1')));
+  return $v === '1' || $v === 'true' || $v === 'yes' || $v === 'on';
+}
+
 function td_ensure_schema(mysqli $db): void
 {
   $db->query("CREATE TABLE IF NOT EXISTS trusted_devices (
@@ -267,6 +273,47 @@ if ($action === 'login_otp_verify') {
   if (!($ver['ok'] ?? false))
     gsm_send(false, (string) ($ver['message'] ?? 'Invalid or expired OTP.'), null, 401);
 
+  if ($userType === 'operator_register') {
+    $opUserId = (int) ($pending['operator_user_id'] ?? 0);
+    if ($opUserId <= 0)
+      gsm_send(false, 'Invalid OTP request.', null, 400);
+
+    $stmtU = $db->prepare("UPDATE operator_portal_users SET status='Active', email_verified=1, email_verified_at=NOW() WHERE id=? AND email=? LIMIT 1");
+    if ($stmtU) {
+      $stmtU->bind_param('is', $opUserId, $pEmail);
+      $stmtU->execute();
+      $stmtU->close();
+    }
+
+    $trustDays = (int)($pending['trust_days'] ?? 10);
+    if ($trustDays > 0) td_trust($db, 'operator', $opUserId, $deviceHash, $trustDays);
+
+    $plate = strtoupper(trim((string) ($pending['plate_number'] ?? '')));
+    if ($plate === '') {
+      $stmtP = $db->prepare("SELECT plate_number FROM operator_portal_user_plates WHERE user_id=? ORDER BY plate_number ASC LIMIT 1");
+      if ($stmtP) {
+        $stmtP->bind_param('i', $opUserId);
+        $stmtP->execute();
+        $rP = $stmtP->get_result();
+        $rowP = $rP ? $rP->fetch_assoc() : null;
+        $stmtP->close();
+        $plate = strtoupper(trim((string)($rowP['plate_number'] ?? '')));
+      }
+    }
+
+    session_regenerate_id(true);
+    unset($_SESSION['pending_login']);
+    operator_portal_clear_session();
+    $_SESSION['operator_user_id'] = $opUserId;
+    $_SESSION['operator_email'] = $pEmail;
+    $_SESSION['operator_plate'] = $plate;
+
+    gsm_send(true, 'Account verified. Redirecting...', [
+      'redirect' => $gsm_root_url . '/citizen/operator/index.php',
+      'otp_trust_days' => $trustDays > 0 ? $trustDays : 0,
+    ]);
+  }
+
   if ($userType === 'rbac') {
     $userId = (int) ($pending['user_id'] ?? 0);
     if ($userId <= 0)
@@ -362,7 +409,7 @@ if ($action === 'operator_login') {
   }
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
-  $mustOtp = gsm_require_mfa($db);
+  $mustOtp = gsm_require_operator_mfa($db);
   $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   if (!$mustOtp) {
     session_regenerate_id(true);
