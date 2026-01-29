@@ -124,7 +124,9 @@ if ($rootUrl === '/') $rootUrl = '';
             if (window.lucide) window.lucide.createIcons();
 
             try {
-                const res = await fetch(rootUrl + '/admin/api/module1/sync_plates.php');
+                const res = await fetch(rootUrl + '/admin/api/module1/sync_plates.php', {
+                    headers: { 'Accept': 'application/json' }
+                });
                 const text = await res.text();
                 let data;
                 try {

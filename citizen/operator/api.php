@@ -329,6 +329,15 @@ if ($action === 'get_applications') {
   op_send(true, ['data' => $rows]);
 }
 
+if ($action === 'get_routes') {
+  $rows = [];
+  $res = $db->query("SELECT id, route_code, route_name FROM lptrp_routes ORDER BY route_code ASC");
+  if ($res) {
+    while ($r = $res->fetch_assoc()) $rows[] = $r;
+  }
+  op_send(true, ['data' => $rows]);
+}
+
 if ($action === 'get_profile') {
   $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks FROM operator_portal_users WHERE id=? LIMIT 1");
   if (!$stmt)
@@ -538,6 +547,9 @@ if ($action === 'submit_application') {
   op_require_approved($db, $userId);
   $type = trim((string) ($_POST['type'] ?? ''));
   $notes = trim((string) ($_POST['notes'] ?? ''));
+  $routeId = (int) ($_POST['route_id'] ?? 0);
+  $scheduleDate = trim((string) ($_POST['schedule_date'] ?? ''));
+
   if ($type === '')
     op_send(false, ['error' => 'Application type required'], 400);
 
@@ -547,6 +559,24 @@ if ($action === 'submit_application') {
   $plates = op_user_plates($db, $userId);
   if (!in_array($plate, $plates, true))
     op_send(false, ['error' => 'Active plate is not assigned to this account'], 403);
+
+  // Append extra info to notes
+  if ($type === 'Franchise Endorsement' && $routeId > 0) {
+      $stmtR = $db->prepare("SELECT route_code, route_name FROM lptrp_routes WHERE id=? LIMIT 1");
+      if ($stmtR) {
+          $stmtR->bind_param('i', $routeId);
+          $stmtR->execute();
+          $resR = $stmtR->get_result();
+          if ($rowR = $resR->fetch_assoc()) {
+              $notes = "Selected Route: {$rowR['route_code']} - {$rowR['route_name']}\n" . $notes;
+          }
+          $stmtR->close();
+      }
+  }
+
+  if ($type === 'Vehicle Inspection' && $scheduleDate !== '') {
+      $notes = "Requested Inspection Date: " . $scheduleDate . "\n" . $notes;
+  }
 
   $filePaths = [];
   if (!empty($_FILES)) {

@@ -9,8 +9,15 @@ header('Content-Type: application/json');
 
 $db = db();
 
+// Manual permission check to avoid redirection/HTML response
 if (empty($_SESSION['user_id'])) {
     echo json_encode(['ok' => false, 'error' => 'unauthorized']);
+    exit;
+}
+
+if (!function_exists('has_permission')) {
+    // Should be loaded by auth.php, but just in case
+    echo json_encode(['ok' => false, 'error' => 'server_error_auth_missing']);
     exit;
 }
 
@@ -18,6 +25,8 @@ if (!has_permission('module1.vehicles.write')) {
     echo json_encode(['ok' => false, 'error' => 'forbidden']);
     exit;
 }
+
+// 1. Get all vehicles with operator info
 
 $stmt = $db->prepare("SELECT id, plate_number, operator_name FROM vehicles WHERE operator_name IS NOT NULL AND operator_name != ''");
 if (!$stmt) {

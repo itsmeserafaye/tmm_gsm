@@ -391,7 +391,7 @@ if (empty($_SESSION['operator_csrf'])) {
                                         <label class="block text-sm font-semibold text-slate-700">Application
                                             Type</label>
                                         <div class="relative">
-                                            <select id="appTypeSelect" name="type"
+                                            <select id="appTypeSelect" name="type" onchange="toggleAppFields()"
                                                 class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none"
                                                 required>
                                                 <option value="">Select Type...</option>
@@ -407,6 +407,30 @@ if (empty($_SESSION['operator_csrf'])) {
                                                 </svg>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    <!-- Dynamic Fields -->
+                                    <div id="routeField" class="hidden space-y-2">
+                                        <label class="block text-sm font-semibold text-slate-700">Select Route</label>
+                                        <div class="relative">
+                                            <select name="route_id" id="routeSelect"
+                                                class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none">
+                                                <option value="">Loading routes...</option>
+                                            </select>
+                                            <div class="absolute right-3 top-3.5 pointer-events-none text-slate-400">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="dateField" class="hidden space-y-2">
+                                        <label class="block text-sm font-semibold text-slate-700">Preferred Inspection Date</label>
+                                        <input type="datetime-local" name="schedule_date"
+                                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition">
                                     </div>
                                 </div>
 
@@ -1026,7 +1050,10 @@ if (empty($_SESSION['operator_csrf'])) {
                         }
                     }
                     const appType = document.getElementById('appTypeSelect');
-                    if (appType) appType.value = 'Vehicle Inspection';
+                    if (appType) {
+                        appType.value = 'Vehicle Inspection';
+                        toggleAppFields();
+                    }
                     showSection('applications');
                     toast('Inspection request form prepared for ' + plate, 'success');
                 };
@@ -1534,6 +1561,43 @@ if (empty($_SESSION['operator_csrf'])) {
                 toast('Upload failed', 'error');
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = oldText || 'Submit'; }
+            }
+        }
+
+        function toggleAppFields() {
+            const type = document.getElementById('appTypeSelect').value;
+            const routeField = document.getElementById('routeField');
+            const dateField = document.getElementById('dateField');
+
+            routeField.classList.add('hidden');
+            dateField.classList.add('hidden');
+
+            if (type === 'Franchise Endorsement') {
+                routeField.classList.remove('hidden');
+                loadRoutes(); // Ensure routes are loaded
+            } else if (type === 'Vehicle Inspection') {
+                dateField.classList.remove('hidden');
+            }
+        }
+
+        let routesLoaded = false;
+        async function loadRoutes() {
+            if (routesLoaded) return;
+            const sel = document.getElementById('routeSelect');
+            if (!sel) return;
+            
+            const data = await apiGet('get_routes');
+            if (data.ok && Array.isArray(data.data)) {
+                sel.innerHTML = '<option value="">Select a Route...</option>';
+                data.data.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = `${r.route_code} - ${r.route_name}`;
+                    sel.appendChild(opt);
+                });
+                routesLoaded = true;
+            } else {
+                sel.innerHTML = '<option value="">Failed to load routes</option>';
             }
         }
 
