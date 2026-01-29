@@ -504,21 +504,319 @@ $typesList = vehicle_types();
       setTimeout(() => {
         modal.classList.add('hidden');
         body.innerHTML = '';
+        operatorSearchState = null;
       }, 200);
     }
     if (backdrop) backdrop.addEventListener('click', closeModal);
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
 
+    let operatorSearchState = null;
+    document.addEventListener('click', (e) => {
+      const s = operatorSearchState;
+      if (!s || !s.search || !s.results) return;
+      if (s.search.contains(e.target) || s.results.contains(e.target)) return;
+      s.hideResults(false);
+    });
+
+    const normalizeUpperNoSpaces = (value) => (value || '').toString().toUpperCase().replace(/\s+/g, '');
+    const normalizeEngine = (value) => normalizeUpperNoSpaces(value).replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+    const normalizeVin = (value) => normalizeUpperNoSpaces(value).replace(/[^A-HJ-NPR-Z0-9]/g, '').slice(0, 17);
+
+    async function loadVehicleView(plate) {
+      const res = await fetch(rootUrl + '/admin/api/module1/view_html.php?plate=' + encodeURIComponent(plate));
+      const html = await res.text();
+      body.innerHTML = html;
+      if (window.lucide) window.lucide.createIcons();
+      initVehicleViewBindings(plate);
+    }
+
+    function initVehicleViewBindings(plate) {
+      const root = body;
+
+      const engineInput = root.querySelector('input[name="engine_no"]');
+      if (engineInput) {
+        const validate = () => {
+          const v = engineInput.value || '';
+          if (v !== '' && !/^[A-Z0-9-]{5,20}$/.test(v)) engineInput.setCustomValidity('Engine No must be 5–20 characters (A–Z, 0–9, hyphen).');
+          else engineInput.setCustomValidity('');
+        };
+        engineInput.addEventListener('input', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+        engineInput.addEventListener('blur', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+        validate();
+      }
+
+      const vinInput = root.querySelector('input[name="chassis_no"]');
+      if (vinInput) {
+        const validate = () => {
+          const v = vinInput.value || '';
+          if (v !== '' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) vinInput.setCustomValidity('Chassis No must be a 17-character VIN (no I, O, Q).');
+          else vinInput.setCustomValidity('');
+        };
+        vinInput.addEventListener('input', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+        vinInput.addEventListener('blur', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+        validate();
+      }
+
+      const makeSelect = root.querySelector('#vehEditMakeSelect');
+      const makeOtherWrap = root.querySelector('#vehEditMakeOtherWrap');
+      const makeOtherInput = root.querySelector('#vehEditMakeOtherInput');
+      const makeHidden = root.querySelector('#vehEditMakeHidden');
+
+      const modelSelect = root.querySelector('#vehEditModelSelect');
+      const modelOtherWrap = root.querySelector('#vehEditModelOtherWrap');
+      const modelOtherInput = root.querySelector('#vehEditModelOtherInput');
+      const modelHidden = root.querySelector('#vehEditModelHidden');
+
+      const fuelSelect = root.querySelector('#vehEditFuelSelect');
+      const fuelOtherWrap = root.querySelector('#vehEditFuelOtherWrap');
+      const fuelOtherInput = root.querySelector('#vehEditFuelOtherInput');
+      const fuelHidden = root.querySelector('#vehEditFuelHidden');
+
+      const setWrapVisible = (wrap, visible) => { if (!wrap) return; wrap.classList.toggle('hidden', !visible); };
+
+      const fillMake = () => {
+        if (!makeSelect) return;
+        makeSelect.innerHTML =
+          `<option value="">Select</option>` +
+          makeOptions.map((m) => `<option value="${m}">${m}</option>`).join('') +
+          `<option value="__OTHER__">Other</option>`;
+      };
+      const fillFuel = () => {
+        if (!fuelSelect) return;
+        fuelSelect.innerHTML =
+          `<option value="">Select</option>` +
+          fuelOptions.map((f) => `<option value="${f}">${f}</option>`).join('') +
+          `<option value="__OTHER__">Other</option>`;
+      };
+      const fillModel = (makeValue) => {
+        if (!modelSelect) return;
+        const models = modelOptionsByMake[makeValue] || [];
+        modelSelect.innerHTML =
+          `<option value="">Select</option>` +
+          models.map((m) => `<option value="${m}">${m}</option>`).join('') +
+          `<option value="__OTHER__">Other</option>`;
+      };
+
+      fillMake();
+      fillFuel();
+      fillModel('');
+
+      const curMake = makeHidden ? (makeHidden.value || '') : '';
+      const curModel = modelHidden ? (modelHidden.value || '') : '';
+      const curFuel = fuelHidden ? (fuelHidden.value || '') : '';
+
+      if (makeSelect && makeHidden) {
+        const isKnownMake = makeOptions.includes(curMake);
+        makeSelect.value = isKnownMake ? curMake : (curMake ? '__OTHER__' : '');
+        if (!isKnownMake && curMake) {
+          setWrapVisible(makeOtherWrap, true);
+          if (makeOtherInput) makeOtherInput.value = curMake;
+        } else {
+          setWrapVisible(makeOtherWrap, false);
+        }
+        makeHidden.value = curMake;
+        fillModel(isKnownMake ? curMake : '');
+
+        makeSelect.addEventListener('change', () => {
+          const v = makeSelect.value || '';
+          if (v === '__OTHER__') {
+            makeHidden.value = makeOtherInput ? (makeOtherInput.value || '') : '';
+            setWrapVisible(makeOtherWrap, true);
+            if (makeOtherInput) makeOtherInput.focus();
+            fillModel('');
+          } else {
+            makeHidden.value = v;
+            setWrapVisible(makeOtherWrap, false);
+            fillModel(v);
+          }
+          if (modelSelect) modelSelect.value = '';
+          if (modelHidden) modelHidden.value = '';
+          if (modelOtherInput) modelOtherInput.value = '';
+          setWrapVisible(modelOtherWrap, false);
+        });
+
+        if (makeOtherInput) {
+          makeOtherInput.addEventListener('input', () => { makeHidden.value = makeOtherInput.value || ''; });
+          makeOtherInput.addEventListener('blur', () => { makeHidden.value = makeOtherInput.value || ''; });
+        }
+      }
+
+      if (modelSelect && modelHidden) {
+        const knownModels = modelOptionsByMake[curMake] || [];
+        const isKnownModel = knownModels.includes(curModel);
+        modelSelect.value = isKnownModel ? curModel : (curModel ? '__OTHER__' : '');
+        if (!isKnownModel && curModel) {
+          setWrapVisible(modelOtherWrap, true);
+          if (modelOtherInput) modelOtherInput.value = curModel;
+        } else {
+          setWrapVisible(modelOtherWrap, false);
+        }
+        modelHidden.value = curModel;
+        modelSelect.addEventListener('change', () => {
+          const v = modelSelect.value || '';
+          if (v === '__OTHER__') {
+            modelHidden.value = modelOtherInput ? (modelOtherInput.value || '') : '';
+            setWrapVisible(modelOtherWrap, true);
+            if (modelOtherInput) modelOtherInput.focus();
+          } else {
+            modelHidden.value = v;
+            setWrapVisible(modelOtherWrap, false);
+          }
+        });
+        if (modelOtherInput) {
+          modelOtherInput.addEventListener('input', () => { modelHidden.value = modelOtherInput.value || ''; });
+          modelOtherInput.addEventListener('blur', () => { modelHidden.value = modelOtherInput.value || ''; });
+        }
+      }
+
+      if (fuelSelect && fuelHidden) {
+        const isKnownFuel = fuelOptions.includes(curFuel);
+        fuelSelect.value = isKnownFuel ? curFuel : (curFuel ? '__OTHER__' : '');
+        if (!isKnownFuel && curFuel) {
+          setWrapVisible(fuelOtherWrap, true);
+          if (fuelOtherInput) fuelOtherInput.value = curFuel;
+        } else {
+          setWrapVisible(fuelOtherWrap, false);
+        }
+        fuelHidden.value = curFuel;
+        fuelSelect.addEventListener('change', () => {
+          const v = fuelSelect.value || '';
+          if (v === '__OTHER__') {
+            fuelHidden.value = fuelOtherInput ? (fuelOtherInput.value || '') : '';
+            setWrapVisible(fuelOtherWrap, true);
+            if (fuelOtherInput) fuelOtherInput.focus();
+          } else {
+            fuelHidden.value = v;
+            setWrapVisible(fuelOtherWrap, false);
+          }
+        });
+        if (fuelOtherInput) {
+          fuelOtherInput.addEventListener('input', () => { fuelHidden.value = fuelOtherInput.value || ''; });
+          fuelOtherInput.addEventListener('blur', () => { fuelHidden.value = fuelOtherInput.value || ''; });
+        }
+      }
+
+      const postForm = async (form) => {
+        if (!form) return;
+        if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
+          if (typeof form.reportValidity === 'function') form.reportValidity();
+          return;
+        }
+        const btn = form.querySelector('button[type="submit"],button');
+        const original = btn ? btn.innerHTML : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full"></span>';
+        }
+        try {
+          const fd = new FormData(form);
+          const res = await fetch(form.action, { method: 'POST', body: fd });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Update failed');
+          showToast('Saved', 'success');
+          await loadVehicleView(plate);
+        } catch (err) {
+          showToast(err.message || 'Update failed', 'error');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = original;
+          }
+        }
+      };
+
+      ['formStatus', 'formType', 'formAssign', 'formDetails', 'formLink'].forEach((id) => {
+        const f = root.querySelector('#' + id);
+        if (!f) return;
+        f.addEventListener('submit', (e) => { e.preventDefault(); postForm(f); });
+      });
+
+      const opSearch = root.querySelector('#linkOpSearch');
+      const opIdInput = root.querySelector('#linkOpId');
+      const opResults = root.querySelector('#linkOpResults');
+      const opClear = root.querySelector('#linkOpClear');
+      const opHint = root.querySelector('#linkOpHint');
+      if (opSearch && opResults && opIdInput) {
+        let debounce = null;
+        const showResults = (show) => opResults.classList.toggle('hidden', !show);
+        const selectOperator = (id, name) => {
+          opIdInput.value = id;
+          opSearch.value = name;
+          showResults(false);
+          if (opClear) opClear.classList.remove('hidden');
+          if (opHint) opHint.textContent = 'Selected: ID ' + id;
+        };
+
+        if (opClear) {
+          opClear.addEventListener('click', () => {
+            opSearch.value = '';
+            opIdInput.value = '';
+            opClear.classList.add('hidden');
+            if (opHint) opHint.textContent = 'Type to search existing operators';
+            opSearch.focus();
+          });
+        }
+
+        opResults.addEventListener('click', (e) => {
+          const item = e.target.closest('[data-op-id]');
+          if (!item) return;
+          selectOperator(item.getAttribute('data-op-id'), item.getAttribute('data-op-name'));
+        });
+
+        opSearch.addEventListener('input', () => {
+          const q = (opSearch.value || '').trim();
+          if (q === '') {
+            showResults(false);
+            if (opClear) opClear.classList.add('hidden');
+            return;
+          }
+          if (opClear) opClear.classList.remove('hidden');
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(async () => {
+            try {
+              const r = await fetch(rootUrl + '/admin/api/module1/list_operators.php?limit=10&q=' + encodeURIComponent(q));
+              const res = await r.json();
+              if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+                opResults.innerHTML = res.data.map((op) => {
+                  const meta = [];
+                  if (op.operator_type) meta.push(op.operator_type);
+                  if (op.contact_no) meta.push(op.contact_no);
+                  const safeName = String(op.name || '').replace(/"/g, '&quot;');
+                  return `
+                    <div class="p-3 border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                         data-op-id="${op.operator_id}" data-op-name="${safeName}">
+                      <div class="font-bold text-sm text-slate-900 dark:text-white">${op.name}</div>
+                      <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
+                        <span>${meta.join(' • ')}</span>
+                        <span class="font-mono">ID: ${op.operator_id}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('');
+                showResults(true);
+              } else {
+                opResults.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
+                showResults(true);
+              }
+            } catch (_) {
+              opResults.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
+              showResults(true);
+            }
+          }, 300);
+        });
+
+        operatorSearchState = { search: opSearch, results: opResults, hideResults: showResults };
+      } else {
+        operatorSearchState = null;
+      }
+    }
+
     document.querySelectorAll('[data-veh-view="1"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const plate = btn.getAttribute('data-plate') || '';
         openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Vehicle • ' + plate);
         try {
-          const res = await fetch(rootUrl + '/admin/api/module1/view_html.php?plate=' + encodeURIComponent(plate));
-          const html = await res.text();
-          body.innerHTML = html;
-          if (window.lucide) window.lucide.createIcons();
+          await loadVehicleView(plate);
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">Failed to load.</div>`;
         }

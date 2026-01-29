@@ -146,14 +146,15 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                 <div class="<?php echo $cardBodyClass; ?> space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Status Form -->
-                        <form id="formStatus" method="POST" action="api/module1/update_vehicle.php">
+                        <form id="formStatus" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <label class="<?php echo $labelClass; ?>">Update Status</label>
                             <div class="flex gap-2">
                                 <select name="status" class="<?php echo $inputClass; ?>">
                                     <option disabled>Select Status</option>
-                                    <option <?php echo ($v['status']==='Unlinked'?'selected':''); ?>>Unlinked</option>
-                                    <option <?php echo ($v['status']==='Linked'?'selected':''); ?>>Linked</option>
+                                    <?php if (!in_array((string)$v['status'], ['Active','Inactive'], true)): ?>
+                                        <option selected disabled><?php echo htmlspecialchars((string)$v['status']); ?></option>
+                                    <?php endif; ?>
                                     <option <?php echo ($v['status']==='Active'?'selected':''); ?>>Active</option>
                                     <option <?php echo ($v['status']==='Inactive'?'selected':''); ?>>Inactive</option>
                                 </select>
@@ -162,7 +163,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         </form>
 
                         <!-- Type Form -->
-                        <form id="formType" method="POST" action="api/module1/update_vehicle.php">
+                        <form id="formType" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <label class="<?php echo $labelClass; ?>">Update Type</label>
                             <div class="flex gap-2">
@@ -179,7 +180,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
 
                     <div id="vehUpdateDetails" class="border-t border-slate-100 dark:border-slate-800 pt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Update Details</label>
-                        <form id="formDetails" class="space-y-4" method="POST" action="api/module1/update_vehicle.php" novalidate>
+                        <form id="formDetails" class="space-y-4" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php" novalidate>
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -189,7 +190,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Chassis No</label>
-                                    <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="17 characters (no I, O, Q)">
+                                    <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Color</label>
@@ -199,7 +200,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <label class="<?php echo $labelClass; ?>">Make</label>
                                     <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>"></select>
                                     <div id="vehEditMakeOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditMakeOtherInput" maxlength="100" class="<?php echo $inputClass; ?>" placeholder="Type make">
+                                        <input id="vehEditMakeOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type make">
                                     </div>
                                     <input id="vehEditMakeHidden" name="make" type="hidden" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>">
                                 </div>
@@ -207,19 +208,19 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                     <label class="<?php echo $labelClass; ?>">Model</label>
                                     <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>"></select>
                                     <div id="vehEditModelOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditModelOtherInput" maxlength="100" class="<?php echo $inputClass; ?>" placeholder="Type model">
+                                        <input id="vehEditModelOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type model">
                                     </div>
                                     <input id="vehEditModelHidden" name="model" type="hidden" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Year Model</label>
-                                    <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2023">
+                                    <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2018">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Fuel Type</label>
                                     <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>"></select>
                                     <div id="vehEditFuelOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditFuelOtherInput" maxlength="64" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
+                                        <input id="vehEditFuelOtherInput" maxlength="20" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
                                     </div>
                                     <input id="vehEditFuelHidden" name="fuel_type" type="hidden" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>">
                                 </div>
@@ -268,331 +269,3 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
         </div>
     </div>
 </div>
-
-<script>
-(function(){
-  var makeOptions = [
-    'Toyota','Mitsubishi','Nissan','Isuzu','Suzuki','Hyundai','Kia','Ford','Honda','Mazda','Chevrolet',
-    'Foton','Hino','Daewoo','Mercedes-Benz','BMW','Audi','Volkswagen','BYD','Geely','Chery','MG','Changan'
-  ];
-  var modelOptionsByMake = {
-    'Toyota': ['Hiace','Coaster','Innova','Vios','Fortuner','Hilux','Tamaraw FX','LiteAce'],
-    'Mitsubishi': ['L300','L200','Adventure','Montero Sport','Canter','Rosa'],
-    'Nissan': ['Urvan','Navara','NV350','Almera'],
-    'Isuzu': ['N-Series','Elf','Traviz','D-Max','MU-X'],
-    'Suzuki': ['Carry','APV','Ertiga'],
-    'Hyundai': ['H-100','Starex','County'],
-    'Kia': ['K2500','K2700'],
-    'Ford': ['Transit','Ranger','Everest'],
-    'Honda': ['Civic','City','Brio'],
-    'Mazda': ['BT-50'],
-    'Chevrolet': ['Trailblazer'],
-    'Foton': ['Gratour','Tornado'],
-    'Hino': ['Dutro'],
-  };
-  var fuelOptions = ['Diesel','Gasoline','Hybrid','Electric','LPG','CNG'];
-
-  function refresh(){
-    fetch("api/module1/view_html.php?plate=<?php echo htmlspecialchars($v['plate_number']); ?>")
-      .then(r=>r.text())
-      .then(html=>{
-        var c=document.getElementById("vehicleModalBody") || document.getElementById("modalVehBody");
-        if(c){c.innerHTML=html; if(window.lucide&&window.lucide.createIcons) window.lucide.createIcons();}
-      });
-  }
-
-  function normalizeUpperNoSpaces(v){ return (v||"").toString().toUpperCase().replace(/\s+/g, ""); }
-  function normalizeEngine(v){ return normalizeUpperNoSpaces(v).replace(/[^A-Z0-9-]/g, "").slice(0, 20); }
-  function normalizeVin(v){ return normalizeUpperNoSpaces(v).replace(/[^A-HJ-NPR-Z0-9]/g, "").slice(0, 17); }
-
-  function setupVinEngine(){
-    var engine = document.querySelector('input[name="engine_no"]');
-    if(engine){
-      var validateE = function(){
-        var v = engine.value || '';
-        if(v !== '' && !/^[A-Z0-9-]{5,20}$/.test(v)) engine.setCustomValidity('Engine No must be 5–20 characters (A–Z, 0–9, hyphen).');
-        else engine.setCustomValidity('');
-      };
-      engine.addEventListener('input', function(){ engine.value = normalizeEngine(engine.value); validateE(); });
-      engine.addEventListener('blur', function(){ engine.value = normalizeEngine(engine.value); validateE(); });
-      validateE();
-    }
-    var vin = document.querySelector('input[name="chassis_no"]');
-    if(vin){
-      var validateV = function(){
-        var v = vin.value || '';
-        if(v !== '' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) vin.setCustomValidity('Chassis No must be a 17-character VIN (no I, O, Q).');
-        else vin.setCustomValidity('');
-      };
-      vin.addEventListener('input', function(){ vin.value = normalizeVin(vin.value); validateV(); });
-      vin.addEventListener('blur', function(){ vin.value = normalizeVin(vin.value); validateV(); });
-      validateV();
-    }
-  }
-
-  function setupDropdowns(){
-    var makeSelect = document.getElementById('vehEditMakeSelect');
-    var makeOtherWrap = document.getElementById('vehEditMakeOtherWrap');
-    var makeOtherInput = document.getElementById('vehEditMakeOtherInput');
-    var makeHidden = document.getElementById('vehEditMakeHidden');
-
-    var modelSelect = document.getElementById('vehEditModelSelect');
-    var modelOtherWrap = document.getElementById('vehEditModelOtherWrap');
-    var modelOtherInput = document.getElementById('vehEditModelOtherInput');
-    var modelHidden = document.getElementById('vehEditModelHidden');
-
-    var fuelSelect = document.getElementById('vehEditFuelSelect');
-    var fuelOtherWrap = document.getElementById('vehEditFuelOtherWrap');
-    var fuelOtherInput = document.getElementById('vehEditFuelOtherInput');
-    var fuelHidden = document.getElementById('vehEditFuelHidden');
-
-    function setWrapVisible(w, visible){ if(!w) return; if(visible) w.classList.remove('hidden'); else w.classList.add('hidden'); }
-
-    function fillMake(){
-      if(!makeSelect) return;
-      var html = '<option value="">Select</option>';
-      for(var i=0;i<makeOptions.length;i++){ var m=makeOptions[i]; html += '<option value="'+m+'">'+m+'</option>'; }
-      html += '<option value="__OTHER__">Other</option>';
-      makeSelect.innerHTML = html;
-    }
-    function fillFuel(){
-      if(!fuelSelect) return;
-      var html = '<option value="">Select</option>';
-      for(var i=0;i<fuelOptions.length;i++){ var f=fuelOptions[i]; html += '<option value="'+f+'">'+f+'</option>'; }
-      html += '<option value="__OTHER__">Other</option>';
-      fuelSelect.innerHTML = html;
-    }
-    function fillModel(makeVal){
-      if(!modelSelect) return;
-      var models = modelOptionsByMake[makeVal] || [];
-      var html = '<option value="">Select</option>';
-      for(var i=0;i<models.length;i++){ var m=models[i]; html += '<option value="'+m+'">'+m+'</option>'; }
-      html += '<option value="__OTHER__">Other</option>';
-      modelSelect.innerHTML = html;
-    }
-
-    fillMake();
-    fillFuel();
-    fillModel('');
-
-    var curMake = makeHidden ? (makeHidden.value || '') : '';
-    var curModel = modelHidden ? (modelHidden.value || '') : '';
-    var curFuel = fuelHidden ? (fuelHidden.value || '') : '';
-
-    if(makeSelect && makeHidden){
-      var isKnownMake = makeOptions.indexOf(curMake) !== -1;
-      makeSelect.value = isKnownMake ? curMake : (curMake ? '__OTHER__' : '');
-      if(!isKnownMake && curMake){
-        setWrapVisible(makeOtherWrap, true);
-        if(makeOtherInput) makeOtherInput.value = curMake;
-      } else {
-        setWrapVisible(makeOtherWrap, false);
-      }
-      makeHidden.value = curMake;
-      fillModel(isKnownMake ? curMake : '');
-
-      makeSelect.addEventListener('change', function(){
-        var v = makeSelect.value || '';
-        if(v === '__OTHER__'){
-          makeHidden.value = makeOtherInput ? (makeOtherInput.value || '') : '';
-          setWrapVisible(makeOtherWrap, true);
-          if(makeOtherInput) makeOtherInput.focus();
-          fillModel('');
-        } else {
-          makeHidden.value = v;
-          setWrapVisible(makeOtherWrap, false);
-          fillModel(v);
-        }
-        if(modelSelect){ modelSelect.value = ''; }
-        if(modelHidden){ modelHidden.value = ''; }
-        if(modelOtherInput){ modelOtherInput.value = ''; }
-        setWrapVisible(modelOtherWrap, false);
-      });
-      if(makeOtherInput){
-        makeOtherInput.addEventListener('input', function(){ makeHidden.value = makeOtherInput.value || ''; });
-        makeOtherInput.addEventListener('blur', function(){ makeHidden.value = makeOtherInput.value || ''; });
-      }
-    }
-
-    if(modelSelect && modelHidden){
-      var knownModels = modelOptionsByMake[curMake] || [];
-      var isKnownModel = knownModels.indexOf(curModel) !== -1;
-      modelSelect.value = isKnownModel ? curModel : (curModel ? '__OTHER__' : '');
-      if(!isKnownModel && curModel){
-        setWrapVisible(modelOtherWrap, true);
-        if(modelOtherInput) modelOtherInput.value = curModel;
-      } else {
-        setWrapVisible(modelOtherWrap, false);
-      }
-      modelHidden.value = curModel;
-      modelSelect.addEventListener('change', function(){
-        var v = modelSelect.value || '';
-        if(v === '__OTHER__'){
-          modelHidden.value = modelOtherInput ? (modelOtherInput.value || '') : '';
-          setWrapVisible(modelOtherWrap, true);
-          if(modelOtherInput) modelOtherInput.focus();
-        } else {
-          modelHidden.value = v;
-          setWrapVisible(modelOtherWrap, false);
-        }
-      });
-      if(modelOtherInput){
-        modelOtherInput.addEventListener('input', function(){ modelHidden.value = modelOtherInput.value || ''; });
-        modelOtherInput.addEventListener('blur', function(){ modelHidden.value = modelOtherInput.value || ''; });
-      }
-    }
-
-    if(fuelSelect && fuelHidden){
-      var isKnownFuel = fuelOptions.indexOf(curFuel) !== -1;
-      fuelSelect.value = isKnownFuel ? curFuel : (curFuel ? '__OTHER__' : '');
-      if(!isKnownFuel && curFuel){
-        setWrapVisible(fuelOtherWrap, true);
-        if(fuelOtherInput) fuelOtherInput.value = curFuel;
-      } else {
-        setWrapVisible(fuelOtherWrap, false);
-      }
-      fuelHidden.value = curFuel;
-      fuelSelect.addEventListener('change', function(){
-        var v = fuelSelect.value || '';
-        if(v === '__OTHER__'){
-          fuelHidden.value = fuelOtherInput ? (fuelOtherInput.value || '') : '';
-          setWrapVisible(fuelOtherWrap, true);
-          if(fuelOtherInput) fuelOtherInput.focus();
-        } else {
-          fuelHidden.value = v;
-          setWrapVisible(fuelOtherWrap, false);
-        }
-      });
-      if(fuelOtherInput){
-        fuelOtherInput.addEventListener('input', function(){ fuelHidden.value = fuelOtherInput.value || ''; });
-        fuelOtherInput.addEventListener('blur', function(){ fuelHidden.value = fuelOtherInput.value || ''; });
-      }
-    }
-  }
-
-  function bind(id){
-    var f=document.getElementById(id);
-    if(!f) return;
-    f.addEventListener("submit", function(e){
-      e.preventDefault();
-      if (typeof f.checkValidity === 'function' && !f.checkValidity()) {
-        if (typeof f.reportValidity === 'function') f.reportValidity();
-        return;
-      }
-      var fd=new FormData(f);
-      var btn = f.querySelector("button");
-      var originalContent = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full"></span>';
-      fetch(f.action, {method:"POST", body:fd})
-        .then(()=>{ refresh(); })
-        .catch(()=>{ btn.disabled=false; btn.innerHTML=originalContent; });
-    });
-  }
-
-  bind("formStatus");
-  bind("formType");
-  bind("formAssign");
-  bind("formDetails");
-  bind("formLink");
-  setupVinEngine();
-  setupDropdowns();
-
-  // Operator Search Logic
-  function setupOperatorSearch(){
-    var search = document.getElementById('linkOpSearch');
-    var idInput = document.getElementById('linkOpId');
-    var results = document.getElementById('linkOpResults');
-    var clearBtn = document.getElementById('linkOpClear');
-    var hint = document.getElementById('linkOpHint');
-    
-    if(!search || !results) return;
-
-    var debounce = null;
-    
-    function showResults(show){
-        if(show) results.classList.remove('hidden');
-        else results.classList.add('hidden');
-    }
-
-    function selectOperator(id, name){
-        idInput.value = id;
-        search.value = name;
-        showResults(false);
-        if(clearBtn) clearBtn.classList.remove('hidden');
-        if(hint) hint.textContent = "Selected: ID " + id;
-    }
-
-    if(clearBtn) {
-        clearBtn.addEventListener('click', function(){
-            search.value = '';
-            idInput.value = '';
-            clearBtn.classList.add('hidden');
-            if(hint) hint.textContent = "Type to search existing operators";
-            search.focus();
-        });
-    }
-
-    // Event delegation for results
-    results.addEventListener('click', function(e){
-        var item = e.target.closest('[data-op-id]');
-        if(item){
-            var id = item.getAttribute('data-op-id');
-            var name = item.getAttribute('data-op-name');
-            selectOperator(id, name);
-        }
-    });
-
-    search.addEventListener('input', function(){
-        var q = this.value.trim();
-        if(q === '') {
-            showResults(false);
-            if(clearBtn) clearBtn.classList.add('hidden');
-            return;
-        }
-        if(clearBtn) clearBtn.classList.remove('hidden');
-
-        if(debounce) clearTimeout(debounce);
-        debounce = setTimeout(function(){
-            fetch("<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/list_operators.php?limit=10&q=" + encodeURIComponent(q))
-                .then(r => r.json())
-                .then(res => {
-                    if(res.ok && res.data && res.data.length > 0){
-                        var html = '';
-                        res.data.forEach(op => {
-                            var meta = [];
-                            if(op.operator_type) meta.push(op.operator_type);
-                            if(op.contact_no) meta.push(op.contact_no);
-                            var safeName = op.name.replace(/"/g, '&quot;');
-                            
-                            html += `
-                            <div class="p-3 border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
-                                 data-op-id="${op.operator_id}" data-op-name="${safeName}">
-                                <div class="font-bold text-sm text-slate-900 dark:text-white">${op.name}</div>
-                                <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
-                                    <span>${meta.join(' • ')}</span>
-                                    <span class="font-mono">ID: ${op.operator_id}</span>
-                                </div>
-                            </div>
-                            `;
-                        });
-                        results.innerHTML = html;
-                        showResults(true);
-                    } else {
-                        results.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
-                        showResults(true);
-                    }
-                });
-        }, 300);
-    });
-
-    // Close on click outside
-    document.addEventListener('click', function(e){
-        if(!search.contains(e.target) && !results.contains(e.target)){
-            showResults(false);
-        }
-    });
-  }
-  setupOperatorSearch();
-})();
-</script>
