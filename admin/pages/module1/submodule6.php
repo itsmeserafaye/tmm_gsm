@@ -161,6 +161,11 @@ if ($params) {
           'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
+        ],
+        [
+          'href' => $rootUrl . '/admin/api/module1/export_routes_caloocan_scope.php?format=csv',
+          'label' => 'Caloocan Scope',
+          'icon' => 'map'
         ]
       ]); ?>
     <?php endif; ?>

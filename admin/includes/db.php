@@ -264,6 +264,7 @@ function db()
   if (!isset($termCols['address'])) {
     $conn->query("ALTER TABLE terminals ADD COLUMN address TEXT");
   }
+  $conn->query("UPDATE terminals SET city='Caloocan City' WHERE type <> 'Parking' AND (city IS NULL OR city='')");
   $conn->query("UPDATE terminals SET location=TRIM(CONCAT(COALESCE(address,''), CASE WHEN address IS NOT NULL AND address <> '' AND city IS NOT NULL AND city <> '' THEN ', ' ELSE '' END, COALESCE(city,''))) WHERE (location IS NULL OR location='') AND ((address IS NOT NULL AND address <> '') OR (city IS NOT NULL AND city <> ''))");
   $conn->query("UPDATE terminal_assignments ta JOIN terminals t ON t.name=ta.terminal_name SET ta.terminal_id=t.id WHERE ta.terminal_id IS NULL AND ta.terminal_name IS NOT NULL AND ta.terminal_name<>''");
 
