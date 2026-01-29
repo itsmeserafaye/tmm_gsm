@@ -334,7 +334,11 @@ if ($rootUrl === '/') $rootUrl = '';
         try {
           const res = await fetch(rootUrl + '/admin/api/module5/assign_terminal.php', { method: 'POST', body: new FormData(form) });
           const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'assign_failed');
+          if (!data || !data.ok) {
+            const base = (data && data.error) ? String(data.error) : 'assign_failed';
+            const det = (data && data.details && data.details.message) ? String(data.details.message) : '';
+            throw new Error(det ? (base + ': ' + det) : base);
+          }
           showToast('Vehicle assigned to terminal.');
           setTimeout(() => { window.location.href = '?page=module5/submodule1'; }, 600);
         } catch (err) {

@@ -176,32 +176,62 @@ if ($colTA) {
     $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
   }
 }
+$plateCol = isset($taCols['plate_number']) ? 'plate_number' : (isset($taCols['plate_no']) ? 'plate_no' : (isset($taCols['plate']) ? 'plate' : 'plate_number'));
+$terminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : 'terminal_name');
+$statusCol = isset($taCols['status']) ? 'status' : (isset($taCols['assignment_status']) ? 'assignment_status' : 'status');
+$assignedAtCol = isset($taCols['assigned_at']) ? 'assigned_at' : (isset($taCols['created_at']) ? 'created_at' : 'assigned_at');
+
 $hasTerminalId = isset($taCols['terminal_id']);
 $hasVehicleId = isset($taCols['vehicle_id']);
 $hasRouteId = isset($taCols['route_id']);
+$hasPlate = isset($taCols[$plateCol]);
+$hasTerminalName = isset($taCols[$terminalNameCol]);
+$hasStatus = isset($taCols[$statusCol]);
+$hasAssignedAt = isset($taCols[$assignedAtCol]);
+
+if (!$hasPlate) {
+  http_response_code(500);
+  echo json_encode(['ok' => false, 'error' => 'terminal_assignments_schema_not_supported']);
+  exit;
+}
 
 $db->begin_transaction();
 try {
   $termName = (string)($term['name'] ?? '');
 
   if ($hasVehicleId) {
-    $stmtDel = $db->prepare("DELETE FROM terminal_assignments WHERE vehicle_id=? AND COALESCE(plate_number,'')<>?");
+    $stmtDel = $db->prepare("DELETE FROM terminal_assignments WHERE vehicle_id=? AND COALESCE($plateCol,'')<>?");
     if (!$stmtDel) throw new Exception('db_prepare_failed');
     $stmtDel->bind_param('is', $vehicleId, $plate);
-    if (!$stmtDel->execute()) { $stmtDel->close(); throw new Exception('delete_conflict_failed'); }
+    if (!$stmtDel->execute()) { $err = $stmtDel->error ?: 'execute_failed'; $stmtDel->close(); throw new Exception('delete_conflict_failed: ' . $err); }
     $stmtDel->close();
 
-    $stmtDel2 = $db->prepare("DELETE FROM terminal_assignments WHERE plate_number=? AND (vehicle_id IS NULL OR vehicle_id<>?)");
+    $stmtDel2 = $db->prepare("DELETE FROM terminal_assignments WHERE $plateCol=? AND (vehicle_id IS NULL OR vehicle_id<>?)");
     if (!$stmtDel2) throw new Exception('db_prepare_failed');
     $stmtDel2->bind_param('si', $plate, $vehicleId);
-    if (!$stmtDel2->execute()) { $stmtDel2->close(); throw new Exception('delete_conflict_failed'); }
+    if (!$stmtDel2->execute()) { $err = $stmtDel2->error ?: 'execute_failed'; $stmtDel2->close(); throw new Exception('delete_conflict_failed: ' . $err); }
     $stmtDel2->close();
   }
 
-  $cols = ['plate_number', 'terminal_name', 'status', 'assigned_at'];
-  $vals = ['?', '?', "'Authorized'", 'NOW()'];
-  $types = 'ss';
-  $bind = [$plate, $termName];
+  $cols = [$plateCol];
+  $vals = ['?'];
+  $types = 's';
+  $bind = [$plate];
+
+  if ($hasTerminalName) {
+    $cols[] = $terminalNameCol;
+    $vals[] = '?';
+    $types .= 's';
+    $bind[] = $termName;
+  }
+  if ($hasStatus) {
+    $cols[] = $statusCol;
+    $vals[] = "'Authorized'";
+  }
+  if ($hasAssignedAt) {
+    $cols[] = $assignedAtCol;
+    $vals[] = 'NOW()';
+  }
 
   if ($hasRouteId) {
     $cols[] = 'route_id';
@@ -224,21 +254,21 @@ try {
 
   $setParts = [];
   if ($hasTerminalId) $setParts[] = "terminal_id=VALUES(terminal_id)";
-  $setParts[] = "plate_number=VALUES(plate_number)";
-  $setParts[] = "terminal_name=VALUES(terminal_name)";
+  $setParts[] = "$plateCol=VALUES($plateCol)";
+  if ($hasTerminalName) $setParts[] = "$terminalNameCol=VALUES($terminalNameCol)";
   if ($hasVehicleId) $setParts[] = "vehicle_id=VALUES(vehicle_id)";
   if ($hasRouteId) $setParts[] = "route_id=VALUES(route_id)";
-  $setParts[] = "status='Authorized'";
-  $setParts[] = "assigned_at=NOW()";
+  if ($hasStatus) $setParts[] = "$statusCol='Authorized'";
+  if ($hasAssignedAt) $setParts[] = "$assignedAtCol=NOW()";
 
   $sql = "INSERT INTO terminal_assignments (" . implode(',', $cols) . ")
           VALUES (" . implode(',', $vals) . ")
           ON DUPLICATE KEY UPDATE " . implode(', ', $setParts);
 
   $stmtUp = $db->prepare($sql);
-  if (!$stmtUp) throw new Exception('db_prepare_failed');
+  if (!$stmtUp) throw new Exception('db_prepare_failed: ' . ($db->error ?: 'prepare_failed'));
   $stmtUp->bind_param($types, ...$bind);
-  if (!$stmtUp->execute()) throw new Exception('insert_failed');
+  if (!$stmtUp->execute()) { $err = $stmtUp->error ?: 'execute_failed'; $stmtUp->close(); throw new Exception('insert_failed: ' . $err); }
   $stmtUp->close();
 
   $db->commit();
@@ -246,5 +276,13 @@ try {
 } catch (Throwable $e) {
   $db->rollback();
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error']);
+  echo json_encode([
+    'ok' => false,
+    'error' => 'db_error',
+    'details' => [
+      'message' => $e->getMessage(),
+      'mysqli_errno' => $db->errno ?? null,
+      'mysqli_error' => $db->error ?? null,
+    ]
+  ]);
 }
