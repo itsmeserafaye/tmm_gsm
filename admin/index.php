@@ -24,7 +24,7 @@ if (php_sapi_name() !== 'cli') {
 }
 
 $requestedPage = isset($_GET['page']) ? trim((string)$_GET['page'], '/') : 'dashboard';
-$requestedPage = preg_replace('/[^a-z0-9\/\-]/i', '', $requestedPage);
+$requestedPage = preg_replace('/[^a-z0-9\/\-_]/i', '', $requestedPage);
 
 $tmmCanonicalToLegacy = [];
 $tmmLegacyToCanonical = [];
@@ -62,7 +62,7 @@ if (isset($tmmCanonicalToLegacy[$requestedPage])) {
   }
 }
 
-$includePage = preg_replace('/[^a-z0-9\/\-]/i', '', $includePage);
+$includePage = preg_replace('/[^a-z0-9\/\-_]/i', '', $includePage);
 $pagesRoot = $baseDir . DIRECTORY_SEPARATOR . 'pages' . DIRECTORY_SEPARATOR;
 $pageFile = $pagesRoot . str_replace('/', DIRECTORY_SEPARATOR, $includePage) . '.php';
 if (!is_file($pageFile)) {
