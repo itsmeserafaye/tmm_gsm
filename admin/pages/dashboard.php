@@ -332,8 +332,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
     </div>
   </div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-    <div class="xl:col-span-2 space-y-12">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 space-y-12">
       
       <div class="space-y-6">
         <div class="flex items-center gap-3">
@@ -506,7 +506,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       <!-- Right Column -->
     <div class="space-y-6">
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
           <div class="flex items-center justify-between mb-5">
             <div>
@@ -608,43 +607,45 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           <div id="forecastSpikes" class="space-y-3"></div>
         </div>
 
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
-              <i data-lucide="bus" class="w-5 h-5"></i>
+        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="p-1.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                <i data-lucide="bus" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Route Supply Snapshot</h3>
+                <div class="text-xs text-slate-500">Authorized units vs. Demand</div>
+              </div>
             </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">Route Supply Snapshot</h3>
-              <div class="text-xs text-slate-500">Authorized units vs. Demand</div>
+            <div class="flex items-center gap-2">
+              <div id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600"></div>
+              <?php if (has_permission('reports.export')): ?>
+                <a id="routeSupplyExportCsv" href="#"
+                  class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
+                  <i data-lucide="download" class="w-4 h-4"></i> CSV
+                </a>
+                <a id="routeSupplyExportExcel" href="#"
+                  class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
+                  <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
+                </a>
+              <?php endif; ?>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <div id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600"></div>
-            <?php if (has_permission('reports.export')): ?>
-              <a id="routeSupplyExportCsv" href="#"
-                class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
-                <i data-lucide="download" class="w-4 h-4"></i> CSV
-              </a>
-              <a id="routeSupplyExportExcel" href="#"
-                class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
-              </a>
-            <?php endif; ?>
-          </div>
-        </div>
 
-        <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
-          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-700">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Route</th>
-                <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized Units</th>
-              </tr>
-            </thead>
-            <tbody id="routeSupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
-          </table>
+          <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead class="bg-slate-50 dark:bg-slate-700">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Route</th>
+                  <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized Units</th>
+                </tr>
+              </thead>
+              <tbody id="routeSupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+            </table>
+          </div>
+          <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
         </div>
-        <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
     </div>
   </div>
