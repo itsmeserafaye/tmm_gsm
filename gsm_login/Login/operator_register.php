@@ -132,19 +132,8 @@ if (!$ok) {
 
 $userId = (int)$db->insert_id;
 
-operator_portal_clear_session();
-unset($_SESSION['user_id'], $_SESSION['email'], $_SESSION['name'], $_SESSION['role'], $_SESSION['roles'], $_SESSION['permissions']);
-$login = operator_portal_login($db, '', $email, $password);
-if (!($login['ok'] ?? false)) {
-  opreg_send(true, 'Registration successful. Please login as operator.', [
-    'registered' => true,
-    'recaptcha_configured' => $recaptchaConfigured,
-    'redirect' => null
-  ]);
-}
-
-opreg_send(true, 'Registration successful. Redirecting...', [
+opreg_send(true, 'Registration successful. Please login to continue.', [
   'registered' => true,
   'recaptcha_configured' => $recaptchaConfigured,
-  'redirect' => '../../citizen/operator/index.php'
+  'redirect' => '../../gsm_login/index.php?mode=operator'
 ]);
