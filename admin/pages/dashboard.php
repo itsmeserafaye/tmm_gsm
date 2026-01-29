@@ -422,8 +422,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
             <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-2">
@@ -506,7 +506,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
     </div>
       <!-- Right Column -->
-    <div class="space-y-6">
+    <div class="space-y-6 min-w-0">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
           <div class="flex items-center justify-between mb-5">
             <div>
