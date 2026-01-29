@@ -502,9 +502,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
       </div>
-    </div>
 
-    </div>
       <!-- Right Column -->
     <div class="space-y-6 min-w-0">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
