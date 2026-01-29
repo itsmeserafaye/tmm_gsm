@@ -37,7 +37,7 @@ if (count($parts) >= 2) {
 }
 if ($initials === '') $initials = 'AU';
 ?>
-<div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col transition-transform duration-200">
+<div id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 w-64 bg-white dark:bg-slate-900 border-r border-slate-200/50 dark:border-slate-700 flex flex-col min-h-0 transition-transform duration-200">
   <div class="p-6">
     <a href="?page=dashboard" class="flex items-center space-x-3">
       <img src="includes/GSM_logo.png" alt="TMM" class="w-10 h-10 rounded-xl object-cover">
@@ -48,7 +48,7 @@ if ($initials === '') $initials = 'AU';
     </a>
   </div>
   <hr class="border-slate-200 dark:border-slate-700 mx-2">
-  <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+  <nav class="flex-1 min-h-0 p-4 space-y-2 overflow-y-auto">
     <?php foreach ($visibleSidebarItems as $item): ?>
       <?php
         $isActive = (isset($item['path']) && $item['path'] === $currentPath);

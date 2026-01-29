@@ -181,13 +181,13 @@ if ($ts !== false) $formJsVer = (int)$ts;
   <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string)$formJsVer; ?>" defer></script>
 </head>
 
-<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-200 font-sans">
-  <div class="flex h-screen overflow-hidden">
+<body class="h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-200 font-sans">
+  <div class="flex h-screen overflow-hidden min-h-0 w-full">
     <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 z-30 hidden md:hidden"></div>
     <?php include $baseDir . '/includes/sidebar.php'; ?>
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col min-h-0">
       <?php include $baseDir . '/includes/header.php'; ?>
-      <main class="flex-1 overflow-auto p-4 md:p-8 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 animate-fade-in">
+      <main class="flex-1 overflow-auto min-h-0 p-4 md:p-8 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 animate-fade-in">
         <?php
         try {
           include $pageFile;
