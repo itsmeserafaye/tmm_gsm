@@ -1,14 +1,26 @@
 <?php
+ob_start();
 require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+
+// Clear any startup output (warnings, etc)
+$startup_output = ob_get_clean();
 
 header('Content-Type: application/json');
 
+if (strlen($startup_output) > 0) {
+    // Log warnings but try to proceed
+    // If it was a fatal error, we wouldn't be here (script would have stopped)
+    // So these are likely warnings/notices.
+}
+
 $db = db();
+require_permission('module1.vehicles.write');
 
 // 1. Get all vehicles with operator info
 $stmt = $db->prepare("SELECT id, plate_number, operator_name FROM vehicles WHERE operator_name IS NOT NULL AND operator_name != ''");
 if (!$stmt) {
-    echo json_encode(['ok' => false, 'error' => $db->error]);
+    echo json_encode(['ok' => false, 'error' => $db->error, 'debug_log' => strip_tags($startup_output)]);
     exit;
 }
 
@@ -27,11 +39,12 @@ $notFound = 0;
 
 foreach ($vehicles as $v) {
     $plate = $v['plate_number'];
-    $opName = $v['operator_name'];
+    $opName = trim($v['operator_name']);
+    if ($opName === '') continue;
 
     // 2. Find matching operator portal user
-    // Match by full_name OR association_name
-    $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
+    // Match by full_name OR association_name (case-insensitive usually, but explicit)
+    $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE TRIM(full_name)=? OR TRIM(association_name)=? LIMIT 1");
     if (!$stmtP) continue;
     
     $stmtP->bind_param('ss', $opName, $opName);
@@ -81,6 +94,7 @@ echo json_encode([
         'skipped' => $skipped,
         'not_found' => $notFound,
         'failed' => $failed
-    ]
+    ],
+    'debug_log' => strip_tags($startup_output)
 ]);
 
