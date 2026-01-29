@@ -133,6 +133,9 @@ require_any_permission(['module3.settle','module3.read']);
             <div>
               <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">OR No</label>
               <input id="pay-receipt" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., OR-2026-000123">
+              <input type="hidden" id="pay-date-paid" name="date_paid" value="">
+              <input type="hidden" id="pay-channel" name="payment_channel" value="">
+              <input type="hidden" id="pay-external-payment-id" name="external_payment_id" value="">
             </div>
           </div>
           
@@ -442,6 +445,36 @@ require_any_permission(['module3.settle','module3.read']);
     try { if (window.sessionStorage) sessionStorage.removeItem('tmm_treasury_pending_ticket'); } catch (_) {}
   }
 
+  function applyTreasuryStatusToPaymentForm(t) {
+    if (!t) return;
+    const receiptInput = document.getElementById('pay-receipt');
+    const amountInput = document.getElementById('pay-amount');
+    const datePaidInput = document.getElementById('pay-date-paid');
+    const channelInput = document.getElementById('pay-channel');
+    const extInput = document.getElementById('pay-external-payment-id');
+    const orNo = (t.receipt_ref || '').toString();
+    if (receiptInput && orNo) {
+      const wasManual = receiptInput.dataset && receiptInput.dataset.manual === '1';
+      if (!wasManual || receiptInput.value === '' || receiptInput.dataset.autofilled === '1') {
+        receiptInput.value = orNo;
+        receiptInput.dataset.autofilled = '1';
+      }
+    }
+    if (amountInput && (!amountInput.value || Number(amountInput.value) <= 0) && t.amount_paid) {
+      amountInput.value = String(t.amount_paid);
+    }
+    if (datePaidInput && t.date_paid) datePaidInput.value = String(t.date_paid);
+    if (channelInput && t.payment_channel) channelInput.value = String(t.payment_channel);
+    if (extInput && t.external_payment_id) extInput.value = String(t.external_payment_id);
+  }
+
+  const receiptInputEl = document.getElementById('pay-receipt');
+  if (receiptInputEl) {
+    receiptInputEl.addEventListener('input', () => {
+      try { receiptInputEl.dataset.manual = '1'; receiptInputEl.dataset.autofilled = '0'; } catch (_) {}
+    });
+  }
+
   initTicketDropdown({
     btnId: 'payTicketDropdownBtn',
     btnTextId: 'payTicketDropdownBtnText',
@@ -464,8 +497,7 @@ require_any_permission(['module3.settle','module3.read']);
       fetchPaymentStatus(ticketNumber).then(d => {
         if (d && d.ok && d.ticket) {
           const t = d.ticket;
-          const orNo = (t.or_no || t.receipt_ref || '').toString();
-          if (receiptInput && !receiptInput.value && orNo) receiptInput.value = orNo;
+          applyTreasuryStatusToPaymentForm(t);
           const pending = getTreasuryPendingTicket();
           if (t.is_paid || pending === ticketNumber) {
             setPaymentButtons('record');
@@ -482,26 +514,33 @@ require_any_permission(['module3.settle','module3.read']);
 
   setPaymentButtons('treasury');
 
+  const activeTreasuryPolls = new Set();
   async function pollTreasuryReceipt(ticketNumber) {
     const tno = (ticketNumber || '').toString().trim();
     if (!tno) return;
-    const receiptInput = document.getElementById('pay-receipt');
+    if (activeTreasuryPolls.has(tno)) return;
+    activeTreasuryPolls.add(tno);
     const maxTries = 15;
-    for (let i = 0; i < maxTries; i++) {
-      try {
-        const d = await fetchPaymentStatus(tno);
-        if (d && d.ok && d.ticket) {
-          const t = d.ticket;
-          const orNo = (t.or_no || t.receipt_ref || '').toString();
-          if (orNo) {
-            if (receiptInput) receiptInput.value = orNo;
-            setPaymentButtons('record');
-            clearTreasuryPendingTicket();
-            return;
+    try {
+      for (let i = 0; i < maxTries; i++) {
+        try {
+          const d = await fetchPaymentStatus(tno);
+          if (d && d.ok && d.ticket) {
+            const t = d.ticket;
+            const receipt = (t.receipt_ref || '').toString();
+            if (receipt) {
+              applyTreasuryStatusToPaymentForm(t);
+              setPaymentButtons('record');
+              clearTreasuryPendingTicket();
+              showToast('Treasury receipt received: ' + receipt, 'success');
+              return;
+            }
           }
-        }
-      } catch (_) {}
-      await new Promise((r) => setTimeout(r, 1500));
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    } finally {
+      activeTreasuryPolls.delete(tno);
     }
   }
 
@@ -569,6 +608,7 @@ require_any_permission(['module3.settle','module3.read']);
       showToast('Opening Treasury payment...', 'success');
       setTreasuryPendingTicket(ticket);
       setPaymentButtons('record');
+      pollTreasuryReceipt(ticket);
     });
   }
 })();
