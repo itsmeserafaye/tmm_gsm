@@ -28,6 +28,29 @@ if ($colRes) {
 }
 $routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)" : "r.route_id";
 
+$allRoutes = [];
+$hasRoutesTable = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' LIMIT 1");
+if ($hasRoutesTable && $hasRoutesTable->fetch_row()) {
+  $resRoutes = $db->query("SELECT route_id, route_code, route_name, vehicle_type, origin, destination FROM routes ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC LIMIT 2000");
+  if ($resRoutes) {
+    while ($r = $resRoutes->fetch_assoc()) {
+      $rid = trim((string)($r['route_id'] ?? ''));
+      $rcode = trim((string)($r['route_code'] ?? ''));
+      $ref = $hasRouteCode ? ($rcode !== '' ? $rcode : $rid) : $rid;
+      if ($ref === '') continue;
+      $allRoutes[] = [
+        'ref' => $ref,
+        'route_id' => $rid,
+        'route_code' => $rcode,
+        'route_name' => (string)($r['route_name'] ?? ''),
+        'vehicle_type' => (string)($r['vehicle_type'] ?? ''),
+        'origin' => (string)($r['origin'] ?? ''),
+        'destination' => (string)($r['destination'] ?? ''),
+      ];
+    }
+  }
+}
+
 $taCols = [];
 $taColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments'");
 if ($taColRes) {
@@ -176,6 +199,16 @@ if ($rootUrl === '/') $rootUrl = '';
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php?format=excel',
                 'label' => 'Excel',
                 'icon' => 'file-spreadsheet'
+              ],
+              [
+                'href' => $rootUrl . '/admin/api/module5/export_terminal_routes_seed.php?mode=suggest',
+                'label' => 'Route Seed',
+                'icon' => 'link'
+              ],
+              [
+                'href' => $rootUrl . '/admin/api/module5/export_terminal_routes_seed.php?mode=current',
+                'label' => 'Route Map',
+                'icon' => 'list'
               ]
             ], ['mb' => 'mb-0']); ?>
           <?php endif; ?>
@@ -215,7 +248,10 @@ if ($rootUrl === '/') $rootUrl = '';
                           </button>
                         </div>
                       <?php else: ?>
-                        <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
+                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
+                        </div>
                       <?php endif; ?>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
@@ -373,11 +409,14 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="text-sm font-black text-slate-900 dark:text-white">Routes & Fares</div>
             <div id="terminalRoutesModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
           </div>
-          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
+          <div class="flex items-center gap-2">
+            <button type="button" id="btnEditTerminalRoutes" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">Edit</button>
+            <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
-        <div class="p-4 overflow-x-auto overflow-y-auto flex-1">
+        <div id="terminalRoutesView" class="p-4 overflow-x-auto overflow-y-auto flex-1">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr class="text-left text-slate-500 dark:text-slate-400">
@@ -392,6 +431,18 @@ if ($rootUrl === '/') $rootUrl = '';
               <tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
             </tbody>
           </table>
+        </div>
+        <div id="terminalRoutesEdit" class="hidden p-4 overflow-y-auto flex-1 space-y-3">
+          <div class="flex items-center gap-2">
+            <input id="terminalRoutesEditSearch" class="flex-1 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search route...">
+            <button type="button" id="btnTerminalRoutesSelectAll" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">All</button>
+            <button type="button" id="btnTerminalRoutesClearAll" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">None</button>
+          </div>
+          <div id="terminalRoutesEditList" class="space-y-2"></div>
+        </div>
+        <div id="terminalRoutesEditFooter" class="hidden p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2">
+          <button type="button" id="btnTerminalRoutesCancel" class="px-4 py-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-black hover:bg-slate-200 dark:hover:bg-slate-700">Cancel</button>
+          <button type="button" id="btnTerminalRoutesSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-black">Save</button>
         </div>
       </div>
     </div>
@@ -434,6 +485,7 @@ if ($rootUrl === '/') $rootUrl = '';
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const initialTab = <?php echo json_encode($initialTab); ?>;
+    const allRoutes = <?php echo json_encode($allRoutes); ?>;
 
     const tabBtnTerminals = document.getElementById('tabBtnTerminals');
     const tabBtnParking = document.getElementById('tabBtnParking');
@@ -541,6 +593,21 @@ if ($rootUrl === '/') $rootUrl = '';
     const modal = document.getElementById('terminalRoutesModal');
     const modalBody = document.getElementById('terminalRoutesModalBody');
     const modalSub = document.getElementById('terminalRoutesModalSub');
+    const routesView = document.getElementById('terminalRoutesView');
+    const routesEdit = document.getElementById('terminalRoutesEdit');
+    const routesEditFooter = document.getElementById('terminalRoutesEditFooter');
+    const btnEditTerminalRoutes = document.getElementById('btnEditTerminalRoutes');
+    const routesEditSearch = document.getElementById('terminalRoutesEditSearch');
+    const routesEditList = document.getElementById('terminalRoutesEditList');
+    const btnRoutesSelectAll = document.getElementById('btnTerminalRoutesSelectAll');
+    const btnRoutesClearAll = document.getElementById('btnTerminalRoutesClearAll');
+    const btnRoutesCancel = document.getElementById('btnTerminalRoutesCancel');
+    const btnRoutesSave = document.getElementById('btnTerminalRoutesSave');
+
+    let currentTerminalId = 0;
+    let currentTerminalName = '';
+    let selectedRouteRefs = new Set();
+    let lastFilter = '';
     function openModal() { if (modal) modal.classList.remove('hidden'); }
     function closeModal() { if (modal) modal.classList.add('hidden'); }
     if (modal) {
@@ -550,8 +617,75 @@ if ($rootUrl === '/') $rootUrl = '';
       if (backdrop) backdrop.addEventListener('click', closeModal);
     }
 
+    function setRoutesMode(mode) {
+      const isEdit = mode === 'edit';
+      if (routesView) routesView.classList.toggle('hidden', isEdit);
+      if (routesEdit) routesEdit.classList.toggle('hidden', !isEdit);
+      if (routesEditFooter) routesEditFooter.classList.toggle('hidden', !isEdit);
+      if (btnEditTerminalRoutes) btnEditTerminalRoutes.textContent = isEdit ? 'Back' : 'Edit';
+    }
+
+    function getRouteLabel(r) {
+      const name = (r && r.route_name) ? String(r.route_name) : '';
+      const ref = (r && r.ref) ? String(r.ref) : '';
+      return name ? (ref ? (name + ' (' + ref + ')') : name) : (ref || '-');
+    }
+
+    function computeFilteredRoutes(filterText) {
+      const q = (filterText || '').trim().toLowerCase();
+      return (Array.isArray(allRoutes) ? allRoutes : []).filter((r) => {
+        const ref = (r && r.ref) ? String(r.ref) : '';
+        const name = (r && r.route_name) ? String(r.route_name) : '';
+        const origin = (r && r.origin) ? String(r.origin) : '';
+        const dest = (r && r.destination) ? String(r.destination) : '';
+        const vt = (r && r.vehicle_type) ? String(r.vehicle_type) : '';
+        const hay = (ref + ' ' + name + ' ' + origin + ' ' + dest + ' ' + vt).toLowerCase();
+        return q === '' || hay.includes(q);
+      });
+    }
+
+    function renderRoutesEdit(filterText) {
+      if (!routesEditList) return;
+      lastFilter = (filterText || '').toString();
+      const items = computeFilteredRoutes(lastFilter);
+      if (!items.length) {
+        routesEditList.innerHTML = '<div class="py-8 text-center text-slate-500 font-medium italic">No routes found.</div>';
+        return;
+      }
+      routesEditList.innerHTML = items.map((r) => {
+        const ref = (r && r.ref) ? String(r.ref) : '';
+        const checked = ref && selectedRouteRefs.has(ref) ? 'checked' : '';
+        const label = getRouteLabel(r);
+        const sub = [r.origin, r.destination].filter(Boolean).join(' → ');
+        const vt = (r.vehicle_type || '').toString();
+        const subText = [sub, vt ? ('Type: ' + vt) : ''].filter(Boolean).join(' • ');
+        const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        return `
+          <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+            <input type="checkbox" class="mt-1 w-4 h-4" data-route-ref="${esc(ref)}" ${checked}>
+            <div class="min-w-0">
+              <div class="font-black text-slate-900 dark:text-white truncate">${esc(label)}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate">${esc(subText || '')}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+      routesEditList.querySelectorAll('input[data-route-ref]').forEach((el) => {
+        el.addEventListener('change', () => {
+          const ref = (el.getAttribute('data-route-ref') || '').toString();
+          if (!ref) return;
+          if (el.checked) selectedRouteRefs.add(ref);
+          else selectedRouteRefs.delete(ref);
+        });
+      });
+    }
+
     async function showTerminalRoutes(terminalId) {
       if (!modalBody) return;
+      currentTerminalId = Number(terminalId || 0);
+      currentTerminalName = '';
+      selectedRouteRefs = new Set();
+      setRoutesMode('view');
       modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
       if (modalSub) modalSub.textContent = 'Terminal ID: ' + String(terminalId);
       openModal();
@@ -560,12 +694,16 @@ if ($rootUrl === '/') $rootUrl = '';
         const data = await res.json();
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         const rows = Array.isArray(data.data) ? data.data : [];
+        if (rows[0] && rows[0].terminal_name) currentTerminalName = String(rows[0].terminal_name);
+        rows.forEach((r) => {
+          const ref = (r && r.route_ref) ? String(r.route_ref) : '';
+          if (ref) selectedRouteRefs.add(ref);
+        });
+        if (modalSub) modalSub.textContent = (currentTerminalName ? currentTerminalName : 'Routes') + ' • ' + rows.length + ' route(s)';
         if (!rows.length) {
           modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
-          return;
-        }
-        if (modalSub) modalSub.textContent = (rows[0].terminal_name ? String(rows[0].terminal_name) : 'Routes') + ' • ' + rows.length + ' route(s)';
-        modalBody.innerHTML = rows.map(r => {
+        } else {
+          modalBody.innerHTML = rows.map(r => {
           const routeLabel = (r.route_name || r.route_code || r.route_ref || '-').toString();
           const origin = (r.origin || '-').toString();
           const dest = (r.destination || '-').toString();
@@ -586,7 +724,8 @@ if ($rootUrl === '/') $rootUrl = '';
               <td class="py-3 px-3 text-right">${manage}</td>
             </tr>
           `;
-        }).join('');
+          }).join('');
+        }
         if (window.lucide) window.lucide.createIcons();
       } catch (e) {
         modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-rose-600 font-semibold">Failed to load routes.</td></tr>';
@@ -599,6 +738,77 @@ if ($rootUrl === '/') $rootUrl = '';
         if (id > 0) showTerminalRoutes(id);
       });
     });
+
+    if (btnEditTerminalRoutes) {
+      btnEditTerminalRoutes.addEventListener('click', () => {
+        const isEdit = routesEdit && !routesEdit.classList.contains('hidden');
+        if (isEdit) setRoutesMode('view');
+        else {
+          setRoutesMode('edit');
+          if (routesEditSearch) routesEditSearch.value = '';
+          renderRoutesEdit('');
+          if (routesEditSearch) routesEditSearch.focus();
+        }
+      });
+    }
+
+    if (routesEditSearch) {
+      routesEditSearch.addEventListener('input', () => {
+        renderRoutesEdit(routesEditSearch.value || '');
+      });
+    }
+
+    if (btnRoutesSelectAll) {
+      btnRoutesSelectAll.addEventListener('click', () => {
+        const items = computeFilteredRoutes(lastFilter);
+        items.forEach((r) => {
+          const ref = (r && r.ref) ? String(r.ref) : '';
+          if (ref) selectedRouteRefs.add(ref);
+        });
+        renderRoutesEdit(lastFilter);
+      });
+    }
+
+    if (btnRoutesClearAll) {
+      btnRoutesClearAll.addEventListener('click', () => {
+        const items = computeFilteredRoutes(lastFilter);
+        items.forEach((r) => {
+          const ref = (r && r.ref) ? String(r.ref) : '';
+          if (ref) selectedRouteRefs.delete(ref);
+        });
+        renderRoutesEdit(lastFilter);
+      });
+    }
+
+    if (btnRoutesCancel) {
+      btnRoutesCancel.addEventListener('click', () => {
+        setRoutesMode('view');
+      });
+    }
+
+    if (btnRoutesSave) {
+      btnRoutesSave.addEventListener('click', async () => {
+        const id = Number(currentTerminalId || 0);
+        if (!id) return;
+        btnRoutesSave.disabled = true;
+        const prevText = btnRoutesSave.textContent;
+        btnRoutesSave.textContent = 'Saving...';
+        try {
+          const fd = new FormData();
+          fd.append('terminal_id', String(id));
+          fd.append('routes', JSON.stringify(Array.from(selectedRouteRefs.values())));
+          const res = await fetch(rootUrl + '/admin/api/module5/save_terminal_routes.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && (data.message || data.error)) ? (data.message || data.error) : 'save_failed');
+          showToast('Routes updated.');
+          setTimeout(() => { window.location.reload(); }, 400);
+        } catch (err) {
+          showToast(err.message || 'Failed', 'error');
+          btnRoutesSave.disabled = false;
+          btnRoutesSave.textContent = prevText;
+        }
+      });
+    }
 
     const vModal = document.getElementById('terminalVehiclesModal');
     const vModalBody = document.getElementById('terminalVehiclesModalBody');
