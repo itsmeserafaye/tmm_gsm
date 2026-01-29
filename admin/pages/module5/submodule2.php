@@ -27,6 +27,21 @@ function tmm_has_col(mysqli $db, string $schema, string $table, string $col): bo
   return $ok;
 }
 
+function tmm_has_table(mysqli $db, string $schema, string $table): bool
+{
+  if ($schema === '')
+    return false;
+  $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_NAME=? LIMIT 1");
+  if (!$stmt)
+    return false;
+  $stmt->bind_param('ss', $schema, $table);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $ok = (bool) ($res && $res->fetch_row());
+  $stmt->close();
+  return $ok;
+}
+
 $terminals = [];
 $resT = $db->query("SELECT t.id, t.name, t.capacity, GROUP_CONCAT(DISTINCT r.vehicle_type) AS allowed_types
 FROM terminals t
@@ -50,8 +65,10 @@ $useLegacyDocs = tmm_has_col($db, $schema, 'documents', 'plate_number') && tmm_h
 $sqlV = "SELECT id, plate_number, operator_id, inspection_status, vehicle_type
          FROM vehicles
          WHERE COALESCE(plate_number,'') <> ''
+           AND operator_id IS NOT NULL AND operator_id>0
            AND COALESCE(record_status,'') <> 'Archived'
            AND status='Active'
+           AND inspection_status='Passed'
            AND COALESCE(vehicle_type,'') <> ''";
 $vehDocsCond = '';
 if ($useVehDocs) {
@@ -71,6 +88,30 @@ if ($vehDocsCond !== '' && $legacyCond !== '') {
   $sqlV .= " AND $vehDocsCond";
 } elseif ($legacyCond !== '') {
   $sqlV .= " AND $legacyCond";
+}
+
+$hasFr = tmm_has_table($db, $schema, 'franchises');
+$hasFa = tmm_has_table($db, $schema, 'franchise_applications');
+if ($hasFr && $hasFa) {
+  $sqlV .= " AND EXISTS (SELECT 1
+                         FROM franchises f
+                         JOIN franchise_applications a ON a.application_id=f.application_id
+                         WHERE a.operator_id=vehicles.operator_id
+                           AND a.status IN ('Approved','LTFRB-Approved')
+                           AND f.status='Active'
+                           AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
+                         LIMIT 1)";
+}
+
+$hasRoutes = tmm_has_table($db, $schema, 'routes') && tmm_has_col($db, $schema, 'vehicles', 'route_id') && tmm_has_col($db, $schema, 'routes', 'vehicle_type');
+if ($hasRoutes) {
+  $sqlV .= " AND (COALESCE(NULLIF(vehicles.route_id,''),'')='' OR NOT EXISTS (
+                    SELECT 1 FROM routes r
+                    WHERE (r.route_id=vehicles.route_id OR r.route_code=vehicles.route_id)
+                      AND COALESCE(r.vehicle_type,'')<>'' AND COALESCE(vehicles.vehicle_type,'')<>''
+                      AND LOWER(r.vehicle_type)<>LOWER(vehicles.vehicle_type)
+                    LIMIT 1
+                  ))";
 }
 $sqlV .= " ORDER BY plate_number ASC LIMIT 1500";
 

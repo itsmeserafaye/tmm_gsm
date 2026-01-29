@@ -29,7 +29,7 @@ $term = $stmtT->get_result()->fetch_assoc();
 $stmtT->close();
 if (!$term) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'terminal_not_found']); exit; }
 
-$stmtV = $db->prepare("SELECT id, plate_number, operator_id, inspection_status, vehicle_type, route_id FROM vehicles WHERE id=? LIMIT 1");
+$stmtV = $db->prepare("SELECT id, plate_number, operator_id, inspection_status, vehicle_type, route_id, status FROM vehicles WHERE id=? LIMIT 1");
 if (!$stmtV) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmtV->bind_param('i', $vehicleId);
 $stmtV->execute();
@@ -42,6 +42,7 @@ $operatorId = (int)($veh['operator_id'] ?? 0);
 $inspectionStatus = (string)($veh['inspection_status'] ?? '');
 $vehicleType = (string)($veh['vehicle_type'] ?? '');
 $vehicleRoute = (string)($veh['route_id'] ?? '');
+$vehicleStatus = (string)($veh['status'] ?? '');
 
 if ($operatorId <= 0) {
   http_response_code(400);
@@ -56,22 +57,12 @@ if (!$inspOk) {
   exit;
 }
 
-$orcrOk = false;
-$hasReg = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_registrations' LIMIT 1");
-if ($hasReg && $hasReg->fetch_row()) {
-  $stmtR = $db->prepare("SELECT registration_status FROM vehicle_registrations WHERE vehicle_id=? ORDER BY registration_id DESC LIMIT 1");
-  if ($stmtR) {
-    $stmtR->bind_param('i', $vehicleId);
-    $stmtR->execute();
-    $r = $stmtR->get_result()->fetch_assoc();
-    $stmtR->close();
-    $rs = (string)($r['registration_status'] ?? '');
-    if ($r && $rs !== '' && strcasecmp($rs, 'Expired') !== 0 && strcasecmp($rs, 'Pending') !== 0) {
-      $orcrOk = true;
-    }
-  }
+if ($vehicleStatus !== '' && strcasecmp($vehicleStatus, 'Blocked') === 0) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
+  exit;
 }
-if (!$orcrOk) {
+if ($vehicleStatus !== '' && strcasecmp($vehicleStatus, 'Inactive') === 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
   exit;
