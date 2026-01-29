@@ -89,16 +89,26 @@ $hasCol = function (string $table, string $col) use ($db): bool {
 };
 
 $verifiedOk = true;
-$useVehDocs = $hasCol('vehicle_documents', 'vehicle_id') && $hasCol('vehicle_documents', 'doc_type') && ($hasCol('vehicle_documents', 'is_verified') || $hasCol('vehicle_documents', 'verified'));
+$vehDocsHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
+$vehDocsHasPlate = $hasCol('vehicle_documents', 'plate_number');
+$vehDocsTypeCol = $hasCol('vehicle_documents', 'doc_type') ? 'doc_type' : ($hasCol('vehicle_documents', 'document_type') ? 'document_type' : ($hasCol('vehicle_documents', 'type') ? 'type' : ''));
+$vehDocsVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified' : ($hasCol('vehicle_documents', 'verified') ? 'verified' : '');
+
+$useVehDocs = ($vehDocsTypeCol !== '' && $vehDocsVerifiedCol !== '' && ($vehDocsHasVehicleId || $vehDocsHasPlate));
 $useLegacyDocs = $hasCol('documents', 'plate_number') && $hasCol('documents', 'type') && $hasCol('documents', 'verified');
-$vehDocsVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified' : 'verified';
 
 if ($useVehDocs) {
+  $idCol = $vehDocsHasVehicleId ? 'vehicle_id' : 'plate_number';
+  $stmtD = null;
   $stmtD = $db->prepare("SELECT
-    EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.vehicle_id=? AND vd.doc_type IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1) AS has_cr,
-    EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.vehicle_id=? AND vd2.doc_type IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1) AS has_or");
+    EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.$idCol=? AND UPPER(vd.$vehDocsTypeCol) IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1) AS has_cr,
+    EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.$idCol=? AND UPPER(vd2.$vehDocsTypeCol) IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1) AS has_or");
   if ($stmtD) {
-    $stmtD->bind_param('ii', $vehicleId, $vehicleId);
+    if ($vehDocsHasVehicleId) {
+      $stmtD->bind_param('ii', $vehicleId, $vehicleId);
+    } else {
+      $stmtD->bind_param('ss', $plate, $plate);
+    }
     $stmtD->execute();
     $rowD = $stmtD->get_result()->fetch_assoc();
     $stmtD->close();
@@ -115,6 +125,21 @@ if ($useVehDocs) {
     $stmtD->close();
     $verifiedOk = (int)($rowD['has_cr'] ?? 0) === 1 && (int)($rowD['has_or'] ?? 0) === 1;
   }
+}
+if ($useVehDocs && $useLegacyDocs && $plate !== '') {
+  $verifiedOkVeh = $verifiedOk;
+  $verifiedOkLegacy = false;
+  $stmtD2 = $db->prepare("SELECT
+    EXISTS (SELECT 1 FROM documents d WHERE d.plate_number=? AND d.type IN ('cr','orcr') AND COALESCE(d.verified,0)=1) AS has_cr,
+    EXISTS (SELECT 1 FROM documents d2 WHERE d2.plate_number=? AND d2.type IN ('or','orcr') AND COALESCE(d2.verified,0)=1) AS has_or");
+  if ($stmtD2) {
+    $stmtD2->bind_param('ss', $plate, $plate);
+    $stmtD2->execute();
+    $rowD2 = $stmtD2->get_result()->fetch_assoc();
+    $stmtD2->close();
+    $verifiedOkLegacy = (int)($rowD2['has_cr'] ?? 0) === 1 && (int)($rowD2['has_or'] ?? 0) === 1;
+  }
+  $verifiedOk = $verifiedOkVeh || $verifiedOkLegacy;
 }
 if (!$verifiedOk) {
   http_response_code(400);

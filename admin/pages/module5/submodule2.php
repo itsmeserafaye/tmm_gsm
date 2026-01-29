@@ -39,24 +39,38 @@ LIMIT 500");
 if ($resT) while ($r = $resT->fetch_assoc()) $terminals[] = $r;
 
 $vehicles = [];
-$useVehDocs = tmm_has_col($db, $schema, 'vehicle_documents', 'vehicle_id') && tmm_has_col($db, $schema, 'vehicle_documents', 'doc_type') && (tmm_has_col($db, $schema, 'vehicle_documents', 'is_verified') || tmm_has_col($db, $schema, 'vehicle_documents', 'verified'));
+$vehDocsHasVehicleId = tmm_has_col($db, $schema, 'vehicle_documents', 'vehicle_id');
+$vehDocsHasPlate = tmm_has_col($db, $schema, 'vehicle_documents', 'plate_number');
+$vehDocsTypeCol = tmm_has_col($db, $schema, 'vehicle_documents', 'doc_type') ? 'doc_type' : (tmm_has_col($db, $schema, 'vehicle_documents', 'document_type') ? 'document_type' : (tmm_has_col($db, $schema, 'vehicle_documents', 'type') ? 'type' : ''));
+$vehDocsVerifiedCol = tmm_has_col($db, $schema, 'vehicle_documents', 'is_verified') ? 'is_verified' : (tmm_has_col($db, $schema, 'vehicle_documents', 'verified') ? 'verified' : '');
+
+$useVehDocs = ($vehDocsTypeCol !== '' && $vehDocsVerifiedCol !== '' && ($vehDocsHasVehicleId || $vehDocsHasPlate));
 $useLegacyDocs = tmm_has_col($db, $schema, 'documents', 'plate_number') && tmm_has_col($db, $schema, 'documents', 'type') && tmm_has_col($db, $schema, 'documents', 'verified');
-$vehDocsVerifiedCol = tmm_has_col($db, $schema, 'vehicle_documents', 'is_verified') ? 'is_verified' : 'verified';
 
 $sqlV = "SELECT id, plate_number, operator_id, inspection_status, vehicle_type
          FROM vehicles
          WHERE COALESCE(plate_number,'') <> ''
-           AND operator_id IS NOT NULL AND operator_id>0
            AND COALESCE(record_status,'') <> 'Archived'
            AND status='Active'
-           AND inspection_status='Passed'
            AND COALESCE(vehicle_type,'') <> ''";
+$vehDocsCond = '';
 if ($useVehDocs) {
-  $sqlV .= " AND EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.vehicle_id=vehicles.id AND vd.doc_type IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1)";
-  $sqlV .= " AND EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.vehicle_id=vehicles.id AND vd2.doc_type IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1)";
-} elseif ($useLegacyDocs) {
-  $sqlV .= " AND EXISTS (SELECT 1 FROM documents d WHERE d.plate_number=vehicles.plate_number AND d.type IN ('cr','orcr') AND COALESCE(d.verified,0)=1)";
-  $sqlV .= " AND EXISTS (SELECT 1 FROM documents d2 WHERE d2.plate_number=vehicles.plate_number AND d2.type IN ('or','orcr') AND COALESCE(d2.verified,0)=1)";
+  $idCol = $vehDocsHasVehicleId ? 'vehicle_id' : 'plate_number';
+  $idExpr = $vehDocsHasVehicleId ? 'vehicles.id' : 'vehicles.plate_number';
+  $vehDocsCond = "(EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.$idCol=$idExpr AND UPPER(vd.$vehDocsTypeCol) IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1)
+    AND EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.$idCol=$idExpr AND UPPER(vd2.$vehDocsTypeCol) IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1))";
+}
+$legacyCond = '';
+if ($useLegacyDocs) {
+  $legacyCond = "(EXISTS (SELECT 1 FROM documents d WHERE d.plate_number=vehicles.plate_number AND d.type IN ('cr','orcr') AND COALESCE(d.verified,0)=1)
+    AND EXISTS (SELECT 1 FROM documents d2 WHERE d2.plate_number=vehicles.plate_number AND d2.type IN ('or','orcr') AND COALESCE(d2.verified,0)=1))";
+}
+if ($vehDocsCond !== '' && $legacyCond !== '') {
+  $sqlV .= " AND ($vehDocsCond OR $legacyCond)";
+} elseif ($vehDocsCond !== '') {
+  $sqlV .= " AND $vehDocsCond";
+} elseif ($legacyCond !== '') {
+  $sqlV .= " AND $legacyCond";
 }
 $sqlV .= " ORDER BY plate_number ASC LIMIT 1500";
 
