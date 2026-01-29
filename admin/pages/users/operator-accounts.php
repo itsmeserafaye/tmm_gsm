@@ -125,7 +125,14 @@ if ($rootUrl === '/') $rootUrl = '';
 
             try {
                 const res = await fetch(rootUrl + '/admin/api/module1/sync_plates.php');
-                const data = await res.json();
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON Parse Error:', text);
+                    throw new Error('Invalid server response: ' + text.substring(0, 100));
+                }
                 
                 if (data.ok) {
                     const stats = data.stats;

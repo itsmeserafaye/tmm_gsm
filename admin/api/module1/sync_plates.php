@@ -20,11 +20,11 @@ $db = db();
 require_permission('module1.vehicles.write');
 
 // 1. Get all vehicles with operator info
-$stmt = $db->prepare("SELECT id, plate_number, operator_name FROM vehicles WHERE operator_name IS NOT NULL AND operator_name != ''");
-if (!$stmt) {
-    echo json_encode(['ok' => false, 'error' => $db->error, 'debug_log' => strip_tags($startup_output)]);
-    exit;
-}
+    $stmt = $db->prepare("SELECT id, plate_number, operator_name FROM vehicles WHERE operator_name IS NOT NULL AND operator_name != ''");
+    if (!$stmt) {
+        echo json_encode(['ok' => false, 'error' => $db->error]);
+        exit;
+    }
 
 $stmt->execute();
 $res = $stmt->get_result();
@@ -46,7 +46,9 @@ foreach ($vehicles as $v) {
 
     // 2. Find matching operator portal user
     // Match by full_name OR association_name (case-insensitive usually, but explicit)
-    $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE TRIM(full_name)=? OR TRIM(association_name)=? LIMIT 1");
+    // Use LOWER() for better matching if collation isn't case-insensitive, but usually it is.
+    // We'll stick to simple binding.
+    $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
     if (!$stmtP) continue;
     
     $stmtP->bind_param('ss', $opName, $opName);
