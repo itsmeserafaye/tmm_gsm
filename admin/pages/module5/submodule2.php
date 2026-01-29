@@ -67,8 +67,6 @@ $sqlV = "SELECT id, plate_number, operator_id, inspection_status, vehicle_type
          WHERE COALESCE(plate_number,'') <> ''
            AND operator_id IS NOT NULL AND operator_id>0
            AND COALESCE(record_status,'') <> 'Archived'
-           AND status='Active'
-           AND inspection_status='Passed'
            AND COALESCE(vehicle_type,'') <> ''";
 $vehDocsCond = '';
 if ($useVehDocs) {
@@ -90,29 +88,6 @@ if ($vehDocsCond !== '' && $legacyCond !== '') {
   $sqlV .= " AND $legacyCond";
 }
 
-$hasFr = tmm_has_table($db, $schema, 'franchises');
-$hasFa = tmm_has_table($db, $schema, 'franchise_applications');
-if ($hasFr && $hasFa) {
-  $sqlV .= " AND EXISTS (SELECT 1
-                         FROM franchises f
-                         JOIN franchise_applications a ON a.application_id=f.application_id
-                         WHERE a.operator_id=vehicles.operator_id
-                           AND a.status IN ('Approved','LTFRB-Approved')
-                           AND f.status='Active'
-                           AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
-                         LIMIT 1)";
-}
-
-$hasRoutes = tmm_has_table($db, $schema, 'routes') && tmm_has_col($db, $schema, 'vehicles', 'route_id') && tmm_has_col($db, $schema, 'routes', 'vehicle_type');
-if ($hasRoutes) {
-  $sqlV .= " AND (COALESCE(NULLIF(vehicles.route_id,''),'')='' OR NOT EXISTS (
-                    SELECT 1 FROM routes r
-                    WHERE (r.route_id=vehicles.route_id OR r.route_code=vehicles.route_id)
-                      AND COALESCE(r.vehicle_type,'')<>'' AND COALESCE(vehicles.vehicle_type,'')<>''
-                      AND LOWER(r.vehicle_type)<>LOWER(vehicles.vehicle_type)
-                    LIMIT 1
-                  ))";
-}
 $sqlV .= " ORDER BY plate_number ASC LIMIT 1500";
 
 $resV = $db->query($sqlV);
@@ -129,7 +104,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Assign Vehicle to Terminal</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">System checks: franchise status, inspection passed, OR/CR valid, and documents verified.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">System checks: documents verified and terminal allows vehicle type.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module5/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">

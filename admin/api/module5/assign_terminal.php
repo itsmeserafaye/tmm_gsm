@@ -50,24 +50,6 @@ if ($operatorId <= 0) {
   exit;
 }
 
-$inspOk = strcasecmp($inspectionStatus, 'Passed') === 0;
-if (!$inspOk) {
-  http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'inspection_not_passed']);
-  exit;
-}
-
-if ($vehicleStatus !== '' && strcasecmp($vehicleStatus, 'Blocked') === 0) {
-  http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
-  exit;
-}
-if ($vehicleStatus !== '' && strcasecmp($vehicleStatus, 'Inactive') === 0) {
-  http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
-  exit;
-}
-
 $hasCol = function (string $table, string $col) use ($db): bool {
   $stmt = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
   if (!$stmt) return false;
@@ -138,33 +120,6 @@ if (!$verifiedOk) {
   exit;
 }
 
-$frOk = false;
-$hasFranchises = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='franchises' LIMIT 1");
-$hasFa = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='franchise_applications' LIMIT 1");
-if ($hasFranchises && $hasFranchises->fetch_row() && $hasFa && $hasFa->fetch_row()) {
-  $stmtF = $db->prepare("SELECT f.franchise_id
-                         FROM franchises f
-                         JOIN franchise_applications a ON a.application_id=f.application_id
-                         WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved')
-                           AND f.status='Active'
-                           AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
-                         LIMIT 1");
-  if ($stmtF) {
-    $stmtF->bind_param('i', $operatorId);
-    $stmtF->execute();
-    $row = $stmtF->get_result()->fetch_assoc();
-    $stmtF->close();
-    $frOk = (bool)$row;
-  }
-} else {
-  $frOk = true;
-}
-if (!$frOk) {
-  http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
-  exit;
-}
-
 $capacity = (int)($term['capacity'] ?? 0);
 if ($capacity > 0) {
   $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM terminal_assignments WHERE terminal_id=?");
@@ -184,21 +139,6 @@ if ($capacity > 0) {
 $routeId = $vehicleRoute !== '' ? $vehicleRoute : null;
 
 $vehicleTypeNorm = trim($vehicleType) !== '' ? $vehicleType : null;
-if ($routeId !== null && $vehicleTypeNorm !== null) {
-  $stmtRt = $db->prepare("SELECT vehicle_type FROM routes WHERE (route_id=? OR route_code=?) LIMIT 1");
-  if ($stmtRt) {
-    $stmtRt->bind_param('ss', $routeId, $routeId);
-    $stmtRt->execute();
-    $rowRt = $stmtRt->get_result()->fetch_assoc();
-    $stmtRt->close();
-    $routeVehType = isset($rowRt['vehicle_type']) ? (string)$rowRt['vehicle_type'] : '';
-    if ($routeVehType !== '' && strcasecmp($routeVehType, $vehicleTypeNorm) !== 0) {
-      http_response_code(400);
-      echo json_encode(['ok' => false, 'error' => 'vehicle_type_mismatch_route']);
-      exit;
-    }
-  }
-}
 
 if ($vehicleTypeNorm !== null) {
   $stmtAllowed = $db->prepare("SELECT DISTINCT r.vehicle_type
