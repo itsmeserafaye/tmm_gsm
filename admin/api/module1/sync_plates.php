@@ -1,18 +1,20 @@
 <?php
+// Prevent any HTML error output from breaking JSON
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 ob_start();
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
-// Clear any startup output (warnings, etc)
-$startup_output = ob_get_clean();
+// Clear any startup output (warnings, etc) silently
+ob_clean();
 
 header('Content-Type: application/json');
 
-if (strlen($startup_output) > 0) {
-    // Log warnings but try to proceed
-    // If it was a fatal error, we wouldn't be here (script would have stopped)
-    // So these are likely warnings/notices.
-}
+// Note: If require_permission fails, it exits. 
+// With display_errors=0, PHP warnings won't be printed.
+// If require_permission outputs JSON and exits, that's good.
 
 $db = db();
 require_permission('module1.vehicles.write');
@@ -94,7 +96,7 @@ echo json_encode([
         'skipped' => $skipped,
         'not_found' => $notFound,
         'failed' => $failed
-    ],
-    'debug_log' => strip_tags($startup_output)
+    ]
 ]);
+ob_end_flush();
 
