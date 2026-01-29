@@ -151,18 +151,6 @@ $typesList = vehicle_types();
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Link Operator
       </a>
-      <?php if (has_permission('reports.export')): ?>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_vehicles_csv.php?<?php echo http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status]); ?>"
-          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="download" class="w-4 h-4"></i>
-          Export CSV
-        </a>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_vehicles_csv.php?<?php echo http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status, 'format' => 'excel']); ?>"
-          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-          Export Excel
-        </a>
-      <?php endif; ?>
       <?php if (has_permission('module1.vehicles.write')): ?>
         <button id="btnOpenAddVehicle" type="button"
           class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
@@ -205,6 +193,20 @@ $typesList = vehicle_types();
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <?php if (has_permission('reports.export')): ?>
+      <?php tmm_render_export_toolbar([
+        [
+          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status]),
+          'label' => 'CSV',
+          'icon' => 'download'
+        ],
+        [
+          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status, 'format' => 'excel']),
+          'label' => 'Excel',
+          'icon' => 'file-spreadsheet'
+        ]
+      ]); ?>
+    <?php endif; ?>
     <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/vehicle-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">

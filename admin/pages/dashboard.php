@@ -618,19 +618,28 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <div id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600"></div>
-              <?php if (has_permission('reports.export')): ?>
-                <a id="routeSupplyExportCsv" href="#"
-                  class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
-                  <i data-lucide="download" class="w-4 h-4"></i> CSV
-                </a>
-                <a id="routeSupplyExportExcel" href="#"
-                  class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-xs font-bold flex items-center gap-2">
-                  <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
-                </a>
-              <?php endif; ?>
+              <select id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
+                <option value="">Auto (Best Terminal)</option>
+              </select>
             </div>
           </div>
+
+          <?php if (has_permission('reports.export')): ?>
+            <?php tmm_render_export_toolbar([
+              [
+                'href' => '#',
+                'label' => 'CSV',
+                'icon' => 'download',
+                'attrs' => ['id' => 'routeSupplyExportCsv']
+              ],
+              [
+                'href' => '#',
+                'label' => 'Excel',
+                'icon' => 'file-spreadsheet',
+                'attrs' => ['id' => 'routeSupplyExportExcel']
+              ]
+            ]); ?>
+          <?php endif; ?>
 
           <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
             <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
@@ -703,6 +712,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       var bestAreaRef = '';
       var lastModel = null;
       var forecastChartInstance = null;
+      var routeSupplyManualTerminal = '';
 
       function setActive(type) {
         currentType = type;
@@ -1514,6 +1524,15 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         if (!routeSupplyBody || !routeSupplyTitle || !routeSupplyTotal) return;
         var exportCsv = document.getElementById('routeSupplyExportCsv');
         var exportExcel = document.getElementById('routeSupplyExportExcel');
+        var setTitle = function (terminalName) {
+          terminalName = String(terminalName || '');
+          if (routeSupplyTitle && routeSupplyTitle.tagName === 'SELECT') {
+            var sel = routeSupplyTitle;
+            if (sel.value !== terminalName) sel.value = terminalName;
+            return;
+          }
+          routeSupplyTitle.textContent = terminalName || 'Selected Terminal';
+        };
         var setExportLinks = function (terminalName) {
           if (!exportCsv && !exportExcel) return;
           var base = (window.TMM_ROOT_URL || '') + '/admin/api/analytics/export_route_supply.php?terminal_name=' + encodeURIComponent(terminalName || '');
@@ -1522,14 +1541,14 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         };
         routeSupplyBody.innerHTML = '';
         if (!data || !data.ok) {
-          routeSupplyTitle.textContent = 'Unknown';
+          setTitle('');
           routeSupplyBody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-sm text-slate-500 italic text-center">Select a terminal to view supply.</td></tr>';
           routeSupplyTotal.textContent = '';
           if (exportCsv) exportCsv.href = '#';
           if (exportExcel) exportExcel.href = '#';
           return;
         }
-        routeSupplyTitle.textContent = data.terminal_name ? data.terminal_name : 'Selected Terminal';
+        setTitle(data.terminal_name ? data.terminal_name : '');
         setExportLinks(data.terminal_name || '');
         var routes = data.routes || [];
         if (!routes.length) {
@@ -1602,6 +1621,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             var terminalForSupply = null;
             if (data.alerts && data.alerts.length && data.alerts[0].area_label) terminalForSupply = data.alerts[0].area_label;
             if (!terminalForSupply) terminalForSupply = bestTerminalLabel;
+            if (currentType === 'terminal' && routeSupplyManualTerminal) terminalForSupply = routeSupplyManualTerminal;
             loadRouteSupply(terminalForSupply);
           })
           .catch(function () { });
@@ -1674,6 +1694,21 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             if (data.area_lists) {
               areas = data.area_lists;
               populateAreas(demandType ? demandType.value : 'terminal');
+              if (routeSupplyTitle && routeSupplyTitle.tagName === 'SELECT') {
+                var sel = routeSupplyTitle;
+                var keep = sel.value;
+                sel.innerHTML = '<option value="">Auto (Best Terminal)</option>';
+                var terms = (areas && Array.isArray(areas.terminal)) ? areas.terminal : [];
+                terms.forEach(function (t) {
+                  var name = t && t.name ? String(t.name) : '';
+                  if (!name) return;
+                  var opt = document.createElement('option');
+                  opt.value = name;
+                  opt.textContent = name;
+                  sel.appendChild(opt);
+                });
+                if (keep) sel.value = keep;
+              }
             }
             if (bestAreaRef) loadTrafficNow(currentType, bestAreaRef);
             else loadTrafficNow('city', '');
@@ -1720,6 +1755,15 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
                 weightsResult.textContent = 'Failed to save';
               }
             });
+        });
+      }
+
+      if (routeSupplyTitle && routeSupplyTitle.tagName === 'SELECT') {
+        routeSupplyTitle.addEventListener('change', function () {
+          routeSupplyManualTerminal = String(routeSupplyTitle.value || '');
+          if (currentType !== 'terminal') return;
+          var t = routeSupplyManualTerminal || bestTerminalLabel || '';
+          loadRouteSupply(t);
         });
       }
 

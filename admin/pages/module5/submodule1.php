@@ -62,18 +62,6 @@ if ($rootUrl === '/') $rootUrl = '';
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create terminals and view assignments, slots, and payments.</p>
     </div>
     <div class="flex items-center gap-3">
-      <?php if (has_permission('reports.export')): ?>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module5/export_terminals_csv.php"
-          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="download" class="w-4 h-4"></i>
-          Export CSV
-        </a>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module5/export_terminals_csv.php?format=excel"
-          class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-          Export Excel
-        </a>
-      <?php endif; ?>
       <a href="?page=module5/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
         <i data-lucide="link" class="w-4 h-4"></i>
         Assign Vehicle
@@ -155,7 +143,21 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
+          <?php if (has_permission('reports.export')): ?>
+            <?php tmm_render_export_toolbar([
+              [
+                'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php',
+                'label' => 'CSV',
+                'icon' => 'download'
+              ],
+              [
+                'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php?format=excel',
+                'label' => 'Excel',
+                'icon' => 'file-spreadsheet'
+              ]
+            ], ['mb' => 'mb-0']); ?>
+          <?php endif; ?>
           <div class="relative max-w-sm group">
             <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
             <input id="terminalSearchTerm" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search terminal name or location...">

@@ -14,6 +14,7 @@ if (php_sapi_name() !== 'cli' && empty($_SESSION['user_id'])) {
 $baseDir = __DIR__;
 require_once $baseDir . '/includes/auth.php';
 require_once $baseDir . '/includes/sidebar_items.php';
+require_once $baseDir . '/includes/export_toolbar.php';
 
 if (php_sapi_name() !== 'cli') {
   $role = current_user_role();

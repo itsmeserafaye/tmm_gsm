@@ -209,20 +209,25 @@ if ($res) {
         </div>
         <h3 class="font-bold text-slate-900 dark:text-white text-sm">Recent Violations</h3>
       </div>
-      <?php if (has_permission('reports.export')): ?>
-        <div class="flex items-center gap-2">
-          <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_csv.php" target="_blank"
-            class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-            <i data-lucide="download" class="w-4 h-4"></i> CSV
-          </a>
-          <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_csv.php?format=excel" target="_blank"
-            class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
-          </a>
-        </div>
-      <?php endif; ?>
     </div>
     
+    <?php if (has_permission('reports.export')): ?>
+      <?php tmm_render_export_toolbar([
+        [
+          'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php',
+          'label' => 'CSV',
+          'icon' => 'download',
+          'target' => '_blank'
+        ],
+        [
+          'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php?format=excel',
+          'label' => 'Excel',
+          'icon' => 'file-spreadsheet',
+          'target' => '_blank'
+        ]
+      ]); ?>
+    <?php endif; ?>
+
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm text-left">
         <thead class="bg-slate-50 dark:bg-slate-700/30 text-slate-500 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">

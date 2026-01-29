@@ -81,25 +81,25 @@ function tmm_required_doc_list(string $operatorType): array {
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Operator Document Validation</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Review uploaded operator documents and mark each as Verified or Pending. Only Verified operators can apply for franchise.</p>
     </div>
-    <div class="flex items-center gap-2">
-      <?php if (has_permission('reports.export')): ?>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_operator_validation.php?<?php echo http_build_query(['q'=>$q,'operator_type'=>$type,'status'=>$status,'format'=>'csv']); ?>"
-          class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="download" class="w-4 h-4"></i>
-          Export CSV
-        </a>
-        <a href="<?php echo htmlspecialchars($rootUrl); ?>/admin/api/module1/export_operator_validation.php?<?php echo http_build_query(['q'=>$q,'operator_type'=>$type,'status'=>$status,'format'=>'excel']); ?>"
-          class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-          Export Excel
-        </a>
-      <?php endif; ?>
-    </div>
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <?php if (has_permission('reports.export')): ?>
+      <?php tmm_render_export_toolbar([
+        [
+          'href' => $rootUrl . '/admin/api/module1/export_operator_validation.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status, 'format' => 'csv']),
+          'label' => 'CSV',
+          'icon' => 'download'
+        ],
+        [
+          'href' => $rootUrl . '/admin/api/module1/export_operator_validation.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status, 'format' => 'excel']),
+          'label' => 'Excel',
+          'icon' => 'file-spreadsheet'
+        ]
+      ]); ?>
+    <?php endif; ?>
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="module1/submodule3">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">

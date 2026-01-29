@@ -88,21 +88,25 @@ if ($stmtA) {
       </h1>
       <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Monitor system access and security events.</p>
     </div>
-    <div class="flex items-center gap-2">
-      <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/settings/export_login_audit.php?<?php echo http_build_query(['q'=>$q,'format'=>'csv']); ?>"
-        class="rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 font-bold py-2.5 px-4 transition-all flex items-center gap-2">
-        <i data-lucide="download" class="w-4 h-4"></i>
-        CSV
-      </a>
-      <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/settings/export_login_audit.php?<?php echo http_build_query(['q'=>$q,'format'=>'excel']); ?>"
-        class="rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 font-bold py-2.5 px-4 transition-all flex items-center gap-2">
-        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-        Excel
-      </a>
-    </div>
   </div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <?php if (has_permission('reports.export')): ?>
+      <div class="px-8 pt-6">
+        <?php tmm_render_export_toolbar([
+          [
+            'href' => ($rootUrl ?? '') . '/admin/api/settings/export_login_audit.php?' . http_build_query(['q' => $q, 'format' => 'csv']),
+            'label' => 'CSV',
+            'icon' => 'download'
+          ],
+          [
+            'href' => ($rootUrl ?? '') . '/admin/api/settings/export_login_audit.php?' . http_build_query(['q' => $q, 'format' => 'excel']),
+            'label' => 'Excel',
+            'icon' => 'file-spreadsheet'
+          ]
+        ], ['mb' => 'mb-0']); ?>
+      </div>
+    <?php endif; ?>
     <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div class="flex items-center gap-3">
         <div class="p-2 bg-slate-100 dark:bg-slate-900/30 rounded-xl">

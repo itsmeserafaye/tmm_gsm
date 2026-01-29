@@ -105,22 +105,31 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
         <h2 class="text-base font-bold text-slate-900 dark:text-white">Report Configuration</h2>
       </div>
-      <?php if (has_permission('reports.export')): ?>
-        <div class="flex gap-2">
-           <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_csv.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-             <i data-lucide="download" class="w-4 h-4"></i> CSV
-           </a>
-           <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_csv.php?<?php echo http_build_query(array_merge($_GET, ['format'=>'excel'])); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-             <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Excel
-           </a>
-           <a href="<?php echo htmlspecialchars($rootUrl ?? '', ENT_QUOTES); ?>/admin/api/tickets/export_pdf.php?<?php echo http_build_query($_GET); ?>" target="_blank" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-sm font-semibold flex items-center gap-2">
-             <i data-lucide="file-text" class="w-4 h-4"></i> PDF
-           </a>
-        </div>
-      <?php endif; ?>
     </div>
     
     <div class="p-6">
+      <?php if (has_permission('reports.export')): ?>
+        <?php tmm_render_export_toolbar([
+          [
+            'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php?' . http_build_query($_GET),
+            'label' => 'CSV',
+            'icon' => 'download',
+            'target' => '_blank'
+          ],
+          [
+            'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php?' . http_build_query(array_merge($_GET, ['format' => 'excel'])),
+            'label' => 'Excel',
+            'icon' => 'file-spreadsheet',
+            'target' => '_blank'
+          ],
+          [
+            'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_pdf.php?' . http_build_query($_GET),
+            'label' => 'PDF',
+            'icon' => 'file-text',
+            'target' => '_blank'
+          ]
+        ]); ?>
+      <?php endif; ?>
       <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <input type="hidden" name="page" value="module3/submodule3">
         
