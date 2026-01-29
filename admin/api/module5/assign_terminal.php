@@ -183,6 +183,21 @@ $hasRouteId = isset($taCols['route_id']);
 $db->begin_transaction();
 try {
   $termName = (string)($term['name'] ?? '');
+
+  if ($hasVehicleId) {
+    $stmtDel = $db->prepare("DELETE FROM terminal_assignments WHERE vehicle_id=? AND COALESCE(plate_number,'')<>?");
+    if (!$stmtDel) throw new Exception('db_prepare_failed');
+    $stmtDel->bind_param('is', $vehicleId, $plate);
+    if (!$stmtDel->execute()) { $stmtDel->close(); throw new Exception('delete_conflict_failed'); }
+    $stmtDel->close();
+
+    $stmtDel2 = $db->prepare("DELETE FROM terminal_assignments WHERE plate_number=? AND (vehicle_id IS NULL OR vehicle_id<>?)");
+    if (!$stmtDel2) throw new Exception('db_prepare_failed');
+    $stmtDel2->bind_param('si', $plate, $vehicleId);
+    if (!$stmtDel2->execute()) { $stmtDel2->close(); throw new Exception('delete_conflict_failed'); }
+    $stmtDel2->close();
+  }
+
   $cols = ['plate_number', 'terminal_name', 'status', 'assigned_at'];
   $vals = ['?', '?', "'Authorized'", 'NOW()'];
   $types = 'ss';
@@ -209,6 +224,7 @@ try {
 
   $setParts = [];
   if ($hasTerminalId) $setParts[] = "terminal_id=VALUES(terminal_id)";
+  $setParts[] = "plate_number=VALUES(plate_number)";
   $setParts[] = "terminal_name=VALUES(terminal_name)";
   if ($hasVehicleId) $setParts[] = "vehicle_id=VALUES(vehicle_id)";
   if ($hasRouteId) $setParts[] = "route_id=VALUES(route_id)";
