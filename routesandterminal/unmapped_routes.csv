@@ -1,0 +1,4 @@
+route_id,route_name,origin,destination,via,vehicle_type
+TRI-07,"Sta. Quiteria Loop","Sta. Quiteria Terminal","Sta. Quiteria Barangay","Local roads",Tricycle
+TRI-09,"General Luis Loop","General Luis Terminal","General Luis Area","Local roads",Tricycle
+UV-15,"Tandang Sora–TM Kalaw Manila","Tandang Sora","TM Kalaw, Manila","Commonwealth • EDSA • Taft",UV

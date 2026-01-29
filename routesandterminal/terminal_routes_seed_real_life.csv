@@ -1,0 +1,129 @@
+terminal_name,route_id,source,confidence
+"MCU/Monumento Terminal",BUS-01,via_alias,0.70
+"Monumento Central Terminal",BUS-01,via_alias,0.70
+"Bagong Barrio Terminal",BUS-01,via_alias,0.70
+"Central Integrated Terminal",BUS-01,via_alias,0.70
+"Bagong Silang Terminal",BUS-02,via_alias,0.70
+"Bagong Silang Terminal",BUS-03,via_alias,0.70
+"Bagong Silang Terminal",BUS-04,via_alias,0.70
+"MCU/Monumento Terminal",BUS-05,via_alias,0.70
+"Monumento Central Terminal",BUS-05,via_alias,0.70
+"MCU/Monumento Terminal",BUS-06,name_alias,0.75
+"Monumento Central Terminal",BUS-06,name_alias,0.75
+"MCU/Monumento Terminal",BUS-07,name_alias,0.75
+"Monumento Central Terminal",BUS-07,name_alias,0.75
+"MCU/Monumento Terminal",BUS-08,name_alias,0.75
+"Monumento Central Terminal",BUS-08,name_alias,0.75
+"MCU/Monumento Terminal",BUS-09,name_alias,0.75
+"Monumento Central Terminal",BUS-09,name_alias,0.75
+"MCU/Monumento Terminal",BUS-10,name_alias,0.75
+"Monumento Central Terminal",BUS-10,name_alias,0.75
+"MCU/Monumento Terminal",BUS-11,name_alias,0.75
+"Monumento Central Terminal",BUS-11,name_alias,0.75
+"MCU/Monumento Terminal",BUS-12,name_alias,0.75
+"Monumento Central Terminal",BUS-12,name_alias,0.75
+"MCU/Monumento Terminal",BUS-13,name_alias,0.75
+"Monumento Central Terminal",BUS-13,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-01,name_alias,0.75
+"Monumento Central Terminal",JEEP-01,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-02,name_alias,0.75
+"Monumento Central Terminal",JEEP-02,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-03,name_alias,0.75
+"Monumento Central Terminal",JEEP-03,name_alias,0.75
+"Camarin Terminal",JEEP-04,via_alias,0.70
+"Camarin Crossroad Terminal",JEEP-04,via_alias,0.70
+"Central Integrated Terminal",JEEP-04,via_alias,0.70
+"Novaliches Bayan Terminal",JEEP-05,origin_alias,0.95
+"Tala Terminal",JEEP-05,via_alias,0.70
+"Camarin Terminal",JEEP-05,via_alias,0.70
+"Camarin Crossroad Terminal",JEEP-05,via_alias,0.70
+"Bagong Silang Terminal",JEEP-06,via_alias,0.70
+"Almar Zabarte Terminal",JEEP-06,via_alias,0.70
+"Bagong Silang Terminal",JEEP-07,via_alias,0.70
+"Almar Zabarte Terminal",JEEP-07,via_alias,0.70
+"Bagong Silang Terminal",JEEP-08,via_alias,0.70
+"Novaliches Bayan Terminal",JEEP-08,via_alias,0.70
+"Camarin Terminal",JEEP-09,via_alias,0.70
+"Camarin Crossroad Terminal",JEEP-09,via_alias,0.70
+"Novaliches Bayan Terminal",JEEP-10,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-10,"token_match:Rizal Avenue",0.85
+"Bagong Barrio Terminal",JEEP-11,name_alias,0.75
+"Bagong Silang Terminal",JEEP-12,name_alias,0.75
+"Novaliches Bayan Terminal",JEEP-12,text_match:Novaliches,0.85
+"Deparo Terminal",JEEP-13,origin_alias,0.95
+"Camarin Terminal",JEEP-13,origin_alias,0.95
+"Camarin Crossroad Terminal",JEEP-13,origin_alias,0.95
+"Novaliches Bayan Terminal",JEEP-13,text_match:Novaliches,0.85
+"Novaliches Bayan Terminal",JEEP-14,name_alias,0.75
+"Novaliches Bayan Terminal",JEEP-15,text_match:Novaliches,0.85
+"MCU/Monumento Terminal",JEEP-16,name_alias,0.75
+"Monumento Central Terminal",JEEP-16,name_alias,0.75
+"Novaliches Bayan Terminal",JEEP-16,"token_match:Malabon Bayan",0.85
+"MCU/Monumento Terminal",JEEP-17,name_alias,0.75
+"Monumento Central Terminal",JEEP-17,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-18,name_alias,0.75
+"Monumento Central Terminal",JEEP-18,name_alias,0.75
+"MCU/Monumento Terminal",JEEP-19,name_alias,0.75
+"Monumento Central Terminal",JEEP-19,name_alias,0.75
+"MCU/Monumento Terminal",TR-01,text_match:Monumento,0.85
+"Monumento Central Terminal",TR-01,text_match:Monumento,0.85
+"MCU/Monumento Terminal",TR-02,name_alias,0.75
+"Monumento Central Terminal",TR-02,name_alias,0.75
+"Sangandaan Terminal",TR-02,via_alias,0.70
+"Deparo Terminal",TR-03,via_alias,0.70
+"Tala Terminal",TR-03,via_alias,0.70
+"Bagong Silang Terminal",TR-04,via_alias,0.70
+"Camarin Terminal",TR-04,via_alias,0.70
+"Camarin Crossroad Terminal",TR-04,via_alias,0.70
+"Deparo Terminal",TR-05,via_alias,0.70
+"Camarin Terminal",TR-05,via_alias,0.70
+"Camarin Crossroad Terminal",TR-05,via_alias,0.70
+"Grace Park Terminal",TR-06,via_alias,0.70
+"MCU/Monumento Terminal",TR-06,via_alias,0.70
+"Monumento Central Terminal",TR-06,via_alias,0.70
+"Camarin Terminal",TR-07,via_alias,0.70
+"Camarin Crossroad Terminal",TR-07,via_alias,0.70
+"Deparo Terminal",TR-07,via_alias,0.70
+"Bagong Silang Terminal",TR-07,via_alias,0.70
+"Grace Park Terminal",TR-08,via_alias,0.70
+"Bagong Silang Terminal",TRI-04,name_alias,0.75
+"Bagong Silang Terminal",TRI-05,name_alias,0.75
+"Bagong Silang Terminal",TRI-06,name_alias,0.75
+"Almar Zabarte Terminal",TRI-08,via_alias,0.70
+"Camarin Terminal",TRI-08,"token_match:Zabarte Area",0.85
+"Grace Park Terminal",TRI-10,"token_match:Grace Park Area",0.85
+"Camarin Terminal",TRI-11,"token_match:Camarin Area",0.85
+"Camarin Crossroad Terminal",TRI-11,"token_match:Camarin Area",0.85
+"Deparo Terminal",TRI-12,via_alias,0.70
+"Tala Terminal",TRI-13,"text_match:Tala Area",0.85
+"Deparo Terminal",UV-01,via_alias,0.70
+"Central Integrated Terminal",UV-01,via_alias,0.70
+"Deparo Terminal",UV-02,via_alias,0.70
+"Bagong Silang Terminal",UV-03,via_alias,0.70
+"Central Integrated Terminal",UV-03,via_alias,0.70
+"Almar Zabarte Terminal",UV-03,via_alias,0.70
+"Bagong Silang Terminal",UV-04,via_alias,0.70
+"Deparo Terminal",UV-05,via_alias,0.70
+"Camarin Terminal",UV-05,via_alias,0.70
+"Camarin Crossroad Terminal",UV-05,via_alias,0.70
+"Novaliches Bayan Terminal",UV-06,via_alias,0.70
+"MCU/Monumento Terminal",UV-06,via_alias,0.70
+"Monumento Central Terminal",UV-06,via_alias,0.70
+"Novaliches Bayan Terminal",UV-07,name_alias,0.75
+"Central Integrated Terminal",UV-07,via_alias,0.70
+"Novaliches Bayan Terminal",UV-08,name_alias,0.75
+"Novaliches Bayan Terminal",UV-09,name_alias,0.75
+"Deparo Terminal",UV-10,name_alias,0.75
+"Central Integrated Terminal",UV-10,dest_alias,0.95
+"Deparo Terminal",UV-11,name_alias,0.75
+"Novaliches Bayan Terminal",UV-12,text_match:Novaliches,0.85
+"Deparo Terminal",UV-13,text_match:Deparo,0.85
+"Central Integrated Terminal",UV-14,name_alias,0.75
+"MCU/Monumento Terminal",UV-16,name_alias,0.75
+"Monumento Central Terminal",UV-16,name_alias,0.75
+"MCU/Monumento Terminal",UV-17,name_alias,0.75
+"Monumento Central Terminal",UV-17,name_alias,0.75
+"Novaliches Bayan Terminal",UV-18,name_alias,0.75
+"Central Integrated Terminal",UV-18,dest_alias,0.95
+"Bagong Silang Terminal",UV-19,name_alias,0.75
+"Central Integrated Terminal",UV-19,dest_alias,0.95

@@ -1,0 +1,133 @@
+terminal_name,route_id,source,confidence
+"Almar Zabarte Terminal",JEEP-04,"copied_from:Camarin Terminal",0.50
+"Almar Zabarte Terminal",JEEP-09,"copied_from:Camarin Terminal",0.50
+"Almar Zabarte Terminal",TR-04,"copied_from:Camarin Terminal",0.50
+"Almar Zabarte Terminal",TR-07,"copied_from:Camarin Terminal",0.50
+"Bagong Barrio Terminal",BUS-01,existing,1.00
+"Bagong Barrio Terminal",JEEP-11,existing,1.00
+"Bagong Silang Terminal",BUS-02,existing,1.00
+"Bagong Silang Terminal",BUS-03,existing,1.00
+"Bagong Silang Terminal",JEEP-06,existing,1.00
+"Bagong Silang Terminal",JEEP-07,existing,1.00
+"Bagong Silang Terminal",JEEP-08,existing,1.00
+"Bagong Silang Terminal",JEEP-12,existing,1.00
+"Bagong Silang Terminal",TR-04,existing,1.00
+"Bagong Silang Terminal",TRI-01,existing,1.00
+"Bagong Silang Terminal",UV-03,existing,1.00
+"Bagong Silang Terminal",UV-04,existing,1.00
+"Bagong Silang Terminal",UV-19,existing,1.00
+"Barangay 101 Tricycle Hub",TR-01,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-02,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-03,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-04,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-05,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-06,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-07,matched_text,0.90
+"Barangay 101 Tricycle Hub",TR-08,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-04,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-05,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-06,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-07,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-08,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-09,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-10,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-11,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-12,matched_text,0.90
+"Barangay 101 Tricycle Hub",TRI-13,matched_text,0.90
+"Camarin Crossroad Terminal",JEEP-04,"copied_from:Camarin Terminal",0.50
+"Camarin Crossroad Terminal",JEEP-09,"copied_from:Camarin Terminal",0.50
+"Camarin Crossroad Terminal",TR-04,"copied_from:Camarin Terminal",0.50
+"Camarin Crossroad Terminal",TR-07,"copied_from:Camarin Terminal",0.50
+"Camarin Terminal",JEEP-04,existing,1.00
+"Camarin Terminal",JEEP-09,existing,1.00
+"Camarin Terminal",TR-04,existing,1.00
+"Camarin Terminal",TR-07,existing,1.00
+"Deparo Terminal",TR-03,existing,1.00
+"Deparo Terminal",TR-05,existing,1.00
+"Deparo Terminal",UV-01,existing,1.00
+"Deparo Terminal",UV-02,existing,1.00
+"Deparo Terminal",UV-10,existing,1.00
+"Deparo Terminal",UV-11,existing,1.00
+"Deparo Terminal",UV-13,existing,1.00
+"Grace Park Terminal",TR-06,existing,1.00
+"Grace Park Terminal",TR-08,existing,1.00
+"Grace Park Terminal",TRI-03,existing,1.00
+"MCU/Monumento Terminal",BUS-01,existing,1.00
+"MCU/Monumento Terminal",BUS-04,existing,1.00
+"MCU/Monumento Terminal",BUS-05,existing,1.00
+"MCU/Monumento Terminal",BUS-06,existing,1.00
+"MCU/Monumento Terminal",BUS-07,existing,1.00
+"MCU/Monumento Terminal",BUS-08,existing,1.00
+"MCU/Monumento Terminal",BUS-09,existing,1.00
+"MCU/Monumento Terminal",BUS-10,existing,1.00
+"MCU/Monumento Terminal",BUS-11,existing,1.00
+"MCU/Monumento Terminal",BUS-12,existing,1.00
+"MCU/Monumento Terminal",BUS-13,existing,1.00
+"MCU/Monumento Terminal",JEEP-01,existing,1.00
+"MCU/Monumento Terminal",JEEP-02,existing,1.00
+"MCU/Monumento Terminal",JEEP-03,existing,1.00
+"MCU/Monumento Terminal",JEEP-13,existing,1.00
+"MCU/Monumento Terminal",JEEP-15,existing,1.00
+"MCU/Monumento Terminal",JEEP-16,existing,1.00
+"MCU/Monumento Terminal",JEEP-17,existing,1.00
+"MCU/Monumento Terminal",JEEP-18,existing,1.00
+"MCU/Monumento Terminal",JEEP-19,existing,1.00
+"MCU/Monumento Terminal",TR-01,existing,1.00
+"MCU/Monumento Terminal",TR-02,existing,1.00
+"MCU/Monumento Terminal",TR-06,existing,1.00
+"MCU/Monumento Terminal",UV-16,existing,1.00
+"MCU/Monumento Terminal",UV-17,existing,1.00
+"Monumento Central Terminal",BUS-01,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-04,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-05,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-06,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-07,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-08,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-09,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-10,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-11,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-12,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",BUS-13,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-01,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-02,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-03,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-13,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-15,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-16,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-17,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-18,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",JEEP-19,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",TR-01,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",TR-02,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",TR-06,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",UV-16,"copied_from:MCU/Monumento Terminal",0.50
+"Monumento Central Terminal",UV-17,"copied_from:MCU/Monumento Terminal",0.50
+"North Bound Terminal",BUS-01,matched_text,0.90
+"North Bound Terminal",JEEP-04,matched_text,0.90
+"North Bound Terminal",TR-07,matched_text,0.90
+"North Bound Terminal",UV-01,matched_text,0.90
+"North Bound Terminal",UV-03,matched_text,0.90
+"North Bound Terminal",UV-07,matched_text,0.90
+"North Bound Terminal",UV-10,matched_text,0.90
+"North Bound Terminal",UV-14,matched_text,0.90
+"North Bound Terminal",UV-19,matched_text,0.90
+"Novaliches Bayan Terminal",JEEP-05,existing,1.00
+"Novaliches Bayan Terminal",JEEP-10,existing,1.00
+"Novaliches Bayan Terminal",JEEP-14,existing,1.00
+"Novaliches Bayan Terminal",UV-06,existing,1.00
+"Novaliches Bayan Terminal",UV-07,existing,1.00
+"Novaliches Bayan Terminal",UV-08,existing,1.00
+"Novaliches Bayan Terminal",UV-09,existing,1.00
+"Novaliches Bayan Terminal",UV-18,existing,1.00
+Sabyan,JEEP-05,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,JEEP-10,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,JEEP-14,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,UV-06,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,UV-07,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,UV-08,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,UV-09,"copied_from:Novaliches Bayan Terminal",0.50
+Sabyan,UV-18,"copied_from:Novaliches Bayan Terminal",0.50
+"Sangandaan Terminal",TR-02,existing,1.00
+"Tala Terminal",JEEP-05,existing,1.00
+"Tala Terminal",TR-03,existing,1.00
+"Tala Terminal",TRI-02,existing,1.00

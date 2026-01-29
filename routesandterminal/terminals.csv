@@ -1,0 +1,17 @@
+terminal_id,name,location,address,capacity,type
+6,"Almar Zabarte Terminal","Zabarte Road, Caloocan City","Zabarte Road",100,Terminal
+12,"Bagong Barrio Terminal","Bagong Barrio","EDSA Bagong Barrio",500,Terminal
+5,"Bagong Silang Terminal","Phase 1, Bagong Silang, Caloocan City","Phase 1, Bagong Silang",150,Terminal
+3,"Barangay 101 Tricycle Hub","Caloocan City",,50,Terminal
+7,"Camarin Crossroad Terminal","Camarin Road, Caloocan City","Camarin Road",120,Terminal
+15,"Camarin Terminal",Camarin,"Camarin Rd / Zabarte Rd area",400,Terminal
+1,"Central Integrated Terminal","Caloocan City",,500,Terminal
+16,"Deparo Terminal",Deparo,"Deparo Rd area",350,Terminal
+14,"Grace Park Terminal","Grace Park","10th Ave / 5th Ave area",300,Terminal
+11,"MCU/Monumento Terminal",Monumento,"Rizal Ave Ext / EDSA (near LRT-1 Monumento)",800,Terminal
+4,"Monumento Central Terminal","Monumento Circle, Caloocan City","Monumento Circle",200,Terminal
+2,"North Bound Terminal","Caloocan City",,300,Terminal
+18,"Novaliches Bayan Terminal",Novaliches,"Quirino Highway / Novaliches Bayan",500,Terminal
+10,Sabyan,"brgy 521 high way quirino","Brgy high sa daan ng municipal 123",10,Terminal
+13,"Sangandaan Terminal",Sangandaan,"Samson Rd / Sangandaan",250,Terminal
+17,"Tala Terminal",Tala,"Tala area / Dr. Jose N. Rodriguez Memorial Hospital vicinity",250,Terminal

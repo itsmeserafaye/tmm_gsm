@@ -1,0 +1,65 @@
+terminal_name,route_id,source,confidence
+"Bagong Barrio Terminal",BUS-01,existing,1.00
+"Bagong Barrio Terminal",JEEP-11,existing,1.00
+"Bagong Silang Terminal",BUS-02,existing,1.00
+"Bagong Silang Terminal",BUS-03,existing,1.00
+"Bagong Silang Terminal",JEEP-06,existing,1.00
+"Bagong Silang Terminal",JEEP-07,existing,1.00
+"Bagong Silang Terminal",JEEP-08,existing,1.00
+"Bagong Silang Terminal",JEEP-12,existing,1.00
+"Bagong Silang Terminal",TR-04,existing,1.00
+"Bagong Silang Terminal",TRI-01,existing,1.00
+"Bagong Silang Terminal",UV-03,existing,1.00
+"Bagong Silang Terminal",UV-04,existing,1.00
+"Bagong Silang Terminal",UV-19,existing,1.00
+"Camarin Terminal",JEEP-04,existing,1.00
+"Camarin Terminal",JEEP-09,existing,1.00
+"Camarin Terminal",TR-04,existing,1.00
+"Camarin Terminal",TR-07,existing,1.00
+"Deparo Terminal",TR-03,existing,1.00
+"Deparo Terminal",TR-05,existing,1.00
+"Deparo Terminal",UV-01,existing,1.00
+"Deparo Terminal",UV-02,existing,1.00
+"Deparo Terminal",UV-10,existing,1.00
+"Deparo Terminal",UV-11,existing,1.00
+"Deparo Terminal",UV-13,existing,1.00
+"Grace Park Terminal",TR-06,existing,1.00
+"Grace Park Terminal",TR-08,existing,1.00
+"Grace Park Terminal",TRI-03,existing,1.00
+"MCU/Monumento Terminal",BUS-01,existing,1.00
+"MCU/Monumento Terminal",BUS-04,existing,1.00
+"MCU/Monumento Terminal",BUS-05,existing,1.00
+"MCU/Monumento Terminal",BUS-06,existing,1.00
+"MCU/Monumento Terminal",BUS-07,existing,1.00
+"MCU/Monumento Terminal",BUS-08,existing,1.00
+"MCU/Monumento Terminal",BUS-09,existing,1.00
+"MCU/Monumento Terminal",BUS-10,existing,1.00
+"MCU/Monumento Terminal",BUS-11,existing,1.00
+"MCU/Monumento Terminal",BUS-12,existing,1.00
+"MCU/Monumento Terminal",BUS-13,existing,1.00
+"MCU/Monumento Terminal",JEEP-01,existing,1.00
+"MCU/Monumento Terminal",JEEP-02,existing,1.00
+"MCU/Monumento Terminal",JEEP-03,existing,1.00
+"MCU/Monumento Terminal",JEEP-13,existing,1.00
+"MCU/Monumento Terminal",JEEP-15,existing,1.00
+"MCU/Monumento Terminal",JEEP-16,existing,1.00
+"MCU/Monumento Terminal",JEEP-17,existing,1.00
+"MCU/Monumento Terminal",JEEP-18,existing,1.00
+"MCU/Monumento Terminal",JEEP-19,existing,1.00
+"MCU/Monumento Terminal",TR-01,existing,1.00
+"MCU/Monumento Terminal",TR-02,existing,1.00
+"MCU/Monumento Terminal",TR-06,existing,1.00
+"MCU/Monumento Terminal",UV-16,existing,1.00
+"MCU/Monumento Terminal",UV-17,existing,1.00
+"Novaliches Bayan Terminal",JEEP-05,existing,1.00
+"Novaliches Bayan Terminal",JEEP-10,existing,1.00
+"Novaliches Bayan Terminal",JEEP-14,existing,1.00
+"Novaliches Bayan Terminal",UV-06,existing,1.00
+"Novaliches Bayan Terminal",UV-07,existing,1.00
+"Novaliches Bayan Terminal",UV-08,existing,1.00
+"Novaliches Bayan Terminal",UV-09,existing,1.00
+"Novaliches Bayan Terminal",UV-18,existing,1.00
+"Sangandaan Terminal",TR-02,existing,1.00
+"Tala Terminal",JEEP-05,existing,1.00
+"Tala Terminal",TR-03,existing,1.00
+"Tala Terminal",TRI-02,existing,1.00
