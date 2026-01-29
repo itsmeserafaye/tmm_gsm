@@ -836,30 +836,32 @@ if (empty($_SESSION['operator_csrf'])) {
             </form>
         </div>
     </div>
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 animate-fade-in text-center">
-        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                </path>
-            </svg>
-        </div>
-        <h3 class="text-xl font-bold text-slate-900 mb-2">Security Check</h3>
-        <p class="text-sm text-slate-500 mb-6">For your security, please enter your current password to confirm these
-            changes.</p>
-
-        <form onsubmit="confirmSaveProfile(event)" class="space-y-4">
-            <input type="password" id="currentPassConfirm" placeholder="Current Password"
-                class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-800 outline-none text-center font-bold tracking-widest"
-                required>
-            <div class="flex gap-3">
-                <button type="button" onclick="document.getElementById('passwordConfirmModal').classList.add('hidden')"
-                    class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition">Cancel</button>
-                <button type="submit"
-                    class="flex-1 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black shadow-lg transition">Confirm
-                    Update</button>
+    <div id="passwordConfirmModal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 animate-fade-in text-center">
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                    </path>
+                </svg>
             </div>
-        </form>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Security Check</h3>
+            <p class="text-sm text-slate-500 mb-6">For your security, please enter your current password to confirm these
+                changes.</p>
+
+            <form onsubmit="confirmSaveProfile(event)" class="space-y-4">
+                <input type="password" id="currentPassConfirm" placeholder="Current Password"
+                    class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-800 outline-none text-center font-bold tracking-widest"
+                    required>
+                <div class="flex gap-3">
+                    <button type="button" onclick="document.getElementById('passwordConfirmModal').classList.add('hidden')"
+                        class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-black shadow-lg transition">Confirm
+                        Update</button>
+                </div>
+            </form>
+        </div>
     </div>
     </div>
 
