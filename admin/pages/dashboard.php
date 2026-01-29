@@ -503,7 +503,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
       </div>
     </div>
-    </div>
 
       <!-- Right Column -->
     <div class="space-y-6">
@@ -648,6 +647,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
     </div>
+  </div>
 
     <!-- End main content wrapper -->
   </div>
