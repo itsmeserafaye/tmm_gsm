@@ -176,6 +176,7 @@ if ($colTA) {
     $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
   }
 }
+$assignmentIdCol = isset($taCols['assignment_id']) ? 'assignment_id' : (isset($taCols['id']) ? 'id' : '');
 $plateCol = isset($taCols['plate_number']) ? 'plate_number' : (isset($taCols['plate_no']) ? 'plate_no' : (isset($taCols['plate']) ? 'plate' : 'plate_number'));
 $terminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : 'terminal_name');
 $statusCol = isset($taCols['status']) ? 'status' : (isset($taCols['assignment_status']) ? 'assignment_status' : 'status');
@@ -198,6 +199,32 @@ if (!$hasPlate) {
 $db->begin_transaction();
 try {
   $termName = (string)($term['name'] ?? '');
+  $assignmentIdValue = null;
+  if ($assignmentIdCol !== '') {
+    $stmtMeta = $db->prepare("SELECT IS_NULLABLE, COLUMN_DEFAULT, EXTRA
+                              FROM information_schema.COLUMNS
+                              WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments' AND COLUMN_NAME=?
+                              LIMIT 1");
+    if (!$stmtMeta) throw new Exception('db_prepare_failed: assignment_id_meta');
+    $stmtMeta->bind_param('s', $assignmentIdCol);
+    $stmtMeta->execute();
+    $meta = $stmtMeta->get_result()->fetch_assoc();
+    $stmtMeta->close();
+    $isNullable = (string)($meta['IS_NULLABLE'] ?? '');
+    $colDefault = $meta['COLUMN_DEFAULT'] ?? null;
+    $extra = (string)($meta['EXTRA'] ?? '');
+    $autoInc = stripos($extra, 'auto_increment') !== false;
+    $needsValue = !$autoInc && strtoupper($isNullable) === 'NO' && $colDefault === null;
+    if ($needsValue) {
+      $stmtNext = $db->prepare("SELECT COALESCE(MAX($assignmentIdCol),0)+1 AS next_id FROM terminal_assignments FOR UPDATE");
+      if (!$stmtNext) throw new Exception('db_prepare_failed: assignment_id_next');
+      $stmtNext->execute();
+      $rowNext = $stmtNext->get_result()->fetch_assoc();
+      $stmtNext->close();
+      $assignmentIdValue = (int)($rowNext['next_id'] ?? 0);
+      if ($assignmentIdValue <= 0) $assignmentIdValue = 1;
+    }
+  }
 
   if ($hasVehicleId) {
     $stmtDel = $db->prepare("DELETE FROM terminal_assignments WHERE vehicle_id=? AND COALESCE($plateCol,'')<>?");
@@ -217,6 +244,12 @@ try {
   $vals = ['?'];
   $types = 's';
   $bind = [$plate];
+  if ($assignmentIdCol !== '' && $assignmentIdValue !== null) {
+    $cols[] = $assignmentIdCol;
+    $vals[] = '?';
+    $types .= 'i';
+    $bind[] = $assignmentIdValue;
+  }
 
   if ($hasTerminalName) {
     $cols[] = $terminalNameCol;
