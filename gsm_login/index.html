@@ -47,12 +47,12 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-auto w-full glass-card glow-on-hover">
-                <form id="loginForm" class="space-y-6">
+                <form id="loginForm" class="space-y-6" autocomplete="on">
                     <div class="space-y-2">
                         <label class="text-sm font-semibold text-gray-700">Email Address</label>
                         <div class="relative">
                             <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                            <input type="email" id="email" name="email" class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your email" required>
+                            <input type="email" id="email" name="email" autocomplete="username" class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your email" required>
                         </div>
                     </div>
 
@@ -60,7 +60,7 @@
                         <label class="text-sm font-semibold text-gray-700">Password</label>
                         <div class="relative">
                             <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                            <input type="password" id="password" name="password" class="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your password" required>
+                            <input type="password" id="password" name="password" autocomplete="current-password" class="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-custom-secondary focus:border-transparent transition-all duration-200" placeholder="Enter your password" required>
                             <button type="button" id="togglePassword" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                                 <i class="fas fa-eye"></i>
                             </button>

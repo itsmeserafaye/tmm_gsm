@@ -680,6 +680,23 @@ function db()
     INDEX idx_expires (expires_at)
   ) ENGINE=InnoDB");
 
+  $conn->query("CREATE TABLE IF NOT EXISTS trusted_devices (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_type VARCHAR(20) NOT NULL,
+    user_id BIGINT NOT NULL,
+    device_hash VARCHAR(64) NOT NULL,
+    user_agent_hash VARCHAR(64) DEFAULT NULL,
+    expires_at DATETIME NOT NULL,
+    last_used_at DATETIME DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_user_device (user_type, user_id, device_hash),
+    INDEX idx_expires (expires_at)
+  ) ENGINE=InnoDB");
+  $colsTd = $conn->query("SHOW COLUMNS FROM trusted_devices LIKE 'user_agent_hash'");
+  if (!$colsTd || $colsTd->num_rows === 0) {
+    $conn->query("ALTER TABLE trusted_devices ADD COLUMN user_agent_hash VARCHAR(64) DEFAULT NULL AFTER device_hash");
+  }
+
   $conn->query("CREATE TABLE IF NOT EXISTS operator_portal_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(190) NOT NULL UNIQUE,

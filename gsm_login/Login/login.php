@@ -197,6 +197,13 @@ if (!is_array($input)) {
 $action = isset($input['action']) ? (string) $input['action'] : 'login';
 $email = strtolower(trim((string) ($input['email'] ?? '')));
 $deviceId = trim((string) ($input['device_id'] ?? ''));
+$cookieDeviceId = trim((string)($_COOKIE['gsm_device_id'] ?? ''));
+if ($cookieDeviceId !== '' && strlen($cookieDeviceId) >= 12) {
+  $deviceId = $cookieDeviceId;
+} else if ($deviceId !== '' && strlen($deviceId) >= 12) {
+  $exp = gmdate('D, d M Y H:i:s', time() + 315360000) . ' GMT';
+  header('Set-Cookie: gsm_device_id=' . rawurlencode($deviceId) . '; Expires=' . $exp . '; Path=/; SameSite=Lax');
+}
 
 if ($action !== 'login_otp_verify' && $action !== 'login_otp_resend' && $action !== 'check_email') {
   if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {

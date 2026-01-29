@@ -62,12 +62,32 @@ window.addEventListener('error', function(e) {
 
 function getOrCreateDeviceId() {
     try {
+        const cookieMatch = document.cookie.match(/(?:^|;\s*)gsm_device_id=([^;]+)/);
+        const cookieVal = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+        if (cookieVal && cookieVal.length >= 12) {
+            try { localStorage.setItem('gsm_device_id', cookieVal); } catch (e) {}
+            return cookieVal;
+        }
+
         const existing = localStorage.getItem('gsm_device_id');
-        if (existing && existing.length >= 12) return existing;
+        if (existing && existing.length >= 12) {
+            try {
+                const exp = new Date();
+                exp.setFullYear(exp.getFullYear() + 10);
+                document.cookie = 'gsm_device_id=' + encodeURIComponent(existing) + '; expires=' + exp.toUTCString() + '; path=/; SameSite=Lax';
+            } catch (e) {}
+            return existing;
+        }
+
         const id = (window.crypto && typeof window.crypto.randomUUID === 'function')
             ? window.crypto.randomUUID()
             : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2) + '-' + Math.random().toString(16).slice(2));
         localStorage.setItem('gsm_device_id', id);
+        try {
+            const exp = new Date();
+            exp.setFullYear(exp.getFullYear() + 10);
+            document.cookie = 'gsm_device_id=' + encodeURIComponent(id) + '; expires=' + exp.toUTCString() + '; path=/; SameSite=Lax';
+        } catch (e) {}
         return id;
     } catch (e) {
         return (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2));
@@ -88,10 +108,13 @@ function initializePage() {
         const portalMode = getPortalMode();
         const remembered = localStorage.getItem('gsm_remember_' + portalMode) === '1';
         const email = localStorage.getItem('gsm_email_' + portalMode) || '';
+        const pwd = localStorage.getItem('gsm_password_' + portalMode) || '';
         const rememberEl = document.getElementById('rememberMe');
         const emailEl = document.getElementById('email');
+        const pwdEl = document.getElementById('password');
         if (rememberEl) rememberEl.checked = remembered;
         if (remembered && emailEl && email) emailEl.value = email;
+        if (remembered && pwdEl && pwd) pwdEl.value = pwd;
     } catch (e) {}
 }
 
@@ -121,9 +144,11 @@ function setupEventListeners() {
                 if (remember) {
                     localStorage.setItem('gsm_remember_' + portalMode, '1');
                     localStorage.setItem('gsm_email_' + portalMode, String((document.getElementById('email') && document.getElementById('email').value) || '').trim());
+                    localStorage.setItem('gsm_password_' + portalMode, String((document.getElementById('password') && document.getElementById('password').value) || ''));
                 } else {
                     localStorage.removeItem('gsm_remember_' + portalMode);
                     localStorage.removeItem('gsm_email_' + portalMode);
+                    localStorage.removeItem('gsm_password_' + portalMode);
                 }
             } catch (e) {}
         });
