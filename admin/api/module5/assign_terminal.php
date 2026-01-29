@@ -77,6 +77,51 @@ if (!$orcrOk) {
   exit;
 }
 
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $stmt = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
+  if (!$stmt) return false;
+  $stmt->bind_param('ss', $table, $col);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $ok = (bool) ($res && $res->fetch_row());
+  $stmt->close();
+  return $ok;
+};
+
+$verifiedOk = true;
+$useVehDocs = $hasCol('vehicle_documents', 'vehicle_id') && $hasCol('vehicle_documents', 'doc_type') && ($hasCol('vehicle_documents', 'is_verified') || $hasCol('vehicle_documents', 'verified'));
+$useLegacyDocs = $hasCol('documents', 'plate_number') && $hasCol('documents', 'type') && $hasCol('documents', 'verified');
+$vehDocsVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified' : 'verified';
+
+if ($useVehDocs) {
+  $stmtD = $db->prepare("SELECT
+    EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.vehicle_id=? AND vd.doc_type IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1) AS has_cr,
+    EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.vehicle_id=? AND vd2.doc_type IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1) AS has_or");
+  if ($stmtD) {
+    $stmtD->bind_param('ii', $vehicleId, $vehicleId);
+    $stmtD->execute();
+    $rowD = $stmtD->get_result()->fetch_assoc();
+    $stmtD->close();
+    $verifiedOk = (int)($rowD['has_cr'] ?? 0) === 1 && (int)($rowD['has_or'] ?? 0) === 1;
+  }
+} elseif ($useLegacyDocs && $plate !== '') {
+  $stmtD = $db->prepare("SELECT
+    EXISTS (SELECT 1 FROM documents d WHERE d.plate_number=? AND d.type IN ('cr','orcr') AND COALESCE(d.verified,0)=1) AS has_cr,
+    EXISTS (SELECT 1 FROM documents d2 WHERE d2.plate_number=? AND d2.type IN ('or','orcr') AND COALESCE(d2.verified,0)=1) AS has_or");
+  if ($stmtD) {
+    $stmtD->bind_param('ss', $plate, $plate);
+    $stmtD->execute();
+    $rowD = $stmtD->get_result()->fetch_assoc();
+    $stmtD->close();
+    $verifiedOk = (int)($rowD['has_cr'] ?? 0) === 1 && (int)($rowD['has_or'] ?? 0) === 1;
+  }
+}
+if (!$verifiedOk) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'vehicle_docs_not_verified']);
+  exit;
+}
+
 $frOk = false;
 $hasFranchises = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='franchises' LIMIT 1");
 $hasFa = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='franchise_applications' LIMIT 1");

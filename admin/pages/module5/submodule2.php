@@ -7,6 +7,26 @@ $db = db();
 
 $prefillTerminalId = (int)($_GET['terminal_id'] ?? 0);
 
+$schema = '';
+$schRes = $db->query("SELECT DATABASE() AS db");
+if ($schRes) {
+  $schema = (string) (($schRes->fetch_assoc()['db'] ?? '') ?: '');
+}
+function tmm_has_col(mysqli $db, string $schema, string $table, string $col): bool
+{
+  if ($schema === '')
+    return false;
+  $stmt = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
+  if (!$stmt)
+    return false;
+  $stmt->bind_param('sss', $schema, $table, $col);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $ok = (bool) ($res && $res->fetch_row());
+  $stmt->close();
+  return $ok;
+}
+
 $terminals = [];
 $resT = $db->query("SELECT t.id, t.name, t.capacity, GROUP_CONCAT(DISTINCT r.vehicle_type) AS allowed_types
 FROM terminals t
@@ -19,16 +39,28 @@ LIMIT 500");
 if ($resT) while ($r = $resT->fetch_assoc()) $terminals[] = $r;
 
 $vehicles = [];
-$resV = $db->query("SELECT id, plate_number, operator_id, inspection_status, vehicle_type
-                    FROM vehicles
-                    WHERE COALESCE(plate_number,'') <> ''
-                      AND operator_id IS NOT NULL AND operator_id>0
-                      AND COALESCE(record_status,'') <> 'Archived'
-                      AND status='Active'
-                      AND inspection_status='Passed'
-                      AND COALESCE(vehicle_type,'') <> ''
-                    ORDER BY plate_number ASC
-                    LIMIT 1500");
+$useVehDocs = tmm_has_col($db, $schema, 'vehicle_documents', 'vehicle_id') && tmm_has_col($db, $schema, 'vehicle_documents', 'doc_type') && (tmm_has_col($db, $schema, 'vehicle_documents', 'is_verified') || tmm_has_col($db, $schema, 'vehicle_documents', 'verified'));
+$useLegacyDocs = tmm_has_col($db, $schema, 'documents', 'plate_number') && tmm_has_col($db, $schema, 'documents', 'type') && tmm_has_col($db, $schema, 'documents', 'verified');
+$vehDocsVerifiedCol = tmm_has_col($db, $schema, 'vehicle_documents', 'is_verified') ? 'is_verified' : 'verified';
+
+$sqlV = "SELECT id, plate_number, operator_id, inspection_status, vehicle_type
+         FROM vehicles
+         WHERE COALESCE(plate_number,'') <> ''
+           AND operator_id IS NOT NULL AND operator_id>0
+           AND COALESCE(record_status,'') <> 'Archived'
+           AND status='Active'
+           AND inspection_status='Passed'
+           AND COALESCE(vehicle_type,'') <> ''";
+if ($useVehDocs) {
+  $sqlV .= " AND EXISTS (SELECT 1 FROM vehicle_documents vd WHERE vd.vehicle_id=vehicles.id AND vd.doc_type IN ('CR','ORCR') AND COALESCE(vd.$vehDocsVerifiedCol,0)=1)";
+  $sqlV .= " AND EXISTS (SELECT 1 FROM vehicle_documents vd2 WHERE vd2.vehicle_id=vehicles.id AND vd2.doc_type IN ('OR','ORCR') AND COALESCE(vd2.$vehDocsVerifiedCol,0)=1)";
+} elseif ($useLegacyDocs) {
+  $sqlV .= " AND EXISTS (SELECT 1 FROM documents d WHERE d.plate_number=vehicles.plate_number AND d.type IN ('cr','orcr') AND COALESCE(d.verified,0)=1)";
+  $sqlV .= " AND EXISTS (SELECT 1 FROM documents d2 WHERE d2.plate_number=vehicles.plate_number AND d2.type IN ('or','orcr') AND COALESCE(d2.verified,0)=1)";
+}
+$sqlV .= " ORDER BY plate_number ASC LIMIT 1500";
+
+$resV = $db->query($sqlV);
 if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -42,7 +74,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Assign Vehicle to Terminal</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">System checks: franchise status, inspection passed, and OR/CR valid.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">System checks: franchise status, inspection passed, OR/CR valid, and documents verified.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module5/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
