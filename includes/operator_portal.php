@@ -57,6 +57,38 @@ function operator_portal_login(mysqli $db, string $plateNumber, string $email, s
     $stmt->close();
   }
 
+  if (!$plates) {
+    $opId = 0;
+    $stmtO = $db->prepare("SELECT id FROM operators WHERE email=? LIMIT 1");
+    if ($stmtO) {
+      $stmtO->bind_param('s', $email);
+      $stmtO->execute();
+      $rowO = $stmtO->get_result()->fetch_assoc();
+      $stmtO->close();
+      $opId = (int)($rowO['id'] ?? 0);
+    }
+    if ($opId > 0) {
+      $stmtV = $db->prepare("SELECT plate_number FROM vehicles WHERE record_status='Linked' AND (current_operator_id=? OR operator_id=?) AND plate_number IS NOT NULL AND plate_number<>'' ORDER BY plate_number ASC");
+      if ($stmtV) {
+        $stmtV->bind_param('ii', $opId, $opId);
+        $stmtV->execute();
+        $resV = $stmtV->get_result();
+        while ($resV && ($rowV = $resV->fetch_assoc())) {
+          $p = strtoupper(trim((string)($rowV['plate_number'] ?? '')));
+          if ($p === '') continue;
+          $plates[] = $p;
+          $stmtUp = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)");
+          if ($stmtUp) {
+            $stmtUp->bind_param('is', $userId, $p);
+            $stmtUp->execute();
+            $stmtUp->close();
+          }
+        }
+        $stmtV->close();
+      }
+    }
+  }
+
   $selectedPlate = '';
   if ($plateNumber !== '') {
     if (!in_array($plateNumber, $plates, true)) return ['ok' => false, 'message' => 'This plate number is not assigned to your operator account.'];

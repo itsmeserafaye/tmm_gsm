@@ -24,8 +24,9 @@ $currentOperatorId = (int)($exists['operator_id'] ?? 0);
 
 $resolvedName = $operatorName;
 $resolvedId = $operatorId;
+$resolvedEmail = '';
 if ($resolvedId > 0) {
-    $stmtO = $db->prepare("SELECT id, name, full_name FROM operators WHERE id=? LIMIT 1");
+    $stmtO = $db->prepare("SELECT id, name, full_name, email FROM operators WHERE id=? LIMIT 1");
     if ($stmtO) {
         $stmtO->bind_param('i', $resolvedId);
         $stmtO->execute();
@@ -34,9 +35,10 @@ if ($resolvedId > 0) {
         if (!$rowO) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'operator_not_found']); exit; }
         $resolvedName = trim((string)($rowO['name'] ?? ''));
         if ($resolvedName === '') $resolvedName = trim((string)($rowO['full_name'] ?? ''));
+        $resolvedEmail = strtolower(trim((string)($rowO['email'] ?? '')));
     }
 } else {
-    $stmtO = $db->prepare("SELECT id, name, full_name FROM operators WHERE full_name=? LIMIT 1");
+    $stmtO = $db->prepare("SELECT id, name, full_name, email FROM operators WHERE full_name=? LIMIT 1");
     if ($stmtO) {
         $stmtO->bind_param('s', $resolvedName);
         $stmtO->execute();
@@ -45,6 +47,7 @@ if ($resolvedId > 0) {
         if ($rowO && isset($rowO['id'])) $resolvedId = (int)$rowO['id'];
         $nm = trim((string)($rowO['name'] ?? ''));
         if ($nm !== '') $resolvedName = $nm;
+        $resolvedEmail = strtolower(trim((string)($rowO['email'] ?? '')));
     }
 }
 
@@ -60,38 +63,41 @@ if ($currentOperatorId > 0 && $targetOperatorId === 0) {
     echo json_encode(['ok'=>false,'error'=>'already_linked', 'current_operator_id'=>$currentOperatorId]);
     exit;
 }
-$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, operator_name=?, record_status='Linked' WHERE plate_number=?");
+$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, current_operator_id=?, operator_name=?, record_status='Linked' WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
-$stmt->bind_param('iss', $resolvedIdBind, $resolvedName, $plate);
+$resolvedIdBind2 = $resolvedId > 0 ? $resolvedId : null;
+$stmt->bind_param('iiss', $resolvedIdBind, $resolvedIdBind2, $resolvedName, $plate);
 $ok = $stmt->execute();
 
 if ($ok) {
-    // Try to link to operator portal user by name to ensure they see the plate
-    $stmtP = $db->prepare("SELECT id FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
-    if ($stmtP) {
-        $stmtP->bind_param('ss', $resolvedName, $resolvedName);
-        $stmtP->execute();
-        $resP = $stmtP->get_result();
-        if ($rowP = $resP->fetch_assoc()) {
-            $portalUserId = (int)$rowP['id'];
-            // Check if already linked in portal table
-            $stmtChk = $db->prepare("SELECT 1 FROM operator_portal_user_plates WHERE user_id=? AND plate_number=? LIMIT 1");
-            if ($stmtChk) {
-                $stmtChk->bind_param('is', $portalUserId, $plate);
-                $stmtChk->execute();
-                if (!$stmtChk->get_result()->fetch_row()) {
-                    // Insert into operator_portal_user_plates
-                    $stmtIns = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?)");
-                    if ($stmtIns) {
-                        $stmtIns->bind_param('is', $portalUserId, $plate);
-                        $stmtIns->execute();
-                        $stmtIns->close();
-                    }
-                }
-                $stmtChk->close();
-            }
+    $portalUserId = 0;
+    if ($resolvedEmail !== '') {
+        $stmtP = $db->prepare("SELECT id FROM operator_portal_users WHERE email=? LIMIT 1");
+        if ($stmtP) {
+            $stmtP->bind_param('s', $resolvedEmail);
+            $stmtP->execute();
+            $rowP = $stmtP->get_result()->fetch_assoc();
+            $stmtP->close();
+            $portalUserId = (int)($rowP['id'] ?? 0);
         }
-        $stmtP->close();
+    }
+    if ($portalUserId <= 0 && $resolvedName !== '') {
+        $stmtP = $db->prepare("SELECT id FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
+        if ($stmtP) {
+            $stmtP->bind_param('ss', $resolvedName, $resolvedName);
+            $stmtP->execute();
+            $rowP = $stmtP->get_result()->fetch_assoc();
+            $stmtP->close();
+            $portalUserId = (int)($rowP['id'] ?? 0);
+        }
+    }
+    if ($portalUserId > 0) {
+        $stmtIns = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)");
+        if ($stmtIns) {
+            $stmtIns->bind_param('is', $portalUserId, $plate);
+            $stmtIns->execute();
+            $stmtIns->close();
+        }
     }
 }
 

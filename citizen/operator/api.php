@@ -87,6 +87,102 @@ function op_user_plates(mysqli $db, int $userId): array
     }
   }
   $stmt->close();
+
+  if ($plates) {
+    sort($plates);
+    return $plates;
+  }
+
+  $u = op_get_user_row($db, $userId);
+  if (!$u)
+    return $plates;
+
+  $email = strtolower(trim((string) ($u['email'] ?? '')));
+  $fullName = trim((string) ($u['full_name'] ?? ''));
+  $assocName = trim((string) ($u['association_name'] ?? ''));
+
+  $opId = 0;
+  if ($email !== '') {
+    $stmtO = $db->prepare("SELECT id FROM operators WHERE email=? LIMIT 1");
+    if ($stmtO) {
+      $stmtO->bind_param('s', $email);
+      $stmtO->execute();
+      $rowO = $stmtO->get_result()->fetch_assoc();
+      $stmtO->close();
+      $opId = (int) ($rowO['id'] ?? 0);
+    }
+  }
+
+  $derived = [];
+  $derivedBy = '';
+
+  if ($opId > 0) {
+    $stmtV = $db->prepare("SELECT plate_number FROM vehicles WHERE record_status='Linked' AND (current_operator_id=? OR operator_id=?) AND plate_number IS NOT NULL AND plate_number<>'' ORDER BY plate_number ASC");
+    if ($stmtV) {
+      $stmtV->bind_param('ii', $opId, $opId);
+      $stmtV->execute();
+      $resV = $stmtV->get_result();
+      while ($resV && ($rowV = $resV->fetch_assoc())) {
+        $p = strtoupper(trim((string) ($rowV['plate_number'] ?? '')));
+        if ($p !== '')
+          $derived[] = $p;
+      }
+      $stmtV->close();
+      $derivedBy = 'operator_id';
+    }
+  }
+
+  if (!$derived) {
+    $candidates = [];
+    if ($fullName !== '')
+      $candidates[] = $fullName;
+    if ($assocName !== '' && $assocName !== $fullName)
+      $candidates[] = $assocName;
+
+    foreach ($candidates as $cand) {
+      $stmtV2 = $db->prepare("SELECT plate_number FROM vehicles WHERE record_status='Linked' AND operator_name=? AND plate_number IS NOT NULL AND plate_number<>'' ORDER BY plate_number ASC");
+      if (!$stmtV2)
+        continue;
+      $stmtV2->bind_param('s', $cand);
+      $stmtV2->execute();
+      $resV2 = $stmtV2->get_result();
+      while ($resV2 && ($rowV2 = $resV2->fetch_assoc())) {
+        $p = strtoupper(trim((string) ($rowV2['plate_number'] ?? '')));
+        if ($p !== '')
+          $derived[] = $p;
+      }
+      $stmtV2->close();
+      if ($derived) {
+        $derivedBy = 'operator_name';
+        break;
+      }
+    }
+  }
+
+  if ($derived) {
+    $unique = array_values(array_unique($derived));
+    sort($unique);
+
+    foreach ($unique as $p) {
+      if ($derivedBy === 'operator_id') {
+        $stmtUp = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)");
+        if ($stmtUp) {
+          $stmtUp->bind_param('is', $userId, $p);
+          $stmtUp->execute();
+          $stmtUp->close();
+        }
+      } else {
+        $stmtIns = $db->prepare("INSERT IGNORE INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?)");
+        if ($stmtIns) {
+          $stmtIns->bind_param('is', $userId, $p);
+          $stmtIns->execute();
+          $stmtIns->close();
+        }
+      }
+    }
+    return $unique;
+  }
+
   return $plates;
 }
 
@@ -629,11 +725,6 @@ if ($action === 'add_vehicle') {
   if ($plate === '')
     op_send(false, ['error' => 'Plate number required'], 400);
 
-  // Check if plate already exists (globally or just for this user?)
-  // For now, we assume simple registration. In real world, needs LTO check.
-  // We'll insert into vehicles table with Status 'For Verification'
-
-  // Use existing file upload logic reused roughly
   $orCrPath = '';
   if (!empty($_FILES['or_cr_doc'])) {
     $file = $_FILES['or_cr_doc'];
@@ -650,13 +741,22 @@ if ($action === 'add_vehicle') {
     }
   }
 
-  // Insert into vehicles table (or a temp table if strict). 
-  // We will upsert: if exists, claim it? No, that's dangerous. 
-  // Let's assume we insert into vehicles if not exists, or link it.
-  // For safety/demo: Link it to user in operator_portal_user_plates immediately?
-  // Let's do: Insert into operator_portal_applications as 'Vehicle Registration'
-  // And let admin approve it. This aligns with docs "Portal allows operators to submit... for LGU verification"
-  // So we DON'T add to vehicles table directly yet.
+  $u = op_get_user_row($db, $userId);
+  $opName = '';
+  if ($u) {
+    $opName = trim((string) ($u['association_name'] ?? ''));
+    if ($opName === '')
+      $opName = trim((string) ($u['full_name'] ?? ''));
+  }
+  if ($opName === '')
+    $opName = 'Operator';
+
+  $stmtVeh = $db->prepare("INSERT IGNORE INTO vehicles (plate_number, operator_name, record_status, status) VALUES (?, ?, 'Encoded', 'Active')");
+  if ($stmtVeh) {
+    $stmtVeh->bind_param('ss', $plate, $opName);
+    $stmtVeh->execute();
+    $stmtVeh->close();
+  }
 
   $docsJson = json_encode($orCrPath ? [$orCrPath] : []);
   $stmt = $db->prepare("INSERT INTO operator_portal_applications(user_id, plate_number, type, status, notes, documents) VALUES(?, ?, 'Vehicle Registration', 'Pending', 'New vehicle registration', ?)");
@@ -771,6 +871,74 @@ if ($action === 'get_notifications') {
     $stmt->close();
   }
   op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'get_downloads') {
+  $items = [];
+
+  $plates = op_user_plates($db, $userId);
+  if ($plates) {
+    $in = implode(',', array_fill(0, count($plates), '?'));
+    $types = str_repeat('s', count($plates));
+    $stmtV = $db->prepare("SELECT plate_number, inspection_status, inspection_passed_at, inspection_cert_ref FROM vehicles WHERE plate_number IN ($in)");
+    if ($stmtV) {
+      $stmtV->bind_param($types, ...$plates);
+      $stmtV->execute();
+      $resV = $stmtV->get_result();
+      while ($resV && ($r = $resV->fetch_assoc())) {
+        $st = (string)($r['inspection_status'] ?? '');
+        if ($st !== 'Passed') continue;
+        $ref = trim((string)($r['inspection_cert_ref'] ?? ''));
+        if ($ref === '') continue;
+        $items[] = [
+          'title' => 'Inspection Certificate',
+          'meta' => (string)($r['plate_number'] ?? '') . ' • ' . substr((string)($r['inspection_passed_at'] ?? ''), 0, 10),
+          'value' => $ref,
+        ];
+      }
+      $stmtV->close();
+    }
+  }
+
+  $stmtA = $db->prepare("SELECT id, plate_number, type, status, documents, created_at FROM operator_portal_applications WHERE user_id=? AND status IN ('Approved','Endorsed') ORDER BY created_at DESC LIMIT 50");
+  if ($stmtA) {
+    $stmtA->bind_param('i', $userId);
+    $stmtA->execute();
+    $resA = $stmtA->get_result();
+    while ($resA && ($r = $resA->fetch_assoc())) {
+      $docs = json_decode((string)($r['documents'] ?? '[]'), true);
+      if (!is_array($docs)) $docs = [];
+      foreach ($docs as $p) {
+        $p = (string)$p;
+        if ($p === '') continue;
+        $items[] = [
+          'title' => (string)($r['type'] ?? 'Document'),
+          'meta' => (string)($r['plate_number'] ?? '') . ' • ' . (string)($r['status'] ?? ''),
+          'href' => $p,
+        ];
+      }
+    }
+    $stmtA->close();
+  }
+
+  $stmtD = $db->prepare("SELECT doc_key, file_path, status FROM operator_portal_documents WHERE user_id=? AND status IN ('Valid','Approved','Pending') ORDER BY uploaded_at DESC LIMIT 20");
+  if ($stmtD) {
+    $stmtD->bind_param('i', $userId);
+    $stmtD->execute();
+    $resD = $stmtD->get_result();
+    while ($resD && ($r = $resD->fetch_assoc())) {
+      $path = (string)($r['file_path'] ?? '');
+      if ($path === '') continue;
+      $items[] = [
+        'title' => 'Verification Document',
+        'meta' => (string)($r['doc_key'] ?? '') . ' • ' . (string)($r['status'] ?? ''),
+        'href' => $path,
+      ];
+    }
+    $stmtD->close();
+  }
+
+  op_send(true, ['data' => $items]);
 }
 
 if ($action === 'mark_notification_read') {

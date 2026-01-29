@@ -159,6 +159,22 @@ if (empty($_SESSION['operator_csrf'])) {
                 </svg>
                 Payments & Fees
             </button>
+            <button onclick="showSection('inspections')" id="nav-inspections"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-600 rounded-r-lg transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Inspections
+            </button>
+            <button onclick="showSection('downloads')" id="nav-downloads"
+                class="sidebar-link w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-600 rounded-r-lg transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4v10m0 0l-3-3m3 3l3-3M5 20h14"></path>
+                </svg>
+                Downloads
+            </button>
 
             <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Active Plate</div>
@@ -628,6 +644,46 @@ if (empty($_SESSION['operator_csrf'])) {
                     </div>
                 </section>
 
+                <!-- INSPECTIONS -->
+                <section id="inspections" class="hidden space-y-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Inspections</h2>
+                        <p class="text-slate-500 text-sm">View inspection status and requests.</p>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">Plate</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">Inspection Status</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">Last Passed</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inspectionsTable" class="divide-y divide-slate-100">
+                                    <tr><td colspan="4" class="p-8 text-center text-slate-400 italic">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- DOWNLOADS -->
+                <section id="downloads" class="hidden space-y-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900">Downloads</h2>
+                        <p class="text-slate-500 text-sm">Download approved documents and certificates.</p>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-6 md:p-8">
+                            <div id="downloadsList" class="space-y-3">
+                                <div class="p-4 text-center text-slate-400 italic text-xs">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             </div>
         </main>
     </div>
@@ -963,7 +1019,7 @@ if (empty($_SESSION['operator_csrf'])) {
 
         // --- Navigation ---
         function showSection(id) {
-            ['dashboard', 'applications', 'fleet', 'violations', 'payments'].forEach(s => {
+            ['dashboard', 'applications', 'fleet', 'violations', 'payments', 'inspections', 'downloads'].forEach(s => {
                 const el = document.getElementById(s);
                 if (el) el.classList.add('hidden');
                 const btn = document.getElementById('nav-' + s);
@@ -979,6 +1035,8 @@ if (empty($_SESSION['operator_csrf'])) {
             if (id === 'fleet') loadFleet();
             if (id === 'violations') loadViolations();
             if (id === 'payments') loadFees();
+            if (id === 'inspections') loadInspections();
+            if (id === 'downloads') loadDownloads();
         }
 
         function closeProfileModal() {
@@ -1155,6 +1213,63 @@ if (empty($_SESSION['operator_csrf'])) {
                     </td>
                 </tr>
              `).join('');
+        }
+
+        async function loadInspections() {
+            const tbody = document.getElementById('inspectionsTable');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">Loading...</td></tr>';
+            const data = await apiGet('get_fleet_status');
+            if (!data || !data.ok || !Array.isArray(data.data) || !data.data.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No vehicles found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.data.map(v => {
+                const st = v.inspection_status || 'Pending';
+                const last = v.inspection_last_date || '-';
+                const action = st === 'Passed'
+                    ? '<span class="text-xs font-bold text-emerald-600">Compliant</span>'
+                    : `<button type="button" onclick="quickRequestInspection('${v.plate_number}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">Request Inspection</button>`;
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-5 font-bold text-slate-700">${escapeHtml(v.plate_number || '')}</td>
+                        <td class="p-5 text-slate-600 text-sm">${escapeHtml(st)}</td>
+                        <td class="p-5 text-slate-500 text-xs">${escapeHtml(last)}</td>
+                        <td class="p-5">${action}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function loadDownloads() {
+            const container = document.getElementById('downloadsList');
+            if (!container) return;
+            container.innerHTML = '<div class="p-4 text-center text-slate-400 italic text-xs">Loading...</div>';
+            const data = await apiGet('get_downloads');
+            if (!data || !data.ok) {
+                container.innerHTML = '<div class="p-4 text-center text-slate-400 italic text-xs">Failed to load downloads.</div>';
+                return;
+            }
+            const items = Array.isArray(data.data) ? data.data : [];
+            if (!items.length) {
+                container.innerHTML = '<div class="p-4 text-center text-slate-400 italic text-xs">No downloads available yet.</div>';
+                return;
+            }
+            container.innerHTML = items.map(it => {
+                const title = escapeHtml(it.title || '');
+                const meta = escapeHtml(it.meta || '');
+                const href = (it.href || '').toString();
+                const right = href ? `<a class="text-xs font-bold text-primary hover:text-primary-dark transition" target="_blank" rel="noopener" href="${escapeHtml(href)}">Download</a>` : `<span class="text-[10px] font-bold text-slate-400">${escapeHtml(it.value || '')}</span>`;
+                return `
+                    <div class="flex items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div>
+                            <div class="text-sm font-bold text-slate-800">${title}</div>
+                            <div class="text-xs text-slate-500 font-semibold mt-1">${meta}</div>
+                        </div>
+                        <div class="shrink-0">${right}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
         async function submitNewVehicle(e) {

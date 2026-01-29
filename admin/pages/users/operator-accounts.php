@@ -68,6 +68,50 @@ if ($rootUrl === '/') $rootUrl = '';
             </table>
         </div>
     </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-4">
+            <div>
+                <div class="text-lg font-black text-slate-800 dark:text-white">Operator Applications</div>
+                <div class="text-sm text-slate-500 dark:text-slate-400 font-medium">Review and update operator submissions.</div>
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="op-app-type" class="rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-violet-500">
+                    <option value="">All Types</option>
+                    <option value="Franchise Endorsement">Franchise Endorsement</option>
+                    <option value="Vehicle Inspection">Vehicle Inspection</option>
+                    <option value="Terminal Enrollment">Terminal Enrollment</option>
+                    <option value="Vehicle Registration">Vehicle Registration</option>
+                </select>
+                <button type="button" onclick="loadOperatorApplications(true)" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                        <th class="px-6 py-4">Date</th>
+                        <th class="px-6 py-4">Operator</th>
+                        <th class="px-6 py-4">Plate</th>
+                        <th class="px-6 py-4">Type</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="op-app-table-body" class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-slate-400 font-medium">
+                            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+                            Loading applications...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <div id="op-pwd-modal" class="fixed inset-0 z-[110] hidden" role="dialog" aria-modal="true">
@@ -111,6 +155,8 @@ if ($rootUrl === '/') $rootUrl = '';
         const tableBody = document.getElementById('op-table-body');
         const searchEl = document.getElementById('op-search');
         const statusEl = document.getElementById('op-status-filter');
+        const appTypeEl = document.getElementById('op-app-type');
+        const appTableBody = document.getElementById('op-app-table-body');
         const pwdModal = document.getElementById('op-pwd-modal');
         const pwdInput = document.getElementById('op-temp-password');
 
@@ -238,6 +284,62 @@ if ($rootUrl === '/') $rootUrl = '';
             try { window.lucide && window.lucide.createIcons && window.lucide.createIcons(); } catch (e) { }
         }
 
+        function renderAppLoading() {
+            if (!appTableBody) return;
+            appTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-400 font-medium">
+                        <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i>
+                        Loading applications...
+                    </td>
+                </tr>
+            `;
+            try { window.lucide && window.lucide.createIcons && window.lucide.createIcons(); } catch (e) { }
+        }
+
+        function renderAppRows(rows) {
+            if (!appTableBody) return;
+            const items = Array.isArray(rows) ? rows : [];
+            if (!items.length) {
+                appTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-slate-400 font-medium">No applications found.</td></tr>`;
+                return;
+            }
+            appTableBody.innerHTML = items.map(a => {
+                const dt = (a.created_at || '').toString();
+                const operator = (a.full_name || a.association_name || '').toString();
+                const email = (a.email || '').toString();
+                const plate = (a.plate_number || '').toString();
+                const type = (a.type || '').toString();
+                const status = (a.status || '').toString();
+                const canInspect = type === 'Vehicle Inspection';
+                return `
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-700/20 transition-colors">
+                        <td class="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-300">${esc(dt)}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-black text-slate-800 dark:text-white">${esc(operator || '(no name)')}</div>
+                            <div class="text-sm text-slate-500 dark:text-slate-400 font-semibold mt-1">${esc(email)}</div>
+                        </td>
+                        <td class="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-200">${esc(plate)}</td>
+                        <td class="px-6 py-4 text-sm font-bold text-slate-700 dark:text-slate-200">${esc(type)}</td>
+                        <td class="px-6 py-4">
+                            <select data-action="app-status" data-app-id="${a.id}" class="rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 py-2 px-3 text-xs font-bold focus:ring-2 focus:ring-violet-500">
+                                ${['Pending','Submitted','Under Review','Endorsed','Approved','Denied','Rejected'].map(s => `<option value="${esc(s)}" ${s===status?'selected':''}>${esc(s)}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            ${canInspect ? `
+                                <div class="flex items-center justify-end gap-2">
+                                    <button type="button" data-action="inspect-pass" data-app-id="${a.id}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-all text-xs">Mark Passed</button>
+                                    <button type="button" data-action="inspect-fail" data-app-id="${a.id}" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition-all text-xs">Mark Failed</button>
+                                </div>
+                            ` : `<span class="text-xs text-slate-400 font-semibold">—</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            try { window.lucide && window.lucide.createIcons && window.lucide.createIcons(); } catch (e) { }
+        }
+
         async function apiPost(payload) {
             const res = await fetch(apiUrl, {
                 method: 'POST',
@@ -268,6 +370,24 @@ if ($rootUrl === '/') $rootUrl = '';
                 return;
             }
             renderRows(data.users || []);
+        }
+
+        async function loadOperatorApplications(force) {
+            if (!appTableBody) return;
+            if (force) renderAppLoading();
+            const q = String(searchEl.value || '').trim();
+            const type = appTypeEl ? String(appTypeEl.value || '').trim() : '';
+            const params = new URLSearchParams();
+            params.set('mode', 'applications');
+            if (q) params.set('q', q);
+            if (type) params.set('type', type);
+            const res = await fetch(apiUrl + '?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok) {
+                appTableBody.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-rose-500 font-semibold">Failed to load applications.</td></tr>`;
+                return;
+            }
+            renderAppRows(data.applications || []);
         }
 
         function scheduleReload() {
@@ -344,14 +464,59 @@ if ($rootUrl === '/') $rootUrl = '';
             }
         });
 
+        if (appTableBody) {
+            appTableBody.addEventListener('change', async (e) => {
+                const el = e.target;
+                if (!el || el.getAttribute('data-action') !== 'app-status') return;
+                const appId = parseInt(el.getAttribute('data-app-id') || '0', 10);
+                const status = String(el.value || '');
+                if (!appId || !status) return;
+                el.disabled = true;
+                try {
+                    await apiPost({ mode: 'applications', action: 'app_set_status', app_id: appId, status });
+                } catch (err) {
+                    alert(err.message || 'Failed');
+                } finally {
+                    el.disabled = false;
+                    await loadOperatorApplications(false);
+                }
+            });
+
+            appTableBody.addEventListener('click', async (e) => {
+                const btn = e.target && e.target.closest ? e.target.closest('button[data-action]') : null;
+                if (!btn) return;
+                const action = String(btn.getAttribute('data-action') || '');
+                const appId = parseInt(btn.getAttribute('data-app-id') || '0', 10);
+                if (!action || !appId) return;
+                btn.disabled = true;
+                try {
+                    if (action === 'inspect-pass') {
+                        await apiPost({ mode: 'applications', action: 'app_set_inspection', app_id: appId, inspection_status: 'Passed' });
+                        await apiPost({ mode: 'applications', action: 'app_set_status', app_id: appId, status: 'Approved' });
+                    } else if (action === 'inspect-fail') {
+                        await apiPost({ mode: 'applications', action: 'app_set_inspection', app_id: appId, inspection_status: 'Failed' });
+                        await apiPost({ mode: 'applications', action: 'app_set_status', app_id: appId, status: 'Denied' });
+                    }
+                } catch (err) {
+                    alert(err.message || 'Failed');
+                } finally {
+                    btn.disabled = false;
+                    await loadOperatorApplications(false);
+                }
+            });
+        }
+
         searchEl.addEventListener('input', scheduleReload);
         statusEl.addEventListener('change', () => loadOperatorAccounts(true));
+        if (appTypeEl) appTypeEl.addEventListener('change', () => loadOperatorApplications(true));
 
         window.loadOperatorAccounts = loadOperatorAccounts;
+        window.loadOperatorApplications = loadOperatorApplications;
         window.closeOpPwdModal = closeOpPwdModal;
         window.copyOpTempPassword = copyOpTempPassword;
 
         renderLoading();
         loadOperatorAccounts(true);
+        loadOperatorApplications(true);
     })();
 </script>

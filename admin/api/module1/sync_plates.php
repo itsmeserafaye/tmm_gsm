@@ -28,7 +28,7 @@ if (!has_permission('module1.vehicles.write')) {
 
 // 1. Get all vehicles with operator info
 
-$stmt = $db->prepare("SELECT id, plate_number, operator_name FROM vehicles WHERE operator_name IS NOT NULL AND operator_name != ''");
+$stmt = $db->prepare("SELECT id, plate_number, operator_name, operator_id, current_operator_id FROM vehicles WHERE record_status='Linked' AND ((operator_name IS NOT NULL AND operator_name != '') OR (operator_id IS NOT NULL AND operator_id>0) OR (current_operator_id IS NOT NULL AND current_operator_id>0))");
 if (!$stmt) {
     echo json_encode(['ok' => false, 'error' => $db->error]);
     exit;
@@ -49,21 +49,42 @@ $notFound = 0;
 
 foreach ($vehicles as $v) {
     $plate = $v['plate_number'];
-    $opName = trim($v['operator_name']);
-    if ($opName === '') {
-        continue;
+    $opName = trim((string)($v['operator_name'] ?? ''));
+    $opId = (int)($v['current_operator_id'] ?? 0);
+    if ($opId <= 0) $opId = (int)($v['operator_id'] ?? 0);
+
+    $user = null;
+    if ($opId > 0) {
+        $stmtE = $db->prepare("SELECT email FROM operators WHERE id=? LIMIT 1");
+        if ($stmtE) {
+            $stmtE->bind_param('i', $opId);
+            $stmtE->execute();
+            $rowE = $stmtE->get_result()->fetch_assoc();
+            $stmtE->close();
+            $email = strtolower(trim((string)($rowE['email'] ?? '')));
+            if ($email !== '') {
+                $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE email=? LIMIT 1");
+                if ($stmtP) {
+                    $stmtP->bind_param('s', $email);
+                    $stmtP->execute();
+                    $resP = $stmtP->get_result();
+                    $user = $resP->fetch_assoc();
+                    $stmtP->close();
+                }
+            }
+        }
     }
 
-    $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
-    if (!$stmtP) {
-        continue;
+    if (!$user && $opName !== '') {
+        $stmtP = $db->prepare("SELECT id, full_name, association_name FROM operator_portal_users WHERE full_name=? OR association_name=? LIMIT 1");
+        if ($stmtP) {
+            $stmtP->bind_param('ss', $opName, $opName);
+            $stmtP->execute();
+            $resP = $stmtP->get_result();
+            $user = $resP->fetch_assoc();
+            $stmtP->close();
+        }
     }
-
-    $stmtP->bind_param('ss', $opName, $opName);
-    $stmtP->execute();
-    $resP = $stmtP->get_result();
-    $user = $resP->fetch_assoc();
-    $stmtP->close();
 
     if (!$user) {
         $notFound++;
@@ -72,27 +93,18 @@ foreach ($vehicles as $v) {
 
     $userId = (int) $user['id'];
 
-    $stmtChk = $db->prepare("SELECT id FROM operator_portal_user_plates WHERE user_id=? AND plate_number=? LIMIT 1");
-    $stmtChk->bind_param('is', $userId, $plate);
-    $stmtChk->execute();
-    $exists = $stmtChk->get_result()->fetch_assoc();
-    $stmtChk->close();
-
-    if ($exists) {
-        $skipped++;
-    } else {
-        $stmtIns = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?)");
-        if ($stmtIns) {
-            $stmtIns->bind_param('is', $userId, $plate);
-            if ($stmtIns->execute()) {
-                $synced++;
-            } else {
-                $failed++;
-            }
-            $stmtIns->close();
+    $stmtIns = $db->prepare("INSERT INTO operator_portal_user_plates (user_id, plate_number) VALUES (?, ?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)");
+    if ($stmtIns) {
+        $stmtIns->bind_param('is', $userId, $plate);
+        if ($stmtIns->execute()) {
+            if ($stmtIns->affected_rows > 0) $synced++;
+            else $skipped++;
         } else {
             $failed++;
         }
+        $stmtIns->close();
+    } else {
+        $failed++;
     }
 }
 

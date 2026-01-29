@@ -15,6 +15,69 @@ try {
   require_role(['SuperAdmin']);
 
   if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $mode = trim((string)($_GET['mode'] ?? ''));
+    if ($mode === 'applications') {
+      $q = trim((string)($_GET['q'] ?? ''));
+      $status = trim((string)($_GET['status'] ?? ''));
+      $type = trim((string)($_GET['type'] ?? ''));
+
+      $sql = "
+        SELECT a.id, a.user_id, u.email, u.full_name, u.association_name,
+               a.plate_number, a.type, a.status, a.notes, a.created_at
+        FROM operator_portal_applications a
+        INNER JOIN operator_portal_users u ON u.id=a.user_id
+      ";
+      $conds = [];
+      $params = [];
+      $types = '';
+      if ($q !== '') {
+        $conds[] = "(u.email LIKE ? OR u.full_name LIKE ? OR u.association_name LIKE ? OR a.plate_number LIKE ? OR a.type LIKE ? OR a.status LIKE ?)";
+        $like = '%' . $q . '%';
+        $params = array_merge($params, [$like,$like,$like,$like,$like,$like]);
+        $types .= 'ssssss';
+      }
+      if ($status !== '') {
+        $conds[] = "a.status=?";
+        $params[] = $status;
+        $types .= 's';
+      }
+      if ($type !== '') {
+        $conds[] = "a.type=?";
+        $params[] = $type;
+        $types .= 's';
+      }
+      if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
+      $sql .= " ORDER BY a.created_at DESC LIMIT 200";
+
+      if ($params) {
+        $stmt = $db->prepare($sql);
+        if (!$stmt) throw new Exception('db_prepare_failed');
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $res = $stmt->get_result();
+      } else {
+        $res = $db->query($sql);
+      }
+
+      $rows = [];
+      while ($res && ($row = $res->fetch_assoc())) {
+        $rows[] = [
+          'id' => (int)$row['id'],
+          'user_id' => (int)$row['user_id'],
+          'email' => (string)($row['email'] ?? ''),
+          'full_name' => (string)($row['full_name'] ?? ''),
+          'association_name' => (string)($row['association_name'] ?? ''),
+          'plate_number' => (string)($row['plate_number'] ?? ''),
+          'type' => (string)($row['type'] ?? ''),
+          'status' => (string)($row['status'] ?? ''),
+          'notes' => (string)($row['notes'] ?? ''),
+          'created_at' => (string)($row['created_at'] ?? ''),
+        ];
+      }
+      if (!empty($stmt)) $stmt->close();
+      ou_send(true, ['applications' => $rows]);
+    }
+
     $q = trim((string)($_GET['q'] ?? ''));
     $status = trim((string)($_GET['status'] ?? ''));
     if ($status !== '' && !in_array($status, ['Active','Inactive','Locked'], true)) $status = '';
@@ -79,7 +142,54 @@ try {
   $input = json_decode($raw, true);
   if (!is_array($input)) ou_send(false, ['error' => 'invalid_json'], 400);
 
+  $mode = trim((string)($input['mode'] ?? ''));
   $action = trim((string)($input['action'] ?? ''));
+
+  if ($mode === 'applications') {
+    $appId = (int)($input['app_id'] ?? 0);
+    if ($appId <= 0) ou_send(false, ['error' => 'invalid_app_id'], 400);
+
+    $stmtC = $db->prepare("SELECT id, plate_number, type FROM operator_portal_applications WHERE id=? LIMIT 1");
+    if (!$stmtC) ou_send(false, ['error' => 'db_prepare_failed'], 500);
+    $stmtC->bind_param('i', $appId);
+    $stmtC->execute();
+    $appRow = $stmtC->get_result()->fetch_assoc();
+    $stmtC->close();
+    if (!$appRow) ou_send(false, ['error' => 'not_found'], 404);
+
+    if ($action === 'app_set_status') {
+      $newStatus = trim((string)($input['status'] ?? ''));
+      if ($newStatus === '') ou_send(false, ['error' => 'invalid_status'], 400);
+      $stmt = $db->prepare("UPDATE operator_portal_applications SET status=? WHERE id=?");
+      if (!$stmt) ou_send(false, ['error' => 'db_prepare_failed'], 500);
+      $stmt->bind_param('si', $newStatus, $appId);
+      $stmt->execute();
+      $stmt->close();
+      ou_send(true, ['message' => 'Application status updated']);
+    }
+
+    if ($action === 'app_set_inspection') {
+      $plate = strtoupper(trim((string)($appRow['plate_number'] ?? '')));
+      $new = trim((string)($input['inspection_status'] ?? ''));
+      if ($plate === '') ou_send(false, ['error' => 'missing_plate'], 400);
+      if (!in_array($new, ['Passed','Failed','Pending'], true)) ou_send(false, ['error' => 'invalid_inspection_status'], 400);
+      $passedAt = null;
+      $certRef = null;
+      if ($new === 'Passed') {
+        $passedAt = date('Y-m-d H:i:s');
+        $certRef = 'CERT-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
+      }
+      $stmt = $db->prepare("UPDATE vehicles SET inspection_status=?, inspection_passed_at=?, inspection_cert_ref=COALESCE(inspection_cert_ref, ?) WHERE plate_number=?");
+      if (!$stmt) ou_send(false, ['error' => 'db_prepare_failed'], 500);
+      $stmt->bind_param('ssss', $new, $passedAt, $certRef, $plate);
+      $stmt->execute();
+      $stmt->close();
+      ou_send(true, ['message' => 'Inspection updated']);
+    }
+
+    ou_send(false, ['error' => 'invalid_action'], 400);
+  }
+
   $userId = (int)($input['user_id'] ?? 0);
   if ($userId <= 0) ou_send(false, ['error' => 'invalid_user_id'], 400);
 
