@@ -25,6 +25,25 @@ if ($plate !== '' && strpos($plate, '-') === false) {
 $slotId = (int)($_POST['slot_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $orNo = trim((string)($_POST['or_no'] ?? ''));
+$paidAtRaw = trim((string)($_POST['paid_at'] ?? ''));
+$exportedToTreasury = isset($_POST['exported_to_treasury']) ? (int)($_POST['exported_to_treasury'] ?? 0) : 0;
+$exportedToTreasury = $exportedToTreasury === 1 ? 1 : 0;
+$exportedAtRaw = trim((string)($_POST['exported_at'] ?? ''));
+
+$paidAt = null;
+if ($paidAtRaw !== '') {
+  $ts = strtotime($paidAtRaw);
+  if ($ts !== false) $paidAt = date('Y-m-d H:i:s', $ts);
+}
+
+$exportedAt = null;
+if ($exportedToTreasury === 1) {
+  if ($exportedAtRaw !== '') {
+    $ts2 = strtotime($exportedAtRaw);
+    if ($ts2 !== false) $exportedAt = date('Y-m-d H:i:s', $ts2);
+  }
+  if ($exportedAt === null) $exportedAt = $paidAt !== null ? $paidAt : date('Y-m-d H:i:s');
+}
 
 if ($plate === '' || $slotId <= 0 || $amount <= 0 || $orNo === '') {
   http_response_code(400);
@@ -75,9 +94,15 @@ if ($slotTerminalId > 0) {
 
 $db->begin_transaction();
 try {
-  $stmtP = $db->prepare("INSERT INTO parking_payments (vehicle_id, slot_id, amount, or_no, paid_at) VALUES (?, ?, ?, ?, NOW())");
-  if (!$stmtP) throw new Exception('db_prepare_failed');
-  $stmtP->bind_param('iids', $vehicleId, $slotId, $amount, $orNo);
+  if ($paidAt !== null) {
+    $stmtP = $db->prepare("INSERT INTO parking_payments (vehicle_id, slot_id, amount, or_no, paid_at, exported_to_treasury, exported_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    if (!$stmtP) throw new Exception('db_prepare_failed');
+    $stmtP->bind_param('iidssis', $vehicleId, $slotId, $amount, $orNo, $paidAt, $exportedToTreasury, $exportedAt);
+  } else {
+    $stmtP = $db->prepare("INSERT INTO parking_payments (vehicle_id, slot_id, amount, or_no, paid_at, exported_to_treasury, exported_at) VALUES (?, ?, ?, ?, NOW(), ?, ?)");
+    if (!$stmtP) throw new Exception('db_prepare_failed');
+    $stmtP->bind_param('iidsis', $vehicleId, $slotId, $amount, $orNo, $exportedToTreasury, $exportedAt);
+  }
   if (!$stmtP->execute()) throw new Exception('insert_failed');
   $paymentId = (int)$stmtP->insert_id;
   $stmtP->close();

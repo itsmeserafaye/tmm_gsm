@@ -101,9 +101,10 @@ function tmm_treasury_build_digital_payload(mysqli $db, string $kind, string $tr
     $id = (int)$transactionId;
     if ($id <= 0) return ['ok' => false, 'error' => 'invalid_transaction_id'];
 
-    $stmt = $db->prepare("SELECT t.id, t.amount, t.status, t.vehicle_plate, t.transaction_type, t.created_at, a.name AS area_name
+    $stmt = $db->prepare("SELECT t.id, t.amount, t.status, t.vehicle_plate, t.transaction_type, t.created_at, a.name AS area_name, term.name AS terminal_name
                           FROM parking_transactions t
                           LEFT JOIN parking_areas a ON t.parking_area_id = a.id
+                          LEFT JOIN terminals term ON term.id = t.terminal_id
                           WHERE t.id=? LIMIT 1");
     if (!$stmt) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmt->bind_param('i', $id);
@@ -116,6 +117,7 @@ function tmm_treasury_build_digital_payload(mysqli $db, string $kind, string $tr
     $amount = (float)($row['amount'] ?? 0);
     $plate = strtoupper(trim((string)($row['vehicle_plate'] ?? '')));
     $area = trim((string)($row['area_name'] ?? ''));
+    $terminalName = trim((string)($row['terminal_name'] ?? ''));
     $type = trim((string)($row['transaction_type'] ?? 'Parking Fee'));
     $ref = 'PARK-' . (string)$id;
 
@@ -123,6 +125,7 @@ function tmm_treasury_build_digital_payload(mysqli $db, string $kind, string $tr
     $purposeParts[] = $type !== '' ? $type : 'Parking Fee';
     if ($plate !== '') $purposeParts[] = $plate;
     if ($area !== '') $purposeParts[] = $area;
+    if ($area === '' && $terminalName !== '') $purposeParts[] = $terminalName;
     $purposeParts[] = 'Tx ' . (string)$id;
     $purpose = implode(': ', array_filter($purposeParts, fn($v) => $v !== ''));
 
@@ -140,4 +143,3 @@ function tmm_treasury_build_digital_payload(mysqli $db, string $kind, string $tr
 
   return ['ok' => false, 'error' => 'unsupported_kind'];
 }
-
