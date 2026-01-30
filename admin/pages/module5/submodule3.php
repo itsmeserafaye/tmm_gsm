@@ -169,15 +169,15 @@ if ($rootUrl === '/') $rootUrl = '';
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
                 <input id="orInput" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123">
+                <input id="paidAtInput" type="hidden" name="paid_at" value="">
+                <input id="exportedToTreasuryInput" type="hidden" name="exported_to_treasury" value="0">
+                <input id="exportedAtInput" type="hidden" name="exported_at" value="">
               </div>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
-              <a id="btnTreasuryFeed" href="#" target="_blank" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-                Treasury Feed
-              </a>
-              <button type="button" id="btnGenerate" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Generate Fee</button>
-              <button id="btnPay" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Payment</button>
+              <button type="button" id="btnPayTreasury" class="px-4 py-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Pay via Treasury</button>
+              <button id="btnPay" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Record Payment</button>
             </div>
           </form>
         </div>
@@ -393,10 +393,13 @@ if ($rootUrl === '/') $rootUrl = '';
 
     const formPay = document.getElementById('formPay');
     const btnPay = document.getElementById('btnPay');
-    const btnGenerate = document.getElementById('btnGenerate');
     const amountInput = document.getElementById('amountInput');
     const plateInput = document.getElementById('plateInput');
     const orInput = document.getElementById('orInput');
+    const btnPayTreasury = document.getElementById('btnPayTreasury');
+    const paidAtInput = document.getElementById('paidAtInput');
+    const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
+    const exportedAtInput = document.getElementById('exportedAtInput');
 
     function normalizePlate(value) {
       let v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
@@ -411,12 +414,89 @@ if ($rootUrl === '/') $rootUrl = '';
     }
     if (plateInput) plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
     if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
-
-    if (btnGenerate && amountInput) {
-      btnGenerate.addEventListener('click', () => {
-        if (!amountInput.value || Number(amountInput.value) <= 0) amountInput.value = '20.00';
-        showToast('Fee generated.');
+    if (orInput) {
+      orInput.addEventListener('input', () => {
+        try { orInput.dataset.manual = '1'; orInput.dataset.autofilled = '0'; } catch (_) {}
+        setPaymentButtons('record');
       });
+    }
+
+    function setPaymentButtons(mode) {
+      if (!btnPay || !btnPayTreasury) return;
+      const m = (mode || 'treasury').toString();
+      if (m === 'record') {
+        btnPay.classList.remove('hidden');
+        btnPayTreasury.classList.add('hidden');
+        return;
+      }
+      btnPay.classList.add('hidden');
+      btnPayTreasury.classList.remove('hidden');
+    }
+
+    function getTreasuryPendingParkingTx() {
+      try { return (window.sessionStorage && sessionStorage.getItem('tmm_treasury_pending_parking_tx_parking')) || ''; } catch (_) { return ''; }
+    }
+    function setTreasuryPendingParkingTx(id) {
+      try { if (window.sessionStorage) sessionStorage.setItem('tmm_treasury_pending_parking_tx_parking', (id || '').toString()); } catch (_) {}
+    }
+    function clearTreasuryPendingParkingTx() {
+      try { if (window.sessionStorage) sessionStorage.removeItem('tmm_treasury_pending_parking_tx_parking'); } catch (_) {}
+    }
+
+    function fetchParkingPaymentStatus(transactionId) {
+      return fetch(rootUrl + '/admin/api/module5/parking_payment_status.php?transaction_id=' + encodeURIComponent(String(transactionId)))
+        .then(r => r.json());
+    }
+
+    function applyTreasuryStatusToPaymentForm(t) {
+      if (!t) return;
+      const receipt = (t.receipt_ref || '').toString();
+      if (orInput && receipt) {
+        const wasManual = orInput.dataset && orInput.dataset.manual === '1';
+        if (!wasManual || orInput.value === '' || orInput.dataset.autofilled === '1') {
+          orInput.value = receipt;
+          try { orInput.dataset.autofilled = '1'; } catch (_) {}
+        }
+      }
+      if (amountInput && (!amountInput.value || Number(amountInput.value) <= 0) && t.amount) {
+        amountInput.value = String(t.amount);
+      }
+      if (plateInput && (!plateInput.value || plateInput.value.trim() === '') && t.vehicle_plate) {
+        plateInput.value = String(t.vehicle_plate);
+      }
+      if (paidAtInput && t.paid_at) paidAtInput.value = String(t.paid_at);
+      if (exportedToTreasuryInput) exportedToTreasuryInput.value = receipt ? '1' : '0';
+      if (exportedAtInput) exportedAtInput.value = t.paid_at ? String(t.paid_at) : '';
+    }
+
+    const activeTreasuryPolls = new Set();
+    async function pollTreasuryReceipt(transactionId) {
+      const tx = (transactionId || '').toString().trim();
+      if (!tx) return;
+      if (activeTreasuryPolls.has(tx)) return;
+      activeTreasuryPolls.add(tx);
+      const maxTries = 15;
+      try {
+        for (let i = 0; i < maxTries; i++) {
+          try {
+            const d = await fetchParkingPaymentStatus(tx);
+            if (d && d.ok && d.transaction) {
+              const t = d.transaction;
+              const receipt = (t.receipt_ref || '').toString();
+              if (receipt) {
+                applyTreasuryStatusToPaymentForm(t);
+                setPaymentButtons('record');
+                clearTreasuryPendingParkingTx();
+                showToast('Treasury receipt received: ' + receipt);
+                return;
+              }
+            }
+          } catch (_) {}
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      } finally {
+        activeTreasuryPolls.delete(tx);
+      }
     }
 
     if (formPay && btnPay) {
@@ -432,6 +512,10 @@ if ($rootUrl === '/') $rootUrl = '';
           showToast('Payment saved.');
           if (plateInput) plateInput.value = '';
           if (orInput) orInput.value = '';
+          if (paidAtInput) paidAtInput.value = '';
+          if (exportedToTreasuryInput) exportedToTreasuryInput.value = '0';
+          if (exportedAtInput) exportedAtInput.value = '';
+          try { if (orInput) { orInput.dataset.manual = '0'; orInput.dataset.autofilled = '0'; } } catch (_) {}
           await loadSlots();
           await loadPaySlots();
           await loadPayments();
@@ -439,7 +523,46 @@ if ($rootUrl === '/') $rootUrl = '';
           showToast(err.message || 'Failed', 'error');
         } finally {
           btnPay.disabled = false;
-          btnPay.textContent = 'Save Payment';
+          btnPay.textContent = 'Record Payment';
+        }
+      });
+    }
+
+    if (btnPayTreasury) {
+      btnPayTreasury.addEventListener('click', async () => {
+        const slotSelect = document.getElementById('slotSelect');
+        const slotId = slotSelect ? Number(slotSelect.value || 0) : 0;
+        const plate = plateInput ? (plateInput.value || '').trim() : '';
+        const amt = amountInput ? Number(amountInput.value || 0) : 0;
+        if (!slotId) { showToast('Select a slot first.', 'error'); return; }
+        if (!plate) { showToast('Enter plate number first.', 'error'); return; }
+        if (!amt || amt <= 0) { showToast('Enter a valid amount first.', 'error'); return; }
+
+        btnPayTreasury.disabled = true;
+        const originalText = btnPayTreasury.textContent;
+        btnPayTreasury.textContent = 'Opening...';
+        try {
+          const fd = new FormData();
+          fd.append('terminal_id', String(terminalId));
+          fd.append('amount', String(amt));
+          fd.append('vehicle_plate', plate);
+          fd.append('charge_type', 'Parking Fee');
+          fd.append('payment_method', 'GCash');
+          const res = await fetch(rootUrl + '/admin/api/module5/parking_create_pending.php', { method: 'POST', body: fd });
+          const d = await res.json();
+          if (!d || !d.ok || !d.transaction_id) throw new Error((d && d.error) ? d.error : 'create_pending_failed');
+          const txId = String(d.transaction_id);
+          const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
+          window.open(url, '_blank', 'noopener');
+          setTreasuryPendingParkingTx(txId);
+          setPaymentButtons('record');
+          pollTreasuryReceipt(txId);
+          showToast('Opening Treasury payment...');
+        } catch (e) {
+          showToast(e.message || 'Failed', 'error');
+        } finally {
+          btnPayTreasury.disabled = false;
+          btnPayTreasury.textContent = originalText;
         }
       });
     }
@@ -459,14 +582,13 @@ if ($rootUrl === '/') $rootUrl = '';
       if (canSlots) {
         loadSlots().catch(() => {});
       }
+      setPaymentButtons((orInput && (orInput.value || '').trim() !== '') ? 'record' : 'treasury');
     }
 
     const btnRefreshPayments = document.getElementById('btnRefreshPayments');
     if (btnRefreshPayments) btnRefreshPayments.addEventListener('click', () => { loadPayments().catch(() => {}); });
 
-    const btnTreasuryFeed = document.getElementById('btnTreasuryFeed');
-    if (btnTreasuryFeed) {
-      btnTreasuryFeed.href = rootUrl + '/admin/api/integration/treasury/parking_payments.php?unexported=1&limit=1000';
-    }
+    const pendingTx = getTreasuryPendingParkingTx();
+    if (pendingTx) pollTreasuryReceipt(pendingTx);
   })();
 </script>

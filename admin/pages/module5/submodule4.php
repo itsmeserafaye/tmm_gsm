@@ -159,7 +159,8 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
-                <input id="plateInput" name="plate_no" required minlength="4" maxlength="16" pattern="^(?:[0-9A-Za-z]|-){4,16}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate">
+                <input id="plateInput" name="plate_no" list="assignedPlatesList" required minlength="4" maxlength="16" pattern="^(?:[0-9A-Za-z]|-){4,16}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Select plate">
+                <datalist id="assignedPlatesList"></datalist>
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
@@ -171,10 +172,6 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
-              <a id="btnTreasuryFeed" href="#" target="_blank" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-                Treasury Feed
-              </a>
-              <button type="button" id="btnGenerate" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Generate Fee</button>
               <button type="button" id="btnPayTreasury" class="px-4 py-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Pay via Treasury</button>
               <button id="btnPay" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Record Payment</button>
             </div>
@@ -226,7 +223,6 @@ if ($rootUrl === '/') $rootUrl = '';
     const formPay = document.getElementById('formPay');
     const slotSelect = document.getElementById('slotSelect');
     const btnPay = document.getElementById('btnPay');
-    const btnGenerate = document.getElementById('btnGenerate');
     const amountInput = document.getElementById('amountInput');
     const plateInput = document.getElementById('plateInput');
     const orInput = document.getElementById('orInput');
@@ -234,6 +230,8 @@ if ($rootUrl === '/') $rootUrl = '';
     const paidAtInput = document.getElementById('paidAtInput');
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
+    const assignedPlatesList = document.getElementById('assignedPlatesList');
+    let assignedVehicles = [];
 
     function normalizePlate(value) {
       let v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
@@ -403,6 +401,31 @@ if ($rootUrl === '/') $rootUrl = '';
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
     }
 
+    async function loadAssignedVehicles() {
+      if (!assignedPlatesList || !terminalId) return;
+      assignedPlatesList.innerHTML = '';
+      assignedVehicles = [];
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/terminal_assignments.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json();
+        if (!data || !data.ok) return;
+        const rows = Array.isArray(data.data) ? data.data : [];
+        assignedVehicles = rows
+          .map(r => ({
+            plate: (r.plate_number || '').toString(),
+            label: [
+              (r.plate_number || '').toString(),
+              (r.vehicle_type || '').toString(),
+              (r.operator_name || '').toString(),
+            ].filter(Boolean).join(' • ')
+          }))
+          .filter(v => v.plate !== '');
+        assignedPlatesList.innerHTML = assignedVehicles
+          .map(v => `<option value="${v.plate}">${v.label}</option>`)
+          .join('');
+      } catch (_) {}
+    }
+
     function fmtDate(v) {
       if (!v) return '-';
       const d = new Date(v);
@@ -462,13 +485,6 @@ if ($rootUrl === '/') $rootUrl = '';
             btn.textContent = 'Mark Exported';
           }
         });
-      });
-    }
-
-    if (btnGenerate && amountInput) {
-      btnGenerate.addEventListener('click', () => {
-        if (!amountInput.value || Number(amountInput.value) <= 0) amountInput.value = '20.00';
-        showToast('Fee generated.');
       });
     }
 
@@ -586,6 +602,7 @@ if ($rootUrl === '/') $rootUrl = '';
       loadPaySlots().catch(() => {
         if (slotSelect) slotSelect.innerHTML = '<option value="">Failed to load</option>';
       });
+      loadAssignedVehicles().catch(() => {});
       loadPayments().catch(() => {});
       if (canSlots) loadSlotsTable().catch(() => {});
       setPaymentButtons((orInput && (orInput.value || '').trim() !== '') ? 'record' : 'treasury');
@@ -593,11 +610,6 @@ if ($rootUrl === '/') $rootUrl = '';
 
     const btnRefreshPayments = document.getElementById('btnRefreshPayments');
     if (btnRefreshPayments) btnRefreshPayments.addEventListener('click', () => { loadPayments().catch(() => {}); });
-
-    const btnTreasuryFeed = document.getElementById('btnTreasuryFeed');
-    if (btnTreasuryFeed) {
-      btnTreasuryFeed.href = rootUrl + '/admin/api/integration/treasury/parking_payments.php?unexported=1&limit=1000';
-    }
 
     const pendingTx = getTreasuryPendingParkingTx();
     if (pendingTx) pollTreasuryReceipt(pendingTx);

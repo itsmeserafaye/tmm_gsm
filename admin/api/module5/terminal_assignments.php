@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['module5.manage_terminal','module5.read']);
+require_any_permission(['module5.manage_terminal','module5.read','module5.parking_fees']);
 
 $terminalId = (int)($_GET['terminal_id'] ?? 0);
 if ($terminalId <= 0) {
