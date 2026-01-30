@@ -159,8 +159,9 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
-                <input id="plateInput" name="plate_no" list="assignedPlatesList" required minlength="4" maxlength="16" pattern="^(?:[0-9A-Za-z]|-){4,16}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Select plate">
-                <datalist id="assignedPlatesList"></datalist>
+                <select id="plateSelect" name="plate_no" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase">
+                  <option value="">Select plate</option>
+                </select>
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
@@ -224,27 +225,14 @@ if ($rootUrl === '/') $rootUrl = '';
     const slotSelect = document.getElementById('slotSelect');
     const btnPay = document.getElementById('btnPay');
     const amountInput = document.getElementById('amountInput');
-    const plateInput = document.getElementById('plateInput');
+    const plateSelect = document.getElementById('plateSelect');
     const orInput = document.getElementById('orInput');
     const btnPayTreasury = document.getElementById('btnPayTreasury');
     const paidAtInput = document.getElementById('paidAtInput');
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
-    const assignedPlatesList = document.getElementById('assignedPlatesList');
     let assignedVehicles = [];
 
-    function normalizePlate(value) {
-      let v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
-      v = v.replace(/[^A-Z0-9-]/g, '');
-      v = v.replace(/-+/g, '-');
-      if (v.indexOf('-') !== -1) return v;
-      const m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
-      if (m4) return m4[1] + '-' + m4[2];
-      const m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
-      if (m3) return m3[1] + '-' + m3[2];
-      return v;
-    }
-    if (plateInput) plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
     if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
     if (orInput) {
       orInput.addEventListener('input', () => {
@@ -293,8 +281,16 @@ if ($rootUrl === '/') $rootUrl = '';
       if (amountInput && (!amountInput.value || Number(amountInput.value) <= 0) && t.amount) {
         amountInput.value = String(t.amount);
       }
-      if (plateInput && (!plateInput.value || plateInput.value.trim() === '') && t.vehicle_plate) {
-        plateInput.value = String(t.vehicle_plate);
+      if (plateSelect && (!plateSelect.value || plateSelect.value.trim() === '') && t.vehicle_plate) {
+        const plate = String(t.vehicle_plate);
+        const has = Array.from(plateSelect.options).some(o => (o.value || '') === plate);
+        if (!has) {
+          const opt = document.createElement('option');
+          opt.value = plate;
+          opt.textContent = plate;
+          plateSelect.appendChild(opt);
+        }
+        plateSelect.value = plate;
       }
       if (paidAtInput && t.paid_at) paidAtInput.value = String(t.paid_at);
       if (exportedToTreasuryInput) exportedToTreasuryInput.value = receipt ? '1' : '0';
@@ -402,8 +398,8 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     async function loadAssignedVehicles() {
-      if (!assignedPlatesList || !terminalId) return;
-      assignedPlatesList.innerHTML = '';
+      if (!plateSelect || !terminalId) return;
+      plateSelect.innerHTML = '<option value=\"\">Select plate</option>';
       assignedVehicles = [];
       try {
         const res = await fetch(rootUrl + '/admin/api/module5/terminal_assignments.php?terminal_id=' + encodeURIComponent(String(terminalId)));
@@ -420,7 +416,11 @@ if ($rootUrl === '/') $rootUrl = '';
             ].filter(Boolean).join(' • ')
           }))
           .filter(v => v.plate !== '');
-        assignedPlatesList.innerHTML = assignedVehicles
+        if (!assignedVehicles.length) {
+          plateSelect.innerHTML = '<option value=\"\">No assigned vehicles</option>';
+          return;
+        }
+        plateSelect.innerHTML = '<option value=\"\">Select plate</option>' + assignedVehicles
           .map(v => `<option value="${v.plate}">${v.label}</option>`)
           .join('');
       } catch (_) {}
@@ -499,7 +499,7 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
           showToast('Payment saved.');
-          if (plateInput) plateInput.value = '';
+          if (plateSelect) plateSelect.value = '';
           if (orInput) orInput.value = '';
           if (paidAtInput) paidAtInput.value = '';
           if (exportedToTreasuryInput) exportedToTreasuryInput.value = '0';
@@ -521,7 +521,7 @@ if ($rootUrl === '/') $rootUrl = '';
     if (btnPayTreasury) {
       btnPayTreasury.addEventListener('click', async () => {
         const slotId = slotSelect ? Number(slotSelect.value || 0) : 0;
-        const plate = plateInput ? (plateInput.value || '').trim() : '';
+        const plate = plateSelect ? (plateSelect.value || '').trim() : '';
         const amt = amountInput ? Number(amountInput.value || 0) : 0;
         if (!slotId) { showToast('Select a slot first.', 'error'); return; }
         if (!plate) { showToast('Enter plate number first.', 'error'); return; }
