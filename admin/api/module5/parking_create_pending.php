@@ -44,6 +44,40 @@ if ($parkingAreaId !== null && $parkingAreaId > 0) {
   }
 }
 
+if ($terminalId > 0 && $plate !== '') {
+  $stmtV = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+  if ($stmtV) {
+    $plateClean = preg_replace('/[^A-Z0-9]/', '', $plate);
+    $stmtV->bind_param('ss', $plate, $plateClean);
+    $stmtV->execute();
+    $veh = $stmtV->get_result()->fetch_assoc();
+    $stmtV->close();
+    
+    if ($veh) {
+      $vehicleId = (int)$veh['id'];
+      $stmtAssign = $db->prepare("SELECT terminal_id FROM terminal_assignments WHERE vehicle_id=?");
+      if ($stmtAssign) {
+        $stmtAssign->bind_param('i', $vehicleId);
+        $stmtAssign->execute();
+        $resAssign = $stmtAssign->get_result();
+        $assignedTerminals = [];
+        while ($rowA = $resAssign->fetch_assoc()) {
+          $assignedTerminals[] = (int)$rowA['terminal_id'];
+        }
+        $stmtAssign->close();
+        
+        if (!empty($assignedTerminals)) {
+          if (!in_array($terminalId, $assignedTerminals, true)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'vehicle_restricted_to_assigned_terminals']);
+            exit;
+          }
+        }
+      }
+    }
+  }
+}
+
 $cols = [];
 $placeholders = [];
 $types = '';

@@ -41,7 +41,7 @@ $stmtV->close();
 if (!$veh) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'vehicle_not_found']); exit; }
 $vehicleId = (int)($veh['id'] ?? 0);
 
-$stmtS = $db->prepare("SELECT slot_id, status FROM parking_slots WHERE slot_id=? LIMIT 1");
+$stmtS = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE slot_id=? LIMIT 1");
 if (!$stmtS) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmtS->bind_param('i', $slotId);
 $stmtS->execute();
@@ -49,6 +49,29 @@ $slot = $stmtS->get_result()->fetch_assoc();
 $stmtS->close();
 if (!$slot) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'slot_not_found']); exit; }
 if (($slot['status'] ?? '') !== 'Free') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'slot_not_free']); exit; }
+
+$slotTerminalId = (int)($slot['terminal_id'] ?? 0);
+if ($slotTerminalId > 0) {
+  $stmtAssign = $db->prepare("SELECT terminal_id FROM terminal_assignments WHERE vehicle_id=?");
+  if ($stmtAssign) {
+    $stmtAssign->bind_param('i', $vehicleId);
+    $stmtAssign->execute();
+    $resAssign = $stmtAssign->get_result();
+    $assignedTerminals = [];
+    while ($rowA = $resAssign->fetch_assoc()) {
+      $assignedTerminals[] = (int)$rowA['terminal_id'];
+    }
+    $stmtAssign->close();
+
+    if (!empty($assignedTerminals)) {
+      if (!in_array($slotTerminalId, $assignedTerminals, true)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'vehicle_restricted_to_assigned_terminals']);
+        exit;
+      }
+    }
+  }
+}
 
 $db->begin_transaction();
 try {
