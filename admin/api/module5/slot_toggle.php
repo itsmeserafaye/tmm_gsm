@@ -28,7 +28,12 @@ $stmt->close();
 if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'slot_not_found']); exit; }
 
 $cur = (string)($row['status'] ?? 'Free');
-$next = $cur === 'Occupied' ? 'Free' : 'Occupied';
+if ($cur !== 'Occupied') {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'manual_occupy_not_allowed']);
+  exit;
+}
+$next = 'Free';
 $stmt2 = $db->prepare("UPDATE parking_slots SET status=? WHERE slot_id=?");
 if (!$stmt2) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmt2->bind_param('si', $next, $slotId);
