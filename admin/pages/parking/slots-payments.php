@@ -54,6 +54,25 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+  <div id="slotOccupantModal" class="fixed inset-0 z-[200] hidden">
+    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Slot Occupant</div>
+            <div id="slotOccupantModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
+          </div>
+          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="p-4">
+          <div id="slotOccupantModalBody" class="text-sm text-slate-700 dark:text-slate-200"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
@@ -179,33 +198,54 @@ if ($rootUrl === '/') $rootUrl = '';
         wrap.innerHTML = rows.map((s) => {
           const st = (s.status || '').toString();
           const badge = st === 'Free' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
+          const isOccupied = st === 'Occupied';
+          const actions = isOccupied
+            ? `
+                <button type="button" data-view="${String(s.slot_id || '')}"
+                  class="px-3 py-2 rounded-lg text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
+                  View
+                </button>
+                ${canSlots ? `<button type="button" data-release="${String(s.slot_id || '')}"
+                  class="px-3 py-2 rounded-lg text-xs font-black bg-rose-600 hover:bg-rose-700 text-white">
+                  Release
+                </button>` : ''}
+              `
+            : '';
           return `
             <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 mb-2">
               <div class="font-black text-slate-800 dark:text-white">${(s.slot_no || '').toString()}</div>
               <div class="flex items-center gap-2">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-black ${badge}">${st}</span>
-                <button type="button" data-toggle="${String(s.slot_id || '')}" data-next="${st === 'Free' ? 'Occupied' : 'Free'}"
-                  class="px-3 py-2 rounded-lg text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
-                  Toggle
-                </button>
+                ${actions}
               </div>
             </div>
           `;
         }).join('');
-        wrap.querySelectorAll('[data-toggle]').forEach((btn) => {
+
+        wrap.querySelectorAll('[data-release]').forEach((btn) => {
           btn.addEventListener('click', async () => {
-            const slotId = btn.getAttribute('data-toggle') || '';
-            const next = btn.getAttribute('data-next') || '';
-            if (!slotId || !next) return;
+            const slotId = btn.getAttribute('data-release') || '';
+            if (!slotId) return;
             const fd = new FormData();
             fd.append('slot_id', slotId);
-            fd.append('status', next);
             try {
               const rr = await fetch(rootUrl + '/admin/api/module5/slot_toggle.php', { method: 'POST', body: fd });
               const dd = await rr.json().catch(() => null);
               if (!dd || !dd.ok) throw new Error((dd && dd.error) ? dd.error : 'toggle_failed');
-              showToast('Slot updated.');
+              showToast('Slot released.');
               loadSlots();
+            } catch (e) {
+              showToast((e && e.message) ? e.message : 'Failed', 'error');
+            }
+          });
+        });
+
+        wrap.querySelectorAll('[data-view]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const slotId = btn.getAttribute('data-view') || '';
+            if (!slotId) return;
+            try {
+              await openSlotOccupantModal(Number(slotId));
             } catch (e) {
               showToast((e && e.message) ? e.message : 'Failed', 'error');
             }
@@ -214,6 +254,55 @@ if ($rootUrl === '/') $rootUrl = '';
       } catch (e) {
         wrap.innerHTML = '<div class="text-rose-600 font-semibold">Failed to load slots.</div>';
       }
+    }
+
+    const slotOccModal = document.getElementById('slotOccupantModal');
+    const slotOccModalBody = document.getElementById('slotOccupantModalBody');
+    const slotOccModalSub = document.getElementById('slotOccupantModalSub');
+    function openOccModal() { if (slotOccModal) slotOccModal.classList.remove('hidden'); }
+    function closeOccModal() { if (slotOccModal) slotOccModal.classList.add('hidden'); }
+    if (slotOccModal) {
+      const closeBtn = slotOccModal.querySelector('[data-modal-close]');
+      const backdrop = slotOccModal.querySelector('[data-modal-backdrop]');
+      if (closeBtn) closeBtn.addEventListener('click', closeOccModal);
+      if (backdrop) backdrop.addEventListener('click', closeOccModal);
+    }
+
+    function fmtDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return String(v);
+      return d.toLocaleString();
+    }
+
+    async function openSlotOccupantModal(slotId) {
+      if (!slotId) return;
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Loading...';
+      if (slotOccModalBody) slotOccModalBody.textContent = '';
+      openOccModal();
+      const res = await fetch(rootUrl + '/admin/api/module5/slot_occupant.php?slot_id=' + encodeURIComponent(String(slotId)));
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      const slot = data.slot || {};
+      const occ = data.occupant || null;
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' • ' + (slot.status || '');
+      if (!slotOccModalBody) return;
+      if (!occ) {
+        slotOccModalBody.innerHTML = '<div class="text-slate-500 dark:text-slate-400 font-semibold">No payment found for this slot.</div>';
+        if (window.lucide) window.lucide.createIcons();
+        return;
+      }
+      slotOccModalBody.innerHTML = `
+        <div class="grid grid-cols-1 gap-2">
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Plate</div><div class="font-black">${(occ.plate_number || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</div><div class="font-semibold text-right">${(occ.operator_name || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Type</div><div class="font-semibold">${(occ.vehicle_type || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Paid</div><div class="font-semibold">${fmtDate(occ.paid_at)}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR</div><div class="font-semibold">${(occ.or_no || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">₱${Number(occ.amount || 0).toFixed(2)}</div></div>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
     }
 
     async function loadPayments() {

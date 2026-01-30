@@ -54,6 +54,25 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+  <div id="slotOccupantModal" class="fixed inset-0 z-[200] hidden">
+    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Slot Occupant</div>
+            <div id="slotOccupantModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
+          </div>
+          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="p-4">
+          <div id="slotOccupantModalBody" class="text-sm text-slate-700 dark:text-slate-200"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
@@ -148,6 +167,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-6 space-y-5">
           <form id="formPay" class="space-y-5" novalidate>
+            <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Slot</label>
@@ -247,20 +267,25 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       body.innerHTML = rows.map(r => {
         const badge = r.status === 'Occupied' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+        const isOccupied = (r.status || '') === 'Occupied';
+        const actions = isOccupied
+          ? `
+              <button data-view-slot="${r.slot_id}" class="btnViewSlot px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">View</button>
+              ${canSlots ? `<button data-release-slot="${r.slot_id}" class="btnReleaseSlot px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white">Release</button>` : ''}
+            `
+          : '';
         return `
           <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
             <td class="py-4 px-6 font-black text-slate-900 dark:text-white">${(r.slot_no || '')}</td>
             <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${r.status}</span></td>
-            <td class="py-4 px-4 text-right">
-              <button data-slot="${r.slot_id}" class="btnToggle px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">Toggle</button>
-            </td>
+            <td class="py-4 px-4 text-right flex items-center justify-end gap-2">${actions}</td>
           </tr>
         `;
       }).join('');
 
-      Array.from(document.querySelectorAll('.btnToggle')).forEach(btn => {
+      Array.from(document.querySelectorAll('.btnReleaseSlot')).forEach(btn => {
         btn.addEventListener('click', async () => {
-          const slotId = btn.getAttribute('data-slot');
+          const slotId = btn.getAttribute('data-release-slot');
           const fd = new FormData();
           fd.append('slot_id', slotId);
           try {
@@ -274,6 +299,59 @@ if ($rootUrl === '/') $rootUrl = '';
           }
         });
       });
+
+      Array.from(document.querySelectorAll('.btnViewSlot')).forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const slotId = btn.getAttribute('data-view-slot');
+          if (!slotId) return;
+          try {
+            await openSlotOccupantModal(Number(slotId));
+          } catch (e) {
+            showToast(e.message || 'Failed', 'error');
+          }
+        });
+      });
+    }
+
+    const slotOccModal = document.getElementById('slotOccupantModal');
+    const slotOccModalBody = document.getElementById('slotOccupantModalBody');
+    const slotOccModalSub = document.getElementById('slotOccupantModalSub');
+    function openOccModal() { if (slotOccModal) slotOccModal.classList.remove('hidden'); }
+    function closeOccModal() { if (slotOccModal) slotOccModal.classList.add('hidden'); }
+    if (slotOccModal) {
+      const closeBtn = slotOccModal.querySelector('[data-modal-close]');
+      const backdrop = slotOccModal.querySelector('[data-modal-backdrop]');
+      if (closeBtn) closeBtn.addEventListener('click', closeOccModal);
+      if (backdrop) backdrop.addEventListener('click', closeOccModal);
+    }
+
+    async function openSlotOccupantModal(slotId) {
+      if (!slotId) return;
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Loading...';
+      if (slotOccModalBody) slotOccModalBody.textContent = '';
+      openOccModal();
+      const res = await fetch(rootUrl + '/admin/api/module5/slot_occupant.php?slot_id=' + encodeURIComponent(String(slotId)));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      const slot = data.slot || {};
+      const occ = data.occupant || null;
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' • ' + (slot.status || '');
+      if (!slotOccModalBody) return;
+      if (!occ) {
+        slotOccModalBody.innerHTML = '<div class="text-slate-500 dark:text-slate-400 font-semibold">No payment found for this slot.</div>';
+        return;
+      }
+      slotOccModalBody.innerHTML = `
+        <div class="grid grid-cols-1 gap-2">
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Plate</div><div class="font-black">${(occ.plate_number || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</div><div class="font-semibold text-right">${(occ.operator_name || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Type</div><div class="font-semibold">${(occ.vehicle_type || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Paid</div><div class="font-semibold">${fmtDate(occ.paid_at)}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR</div><div class="font-semibold">${(occ.or_no || '-')}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">₱${Number(occ.amount || 0).toFixed(2)}</div></div>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
     }
 
     async function loadPaySlots() {
@@ -289,6 +367,22 @@ if ($rootUrl === '/') $rootUrl = '';
         return;
       }
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
+      if (!slotSelect.value && slotSelect.options.length > 1) {
+        slotSelect.selectedIndex = 1;
+      }
+    }
+
+    function ensureSlotSelected() {
+      const slotSelect = document.getElementById('slotSelect');
+      if (!slotSelect) return 0;
+      let v = Number(slotSelect.value || 0);
+      if (v > 0) return v;
+      const opt = Array.from(slotSelect.options).find(o => (o.value || '').toString().trim() !== '');
+      if (opt) {
+        slotSelect.value = opt.value;
+        v = Number(slotSelect.value || 0);
+      }
+      return v > 0 ? v : 0;
     }
 
     function fmtDate(v) {
@@ -502,6 +596,7 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formPay && btnPay) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
+        ensureSlotSelected();
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         btnPay.textContent = 'Saving...';
@@ -530,11 +625,10 @@ if ($rootUrl === '/') $rootUrl = '';
 
     if (btnPayTreasury) {
       btnPayTreasury.addEventListener('click', async () => {
-        const slotSelect = document.getElementById('slotSelect');
-        const slotId = slotSelect ? Number(slotSelect.value || 0) : 0;
+        const slotId = ensureSlotSelected();
         const plate = plateInput ? (plateInput.value || '').trim() : '';
         const amt = amountInput ? Number(amountInput.value || 0) : 0;
-        if (!slotId) { showToast('Select a slot first.', 'error'); return; }
+        if (!slotId) { showToast('No free slots available.', 'error'); return; }
         if (!plate) { showToast('Enter plate number first.', 'error'); return; }
         if (!amt || amt <= 0) { showToast('Enter a valid amount first.', 'error'); return; }
 

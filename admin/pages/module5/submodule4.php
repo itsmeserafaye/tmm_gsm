@@ -162,6 +162,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-6 space-y-5">
           <form id="formPay" class="space-y-5" novalidate>
+            <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Slot</label>
@@ -472,6 +473,21 @@ if ($rootUrl === '/') $rootUrl = '';
         return;
       }
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
+      if (!slotSelect.value && slotSelect.options.length > 1) {
+        slotSelect.selectedIndex = 1;
+      }
+    }
+
+    function ensureSlotSelected() {
+      if (!slotSelect) return 0;
+      let v = Number(slotSelect.value || 0);
+      if (v > 0) return v;
+      const opt = Array.from(slotSelect.options).find(o => (o.value || '').toString().trim() !== '');
+      if (opt) {
+        slotSelect.value = opt.value;
+        v = Number(slotSelect.value || 0);
+      }
+      return v > 0 ? v : 0;
     }
 
     async function loadAssignedVehicles() {
@@ -568,6 +584,7 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formPay && btnPay) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
+        ensureSlotSelected();
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         btnPay.textContent = 'Saving...';
@@ -597,10 +614,10 @@ if ($rootUrl === '/') $rootUrl = '';
 
     if (btnPayTreasury) {
       btnPayTreasury.addEventListener('click', async () => {
-        const slotId = slotSelect ? Number(slotSelect.value || 0) : 0;
+        const slotId = ensureSlotSelected();
         const plate = plateSelect ? (plateSelect.value || '').trim() : '';
         const amt = amountInput ? Number(amountInput.value || 0) : 0;
-        if (!slotId) { showToast('Select a slot first.', 'error'); return; }
+        if (!slotId) { showToast('No free slots available.', 'error'); return; }
         if (!plate) { showToast('Enter plate number first.', 'error'); return; }
         if (!amt || amt <= 0) { showToast('Enter a valid amount first.', 'error'); return; }
 

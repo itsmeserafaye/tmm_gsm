@@ -22,6 +22,7 @@ if ($plate !== '' && strpos($plate, '-') === false) {
     $plate = $m[1] . '-' . $m[2];
   }
 }
+$terminalId = (int)($_POST['terminal_id'] ?? 0);
 $slotId = (int)($_POST['slot_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $orNo = trim((string)($_POST['or_no'] ?? ''));
@@ -45,7 +46,7 @@ if ($exportedToTreasury === 1) {
   if ($exportedAt === null) $exportedAt = $paidAt !== null ? $paidAt : date('Y-m-d H:i:s');
 }
 
-if ($plate === '' || $slotId <= 0 || $amount <= 0 || $orNo === '') {
+if ($plate === '' || ($slotId <= 0 && $terminalId <= 0) || $amount <= 0 || $orNo === '') {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
   exit;
@@ -60,40 +61,55 @@ $stmtV->close();
 if (!$veh) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'vehicle_not_found']); exit; }
 $vehicleId = (int)($veh['id'] ?? 0);
 
-$stmtS = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE slot_id=? LIMIT 1");
-if (!$stmtS) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
-$stmtS->bind_param('i', $slotId);
-$stmtS->execute();
-$slot = $stmtS->get_result()->fetch_assoc();
-$stmtS->close();
-if (!$slot) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'slot_not_found']); exit; }
-if (($slot['status'] ?? '') !== 'Free') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'slot_not_free']); exit; }
+$db->begin_transaction();
+try {
+  $slotTerminalId = 0;
+  if ($slotId > 0) {
+    $stmtS = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE slot_id=? LIMIT 1 FOR UPDATE");
+    if (!$stmtS) throw new Exception('db_prepare_failed');
+    $stmtS->bind_param('i', $slotId);
+    $stmtS->execute();
+    $slot = $stmtS->get_result()->fetch_assoc();
+    $stmtS->close();
+    if (!$slot) throw new Exception('slot_not_found');
+    if (($slot['status'] ?? '') !== 'Free') throw new Exception('slot_not_free');
+    $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
+  } else {
+    $stmtS = $db->prepare("SELECT slot_id, status, terminal_id
+                           FROM parking_slots
+                           WHERE terminal_id=? AND status='Free'
+                           ORDER BY (slot_no REGEXP '^[0-9]+$') DESC, CAST(slot_no AS UNSIGNED) ASC, slot_no ASC
+                           LIMIT 1 FOR UPDATE");
+    if (!$stmtS) throw new Exception('db_prepare_failed');
+    $stmtS->bind_param('i', $terminalId);
+    $stmtS->execute();
+    $slot = $stmtS->get_result()->fetch_assoc();
+    $stmtS->close();
+    if (!$slot) throw new Exception('no_free_slots');
+    $slotId = (int)($slot['slot_id'] ?? 0);
+    $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
+    if ($slotId <= 0) throw new Exception('no_free_slots');
+  }
 
-$slotTerminalId = (int)($slot['terminal_id'] ?? 0);
-if ($slotTerminalId > 0) {
-  $stmtAssign = $db->prepare("SELECT terminal_id FROM terminal_assignments WHERE vehicle_id=?");
-  if ($stmtAssign) {
-    $stmtAssign->bind_param('i', $vehicleId);
-    $stmtAssign->execute();
-    $resAssign = $stmtAssign->get_result();
-    $assignedTerminals = [];
-    while ($rowA = $resAssign->fetch_assoc()) {
-      $assignedTerminals[] = (int)$rowA['terminal_id'];
-    }
-    $stmtAssign->close();
-
-    if (!empty($assignedTerminals)) {
-      if (!in_array($slotTerminalId, $assignedTerminals, true)) {
-        http_response_code(400);
-        echo json_encode(['ok' => false, 'error' => 'vehicle_restricted_to_assigned_terminals']);
-        exit;
+  if ($slotTerminalId > 0) {
+    $stmtAssign = $db->prepare("SELECT terminal_id FROM terminal_assignments WHERE vehicle_id=?");
+    if ($stmtAssign) {
+      $stmtAssign->bind_param('i', $vehicleId);
+      $stmtAssign->execute();
+      $resAssign = $stmtAssign->get_result();
+      $assignedTerminals = [];
+      while ($rowA = $resAssign->fetch_assoc()) {
+        $assignedTerminals[] = (int)$rowA['terminal_id'];
+      }
+      $stmtAssign->close();
+      if (!empty($assignedTerminals)) {
+        if (!in_array($slotTerminalId, $assignedTerminals, true)) {
+          throw new Exception('vehicle_restricted_to_assigned_terminals');
+        }
       }
     }
   }
-}
 
-$db->begin_transaction();
-try {
   if ($paidAt !== null) {
     $stmtP = $db->prepare("INSERT INTO parking_payments (vehicle_id, slot_id, amount, or_no, paid_at, exported_to_treasury, exported_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
     if (!$stmtP) throw new Exception('db_prepare_failed');
@@ -107,17 +123,25 @@ try {
   $paymentId = (int)$stmtP->insert_id;
   $stmtP->close();
 
-  $stmtU = $db->prepare("UPDATE parking_slots SET status='Occupied' WHERE slot_id=?");
-  if ($stmtU) {
-    $stmtU->bind_param('i', $slotId);
-    $stmtU->execute();
-    $stmtU->close();
-  }
+  $stmtU = $db->prepare("UPDATE parking_slots SET status='Occupied' WHERE slot_id=? AND status='Free'");
+  if (!$stmtU) throw new Exception('db_prepare_failed');
+  $stmtU->bind_param('i', $slotId);
+  $stmtU->execute();
+  $affected = (int)$stmtU->affected_rows;
+  $stmtU->close();
+  if ($affected !== 1) throw new Exception('slot_not_free');
 
   $db->commit();
-  echo json_encode(['ok' => true, 'payment_id' => $paymentId]);
+  echo json_encode(['ok' => true, 'payment_id' => $paymentId, 'slot_id' => $slotId]);
 } catch (Throwable $e) {
   $db->rollback();
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error']);
+  $err = (string)$e->getMessage();
+  $clientErrors = ['slot_not_found', 'slot_not_free', 'no_free_slots', 'vehicle_restricted_to_assigned_terminals'];
+  if (in_array($err, $clientErrors, true)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => $err]);
+  } else {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'db_error']);
+  }
 }
