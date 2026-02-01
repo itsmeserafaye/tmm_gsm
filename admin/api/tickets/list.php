@@ -56,17 +56,22 @@ while ($r = $res->fetch_assoc()) { $rows[] = $r; }
 
 $officers = [];
 if ($q !== '') {
-  $like = '%' . $db->real_escape_string($q) . '%';
-  $sqlO = "SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 AND (name LIKE '$like' OR badge_no LIKE '$like') ORDER BY name LIMIT 10";
-  $resO = $db->query($sqlO);
-  if ($resO) {
-    while ($o = $resO->fetch_assoc()) {
-      $officers[] = [
-        'officer_id' => (int)$o['officer_id'],
-        'name' => $o['name'],
-        'badge_no' => $o['badge_no'],
-      ];
+  $like = '%' . $q . '%';
+  $stmtO = $db->prepare("SELECT officer_id, name, badge_no FROM officers WHERE active_status=1 AND (name LIKE ? OR badge_no LIKE ?) ORDER BY name LIMIT 10");
+  if ($stmtO) {
+    $stmtO->bind_param('ss', $like, $like);
+    $stmtO->execute();
+    $resO = $stmtO->get_result();
+    if ($resO) {
+      while ($o = $resO->fetch_assoc()) {
+        $officers[] = [
+          'officer_id' => (int)$o['officer_id'],
+          'name' => $o['name'],
+          'badge_no' => $o['badge_no'],
+        ];
+      }
     }
+    $stmtO->close();
   }
 }
 

@@ -24,7 +24,11 @@ try {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB");
 
-    $statusFilter = $_GET['status'] ?? '';
+    $statusFilter = trim((string)($_GET['status'] ?? ''));
+    $allowedStatuses = ['Submitted', 'Under Review', 'Resolved', 'Dismissed'];
+    if ($statusFilter !== '' && !in_array($statusFilter, $allowedStatuses, true)) {
+        $statusFilter = '';
+    }
     
     // Join with routes and terminals for integrated details
     $sql = "SELECT c.*, r.route_name, t.name AS terminal_name
@@ -32,12 +36,18 @@ try {
             LEFT JOIN routes r ON c.route_id = r.route_id
             LEFT JOIN terminals t ON t.id = c.terminal_id";
     
-    if ($statusFilter) {
-        $sql .= " WHERE c.status = '" . $db->real_escape_string($statusFilter) . "'";
-    }
     $sql .= " ORDER BY c.created_at DESC";
 
-    $res = $db->query($sql);
+    if ($statusFilter !== '') {
+        $sqlW = str_replace(" ORDER BY c.created_at DESC", " WHERE c.status = ? ORDER BY c.created_at DESC", $sql);
+        $stmt = $db->prepare($sqlW);
+        if (!$stmt) throw new Exception('db_prepare_failed');
+        $stmt->bind_param('s', $statusFilter);
+        $stmt->execute();
+        $res = $stmt->get_result();
+    } else {
+        $res = $db->query($sql);
+    }
     $items = [];
     $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
     $rootUrl = '';
@@ -64,6 +74,7 @@ try {
         ];
     }
 
+    if (isset($stmt) && $stmt) $stmt->close();
     echo json_encode(['ok' => true, 'data' => $items]);
 
 } catch (Exception $e) {

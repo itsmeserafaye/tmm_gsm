@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // 1. Get Input
-$violation_code = $db->real_escape_string((string)($_POST['violation_code'] ?? ($_POST['violation_type'] ?? '')));
+$violation_code = trim((string)($_POST['violation_code'] ?? ($_POST['violation_type'] ?? '')));
 $plate_raw = strtoupper(trim((string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''))));
 $plate_raw = preg_replace('/\s+/', '', $plate_raw);
 $plate_no_dash = preg_replace('/[^A-Z0-9]/', '', $plate_raw);
@@ -23,11 +23,11 @@ if ($plate_norm !== '' && strpos($plate_norm, '-') === false) {
         $plate_norm = $m[1] . '-' . $m[2];
     }
 }
-$plate_number = $db->real_escape_string($plate_norm);
-$plate_no_dash_sql = $db->real_escape_string($plate_no_dash);
-$driver_name = $db->real_escape_string($_POST['driver_name'] ?? '');
-$location = $db->real_escape_string($_POST['location'] ?? '');
-$notes = $db->real_escape_string($_POST['notes'] ?? '');
+$plate_number = $plate_norm;
+$plate_no_dash_sql = $plate_no_dash;
+$driver_name = trim((string)($_POST['driver_name'] ?? ''));
+$location = trim((string)($_POST['location'] ?? ''));
+$notes = trim((string)($_POST['notes'] ?? ''));
 $issued_at = (string)($_POST['issued_at'] ?? date('Y-m-d H:i:s'));
 $issued_at = str_replace('T', ' ', $issued_at);
 if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $issued_at)) $issued_at .= ':00';
@@ -52,7 +52,7 @@ if (($ticket_source === 'STS_PAPER' || $ticket_source === 'STS_EXTERNAL') && $ex
 }
 
 if ($officer_name_input !== '') {
-    $issued_by = $db->real_escape_string($officer_name_input);
+    $issued_by = $officer_name_input;
 }
 
 if (!$violation_code || !$plate_number) {
@@ -67,33 +67,46 @@ $operator_id = null;
 $status = 'Unpaid';
 
 // Check Vehicle
-$veh_check = $db->query("SELECT * FROM vehicles WHERE plate_number = '$plate_number' OR REPLACE(plate_number,'-','') = '$plate_no_dash_sql' LIMIT 1");
-if ($veh_check && $veh_check->num_rows > 0) {
-    $veh = $veh_check->fetch_assoc();
-    $franchise_id = $veh['franchise_id'];
-    $coop_name = $veh['coop_name'];
+$veh = null;
+$stmtVeh = $db->prepare("SELECT franchise_id, coop_name, operator_id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+if ($stmtVeh) {
+    $stmtVeh->bind_param('ss', $plate_number, $plate_no_dash_sql);
+    $stmtVeh->execute();
+    $veh = $stmtVeh->get_result()->fetch_assoc();
+    $stmtVeh->close();
+}
+if ($veh) {
+    $franchise_id = $veh['franchise_id'] ?? null;
+    $coop_name = $veh['coop_name'] ?? null;
     $operator_id = isset($veh['operator_id']) ? (int)$veh['operator_id'] : null;
-    
-    // Check Coop ID
+
     if ($coop_name) {
-        $coop_res = $db->query("SELECT id FROM coops WHERE coop_name = '$coop_name' LIMIT 1");
-        if ($coop_res && $coop_res->num_rows > 0) {
-            $coop_id = $coop_res->fetch_assoc()['id'];
+        $stmtCoop = $db->prepare("SELECT id FROM coops WHERE coop_name=? LIMIT 1");
+        if ($stmtCoop) {
+            $stmtCoop->bind_param('s', $coop_name);
+            $stmtCoop->execute();
+            $rowCoop = $stmtCoop->get_result()->fetch_assoc();
+            $stmtCoop->close();
+            if ($rowCoop && isset($rowCoop['id'])) $coop_id = (int)$rowCoop['id'];
         }
     }
-    
-    // If found in PUV DB, keep as Unpaid (doc-aligned)
+
     $status = 'Unpaid';
 }
 
 // 3. Get Fine Amount
 $fine = 0.00;
 $sts_violation_code = null;
-$v_res = $db->query("SELECT fine_amount, sts_equivalent_code FROM violation_types WHERE violation_code = '$violation_code' LIMIT 1");
-if ($v_res && $v_res->num_rows > 0) {
-    $vr = $v_res->fetch_assoc();
-    $fine = (float)($vr['fine_amount'] ?? 0);
-    $sts_violation_code = $vr['sts_equivalent_code'] ?? null;
+$stmtV = $db->prepare("SELECT fine_amount, sts_equivalent_code FROM violation_types WHERE violation_code=? LIMIT 1");
+if ($stmtV) {
+    $stmtV->bind_param('s', $violation_code);
+    $stmtV->execute();
+    $vr = $stmtV->get_result()->fetch_assoc();
+    $stmtV->close();
+    if ($vr) {
+        $fine = (float)($vr['fine_amount'] ?? 0);
+        $sts_violation_code = $vr['sts_equivalent_code'] ?? null;
+    }
 }
 if (!$sts_violation_code || trim((string)$sts_violation_code) === '') $sts_violation_code = $violation_code;
 
@@ -103,8 +116,15 @@ $ticket_number = null;
 // 5. Check Escalation Rule (Repeat Offenders)
 if ($franchise_id) {
     $start_date = date('Y-m-d', strtotime('-30 days'));
-    $esc_check = $db->query("SELECT COUNT(*) as c FROM tickets WHERE franchise_id = '$franchise_id' AND date_issued >= '$start_date'");
-    $violation_count = $esc_check->fetch_assoc()['c'];
+    $violation_count = 0;
+    $stmtEsc = $db->prepare("SELECT COUNT(*) as c FROM tickets WHERE franchise_id=? AND date_issued >= ?");
+    if ($stmtEsc) {
+        $stmtEsc->bind_param('ss', $franchise_id, $start_date);
+        $stmtEsc->execute();
+        $rowEsc = $stmtEsc->get_result()->fetch_assoc();
+        $stmtEsc->close();
+        $violation_count = (int)($rowEsc['c'] ?? 0);
+    }
     
     if ($violation_count >= 5) { // 5 prior + this one = >5
         $status = 'Escalated';
@@ -119,22 +139,32 @@ if ($franchise_id) {
 }
 
 // 6. Insert Ticket
-$issued_by_sql = $db->real_escape_string($issued_by);
-$issued_by_badge_sql = $issued_by_badge !== null ? "'" . $issued_by_badge . "'" : "NULL";
-$extSql = $external_ticket_number !== '' ? "'" . $db->real_escape_string($external_ticket_number) . "'" : "NULL";
-$srcSql = $db->real_escape_string($ticket_source);
-$stsSql = $db->real_escape_string((string)$sts_violation_code);
+$stmtIns = $db->prepare("INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, external_ticket_number, ticket_source, vehicle_plate, operator_id, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status)
+        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+if ($stmtIns) {
+    $extTicket = $external_ticket_number !== '' ? $external_ticket_number : null;
+    $opId = $operator_id !== null ? (int)$operator_id : null;
+    $frId = $franchise_id !== null ? (string)$franchise_id : null;
+    $coopIdBind = $coop_id !== null ? (int)$coop_id : null;
+    $badge = $issued_by_badge !== null ? (string)$issued_by_badge : null;
+    $stmtIns->bind_param('sssssisissdssss', $violation_code, $sts_violation_code, $extTicket, $ticket_source, $plate_number, $opId, $frId, $coopIdBind, $driver_name, $location, $fine, $issued_at, $issued_by, $badge, $status);
+    $okIns = $stmtIns->execute();
+    $stmtIns->close();
+} else {
+    $okIns = false;
+}
 
-$opSql = $operator_id !== null ? (string)((int)$operator_id) : "NULL";
-$sql = "INSERT INTO tickets (ticket_number, violation_code, sts_violation_code, external_ticket_number, ticket_source, vehicle_plate, operator_id, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status) 
-        VALUES (NULL, '$violation_code', '$stsSql', $extSql, '$srcSql', '$plate_number', $opSql, " . ($franchise_id ? "'$franchise_id'" : "NULL") . ", " . ($coop_id ? "$coop_id" : "NULL") . ", '$driver_name', '$location', $fine, '$issued_at', '$issued_by_sql', $issued_by_badge_sql, '$status')";
-
-if ($db->query($sql)) {
+if ($okIns) {
     $ticket_id = (int)$db->insert_id;
     $year = date('Y');
     $month = date('m');
     $ticket_number = sprintf("TCK-%s-%s-%06d", $year, $month, $ticket_id);
-    $db->query("UPDATE tickets SET ticket_number='" . $db->real_escape_string($ticket_number) . "' WHERE ticket_id=" . (int)$ticket_id);
+    $stmtUp = $db->prepare("UPDATE tickets SET ticket_number=? WHERE ticket_id=?");
+    if ($stmtUp) {
+        $stmtUp->bind_param('si', $ticket_number, $ticket_id);
+        $stmtUp->execute();
+        $stmtUp->close();
+    }
     
     // 7. Handle File Uploads
     $uploadDir = __DIR__ . '/../../uploads/evidence/';

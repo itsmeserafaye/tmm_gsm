@@ -101,7 +101,7 @@ function traffic_city_snapshot(mysqli $db, float $radiusKm): array {
 }
 
 try {
-  tmm_load_env(__DIR__ . '/../../../.env');
+  tmm_load_env_default();
   require_login();
   $db = db();
 

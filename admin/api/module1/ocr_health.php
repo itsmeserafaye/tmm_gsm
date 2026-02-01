@@ -25,7 +25,7 @@ function ocr_health_tesseract_path(): string {
 }
 
 try {
-  tmm_load_env(__DIR__ . '/../../../.env');
+  tmm_load_env_default();
   $db = db();
   require_permission('module1.vehicles.write');
 
@@ -50,4 +50,3 @@ try {
 } catch (Throwable $e) {
   ocr_health_send(false, ['error' => 'server_error'], 500);
 }
-

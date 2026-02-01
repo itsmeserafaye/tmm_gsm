@@ -283,7 +283,7 @@ function ocr_best_tesseract(string $inputPath): array {
 }
 
 try {
-  tmm_load_env(__DIR__ . '/../../../.env');
+  tmm_load_env_default();
   $db = db();
   require_permission('module1.vehicles.write');
 

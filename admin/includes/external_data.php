@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/../../includes/env.php';
-tmm_load_env(__DIR__ . '/../../.env');
+tmm_load_env_default();
 
 function tmm_setting(mysqli $db, string $key, string $default = ''): string {
   $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key=? LIMIT 1");

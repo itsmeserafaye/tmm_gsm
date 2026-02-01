@@ -42,58 +42,85 @@ function tmm_create_traffic_ticket_from_parking(mysqli $db, string $plate, ?int 
 
   $violationCode = 'IP';
   $issuedAt = date('Y-m-d H:i:s');
-  $issuedBy = $db->real_escape_string(tmm_current_issued_by_label());
-  $location = $db->real_escape_string($areaName);
-  $plateSql = $db->real_escape_string($plate);
+  $issuedBy = tmm_current_issued_by_label();
+  $location = $areaName;
 
   $franchiseId = null;
   $coopId = null;
   $status = 'Pending';
-  $vehRes = $db->query("SELECT franchise_id, coop_name FROM vehicles WHERE plate_number='$plateSql' LIMIT 1");
-  if ($vehRes && $vehRes->num_rows > 0) {
-    $veh = $vehRes->fetch_assoc();
-    $franchiseId = $veh['franchise_id'] ?? null;
-    $coopName = $veh['coop_name'] ?? null;
-    if ($coopName) {
-      $coopNameSql = $db->real_escape_string((string)$coopName);
-      $coopRes = $db->query("SELECT id FROM coops WHERE coop_name = '$coopNameSql' LIMIT 1");
-      if ($coopRes && $coopRes->num_rows > 0) $coopId = (int)($coopRes->fetch_assoc()['id'] ?? 0);
+  $stmtVeh = $db->prepare("SELECT franchise_id, coop_name FROM vehicles WHERE plate_number=? LIMIT 1");
+  if ($stmtVeh) {
+    $stmtVeh->bind_param('s', $plate);
+    $stmtVeh->execute();
+    $veh = $stmtVeh->get_result()->fetch_assoc();
+    $stmtVeh->close();
+    if ($veh) {
+      $franchiseId = $veh['franchise_id'] ?? null;
+      $coopName = $veh['coop_name'] ?? null;
+      if ($coopName) {
+        $stmtCoop = $db->prepare("SELECT id FROM coops WHERE coop_name=? LIMIT 1");
+        if ($stmtCoop) {
+          $stmtCoop->bind_param('s', $coopName);
+          $stmtCoop->execute();
+          $rowCoop = $stmtCoop->get_result()->fetch_assoc();
+          $stmtCoop->close();
+          if ($rowCoop && isset($rowCoop['id'])) $coopId = (int)$rowCoop['id'];
+        }
+      }
+      $status = 'Validated';
     }
-    $status = 'Validated';
   }
 
   $fine = 0.0;
-  $fineRes = $db->query("SELECT fine_amount FROM violation_types WHERE violation_code='$violationCode' LIMIT 1");
-  if ($fineRes && $fineRes->num_rows > 0) $fine = (float)($fineRes->fetch_assoc()['fine_amount'] ?? 0);
+  $stmtFine = $db->prepare("SELECT fine_amount FROM violation_types WHERE violation_code=? LIMIT 1");
+  if ($stmtFine) {
+    $stmtFine->bind_param('s', $violationCode);
+    $stmtFine->execute();
+    $rowFine = $stmtFine->get_result()->fetch_assoc();
+    $stmtFine->close();
+    if ($rowFine) $fine = (float)($rowFine['fine_amount'] ?? 0);
+  }
 
   $year = (int)date('Y');
   $month = date('m');
-  $countRes = $db->query("SELECT COUNT(*) AS c FROM tickets WHERE YEAR(date_issued) = $year");
   $count = 1;
-  if ($countRes) $count = ((int)($countRes->fetch_assoc()['c'] ?? 0)) + 1;
+  $stmtCount = $db->prepare("SELECT COUNT(*) AS c FROM tickets WHERE YEAR(date_issued) = ?");
+  if ($stmtCount) {
+    $stmtCount->bind_param('i', $year);
+    $stmtCount->execute();
+    $rowC = $stmtCount->get_result()->fetch_assoc();
+    $stmtCount->close();
+    $count = ((int)($rowC['c'] ?? 0)) + 1;
+  }
   $ticketNumber = sprintf("TCK-%s-%s-%04d", $year, $month, $count);
 
-  $franchiseSqlPart = $franchiseId ? ("'" . $db->real_escape_string((string)$franchiseId) . "'") : "NULL";
-  $coopSqlPart = $coopId ? (string)$coopId : "NULL";
-  $statusSql = $db->real_escape_string($status);
-
-  $ins = "INSERT INTO tickets (ticket_number, violation_code, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status)
-          VALUES ('" . $db->real_escape_string($ticketNumber) . "', '$violationCode', '$plateSql', $franchiseSqlPart, $coopSqlPart, NULL, '$location', $fine, '$issuedAt', '$issuedBy', NULL, '$statusSql')";
-  $ok = $db->query($ins);
+  $stmtIns = $db->prepare("INSERT INTO tickets (ticket_number, violation_code, vehicle_plate, franchise_id, coop_id, driver_name, location, fine_amount, date_issued, issued_by, issued_by_badge, status)
+          VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, ?)");
+  $ok = false;
+  if ($stmtIns) {
+    $fr = $franchiseId !== null ? (string)$franchiseId : null;
+    $ci = $coopId !== null ? (int)$coopId : null;
+    $stmtIns->bind_param('ssssisdsss', $ticketNumber, $violationCode, $plate, $fr, $ci, $location, $fine, $issuedAt, $issuedBy, $status);
+    $ok = $stmtIns->execute();
+    $stmtIns->close();
+  }
   return ['ok' => (bool)$ok, 'ticket_number' => $ticketNumber, 'status' => $status];
 }
 
 function tmm_find_existing_traffic_ticket(mysqli $db, string $plate, string $location): ?array {
-  $plateSql = $db->real_escape_string($plate);
-  $locSql = $db->real_escape_string($location);
-  $q = "SELECT ticket_number, status FROM tickets
-        WHERE vehicle_plate='$plateSql' AND violation_code='IP' AND DATE(date_issued)=CURDATE()
-          AND location='$locSql' AND issued_by LIKE 'Parking Enforcement%'
-        ORDER BY date_issued DESC LIMIT 1";
-  $res = $db->query($q);
-  if ($res && $res->num_rows > 0) {
-    $r = $res->fetch_assoc();
-    return ['ok' => true, 'ticket_number' => (string)($r['ticket_number'] ?? ''), 'status' => (string)($r['status'] ?? '')];
+  $like = 'Parking Enforcement%';
+  $stmt = $db->prepare("SELECT ticket_number, status FROM tickets
+        WHERE vehicle_plate=? AND violation_code='IP' AND DATE(date_issued)=CURDATE()
+          AND location=? AND issued_by LIKE ?
+        ORDER BY date_issued DESC LIMIT 1");
+  if ($stmt) {
+    $stmt->bind_param('sss', $plate, $location, $like);
+    $stmt->execute();
+    $r = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($r) {
+      return ['ok' => true, 'ticket_number' => (string)($r['ticket_number'] ?? ''), 'status' => (string)($r['status'] ?? '')];
+    }
   }
   return null;
 }

@@ -13,7 +13,7 @@ if (!$isLocal && !$isAdmin) {
 }
 
 require_once __DIR__ . '/../../includes/env.php';
-tmm_load_env(__DIR__ . '/../../.env');
+tmm_load_env_default();
 
 $host = getenv('TMM_DB_HOST') ?: 'localhost';
 $user = getenv('TMM_DB_USER') ?: 'tmm_tmmgosergfvx';

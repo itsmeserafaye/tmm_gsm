@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/env.php';
-tmm_load_env(__DIR__ . '/../.env');
+tmm_load_env_default();
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;

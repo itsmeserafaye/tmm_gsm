@@ -5,7 +5,7 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
 
 // Standalone DB connection to avoid legacy schema migration issues
 require_once __DIR__ . '/../../includes/env.php';
-tmm_load_env(__DIR__ . '/../../.env');
+tmm_load_env_default();
 require_once __DIR__ . '/../../includes/recaptcha.php';
 
 function get_db()

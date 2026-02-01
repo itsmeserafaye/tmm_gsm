@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/env.php';
-tmm_load_env(__DIR__ . '/../.env');
+tmm_load_env_default();
 
 function recaptcha_config(mysqli $db): array {
   $siteKey = '';
