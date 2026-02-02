@@ -142,11 +142,11 @@ if ($ts !== false) $formJsVer = (int)$ts;
       } catch (e) { }
     })();
   </script>
-  <script>
-    window.tailwind = { config: { darkMode: 'class' } };
-  </script>
   <!-- Tailwind config removed - using CDN version -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <style type="text/tailwindcss">
+    @variant dark (&:where(.dark, .dark *));
+  </style>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="includes/unified.css">
   <style>
