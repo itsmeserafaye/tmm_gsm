@@ -154,18 +154,21 @@ function compute_accuracy(array $seriesByArea, float $seasonWeight): array {
 }
 
 function tmm_get_weather_hourly(mysqli $db, float $lat, float $lon): array {
-  $cacheKey = 'weather:open-meteo:' . $lat . ',' . $lon;
+  $cacheKey = 'weather:open-meteo:v2:' . $lat . ',' . $lon;
   $cached = tmm_cache_get($db, $cacheKey);
   if (is_array($cached)) return $cached;
   $url = "https://api.open-meteo.com/v1/forecast?latitude=" . rawurlencode((string)$lat) .
     "&longitude=" . rawurlencode((string)$lon) .
     "&hourly=temperature_2m,precipitation,precipitation_probability,weathercode" .
     "&current_weather=true" .
-    "&timezone=auto";
+    "&timezone=auto" .
+    "&temperature_unit=celsius" .
+    "&windspeed_unit=kmh" .
+    "&precipitation_unit=mm";
   $res = tmm_http_get_json($url, 12);
   if (!($res['ok'] ?? false)) return [];
   $data = $res['data'];
-  if (is_array($data)) tmm_cache_set($db, $cacheKey, $data, 15 * 60);
+  if (is_array($data)) tmm_cache_set($db, $cacheKey, $data, 5 * 60);
   return is_array($data) ? $data : [];
 }
 
@@ -719,7 +722,13 @@ $payload = [
   'accuracy_ok' => $accuracyOk,
   'data_points' => $points,
   'data_source' => $dataSource,
-  'weather' => ['label' => $weatherLabel, 'lat' => $lat, 'lon' => $lon, 'current' => $weather['current_weather'] ?? null],
+  'weather' => [
+    'provider' => 'open-meteo',
+    'label' => $weatherLabel,
+    'lat' => $lat,
+    'lon' => $lon,
+    'current' => $weather['current_weather'] ?? null,
+  ],
   'events' => ['country' => $eventsCountry, 'rss' => $eventsRssUrl !== '' ? true : false],
   'model' => [
     'ai_weather_weight' => $aiWeatherWeight,

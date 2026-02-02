@@ -1194,8 +1194,20 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           return;
         }
         var t = weather.current.temperature;
-        weatherNowValue.textContent = (t !== undefined ? t + '°C' : '—');
-        weatherNowHint.textContent = (weather.label || 'Local Area');
+        var tempNum = (t !== undefined && t !== null) ? Number(t) : null;
+        weatherNowValue.textContent = (tempNum !== null && !Number.isNaN(tempNum) ? tempNum.toFixed(1) + '°C' : '—');
+        var hintParts = [];
+        hintParts.push(weather.label || 'Local Area');
+        if (weather.lat !== undefined && weather.lon !== undefined) {
+          var latNum = Number(weather.lat);
+          var lonNum = Number(weather.lon);
+          if (!Number.isNaN(latNum) && !Number.isNaN(lonNum)) hintParts.push(latNum.toFixed(4) + ', ' + lonNum.toFixed(4));
+        }
+        if (weather.current && weather.current.time) {
+          hintParts.push('Updated ' + String(weather.current.time).replace('T', ' '));
+        }
+        if (weather.provider) hintParts.push(String(weather.provider));
+        weatherNowHint.textContent = hintParts.join(' • ');
       }
 
       function setEventsUI(events) {
