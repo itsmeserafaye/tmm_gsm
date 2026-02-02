@@ -432,6 +432,7 @@ if ($action === 'operator_login') {
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_operator_mfa($db);
+  if ($trustChoice === false) $mustOtp = true;
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
   if (!$mustOtp) {
@@ -552,6 +553,7 @@ $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
+if ($trustChoice === false) $mustOtp = true;
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
 
