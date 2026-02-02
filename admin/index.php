@@ -143,9 +143,7 @@ if ($ts !== false) $formJsVer = (int)$ts;
     })();
   </script>
   <script>
-    window.tailwind = window.tailwind || {};
-    window.tailwind.config = window.tailwind.config || {};
-    window.tailwind.config.darkMode = 'class';
+    window.tailwind = { config: { darkMode: 'class' } };
   </script>
   <!-- Tailwind config removed - using CDN version -->
   <script src="https://cdn.tailwindcss.com"></script>
