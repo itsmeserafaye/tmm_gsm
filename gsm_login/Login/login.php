@@ -210,6 +210,16 @@ function td_trust(mysqli $db, string $userType, int $userId, string $deviceHash,
   $stmt->close();
 }
 
+function td_forget(mysqli $db, string $userType, int $userId, string $deviceHash): void
+{
+  td_ensure_schema($db);
+  $stmt = $db->prepare("DELETE FROM trusted_devices WHERE user_type=? AND user_id=? AND device_hash=?");
+  if (!$stmt) return;
+  $stmt->bind_param('sis', $userType, $userId, $deviceHash);
+  $stmt->execute();
+  $stmt->close();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   gsm_send(false, 'Method not allowed', null, 405);
 }
@@ -435,6 +445,7 @@ if ($action === 'operator_login') {
   if ($trustChoice !== null) $mustOtp = true;
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
+  if ($trustChoice === false && $opUserId > 0) td_forget($db, 'operator', $opUserId, $deviceHash);
   if (!$mustOtp) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
@@ -556,6 +567,7 @@ $mustOtp = gsm_require_mfa($db);
 if ($trustChoice !== null) $mustOtp = true;
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
+if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
 
 if (!$mustOtp) {
   session_regenerate_id(true);

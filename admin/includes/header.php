@@ -9,7 +9,7 @@ $crumbText = implode(' > ', $breadcrumb ?? ['Dashboard']);
       </button>
       <div>
         <div class="hidden md:flex items-center space-x-1">
-          <h1 class="text-md font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #66bb6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TRANSPORT & MOBILITY MANAGEMENT</h1>
+          <h1 class="text-md font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent" style="background: linear-gradient(to right, #4a90e2, #66bb6a); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TRANSPORT & MOBILITY MANAGEMENT</h1>
         </div>
         <div>
           <span class="text-xs text-slate-500 dark:text-slate-400 font-bold"><?php echo htmlspecialchars($crumbText); ?></span>
