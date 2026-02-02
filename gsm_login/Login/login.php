@@ -107,6 +107,26 @@ function gsm_setting_int(mysqli $db, string $key, int $default, int $min, int $m
   return $v;
 }
 
+function gsm_input_bool($v): ?bool
+{
+  if ($v === null) return null;
+  if (is_bool($v)) return $v;
+  if (is_int($v) || is_float($v)) return ((int)$v) !== 0;
+  $s = strtolower(trim((string)$v));
+  if ($s === '') return null;
+  if (in_array($s, ['1', 'true', 'yes', 'on'], true)) return true;
+  if (in_array($s, ['0', 'false', 'no', 'off'], true)) return false;
+  return null;
+}
+
+function gsm_effective_trust_days(int $settingDays, ?bool $trustChoice): int
+{
+  $settingDays = max(0, min(30, $settingDays));
+  if ($trustChoice === null) return $settingDays;
+  if ($trustChoice === false) return 0;
+  return max(0, min(10, $settingDays));
+}
+
 function gsm_require_mfa(mysqli $db): bool
 {
   $v = strtolower(trim(gsm_setting($db, 'require_mfa', '0')));
@@ -199,6 +219,8 @@ $input = json_decode($inputRaw, true);
 if (!is_array($input)) {
   gsm_send(false, 'Invalid JSON input', null, 400);
 }
+
+$trustChoice = array_key_exists('trust_device', $input) ? gsm_input_bool($input['trust_device']) : null;
 
 $action = isset($input['action']) ? (string) $input['action'] : 'login';
 $email = strtolower(trim((string) ($input['email'] ?? '')));
@@ -410,7 +432,8 @@ if ($action === 'operator_login') {
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_operator_mfa($db);
-  $trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
   if (!$mustOtp) {
     session_regenerate_id(true);
     gsm_send(true, 'Login successful', [
@@ -529,7 +552,8 @@ $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
-$trustDays = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+  $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
 
 if (!$mustOtp) {
   session_regenerate_id(true);

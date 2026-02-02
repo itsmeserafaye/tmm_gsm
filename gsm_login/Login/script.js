@@ -816,9 +816,11 @@ function handleLoginSubmit(event) {
     setLoginAlert('', 'error');
 
     const deviceId = getOrCreateDeviceId();
+    const trustEl = document.getElementById('trustDevice10Days');
+    const trustDevice = !!(trustEl && trustEl.checked);
     const payload = operatorMode
-        ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
-        : { action: 'login', email, password, device_id: deviceId };
+        ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId, trust_device: trustDevice ? 1 : 0 }
+        : { action: 'login', email, password, device_id: deviceId, trust_device: trustDevice ? 1 : 0 };
 
     if (gsmRecaptchaSiteKey) {
         if (!captchaResponse) {
@@ -1216,7 +1218,11 @@ function openOtpModal(expiresInSeconds = 180, trustDays = 10) {
     if (submit) submit.disabled = false;
     if (trustNote) {
         trustNote.classList.remove('hidden');
-        trustNote.textContent = `After verification, this device will be trusted for ${trustDays} days. If you use a different device, you will be asked again.`;
+        if (Number(trustDays || 0) > 0) {
+            trustNote.textContent = `After verification, this device will be trusted for ${trustDays} days. If you use a different device, you will be asked again.`;
+        } else {
+            trustNote.textContent = 'OTP will be required every login on this device.';
+        }
     }
     const inputs = Array.from(document.querySelectorAll('#otpInputs .otp-input'));
     inputs.forEach(i => i.value = '');
