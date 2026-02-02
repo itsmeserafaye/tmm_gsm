@@ -119,6 +119,23 @@ function gsm_input_bool($v): ?bool
   return null;
 }
 
+function gsm_cookie_bool(string $name): ?bool
+{
+  if (!isset($_COOKIE[$name])) return null;
+  return gsm_input_bool($_COOKIE[$name]);
+}
+
+function gsm_set_cookie(string $name, string $value, int $ttlSeconds): void
+{
+  $exp = time() + max(60, $ttlSeconds);
+  $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+  $cookie = rawurlencode($name) . '=' . rawurlencode($value)
+    . '; Expires=' . gmdate('D, d M Y H:i:s', $exp) . ' GMT'
+    . '; Path=/; SameSite=Lax';
+  if ($secure) $cookie .= '; Secure';
+  header('Set-Cookie: ' . $cookie, false);
+}
+
 function gsm_effective_trust_days(int $settingDays, ?bool $trustChoice): int
 {
   $settingDays = max(0, min(30, $settingDays));
@@ -231,6 +248,8 @@ if (!is_array($input)) {
 }
 
 $trustChoice = array_key_exists('trust_device', $input) ? gsm_input_bool($input['trust_device']) : null;
+$cookieTrust = gsm_cookie_bool('gsm_trust_device');
+if ($trustChoice === null && $cookieTrust !== null) $trustChoice = $cookieTrust;
 
 $action = isset($input['action']) ? (string) $input['action'] : 'login';
 $email = strtolower(trim((string) ($input['email'] ?? '')));
@@ -443,6 +462,7 @@ if ($action === 'operator_login') {
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_operator_mfa($db);
   if ($trustChoice !== null) $mustOtp = true;
+  if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
   if ($trustChoice === false && $opUserId > 0) td_forget($db, 'operator', $opUserId, $deviceHash);
@@ -565,6 +585,7 @@ $primaryRole = rbac_primary_role($roles);
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
 if ($trustChoice !== null) $mustOtp = true;
+if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
 if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
