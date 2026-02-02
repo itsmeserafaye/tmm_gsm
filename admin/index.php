@@ -149,6 +149,16 @@ if ($ts !== false) $formJsVer = (int)$ts;
       window.tailwind.config = Object.assign({}, window.tailwind.config || {}, { darkMode: 'class' });
     } catch (e) { }
   </script>
+  <script>
+    (function () {
+      try {
+        var s = document.createElement('style');
+        s.type = 'text/tailwindcss';
+        s.textContent = '@custom-variant dark (&:where(.dark, .dark *));';
+        document.head.appendChild(s);
+      } catch (e) { }
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="includes/unified.css">

@@ -124,7 +124,7 @@ function gsm_effective_trust_days(int $settingDays, ?bool $trustChoice): int
   $settingDays = max(0, min(30, $settingDays));
   if ($trustChoice === null) return $settingDays;
   if ($trustChoice === false) return 0;
-  return max(0, min(10, $settingDays));
+  return 10;
 }
 
 function gsm_require_mfa(mysqli $db): bool

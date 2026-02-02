@@ -61,7 +61,7 @@ function recaptcha_verify(string $secretKey, string $token, string $remoteIp = '
     $raw = curl_exec($ch);
     $curlErr = (string)curl_error($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $ch = null;
     $transport = 'curl';
   }
 
