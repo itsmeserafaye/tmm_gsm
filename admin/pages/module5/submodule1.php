@@ -61,6 +61,17 @@ if ($taColRes) {
 $taTerminalIdCol = isset($taCols['terminal_id']) ? 'terminal_id' : '';
 $taTerminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : '');
 
+$termCols = [];
+$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category')");
+if ($termColRes) {
+  while ($c = $termColRes->fetch_assoc()) {
+    $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+  }
+}
+$termHasCity = isset($termCols['city']);
+$termHasAddress = isset($termCols['address']);
+$termHasCategory = isset($termCols['category']);
+
 $assignCountByTerminalId = [];
 $assignCountByTerminalName = [];
 if ($taTerminalIdCol !== '') {
@@ -75,8 +86,10 @@ $terminalRows = [];
 $res = $db->query("SELECT
   t.id,
   t.name,
-  t.category,
+  " . ($termHasCategory ? "t.category" : "NULL") . " AS category,
   t.location,
+  " . ($termHasCity ? "t.city" : "NULL") . " AS city,
+  " . ($termHasAddress ? "t.address" : "NULL") . " AS address,
   t.capacity,
   COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
   COUNT(DISTINCT tr.route_id) AS route_count
@@ -239,7 +252,22 @@ if ($rootUrl === '/') $rootUrl = '';
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                     <td class="py-4 px-4 text-right whitespace-nowrap">
+                      <?php
+                        $editPayload = [
+                          'id' => (int)($t['id'] ?? 0),
+                          'name' => (string)($t['name'] ?? ''),
+                          'city' => (string)($t['city'] ?? ''),
+                          'location' => (string)($t['location'] ?? ''),
+                          'address' => (string)($t['address'] ?? ''),
+                          'capacity' => (int)($t['capacity'] ?? 0),
+                          'category' => (string)($t['category'] ?? ''),
+                        ];
+                      ?>
                       <div class="inline-flex items-center justify-end gap-1">
+                        <button type="button" title="Edit" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-terminal-edit="1" data-terminal="<?php echo htmlspecialchars(json_encode($editPayload), ENT_QUOTES); ?>">
+                          <i data-lucide="pencil" class="w-4 h-4"></i>
+                          <span class="sr-only">Edit</span>
+                        </button>
                         <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                           <i data-lucide="layout-grid" class="w-4 h-4"></i>
                           <span class="sr-only">Slots</span>
@@ -460,7 +488,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="absolute inset-0 flex items-center justify-center p-4">
     <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
       <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
-        <div class="text-sm font-black text-slate-900 dark:text-white">Create Terminal</div>
+        <div id="terminalCreateModalTitle" class="text-sm font-black text-slate-900 dark:text-white">Create Terminal</div>
         <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
@@ -468,6 +496,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="p-6">
         <form id="formTerminal" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
           <input type="hidden" name="type" value="Terminal">
+          <input type="hidden" name="id" value="">
           <div class="md:col-span-4">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
             <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Victory Liner - Caloocan (Monumento)">
@@ -547,9 +576,15 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function openCreateTerminalModal() {
       if (!terminalCreateModal) return;
+      const title = document.getElementById('terminalCreateModalTitle');
+      if (title) title.textContent = 'Create Terminal';
       terminalCreateModal.classList.remove('hidden');
       if (window.lucide) window.lucide.createIcons();
       try { if (formTerminal) formTerminal.reset(); } catch (e) {}
+      if (formTerminal) {
+        const idEl = formTerminal.querySelector('input[name="id"]');
+        if (idEl) idEl.value = '';
+      }
     }
     function closeCreateTerminalModal() {
       if (!terminalCreateModal) return;
@@ -563,6 +598,35 @@ if ($rootUrl === '/') $rootUrl = '';
       if (closeBtn) closeBtn.addEventListener('click', closeCreateTerminalModal);
       if (backdrop) backdrop.addEventListener('click', closeCreateTerminalModal);
     }
+
+    function parseTerminalPayload(el) {
+      try { return JSON.parse(el.getAttribute('data-terminal') || '{}'); } catch (e) { return {}; }
+    }
+
+    function openEditTerminalModal(t) {
+      if (!terminalCreateModal || !formTerminal) return;
+      const title = document.getElementById('terminalCreateModalTitle');
+      if (title) title.textContent = 'Edit Terminal';
+      terminalCreateModal.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+
+      const set = (name, value) => {
+        const el = formTerminal.querySelector(`[name="${name}"]`);
+        if (!el) return;
+        el.value = (value === null || value === undefined) ? '' : String(value);
+      };
+      set('id', t.id || '');
+      set('name', t.name || '');
+      set('city', t.city || 'Caloocan City');
+      set('category', t.category || '');
+      set('location', t.location || '');
+      set('address', t.address || '');
+      set('capacity', (t.capacity !== null && t.capacity !== undefined) ? t.capacity : 0);
+    }
+
+    Array.from(document.querySelectorAll('[data-terminal-edit="1"]')).forEach((btn) => {
+      btn.addEventListener('click', () => openEditTerminalModal(parseTerminalPayload(btn)));
+    });
 
     function setActiveTab(tab) {
       const isTerm = tab === 'terminals';
@@ -599,6 +663,7 @@ if ($rootUrl === '/') $rootUrl = '';
         const data = await res.json();
         if (!data || !data.ok) throw new Error((data && data.message) ? data.message : 'save_failed');
         showToast('Saved.');
+        closeCreateTerminalModal();
         setTimeout(() => { window.location.reload(); }, 400);
       } catch (err) {
         showToast(err.message || 'Failed', 'error');

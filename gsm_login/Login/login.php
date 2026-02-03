@@ -131,7 +131,7 @@ function gsm_set_cookie(string $name, string $value, int $ttlSeconds): void
   $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
   $cookie = rawurlencode($name) . '=' . rawurlencode($value)
     . '; Expires=' . gmdate('D, d M Y H:i:s', $exp) . ' GMT'
-    . '; Path=/; SameSite=Lax';
+    . '; Path=/; SameSite=Lax; HttpOnly';
   if ($secure) $cookie .= '; Secure';
   header('Set-Cookie: ' . $cookie, false);
 }
@@ -139,9 +139,9 @@ function gsm_set_cookie(string $name, string $value, int $ttlSeconds): void
 function gsm_effective_trust_days(int $settingDays, ?bool $trustChoice): int
 {
   $settingDays = max(0, min(30, $settingDays));
-  if ($trustChoice === null) return $settingDays;
-  if ($trustChoice === false) return 0;
-  return 10;
+  if ($settingDays <= 0) return 0;
+  if ($trustChoice === true) return $settingDays;
+  return 0;
 }
 
 function gsm_require_mfa(mysqli $db): bool
@@ -258,8 +258,7 @@ $cookieDeviceId = trim((string)($_COOKIE['gsm_device_id'] ?? ''));
 if ($cookieDeviceId !== '' && strlen($cookieDeviceId) >= 12) {
   $deviceId = $cookieDeviceId;
 } else if ($deviceId !== '' && strlen($deviceId) >= 12) {
-  $exp = gmdate('D, d M Y H:i:s', time() + 315360000) . ' GMT';
-  header('Set-Cookie: gsm_device_id=' . rawurlencode($deviceId) . '; Expires=' . $exp . '; Path=/; SameSite=Lax');
+  gsm_set_cookie('gsm_device_id', $deviceId, 315360000);
 }
 
 if ($action !== 'login_otp_verify' && $action !== 'login_otp_resend' && $action !== 'check_email') {
@@ -461,7 +460,6 @@ if ($action === 'operator_login') {
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_operator_mfa($db);
-  if ($trustChoice !== null) $mustOtp = true;
   if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
@@ -584,10 +582,9 @@ $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = gsm_require_mfa($db);
-if ($trustChoice !== null) $mustOtp = true;
 if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
-  $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
-  $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
+$trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
+$trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
 if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
 
 if (!$mustOtp) {

@@ -819,8 +819,12 @@ function handleLoginSubmit(event) {
     const trustEl = document.getElementById('trustDevice10Days');
     const trustDevice = !!(trustEl && trustEl.checked);
     const payload = operatorMode
-        ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId, trust_device: trustDevice ? 1 : 0 }
-        : { action: 'login', email, password, device_id: deviceId, trust_device: trustDevice ? 1 : 0 };
+        ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
+        : { action: 'login', email, password, device_id: deviceId };
+    if (trustDevice) {
+        payload.trust_device = 1;
+        try { localStorage.setItem('gsm_trust_device', '1'); } catch (e) {}
+    }
 
     if (gsmRecaptchaSiteKey) {
         if (!captchaResponse) {
@@ -872,6 +876,14 @@ function handleLoginSubmit(event) {
             if (submitButton) resetLoadingState(submitButton);
         });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const trustEl = document.getElementById('trustDevice10Days');
+        const saved = localStorage.getItem('gsm_trust_device') || '';
+        if (trustEl && saved === '1') trustEl.checked = true;
+    } catch (e) {}
+});
 
 function handleSocialLogin(event) {
     const button = event.target.closest('button');
