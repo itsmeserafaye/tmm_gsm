@@ -6,6 +6,19 @@ $db = db();
 header('Content-Type: application/json');
 require_any_permission(['module2.read','module2.endorse','module2.approve','module2.history']);
 
+$colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('fare_min','fare_max')");
+$hasFareMin = false;
+$hasFareMax = false;
+if ($colRes) {
+  while ($c = $colRes->fetch_assoc()) {
+    $cn = (string)($c['COLUMN_NAME'] ?? '');
+    if ($cn === 'fare_min') $hasFareMin = true;
+    if ($cn === 'fare_max') $hasFareMax = true;
+  }
+}
+$fareMinExpr = $hasFareMin ? "COALESCE(r.fare_min, r.fare)" : "r.fare";
+$fareMaxExpr = $hasFareMax ? "COALESCE(r.fare_max, r.fare)" : "r.fare";
+
 $res = $db->query("SELECT
   r.id,
   r.route_id,
@@ -13,12 +26,12 @@ $res = $db->query("SELECT
   r.route_name,
   r.origin,
   r.destination,
-  COALESCE(r.fare_min, r.fare) AS fare_min,
-  COALESCE(r.fare_max, r.fare) AS fare_max,
+  $fareMinExpr AS fare_min,
+  $fareMaxExpr AS fare_max,
   CASE
-    WHEN COALESCE(r.fare_min, r.fare) IS NULL THEN NULL
-    WHEN ABS(COALESCE(r.fare_min, r.fare) - COALESCE(r.fare_max, r.fare)) < 0.001 THEN COALESCE(r.fare_min, r.fare)
-    ELSE CONCAT(COALESCE(r.fare_min, r.fare), ' - ', COALESCE(r.fare_max, r.fare))
+    WHEN $fareMinExpr IS NULL THEN NULL
+    WHEN ABS($fareMinExpr - $fareMaxExpr) < 0.001 THEN $fareMinExpr
+    ELSE CONCAT($fareMinExpr, ' - ', $fareMaxExpr)
   END AS fare,
   COALESCE(r.authorized_units, r.max_vehicle_limit, 0) AS authorized_units,
   COALESCE(COUNT(DISTINCT v.id), 0) AS active_units

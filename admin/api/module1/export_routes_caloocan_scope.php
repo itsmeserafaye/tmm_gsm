@@ -6,6 +6,14 @@ require_once __DIR__ . '/../../includes/export.php';
 $db = db();
 require_permission('reports.export');
 
+$disabled = true;
+if ($disabled) {
+  header('Content-Type: application/json');
+  http_response_code(410);
+  echo json_encode(['ok' => false, 'error' => 'disabled']);
+  exit;
+}
+
 $format = tmm_export_format();
 tmm_send_export_headers($format, 'routes_caloocan_scope');
 

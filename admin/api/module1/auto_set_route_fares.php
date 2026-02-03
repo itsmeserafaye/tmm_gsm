@@ -6,6 +6,13 @@ require_once __DIR__ . '/../../includes/util.php';
 header('Content-Type: application/json');
 require_permission('module1.routes.write');
 
+$disabled = true;
+if ($disabled) {
+  http_response_code(410);
+  echo json_encode(['ok' => false, 'error' => 'disabled']);
+  exit;
+}
+
 $db = db();
 
 function round_to_quarter($amount) {

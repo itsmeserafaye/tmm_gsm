@@ -17,48 +17,15 @@ if ($rootUrl === '/') $rootUrl = '';
 
 $canManage = has_any_permission(['module1.routes.write','module1.write']);
 
-function tmm_round_to_quarter($amount) {
-  $v = (float)$amount;
-  return round($v * 4.0) / 4.0;
-}
-
-function tmm_compute_route_fare($vehicleType, $distanceKm) {
-  $vt = strtoupper(trim((string)$vehicleType));
-  $d = (float)$distanceKm;
-  if ($d < 0) $d = 0;
-
-  if ($vt === 'JEEPNEY') {
-    $baseKm = 4.0;
-    $base = 13.00;
-    $perKm = 1.80;
-    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
+$routeColsRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('fare_min','fare_max')"); 
+$hasFareMin = false;
+$hasFareMax = false;
+if ($routeColsRes) {
+  while ($c = $routeColsRes->fetch_assoc()) {
+    $cn = (string)($c['COLUMN_NAME'] ?? '');
+    if ($cn === 'fare_min') $hasFareMin = true;
+    if ($cn === 'fare_max') $hasFareMax = true;
   }
-
-  if ($vt === 'UV' || $vt === 'UV EXPRESS' || $vt === 'MODERN JEEPNEY') {
-    $baseKm = 4.0;
-    $base = 15.00;
-    $perKm = 2.20;
-    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
-  }
-
-  if ($vt === 'BUS') {
-    $baseKm = 4.0;
-    $base = 15.00;
-    $perKm = 2.20;
-    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
-  }
-
-  if ($vt === 'TRICYCLE') {
-    $baseKm = 1.0;
-    $base = 20.00;
-    $perKm = 5.00;
-    return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
-  }
-
-  $baseKm = 4.0;
-  $base = 13.00;
-  $perKm = 1.80;
-  return tmm_round_to_quarter($base + max(0.0, $d - $baseKm) * $perKm);
 }
 
 $conds = ["1=1"];
@@ -94,9 +61,9 @@ $sql = "SELECT
   r.distance_km,
   r.authorized_units,
   r.fare,
+  " . ($hasFareMin ? "r.fare_min" : "NULL") . " AS fare_min,
+  " . ($hasFareMax ? "r.fare_max" : "NULL") . " AS fare_max,
   r.status,
-  r.approved_by,
-  r.approved_date,
   r.created_at,
   r.updated_at,
   COALESCE(u.used_units,0) AS used_units
@@ -135,10 +102,6 @@ if ($params) {
     </div>
     <div class="flex items-center gap-2">
       <?php if ($canManage): ?>
-        <button type="button" id="btnAutoFares" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          <i data-lucide="wand-2" class="w-4 h-4"></i>
-          Auto-set Fares
-        </button>
         <button type="button" id="btnAddRoute" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="plus" class="w-4 h-4"></i>
           Add Route
@@ -161,11 +124,6 @@ if ($params) {
           'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
-        ],
-        [
-          'href' => $rootUrl . '/admin/api/module1/export_routes_caloocan_scope.php?format=csv',
-          'label' => 'Caloocan Scope',
-          'icon' => 'map'
         ]
       ]); ?>
     <?php endif; ?>
@@ -241,9 +199,17 @@ if ($params) {
                 ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
                 : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
               $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
+              $fareMin = $r['fare_min'] === null || $r['fare_min'] === '' ? null : (float)$r['fare_min'];
+              $fareMax = $r['fare_max'] === null || $r['fare_max'] === '' ? null : (float)$r['fare_max'];
               $storedFare = $r['fare'] === null || $r['fare'] === '' ? null : (float)$r['fare'];
-              $effectiveFare = ($storedFare === null || $storedFare <= 0) ? tmm_compute_route_fare($vt, $distanceKm) : $storedFare;
-              $fareIsAuto = ($storedFare === null || $storedFare <= 0);
+              if ($fareMin === null && $storedFare !== null) $fareMin = $storedFare;
+              if ($fareMax === null && $storedFare !== null) $fareMax = $storedFare;
+              if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+              $fareText = '-';
+              if ($fareMin !== null) {
+                if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
+                else $fareText = '₱ ' . number_format((float)$fareMin, 2);
+              }
               $rowPayload = [
                 'id' => (int)($r['id'] ?? 0),
                 'route_code' => $code,
@@ -256,8 +222,8 @@ if ($params) {
                 'distance_km' => $distanceKm,
                 'authorized_units' => (int)($r['authorized_units'] ?? 0),
                 'fare' => $storedFare,
-                'approved_by' => (string)($r['approved_by'] ?? ''),
-                'approved_date' => (string)($r['approved_date'] ?? ''),
+                'fare_min' => $fareMin,
+                'fare_max' => $fareMax,
                 'status' => $st,
                 'used_units' => $used,
               ];
@@ -273,10 +239,7 @@ if ($params) {
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$used; ?></td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$rem; ?></td>
               <td class="py-4 px-4 text-sm font-black text-slate-900 dark:text-white hidden md:table-cell">
-                <?php echo '₱ ' . number_format((float)$effectiveFare, 2); ?>
-                <?php if ($fareIsAuto): ?>
-                  <span class="ml-2 px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200">AUTO</span>
-                <?php endif; ?>
+                <?php echo htmlspecialchars($fareText); ?>
               </td>
               <td class="py-4 px-4">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
@@ -315,69 +278,6 @@ if ($params) {
         </button>
       </div>
       <div id="modalRouteBody" class="p-6 max-h-[80vh] overflow-y-auto"></div>
-    </div>
-  </div>
-</div>
-
-<div id="modalAutoFares" class="fixed inset-0 z-[210] hidden">
-  <div id="modalAutoFaresBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
-  <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div id="modalAutoFaresPanel" class="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-        <div class="font-black text-slate-900 dark:text-white">Auto-set Route Fares</div>
-        <button type="button" id="modalAutoFaresClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <div class="p-6 space-y-4">
-        <div class="text-sm text-slate-600 dark:text-slate-300 font-semibold">
-          Uses distance (km) when available and rounds to the nearest 0.25.
-        </div>
-        <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
-          <input id="autoFaresOnlyMissing" type="checkbox" checked class="w-4 h-4">
-          Only set fares that are empty/zero
-        </label>
-        <label class="flex items-center gap-3 text-sm font-bold text-slate-700 dark:text-slate-200">
-          <input id="autoFaresOverwrite" type="checkbox" class="w-4 h-4">
-          Overwrite existing fares
-        </label>
-        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare Rules</div>
-          <div class="grid grid-cols-1 gap-3">
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-              <div class="text-sm font-black text-slate-900 dark:text-white">Jeepney</div>
-              <input id="rateJeepneyBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
-              <input id="rateJeepneyBase" type="number" min="0" step="0.01" value="13" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
-              <input id="rateJeepneyPerKm" type="number" min="0" step="0.01" value="1.8" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-              <div class="text-sm font-black text-slate-900 dark:text-white">UV</div>
-              <input id="rateUvBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
-              <input id="rateUvBase" type="number" min="0" step="0.01" value="15" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
-              <input id="rateUvPerKm" type="number" min="0" step="0.01" value="2.2" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-              <div class="text-sm font-black text-slate-900 dark:text-white">Bus</div>
-              <input id="rateBusBaseKm" type="number" min="0" step="0.01" value="4" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
-              <input id="rateBusBase" type="number" min="0" step="0.01" value="15" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
-              <input id="rateBusPerKm" type="number" min="0" step="0.01" value="2.2" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-              <div class="text-sm font-black text-slate-900 dark:text-white">Tricycle</div>
-              <input id="rateTriBaseKm" type="number" min="0" step="0.01" value="1" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base km">
-              <input id="rateTriBase" type="number" min="0" step="0.01" value="20" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Base fare">
-              <input id="rateTriPerKm" type="number" min="0" step="0.01" value="5" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Per km">
-            </div>
-          </div>
-        </div>
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <button type="button" id="btnAutoFaresCancel" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
-          <button type="button" id="btnAutoFaresApply" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Apply</button>
-        </div>
-        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">
-          Jeepney fares follow LTFRB PUJ matrix (₱13 first 4km + ₱1.80/km). UV/Bus use ₱15 first 4km + ₱2.20/km. Tricycle uses a practical local estimate.
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -436,82 +336,6 @@ if ($params) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
     }
 
-    const modalAuto = document.getElementById('modalAutoFares');
-    const modalAutoBackdrop = document.getElementById('modalAutoFaresBackdrop');
-    const modalAutoPanel = document.getElementById('modalAutoFaresPanel');
-    const btnAutoFares = document.getElementById('btnAutoFares');
-    const btnAutoApply = document.getElementById('btnAutoFaresApply');
-    const btnAutoCancel = document.getElementById('btnAutoFaresCancel');
-    const btnAutoClose = document.getElementById('modalAutoFaresClose');
-    const autoOnlyMissing = document.getElementById('autoFaresOnlyMissing');
-    const autoOverwrite = document.getElementById('autoFaresOverwrite');
-    const rateJeepneyBaseKm = document.getElementById('rateJeepneyBaseKm');
-    const rateJeepneyBase = document.getElementById('rateJeepneyBase');
-    const rateJeepneyPerKm = document.getElementById('rateJeepneyPerKm');
-    const rateUvBaseKm = document.getElementById('rateUvBaseKm');
-    const rateUvBase = document.getElementById('rateUvBase');
-    const rateUvPerKm = document.getElementById('rateUvPerKm');
-    const rateBusBaseKm = document.getElementById('rateBusBaseKm');
-    const rateBusBase = document.getElementById('rateBusBase');
-    const rateBusPerKm = document.getElementById('rateBusPerKm');
-    const rateTriBaseKm = document.getElementById('rateTriBaseKm');
-    const rateTriBase = document.getElementById('rateTriBase');
-    const rateTriPerKm = document.getElementById('rateTriPerKm');
-
-    function openAutoModal() {
-      if (!modalAuto) return;
-      modalAuto.classList.remove('hidden');
-      requestAnimationFrame(() => {
-        if (modalAutoBackdrop) modalAutoBackdrop.classList.remove('opacity-0');
-        if (modalAutoPanel) modalAutoPanel.classList.remove('scale-95','opacity-0');
-      });
-      if (window.lucide) window.lucide.createIcons();
-    }
-    function closeAutoModal() {
-      if (!modalAuto) return;
-      if (modalAutoPanel) modalAutoPanel.classList.add('scale-95','opacity-0');
-      if (modalAutoBackdrop) modalAutoBackdrop.classList.add('opacity-0');
-      setTimeout(() => { modalAuto.classList.add('hidden'); }, 200);
-    }
-    if (btnAutoFares) btnAutoFares.addEventListener('click', openAutoModal);
-    if (btnAutoCancel) btnAutoCancel.addEventListener('click', closeAutoModal);
-    if (btnAutoClose) btnAutoClose.addEventListener('click', closeAutoModal);
-    if (modalAutoBackdrop) modalAutoBackdrop.addEventListener('click', closeAutoModal);
-
-    async function applyAutoFares() {
-      if (!btnAutoApply) return;
-      btnAutoApply.disabled = true;
-      btnAutoApply.textContent = 'Applying...';
-      try {
-        const fd = new FormData();
-        const overwrite = autoOverwrite && autoOverwrite.checked;
-        fd.append('overwrite', overwrite ? '1' : '0');
-        fd.append('only_missing', overwrite ? '0' : (autoOnlyMissing && autoOnlyMissing.checked ? '1' : '0'));
-        fd.append('rate_jeepney_base_km', String(rateJeepneyBaseKm && rateJeepneyBaseKm.value || ''));
-        fd.append('rate_jeepney_base', String(rateJeepneyBase && rateJeepneyBase.value || ''));
-        fd.append('rate_jeepney_per_km', String(rateJeepneyPerKm && rateJeepneyPerKm.value || ''));
-        fd.append('rate_uv_base_km', String(rateUvBaseKm && rateUvBaseKm.value || ''));
-        fd.append('rate_uv_base', String(rateUvBase && rateUvBase.value || ''));
-        fd.append('rate_uv_per_km', String(rateUvPerKm && rateUvPerKm.value || ''));
-        fd.append('rate_bus_base_km', String(rateBusBaseKm && rateBusBaseKm.value || ''));
-        fd.append('rate_bus_base', String(rateBusBase && rateBusBase.value || ''));
-        fd.append('rate_bus_per_km', String(rateBusPerKm && rateBusPerKm.value || ''));
-        fd.append('rate_tricycle_base_km', String(rateTriBaseKm && rateTriBaseKm.value || ''));
-        fd.append('rate_tricycle_base', String(rateTriBase && rateTriBase.value || ''));
-        fd.append('rate_tricycle_per_km', String(rateTriPerKm && rateTriPerKm.value || ''));
-        const res = await fetch(rootUrl + '/admin/api/module1/auto_set_route_fares.php', { method: 'POST', body: fd });
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'apply_failed');
-        showToast('Updated fares: ' + String(data.updated || 0));
-        setTimeout(() => { window.location.reload(); }, 400);
-      } catch (e) {
-        showToast('Failed', 'error');
-        btnAutoApply.disabled = false;
-        btnAutoApply.textContent = 'Apply';
-      }
-    }
-    if (btnAutoApply) btnAutoApply.addEventListener('click', applyAutoFares);
-
     function renderForm(r) {
       const id = r && r.id ? Number(r.id) : 0;
       const isEdit = id > 0;
@@ -524,9 +348,8 @@ if ($params) {
       const structure = r && r.structure ? String(r.structure) : '';
       const distanceKm = (r && r.distance_km !== null && r.distance_km !== undefined && r.distance_km !== '') ? Number(r.distance_km) : '';
       const au = r && r.authorized_units ? Number(r.authorized_units) : 0;
-      const fare = (r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '';
-      const approvedBy = r && r.approved_by ? String(r.approved_by) : '';
-      const approvedDate = r && r.approved_date ? String(r.approved_date) : '';
+      const fareMin = (r && r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : ((r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '');
+      const fareMax = (r && r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : ((r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '');
       const status = r && r.status ? String(r.status) : 'Active';
 
       return `
@@ -586,30 +409,24 @@ if ($params) {
               <input name="authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
             </div>
             <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare (₱)</label>
-              <input name="fare" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fare}">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Min (₱)</label>
+              <input name="fare_min" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMin}">
             </div>
             <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Approved By</label>
-              <input name="approved_by" maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(approvedBy)}" placeholder="Ordinance ref">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Max (₱)</label>
+              <input name="fare_max" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMax}">
             </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Approved Date</label>
-              <input name="approved_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(approvedDate)}">
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
               <select name="status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===status?'selected':''}>${t}</option>`).join('')}
               </select>
             </div>
-            <div class="flex items-end justify-end gap-2">
-              <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
-              <button id="btnRouteSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
-            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
+            <button id="btnRouteSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
           </div>
         </form>
       `;
@@ -619,18 +436,13 @@ if ($params) {
       const au = Number(r.authorized_units || 0);
       const used = Number(r.used_units || 0);
       const rem = au > 0 ? Math.max(0, au - used) : 0;
-      const dist = (r.distance_km === null || r.distance_km === undefined || r.distance_km === '') ? 0 : Number(r.distance_km);
-      let fare = (r.fare === null || r.fare === undefined || r.fare === '' || Number(r.fare) <= 0) ? null : Number(r.fare);
-      if (fare === null) {
-        const vt = String(r.vehicle_type || '').toUpperCase();
-        if (vt === 'JEEPNEY') fare = 13 + Math.max(0, dist - 4) * 1.8;
-        else if (vt === 'UV' || vt === 'MODERN JEEPNEY' || vt === 'UV EXPRESS') fare = 15 + Math.max(0, dist - 4) * 2.2;
-        else if (vt === 'BUS') fare = 15 + Math.max(0, dist - 4) * 2.2;
-        else if (vt === 'TRICYCLE') fare = 20 + Math.max(0, dist - 1) * 5;
-        else fare = 13 + Math.max(0, dist - 4) * 1.8;
-        fare = Math.round(fare * 4) / 4;
+      const fmin = (r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : ((r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : null);
+      const fmax = (r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : fmin;
+      let fareText = '-';
+      if (fmin !== null && !Number.isNaN(fmin)) {
+        if (fmax !== null && !Number.isNaN(fmax) && Math.abs(fmin - fmax) >= 0.001) fareText = '₱ ' + fmin.toFixed(2) + ' – ' + fmax.toFixed(2);
+        else fareText = '₱ ' + fmin.toFixed(2);
       }
-      const fareText = '₱ ' + Number(fare).toFixed(2);
       openModal(`
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
@@ -682,14 +494,6 @@ if ($params) {
             <div class="sm:col-span-2">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Via</div>
               <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200 whitespace-pre-wrap">${esc(r.via || '-')}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved By</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.approved_by || '-')}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved Date</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.approved_date || '-')}</div>
             </div>
           </div>
           <div class="mt-4 flex items-center justify-end gap-2">
@@ -839,9 +643,9 @@ if ($params) {
             fd.append('structure', String(r.structure || ''));
             fd.append('distance_km', (r.distance_km === null || r.distance_km === undefined) ? '' : String(r.distance_km));
             fd.append('authorized_units', String(r.authorized_units || 0));
-            fd.append('fare', (r.fare === null || r.fare === undefined) ? '' : String(r.fare));
-            fd.append('approved_by', String(r.approved_by || ''));
-            fd.append('approved_date', String(r.approved_date || ''));
+            fd.append('fare_min', (r.fare_min === null || r.fare_min === undefined) ? '' : String(r.fare_min));
+            fd.append('fare_max', (r.fare_max === null || r.fare_max === undefined) ? '' : String(r.fare_max));
+            fd.append('fare', (r.fare_min === null || r.fare_min === undefined) ? ((r.fare === null || r.fare === undefined) ? '' : String(r.fare)) : String(r.fare_min));
             fd.append('status', next);
             const res = await fetch(rootUrl + '/admin/api/module1/save_route.php', { method: 'POST', body: fd });
             const data = await res.json();

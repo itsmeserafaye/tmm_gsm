@@ -12,6 +12,16 @@ try {
     $db = db();
     require_permission('module1.routes.write');
 
+    $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes'");
+    $routeCols = [];
+    if ($colRes) {
+        while ($c = $colRes->fetch_assoc()) {
+            $routeCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+        }
+    }
+    $hasFareMin = isset($routeCols['fare_min']);
+    $hasFareMax = isset($routeCols['fare_max']);
+
     $routePk = isset($_POST['id']) ? (int)$_POST['id'] : 0;
     $routeCode = strtoupper(trim((string)($_POST['route_code'] ?? ($_POST['route_id'] ?? ''))));
     $routeName = trim((string)($_POST['route_name'] ?? ''));
@@ -23,10 +33,12 @@ try {
     $distanceKm = isset($_POST['distance_km']) ? (float)$_POST['distance_km'] : null;
     $fareRaw = trim((string)($_POST['fare'] ?? ''));
     $fare = $fareRaw === '' ? null : (float)$fareRaw;
+    $fareMinRaw = trim((string)($_POST['fare_min'] ?? ''));
+    $fareMaxRaw = trim((string)($_POST['fare_max'] ?? ''));
+    $fareMin = $fareMinRaw === '' ? null : (float)$fareMinRaw;
+    $fareMax = $fareMaxRaw === '' ? null : (float)$fareMaxRaw;
     $authorizedUnits = isset($_POST['authorized_units']) ? (int)$_POST['authorized_units'] : null;
     $status = trim((string)($_POST['status'] ?? 'Active'));
-    $approvedBy = trim((string)($_POST['approved_by'] ?? ''));
-    $approvedDate = trim((string)($_POST['approved_date'] ?? ''));
 
     if ($routeCode === '' || strlen($routeCode) < 2) {
         throw new Exception('invalid_route_code');
@@ -47,10 +59,6 @@ try {
     }
     if (!$vehOk) $vehicleType = null;
 
-    if ($approvedDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $approvedDate)) {
-        $approvedDate = '';
-    }
-
     $statusAllowed = ['Active','Inactive'];
     $stOk = false;
     foreach ($statusAllowed as $s) {
@@ -61,6 +69,21 @@ try {
     if ($fare !== null && $fare < 0) {
         throw new Exception('invalid_fare');
     }
+    if ($fareMin !== null && $fareMin < 0) {
+        throw new Exception('invalid_fare');
+    }
+    if ($fareMax !== null && $fareMax < 0) {
+        throw new Exception('invalid_fare');
+    }
+    if ($fareMin !== null && $fareMax !== null && $fareMax < $fareMin) {
+        throw new Exception('invalid_fare_range');
+    }
+
+    if ($fareMin === null && $fareMax !== null) $fareMin = $fareMax;
+    if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+    if ($fare === null && $fareMin !== null) $fare = $fareMin;
+    if ($fareMin === null && $fare !== null) $fareMin = $fare;
+    if ($fareMax === null && $fare !== null) $fareMax = $fare;
 
     $maxLimit = $authorizedUnits !== null && $authorizedUnits > 0 ? $authorizedUnits : null;
     if ($maxLimit === null) $maxLimit = 50;
@@ -68,9 +91,9 @@ try {
     $distanceBind = $distanceKm;
     $authorizedBind = $authorizedUnits !== null ? $authorizedUnits : 0;
     $viaBind = $via !== '' ? $via : null;
-    $approvedByBind = $approvedBy !== '' ? $approvedBy : null;
-    $approvedDateBind = $approvedDate !== '' ? $approvedDate : null;
     $fareBind = $fare;
+    $fareMinBind = $fareMin;
+    $fareMaxBind = $fareMax;
 
     if ($routePk > 0) {
         $stmtCur = $db->prepare("SELECT id FROM routes WHERE id=? LIMIT 1");
@@ -89,11 +112,18 @@ try {
         $stmtDup->close();
         if ($dup) throw new Exception('duplicate_route_code');
 
-        $stmt = $db->prepare("UPDATE routes
-                              SET route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, distance_km=?, fare=?, authorized_units=?, max_vehicle_limit=?, status=?, approved_by=?, approved_date=?
-                              WHERE id=?");
+        $set = "route_id=?, route_code=?, route_name=?, vehicle_type=?, origin=?, destination=?, via=?, structure=?, distance_km=?, fare=?, authorized_units=?, max_vehicle_limit=?, status=?";
+        $types = 'ssssssssddiis';
+        $params = [$routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status];
+        if ($hasFareMin) { $set .= ", fare_min=?"; $types .= 'd'; $params[] = $fareMinBind; }
+        if ($hasFareMax) { $set .= ", fare_max=?"; $types .= 'd'; $params[] = $fareMaxBind; }
+
+        $types .= 'i';
+        $params[] = $routePk;
+
+        $stmt = $db->prepare("UPDATE routes SET $set WHERE id=?");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssssssssddiisssi', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind, $routePk);
+        $stmt->bind_param($types, ...$params);
         $ok = $stmt->execute();
         $stmt->close();
     } else {
@@ -105,10 +135,17 @@ try {
         $stmtDup->close();
         if ($dup) throw new Exception('duplicate_route_code');
 
-        $stmt = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, fare, authorized_units, max_vehicle_limit, status, approved_by, approved_date)
-                              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+        $cols = ['route_id', 'route_code', 'route_name', 'vehicle_type', 'origin', 'destination', 'via', 'structure', 'distance_km', 'fare', 'authorized_units', 'max_vehicle_limit', 'status'];
+        $vals = array_fill(0, count($cols), '?');
+        $types = 'ssssssssddiis';
+        $params = [$routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status];
+
+        if ($hasFareMin) { $cols[] = 'fare_min'; $vals[] = '?'; $types .= 'd'; $params[] = $fareMinBind; }
+        if ($hasFareMax) { $cols[] = 'fare_max'; $vals[] = '?'; $types .= 'd'; $params[] = $fareMaxBind; }
+
+        $stmt = $db->prepare("INSERT INTO routes(" . implode(',', $cols) . ") VALUES(" . implode(',', $vals) . ")");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssssssssddiisss', $routeCode, $routeCode, $routeName, $vehicleType, $origin, $destination, $viaBind, $structure, $distanceBind, $fareBind, $authorizedBind, $maxLimit, $status, $approvedByBind, $approvedDateBind);
+        $stmt->bind_param($types, ...$params);
         $ok = $stmt->execute();
         $routePk = (int)$db->insert_id;
         $stmt->close();

@@ -75,6 +75,7 @@ $terminalRows = [];
 $res = $db->query("SELECT
   t.id,
   t.name,
+  t.category,
   t.location,
   t.capacity,
   COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
@@ -171,6 +172,15 @@ if ($rootUrl === '/') $rootUrl = '';
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
               <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
             </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
+              <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="">Select</option>
+                <?php foreach (['Provincial Bus Terminal','City Transport Hub','District Transport Terminal','Barangay Transport Terminal'] as $c): ?>
+                  <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
             <div class="md:col-span-4">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
               <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Monumento, Caloocan City">
@@ -227,6 +237,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <tr class="text-left text-slate-500 dark:text-slate-400">
                 <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Classification</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Assigned</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
@@ -239,6 +250,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
+                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['category'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
                       <?php $rc = (int)($t['route_count'] ?? 0); ?>
                       <?php if ($rc > 0): ?>
@@ -287,7 +299,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="6" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
+                <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -711,7 +723,17 @@ if ($rootUrl === '/') $rootUrl = '';
           const routeLabel = (r.route_name || r.route_code || r.route_ref || '-').toString();
           const origin = (r.origin || '-').toString();
           const dest = (r.destination || '-').toString();
-          const fare = (r.fare === null || r.fare === undefined || r.fare === '') ? '-' : ('₱' + Number(r.fare).toFixed(2));
+          const min = (r.fare_min === null || r.fare_min === undefined || r.fare_min === '') ? null : Number(r.fare_min);
+          const max = (r.fare_max === null || r.fare_max === undefined || r.fare_max === '') ? null : Number(r.fare_max);
+          let fare = '-';
+          if (min !== null && !Number.isNaN(min)) {
+            const maxv = (max !== null && !Number.isNaN(max)) ? max : min;
+            fare = Math.abs(min - maxv) < 0.001 ? ('₱' + min.toFixed(2)) : ('₱' + min.toFixed(2) + ' – ' + maxv.toFixed(2));
+          } else if (r.fare !== null && r.fare !== undefined && String(r.fare).trim() !== '') {
+            const fv = String(r.fare).trim();
+            const n = Number(fv);
+            fare = Number.isNaN(n) ? ('₱' + fv) : ('₱' + n.toFixed(2));
+          }
           const manage = r.route_db_id
             ? `<a target="_blank" rel="noopener" title="Open Route Assignment"
                  href="?page=module2/submodule5&route_id=${Number(r.route_db_id)}"

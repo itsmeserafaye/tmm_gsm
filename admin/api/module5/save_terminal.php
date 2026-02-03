@@ -16,6 +16,7 @@ $city = trim((string)($_POST['city'] ?? ''));
 $address = trim((string)($_POST['address'] ?? ''));
 $type = trim((string)($_POST['type'] ?? 'Terminal'));
 $capacity = (int)($_POST['capacity'] ?? 0);
+$category = trim((string)($_POST['category'] ?? ''));
 
 if ($name === '') {
     echo json_encode(['success' => false, 'message' => 'Name is required']);
@@ -43,9 +44,17 @@ if (strcasecmp($typeFinal, 'Terminal') === 0) {
 $hasCity = false;
 $colRes = $db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME='city' LIMIT 1");
 if ($colRes && $colRes->fetch_row()) $hasCity = true;
+$hasCategory = false;
+$colRes2 = $db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME='category' LIMIT 1");
+if ($colRes2 && $colRes2->fetch_row()) $hasCategory = true;
 
-if ($hasCity) {
+$categoryFinal = $category !== '' ? $category : null;
+if ($hasCity && $hasCategory) {
+  $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?, ?)");
+} elseif ($hasCity) {
   $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity) VALUES (?, ?, ?, ?, ?, ?)");
+} elseif ($hasCategory) {
+  $stmt = $db->prepare("INSERT INTO terminals (name, location, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?)");
 } else {
   $stmt = $db->prepare("INSERT INTO terminals (name, location, address, type, capacity) VALUES (?, ?, ?, ?, ?)");
 }
@@ -54,8 +63,12 @@ if (!$stmt) {
   echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_prepare_failed']);
   exit;
 }
-if ($hasCity) {
+if ($hasCity && $hasCategory) {
+  $stmt->bind_param('sssssis', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal);
+} elseif ($hasCity) {
   $stmt->bind_param('sssssi', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity);
+} elseif ($hasCategory) {
+  $stmt->bind_param('ssssis', $name, $locationFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal);
 } else {
   $stmt->bind_param('ssssi', $name, $locationFinal, $addressFinal, $typeFinal, $capacity);
 }
