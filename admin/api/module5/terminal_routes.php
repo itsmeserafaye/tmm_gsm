@@ -22,7 +22,13 @@ $stmt = $db->prepare("SELECT
   COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code,
   r.origin,
   r.destination,
-  r.fare,
+  COALESCE(r.fare_min, r.fare) AS fare_min,
+  COALESCE(r.fare_max, r.fare) AS fare_max,
+  CASE
+    WHEN COALESCE(r.fare_min, r.fare) IS NULL THEN NULL
+    WHEN ABS(COALESCE(r.fare_min, r.fare) - COALESCE(r.fare_max, r.fare)) < 0.001 THEN COALESCE(r.fare_min, r.fare)
+    ELSE CONCAT(COALESCE(r.fare_min, r.fare), ' - ', COALESCE(r.fare_max, r.fare))
+  END AS fare,
   r.vehicle_type,
   r.status
 FROM terminals t
@@ -45,4 +51,3 @@ while ($res && ($r = $res->fetch_assoc())) {
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

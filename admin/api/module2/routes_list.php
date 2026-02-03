@@ -13,7 +13,13 @@ $res = $db->query("SELECT
   r.route_name,
   r.origin,
   r.destination,
-  r.fare,
+  COALESCE(r.fare_min, r.fare) AS fare_min,
+  COALESCE(r.fare_max, r.fare) AS fare_max,
+  CASE
+    WHEN COALESCE(r.fare_min, r.fare) IS NULL THEN NULL
+    WHEN ABS(COALESCE(r.fare_min, r.fare) - COALESCE(r.fare_max, r.fare)) < 0.001 THEN COALESCE(r.fare_min, r.fare)
+    ELSE CONCAT(COALESCE(r.fare_min, r.fare), ' - ', COALESCE(r.fare_max, r.fare))
+  END AS fare,
   COALESCE(r.authorized_units, r.max_vehicle_limit, 0) AS authorized_units,
   COALESCE(COUNT(DISTINCT v.id), 0) AS active_units
 FROM routes r

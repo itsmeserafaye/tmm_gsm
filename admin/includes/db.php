@@ -238,6 +238,7 @@ function db()
     location VARCHAR(255) DEFAULT NULL,
     capacity INT DEFAULT 0,
     type VARCHAR(50) DEFAULT 'Terminal',
+    category VARCHAR(100) DEFAULT NULL,
     city VARCHAR(100) DEFAULT NULL,
     address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -264,6 +265,9 @@ function db()
   if (!isset($termCols['address'])) {
     $conn->query("ALTER TABLE terminals ADD COLUMN address TEXT");
   }
+  if (!isset($termCols['category'])) {
+    $conn->query("ALTER TABLE terminals ADD COLUMN category VARCHAR(100) DEFAULT NULL");
+  }
   $conn->query("UPDATE terminals SET city='Caloocan City' WHERE type <> 'Parking' AND (city IS NULL OR city='')");
   $conn->query("UPDATE terminals SET location=TRIM(CONCAT(COALESCE(address,''), CASE WHEN address IS NOT NULL AND address <> '' AND city IS NOT NULL AND city <> '' THEN ', ' ELSE '' END, COALESCE(city,''))) WHERE (location IS NULL OR location='') AND ((address IS NOT NULL AND address <> '') OR (city IS NOT NULL AND city <> ''))");
   $conn->query("UPDATE terminal_assignments ta JOIN terminals t ON t.name=ta.terminal_name SET ta.terminal_id=t.id WHERE ta.terminal_id IS NULL AND ta.terminal_name IS NOT NULL AND ta.terminal_name<>''");
@@ -279,80 +283,108 @@ function db()
     FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'MCU/Monumento Terminal','Monumento','Caloocan City','Rizal Ave Ext / EDSA (near LRT-1 Monumento)',800,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='MCU/Monumento Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Bagong Barrio Terminal','Bagong Barrio','Caloocan City','EDSA Bagong Barrio',500,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Barrio Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Sangandaan Terminal','Sangandaan','Caloocan City','Samson Rd / Sangandaan',250,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Sangandaan Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Grace Park Terminal','Grace Park','Caloocan City','10th Ave / 5th Ave area',300,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Camarin Terminal','Camarin','Caloocan City','Camarin Rd / Zabarte Rd area',400,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Camarin Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Deparo Terminal','Deparo','Caloocan City','Deparo Rd area',350,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Deparo Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Tala Terminal','Tala','Caloocan City','Tala area / Dr. Jose N. Rodriguez Memorial Hospital vicinity',250,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Tala Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Bagong Silang Terminal','Bagong Silang','Caloocan City','Zabarte Rd / Phase terminals',600,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Silang Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Novaliches Bayan Terminal','Novaliches','Caloocan City','Quirino Highway / Novaliches Bayan',500,'Terminal'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Novaliches Bayan Terminal')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'MCU/Monumento Parking','Monumento','Caloocan City','Rizal Ave Ext / EDSA (near LRT-1 Monumento)',200,'Parking'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='MCU/Monumento Parking')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Bagong Silang Parking','Bagong Silang','Caloocan City','Zabarte Rd / Bagong Silang',150,'Parking'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagong Silang Parking')");
-  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type)
-                SELECT 'Grace Park Parking','Grace Park','Caloocan City','10th Ave / 5th Ave area',120,'Parking'
-                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Parking')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Victory Liner - Caloocan (Monumento)','Monumento','Caloocan City','Monumento area',0,'Terminal','Provincial Bus Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Victory Liner - Caloocan (Monumento)')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Baliwag Transit - Caloocan','Caloocan','Caloocan City','Caloocan area',0,'Terminal','Provincial Bus Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Baliwag Transit - Caloocan')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Monumento Carousel Terminal','Monumento','Caloocan City','EDSA Carousel - Monumento',0,'Terminal','City Transport Hub'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Monumento Carousel Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'SM City Caloocan Terminal','North Caloocan','Caloocan City','SM City Caloocan',0,'Terminal','District Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='SM City Caloocan Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Deparo UV Express Terminal','Deparo','Caloocan City','Deparo',0,'Terminal','District Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Deparo UV Express Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Sangandaan / City Hall Jeep Terminal','Sangandaan','Caloocan City','Sangandaan / City Hall',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Sangandaan / City Hall Jeep Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Bagumbong - Novaliches Jeep Terminal','Bagumbong','Caloocan City','Bagumbong / Novaliches',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagumbong - Novaliches Jeep Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Bagumbong Tricycle Terminal','Bagumbong','Caloocan City','Bagumbong',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Bagumbong Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Deparo Tricycle Terminal','Deparo','Caloocan City','Deparo',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Deparo Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Camarin Tricycle Terminal','Camarin','Caloocan City','Camarin',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Camarin Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Tala Tricycle Terminal','Tala','Caloocan City','Tala (Near Tala Hospital)',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Tala Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Sangandaan Tricycle Terminal','Sangandaan','Caloocan City','Sangandaan',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Sangandaan Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT 'Grace Park Tricycle Terminal','Grace Park','Caloocan City','Grace Park',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='Grace Park Tricycle Terminal')");
+  $conn->query("INSERT INTO terminals (name, location, city, address, capacity, type, category)
+                SELECT '5th Avenue Tricycle Terminal','5th Avenue','Caloocan City','5th Avenue',0,'Terminal','Barangay Transport Terminal'
+                WHERE NOT EXISTS (SELECT 1 FROM terminals WHERE name='5th Avenue Tricycle Terminal')");
 
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-02' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-03' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='MCU/Monumento Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-01' FROM terminals t WHERE t.name='Bagong Barrio Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-02' FROM terminals t WHERE t.name='Sangandaan Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-06' FROM terminals t WHERE t.name='Grace Park Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-08' FROM terminals t WHERE t.name='Grace Park Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-03' FROM terminals t WHERE t.name='Grace Park Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Camarin Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-07' FROM terminals t WHERE t.name='Camarin Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-04' FROM terminals t WHERE t.name='Camarin Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-09' FROM terminals t WHERE t.name='Camarin Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Deparo Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-05' FROM terminals t WHERE t.name='Deparo Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-01' FROM terminals t WHERE t.name='Deparo Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-02' FROM terminals t WHERE t.name='Deparo Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-03' FROM terminals t WHERE t.name='Tala Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Tala Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-02' FROM terminals t WHERE t.name='Tala Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TR-04' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-06' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-07' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-08' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-03' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-04' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-02' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-03' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-01' FROM terminals t WHERE t.name='Bagong Silang Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-05' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-06' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-07' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-08' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
-  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-09' FROM terminals t WHERE t.name='Novaliches Bayan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-VICTORY-OLONGAPO' FROM terminals t WHERE t.name='Victory Liner - Caloocan (Monumento)'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-VICTORY-IBA_ZAMBALES' FROM terminals t WHERE t.name='Victory Liner - Caloocan (Monumento)'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-VICTORY-SANTA_CRUZ_ZAMBALES' FROM terminals t WHERE t.name='Victory Liner - Caloocan (Monumento)'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-VICTORY-BAGUIO' FROM terminals t WHERE t.name='Victory Liner - Caloocan (Monumento)'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-VICTORY-TUGUEGARAO' FROM terminals t WHERE t.name='Victory Liner - Caloocan (Monumento)'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-BALIWAG-BALIWAG' FROM terminals t WHERE t.name='Baliwag Transit - Caloocan'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-BALIWAG-CABANATUAN' FROM terminals t WHERE t.name='Baliwag Transit - Caloocan'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-BALIWAG-GAPAN' FROM terminals t WHERE t.name='Baliwag Transit - Caloocan'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-BALIWAG-SAN_JOSE_NE' FROM terminals t WHERE t.name='Baliwag Transit - Caloocan'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'BUS-CAROUSEL-MONUMENTO-PITX' FROM terminals t WHERE t.name='Monumento Carousel Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-SM_CALOOCAN-NOVALICHES_BAYAN' FROM terminals t WHERE t.name='SM City Caloocan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-SM_CALOOCAN-SM_FAIRVIEW' FROM terminals t WHERE t.name='SM City Caloocan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-SM_CALOOCAN-BLUMENTRITT' FROM terminals t WHERE t.name='SM City Caloocan Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-SM_CALOOCAN-MONUMENTO' FROM terminals t WHERE t.name='SM City Caloocan Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-DEPARO-SM_NORTH' FROM terminals t WHERE t.name='Deparo UV Express Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-DEPARO-CUBAO' FROM terminals t WHERE t.name='Deparo UV Express Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-DEPARO-QUEZON_AVE' FROM terminals t WHERE t.name='Deparo UV Express Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'UV-DEPARO-NOVALICHES_BAYAN' FROM terminals t WHERE t.name='Deparo UV Express Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-SANGANDAAN-DIVISORIA' FROM terminals t WHERE t.name='Sangandaan / City Hall Jeep Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-SANGANDAAN-RECTO' FROM terminals t WHERE t.name='Sangandaan / City Hall Jeep Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-SANGANDAAN-BLUMENTRITT' FROM terminals t WHERE t.name='Sangandaan / City Hall Jeep Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-SANGANDAAN-MONUMENTO' FROM terminals t WHERE t.name='Sangandaan / City Hall Jeep Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-BAGUMBONG-NOVALICHES_BAYAN' FROM terminals t WHERE t.name='Bagumbong - Novaliches Jeep Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-BAGUMBONG-SM_FAIRVIEW' FROM terminals t WHERE t.name='Bagumbong - Novaliches Jeep Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'JEEP-BAGUMBONG-DEPARO' FROM terminals t WHERE t.name='Bagumbong - Novaliches Jeep Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-BAGUMBONG-DEPARO' FROM terminals t WHERE t.name='Bagumbong Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-BAGUMBONG-CAMARIN' FROM terminals t WHERE t.name='Bagumbong Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-BAGUMBONG-TALA_HOSPITAL' FROM terminals t WHERE t.name='Bagumbong Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-DEPARO-CAMARIN' FROM terminals t WHERE t.name='Deparo Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-DEPARO-BAGUMBONG' FROM terminals t WHERE t.name='Deparo Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-DEPARO-SUSANO_ROAD' FROM terminals t WHERE t.name='Deparo Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-CAMARIN-DEPARO' FROM terminals t WHERE t.name='Camarin Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-CAMARIN-BAGUMBONG' FROM terminals t WHERE t.name='Camarin Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-CAMARIN-TALA' FROM terminals t WHERE t.name='Camarin Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-TALA-CAMARIN' FROM terminals t WHERE t.name='Tala Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-TALA-BAGUMBONG' FROM terminals t WHERE t.name='Tala Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-TALA-DEPARO' FROM terminals t WHERE t.name='Tala Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-SANGANDAAN-GRACE_PARK' FROM terminals t WHERE t.name='Sangandaan Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-SANGANDAAN-MONUMENTO' FROM terminals t WHERE t.name='Sangandaan Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-SANGANDAAN-5TH_AVE' FROM terminals t WHERE t.name='Sangandaan Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-GRACE_PARK-10TH_AVE' FROM terminals t WHERE t.name='Grace Park Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-GRACE_PARK-5TH_AVE' FROM terminals t WHERE t.name='Grace Park Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-GRACE_PARK-RIZAL_AVE' FROM terminals t WHERE t.name='Grace Park Tricycle Terminal'");
+
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-5TH_AVE-A_MABINI' FROM terminals t WHERE t.name='5th Avenue Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-5TH_AVE-SANGANDAAN' FROM terminals t WHERE t.name='5th Avenue Tricycle Terminal'");
+  $conn->query("INSERT IGNORE INTO terminal_routes (terminal_id, route_id) SELECT t.id, 'TRI-5TH_AVE-GRACE_PARK' FROM terminals t WHERE t.name='5th Avenue Tricycle Terminal'");
 
   $conn->query("CREATE TABLE IF NOT EXISTS parking_slots (
     slot_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -418,6 +450,12 @@ function db()
   if (!isset($routeCols['fare'])) {
     $conn->query("ALTER TABLE routes ADD COLUMN fare DECIMAL(10,2) DEFAULT NULL");
   }
+  if (!isset($routeCols['fare_min'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN fare_min DECIMAL(10,2) DEFAULT NULL");
+  }
+  if (!isset($routeCols['fare_max'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN fare_max DECIMAL(10,2) DEFAULT NULL");
+  }
   if (!isset($routeCols['authorized_units'])) {
     $conn->query("ALTER TABLE routes ADD COLUMN authorized_units INT DEFAULT NULL");
   }
@@ -430,17 +468,61 @@ function db()
   $conn->query("UPDATE routes SET route_code=route_id WHERE (route_code IS NULL OR route_code='') AND COALESCE(route_id,'')<>''");
   $conn->query("UPDATE routes SET route_id=route_code WHERE (route_id IS NULL OR route_id='') AND COALESCE(route_code,'')<>''");
   $conn->query("UPDATE routes SET status=CASE WHEN status IN ('Active','Inactive') THEN status ELSE 'Active' END");
+  $conn->query("UPDATE routes SET fare_min=COALESCE(fare_min, fare) WHERE fare_min IS NULL AND fare IS NOT NULL");
+  $conn->query("UPDATE routes SET fare_max=COALESCE(fare_max, fare) WHERE fare_max IS NULL AND fare IS NOT NULL");
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
-    $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, authorized_units, max_vehicle_limit, status) VALUES
-      ('TR-01','TR-01','Monumento Loop','Jeepney','Monumento','Monumento','EDSA • Rizal Ave Ext • Samson Rd • 10th Ave/5th Ave (Caloocan)','Loop',60,60,'Active'),
-      ('TR-02','TR-02','Monumento–Sangandaan Connector','Jeepney','Monumento','Sangandaan','Samson Rd • Sangandaan Area (Caloocan)','Point-to-Point',45,45,'Active'),
-      ('TR-03','TR-03','Deparo–Tala Service','Jeepney','Deparo','Tala','Deparo Rd • Tala Area (Caloocan)','Point-to-Point',40,40,'Active'),
-      ('TR-04','TR-04','Bagong Silang–Camarin Loop','Jeepney','Bagong Silang','Camarin','Bagong Silang • Camarin (Caloocan)','Loop',55,55,'Active'),
-      ('TR-05','TR-05','Grace Park–Monumento Shuttle','UV','Grace Park','Monumento','Grace Park • EDSA/Monumento (Caloocan)','Point-to-Point',30,30,'Active')");
+    $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, structure, fare_min, fare_max, fare, status) VALUES
+      ('BUS-VICTORY-OLONGAPO','BUS-VICTORY-OLONGAPO','Caloocan - Olongapo','Bus','Caloocan','Olongapo','Point-to-Point',300,350,300,'Active'),
+      ('BUS-VICTORY-IBA_ZAMBALES','BUS-VICTORY-IBA_ZAMBALES','Caloocan - Iba, Zambales','Bus','Caloocan','Iba, Zambales','Point-to-Point',450,520,450,'Active'),
+      ('BUS-VICTORY-SANTA_CRUZ_ZAMBALES','BUS-VICTORY-SANTA_CRUZ_ZAMBALES','Caloocan - Santa Cruz, Zambales','Bus','Caloocan','Santa Cruz, Zambales','Point-to-Point',480,550,480,'Active'),
+      ('BUS-VICTORY-BAGUIO','BUS-VICTORY-BAGUIO','Caloocan - Baguio','Bus','Caloocan','Baguio','Point-to-Point',750,900,750,'Active'),
+      ('BUS-VICTORY-TUGUEGARAO','BUS-VICTORY-TUGUEGARAO','Caloocan - Tuguegarao','Bus','Caloocan','Tuguegarao','Point-to-Point',1000,1300,1000,'Active'),
+      ('BUS-BALIWAG-BALIWAG','BUS-BALIWAG-BALIWAG','Caloocan - Baliwag','Bus','Caloocan','Baliwag','Point-to-Point',110,140,110,'Active'),
+      ('BUS-BALIWAG-CABANATUAN','BUS-BALIWAG-CABANATUAN','Caloocan - Cabanatuan','Bus','Caloocan','Cabanatuan','Point-to-Point',210,260,210,'Active'),
+      ('BUS-BALIWAG-GAPAN','BUS-BALIWAG-GAPAN','Caloocan - Gapan','Bus','Caloocan','Gapan','Point-to-Point',190,240,190,'Active'),
+      ('BUS-BALIWAG-SAN_JOSE_NE','BUS-BALIWAG-SAN_JOSE_NE','Caloocan - San Jose, NE','Bus','Caloocan','San Jose, NE','Point-to-Point',280,340,280,'Active'),
+      ('BUS-CAROUSEL-MONUMENTO-PITX','BUS-CAROUSEL-MONUMENTO-PITX','Monumento - PITX','Bus','Monumento','PITX','Point-to-Point',75.50,75.50,75.50,'Active'),
+      ('UV-SM_CALOOCAN-NOVALICHES_BAYAN','UV-SM_CALOOCAN-NOVALICHES_BAYAN','SM Caloocan - Novaliches Bayan','UV','SM City Caloocan','Novaliches Bayan','Point-to-Point',25,30,25,'Active'),
+      ('UV-SM_CALOOCAN-SM_FAIRVIEW','UV-SM_CALOOCAN-SM_FAIRVIEW','SM Caloocan - SM Fairview','UV','SM City Caloocan','SM Fairview','Point-to-Point',30,35,30,'Active'),
+      ('UV-SM_CALOOCAN-BLUMENTRITT','UV-SM_CALOOCAN-BLUMENTRITT','SM Caloocan - Blumentritt','UV','SM City Caloocan','Blumentritt','Point-to-Point',35,45,35,'Active'),
+      ('UV-SM_CALOOCAN-MONUMENTO','UV-SM_CALOOCAN-MONUMENTO','SM Caloocan - Monumento','UV','SM City Caloocan','Monumento','Point-to-Point',30,40,30,'Active'),
+      ('UV-DEPARO-SM_NORTH','UV-DEPARO-SM_NORTH','Deparo - SM North','UV','Deparo','SM North','Point-to-Point',45,55,45,'Active'),
+      ('UV-DEPARO-CUBAO','UV-DEPARO-CUBAO','Deparo - Cubao','UV','Deparo','Cubao','Point-to-Point',50,60,50,'Active'),
+      ('UV-DEPARO-QUEZON_AVE','UV-DEPARO-QUEZON_AVE','Deparo - Quezon Ave','UV','Deparo','Quezon Ave','Point-to-Point',45,55,45,'Active'),
+      ('UV-DEPARO-NOVALICHES_BAYAN','UV-DEPARO-NOVALICHES_BAYAN','Deparo - Novaliches Bayan','UV','Deparo','Novaliches Bayan','Point-to-Point',25,30,25,'Active'),
+      ('JEEP-SANGANDAAN-DIVISORIA','JEEP-SANGANDAAN-DIVISORIA','Sangandaan - Divisoria','Jeepney','Sangandaan','Divisoria','Point-to-Point',30,40,30,'Active'),
+      ('JEEP-SANGANDAAN-RECTO','JEEP-SANGANDAAN-RECTO','Sangandaan - Recto','Jeepney','Sangandaan','Recto','Point-to-Point',28,35,28,'Active'),
+      ('JEEP-SANGANDAAN-BLUMENTRITT','JEEP-SANGANDAAN-BLUMENTRITT','Sangandaan - Blumentritt','Jeepney','Sangandaan','Blumentritt','Point-to-Point',20,25,20,'Active'),
+      ('JEEP-SANGANDAAN-MONUMENTO','JEEP-SANGANDAAN-MONUMENTO','Sangandaan - Monumento','Jeepney','Sangandaan','Monumento','Point-to-Point',13,18,13,'Active'),
+      ('JEEP-BAGUMBONG-NOVALICHES_BAYAN','JEEP-BAGUMBONG-NOVALICHES_BAYAN','Bagumbong - Novaliches Bayan','Jeepney','Bagumbong','Novaliches Bayan','Point-to-Point',13,15,13,'Active'),
+      ('JEEP-BAGUMBONG-SM_FAIRVIEW','JEEP-BAGUMBONG-SM_FAIRVIEW','Bagumbong - SM Fairview','Jeepney','Bagumbong','SM Fairview','Point-to-Point',18,22,18,'Active'),
+      ('JEEP-BAGUMBONG-DEPARO','JEEP-BAGUMBONG-DEPARO','Bagumbong - Deparo','Jeepney','Bagumbong','Deparo','Point-to-Point',13,18,13,'Active'),
+      ('TRI-BAGUMBONG-DEPARO','TRI-BAGUMBONG-DEPARO','Bagumbong - Deparo','Tricycle','Bagumbong','Deparo','Point-to-Point',15,30,15,'Active'),
+      ('TRI-BAGUMBONG-CAMARIN','TRI-BAGUMBONG-CAMARIN','Bagumbong - Camarin','Tricycle','Bagumbong','Camarin','Point-to-Point',15,30,15,'Active'),
+      ('TRI-BAGUMBONG-TALA_HOSPITAL','TRI-BAGUMBONG-TALA_HOSPITAL','Bagumbong - Tala Hospital','Tricycle','Bagumbong','Tala Hospital','Point-to-Point',15,30,15,'Active'),
+      ('TRI-DEPARO-CAMARIN','TRI-DEPARO-CAMARIN','Deparo - Camarin','Tricycle','Deparo','Camarin','Point-to-Point',15,35,15,'Active'),
+      ('TRI-DEPARO-BAGUMBONG','TRI-DEPARO-BAGUMBONG','Deparo - Bagumbong','Tricycle','Deparo','Bagumbong','Point-to-Point',15,35,15,'Active'),
+      ('TRI-DEPARO-SUSANO_ROAD','TRI-DEPARO-SUSANO_ROAD','Deparo - Susano Road','Tricycle','Deparo','Susano Road','Point-to-Point',15,35,15,'Active'),
+      ('TRI-CAMARIN-DEPARO','TRI-CAMARIN-DEPARO','Camarin - Deparo','Tricycle','Camarin','Deparo','Point-to-Point',15,35,15,'Active'),
+      ('TRI-CAMARIN-BAGUMBONG','TRI-CAMARIN-BAGUMBONG','Camarin - Bagumbong','Tricycle','Camarin','Bagumbong','Point-to-Point',15,35,15,'Active'),
+      ('TRI-CAMARIN-TALA','TRI-CAMARIN-TALA','Camarin - Tala','Tricycle','Camarin','Tala','Point-to-Point',15,35,15,'Active'),
+      ('TRI-TALA-CAMARIN','TRI-TALA-CAMARIN','Tala - Camarin','Tricycle','Tala','Camarin','Point-to-Point',20,40,20,'Active'),
+      ('TRI-TALA-BAGUMBONG','TRI-TALA-BAGUMBONG','Tala - Bagumbong','Tricycle','Tala','Bagumbong','Point-to-Point',20,40,20,'Active'),
+      ('TRI-TALA-DEPARO','TRI-TALA-DEPARO','Tala - Deparo','Tricycle','Tala','Deparo','Point-to-Point',20,40,20,'Active'),
+      ('TRI-SANGANDAAN-GRACE_PARK','TRI-SANGANDAAN-GRACE_PARK','Sangandaan - Grace Park','Tricycle','Sangandaan','Grace Park','Point-to-Point',15,30,15,'Active'),
+      ('TRI-SANGANDAAN-MONUMENTO','TRI-SANGANDAAN-MONUMENTO','Sangandaan - Monumento','Tricycle','Sangandaan','Monumento','Point-to-Point',15,30,15,'Active'),
+      ('TRI-SANGANDAAN-5TH_AVE','TRI-SANGANDAAN-5TH_AVE','Sangandaan - 5th Ave','Tricycle','Sangandaan','5th Ave','Point-to-Point',15,30,15,'Active'),
+      ('TRI-GRACE_PARK-10TH_AVE','TRI-GRACE_PARK-10TH_AVE','Grace Park - 10th Ave','Tricycle','Grace Park','10th Ave','Point-to-Point',15,25,15,'Active'),
+      ('TRI-GRACE_PARK-5TH_AVE','TRI-GRACE_PARK-5TH_AVE','Grace Park - 5th Ave','Tricycle','Grace Park','5th Ave','Point-to-Point',15,25,15,'Active'),
+      ('TRI-GRACE_PARK-RIZAL_AVE','TRI-GRACE_PARK-RIZAL_AVE','Grace Park - Rizal Ave','Tricycle','Grace Park','Rizal Ave','Point-to-Point',15,25,15,'Active'),
+      ('TRI-5TH_AVE-A_MABINI','TRI-5TH_AVE-A_MABINI','5th Ave - A. Mabini','Tricycle','5th Ave','A. Mabini','Point-to-Point',15,30,15,'Active'),
+      ('TRI-5TH_AVE-SANGANDAAN','TRI-5TH_AVE-SANGANDAAN','5th Ave - Sangandaan','Tricycle','5th Ave','Sangandaan','Point-to-Point',15,30,15,'Active'),
+      ('TRI-5TH_AVE-GRACE_PARK','TRI-5TH_AVE-GRACE_PARK','5th Ave - Grace Park','Tricycle','5th Ave','Grace Park','Point-to-Point',15,30,15,'Active')");
   }
 
-  // Add new bus routes for Caloocan City
+  $seedLegacyRoutes = false;
+  if ($seedLegacyRoutes) {
   $busRoutes = [
     ['BUS-04', 'BUS-04', 'EDSA Carousel North (Monumento–PITX)', 'Bus', 'Monumento', 'PITX Parañaque', 'EDSA (Balintawak • SM North • Quezon Ave • Ortigas • Ayala • Taft)', 'Point-to-Point', 250, 100, 100, 'Active'],
     ['BUS-05', 'BUS-05', 'EDSA Carousel South (PITX–Monumento)', 'Bus', 'PITX Parañaque', 'Monumento', 'EDSA (Taft • Ayala • Ortigas • Quezon Ave • SM North • Balintawak)', 'Point-to-Point', 250, 100, 100, 'Active'],
@@ -656,6 +738,8 @@ function db()
     $stmtU->bind_param('ssssssssiiss', $new, $new, $newName, $vehType, $orig, $dest, $via, $struct, $units, $units, $old, $oldName);
     $stmtU->execute();
     $stmtU->close();
+  }
+
   }
 
   $conn->query("CREATE TABLE IF NOT EXISTS app_settings (
