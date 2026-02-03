@@ -85,7 +85,7 @@ LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
 LEFT JOIN routes r ON r.route_id=tr.route_id
 WHERE t.type <> 'Parking'
 GROUP BY t.id
-ORDER BY t.name ASC
+ORDER BY COALESCE(NULLIF(t.category,''), 'Unclassified') ASC, t.name ASC
 LIMIT 500");
 if ($res) while ($r = $res->fetch_assoc()) $terminalRows[] = $r;
 
@@ -153,54 +153,6 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              <i data-lucide="plus" class="w-5 h-5"></i>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Terminal</h2>
-          </div>
-        </div>
-        <div class="p-6">
-          <form id="formTerminal" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
-            <input type="hidden" name="type" value="Terminal">
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
-              <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Central Terminal">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
-              <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
-              <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="">Select</option>
-                <?php foreach (['Provincial Bus Terminal','City Transport Hub','District Transport Terminal','Barangay Transport Terminal'] as $c): ?>
-                  <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="md:col-span-4">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
-              <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Monumento, Caloocan City">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
-              <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Brgy. 1, Main Rd.">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
-              <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 50">
-            </div>
-            <div class="md:col-span-12 flex items-center justify-end gap-2">
-              <button id="btnSaveTerminal" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
           <?php if (has_permission('reports.export')): ?>
             <?php tmm_render_export_toolbar([
@@ -213,22 +165,17 @@ if ($rootUrl === '/') $rootUrl = '';
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php?format=excel',
                 'label' => 'Excel',
                 'icon' => 'file-spreadsheet'
-              ],
-              [
-                'href' => $rootUrl . '/admin/api/module5/export_terminal_routes_seed.php?mode=suggest',
-                'label' => 'Route Seed',
-                'icon' => 'link'
-              ],
-              [
-                'href' => $rootUrl . '/admin/api/module5/export_terminal_routes_seed.php?mode=current',
-                'label' => 'Route Map',
-                'icon' => 'list'
               ]
             ], ['mb' => 'mb-0']); ?>
           <?php endif; ?>
-          <div class="relative max-w-sm group">
-            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-            <input id="terminalSearchTerm" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search terminal name or location...">
+          <div class="flex items-center justify-between gap-3">
+            <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center p-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+            <div class="relative max-w-sm group flex-1">
+              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+              <input id="terminalSearchTerm" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search terminal name or location...">
+            </div>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -237,7 +184,6 @@ if ($rootUrl === '/') $rootUrl = '';
               <tr class="text-left text-slate-500 dark:text-slate-400">
                 <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Classification</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Assigned</th>
                 <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
@@ -246,11 +192,21 @@ if ($rootUrl === '/') $rootUrl = '';
             </thead>
             <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800" id="termBodyTerminals">
               <?php if ($terminalRows): ?>
+                <?php $currentCat = null; ?>
                 <?php foreach ($terminalRows as $t): ?>
+                  <?php
+                    $cat = trim((string)($t['category'] ?? ''));
+                    if ($cat === '') $cat = 'Unclassified';
+                  ?>
+                  <?php if ($currentCat !== $cat): ?>
+                    <?php $currentCat = $cat; ?>
+                    <tr data-group="1" class="bg-slate-50 dark:bg-slate-800/60">
+                      <td colspan="6" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-300"><?php echo htmlspecialchars($currentCat); ?></td>
+                    </tr>
+                  <?php endif; ?>
                   <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['category'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
                       <?php $rc = (int)($t['route_count'] ?? 0); ?>
                       <?php if ($rc > 0): ?>
@@ -282,24 +238,26 @@ if ($rootUrl === '/') $rootUrl = '';
                       </div>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
-                    <td class="py-4 px-4 text-right">
-                      <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                        <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                        <span class="sr-only">Slots</span>
-                      </a>
-                      <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                        <i data-lucide="credit-card" class="w-4 h-4"></i>
-                        <span class="sr-only">Payments</span>
-                      </a>
-                      <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                        <i data-lucide="link" class="w-4 h-4"></i>
-                        <span class="sr-only">Assign</span>
-                      </a>
+                    <td class="py-4 px-4 text-right whitespace-nowrap">
+                      <div class="inline-flex items-center justify-end gap-1">
+                        <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                          <span class="sr-only">Slots</span>
+                        </a>
+                        <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                          <i data-lucide="credit-card" class="w-4 h-4"></i>
+                          <span class="sr-only">Payments</span>
+                        </a>
+                        <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                          <i data-lucide="link" class="w-4 h-4"></i>
+                          <span class="sr-only">Assign</span>
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
+                <tr><td colspan="6" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -497,6 +455,58 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 </div>
 
+<div id="terminalCreateModal" class="fixed inset-0 z-[200] hidden">
+  <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div class="text-sm font-black text-slate-900 dark:text-white">Create Terminal</div>
+        <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6">
+        <form id="formTerminal" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
+          <input type="hidden" name="type" value="Terminal">
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
+            <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Victory Liner - Caloocan (Monumento)">
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
+            <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
+            <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <option value="">Select</option>
+              <?php foreach (['Provincial Bus Terminal','City Transport Hub','District Transport Terminal','Barangay Transport Terminal'] as $c): ?>
+                <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="md:col-span-8">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
+            <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Monumento">
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
+            <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Optional">
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
+            <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+          <div class="md:col-span-8 flex items-center justify-end gap-2">
+            <button type="button" id="btnCancelCreateTerminal" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+            <button id="btnSaveTerminal" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
@@ -507,6 +517,10 @@ if ($rootUrl === '/') $rootUrl = '';
     const tabBtnParking = document.getElementById('tabBtnParking');
     const panelTerminals = document.getElementById('tabPanelTerminals');
     const panelParking = document.getElementById('tabPanelParking');
+
+    const terminalCreateModal = document.getElementById('terminalCreateModal');
+    const btnOpenCreateTerminal = document.getElementById('btnOpenCreateTerminal');
+    const btnCancelCreateTerminal = document.getElementById('btnCancelCreateTerminal');
 
     const formTerminal = document.getElementById('formTerminal');
     const btnSaveTerminal = document.getElementById('btnSaveTerminal');
@@ -529,6 +543,25 @@ if ($rootUrl === '/') $rootUrl = '';
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    function openCreateTerminalModal() {
+      if (!terminalCreateModal) return;
+      terminalCreateModal.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+      try { if (formTerminal) formTerminal.reset(); } catch (e) {}
+    }
+    function closeCreateTerminalModal() {
+      if (!terminalCreateModal) return;
+      terminalCreateModal.classList.add('hidden');
+    }
+    if (btnOpenCreateTerminal) btnOpenCreateTerminal.addEventListener('click', openCreateTerminalModal);
+    if (btnCancelCreateTerminal) btnCancelCreateTerminal.addEventListener('click', closeCreateTerminalModal);
+    if (terminalCreateModal) {
+      const closeBtn = terminalCreateModal.querySelector('[data-modal-close]');
+      const backdrop = terminalCreateModal.querySelector('[data-modal-backdrop]');
+      if (closeBtn) closeBtn.addEventListener('click', closeCreateTerminalModal);
+      if (backdrop) backdrop.addEventListener('click', closeCreateTerminalModal);
     }
 
     function setActiveTab(tab) {
@@ -593,8 +626,9 @@ if ($rootUrl === '/') $rootUrl = '';
     function filterRows(searchEl, tbodyEl) {
       if (!searchEl || !tbodyEl) return;
       const q = (searchEl.value || '').trim().toLowerCase();
-      const rows = tbodyEl.querySelectorAll('tr');
+      const rows = Array.from(tbodyEl.querySelectorAll('tr'));
       rows.forEach(function (tr) {
+        if (tr.getAttribute('data-group') === '1') return;
         const tds = tr.querySelectorAll('td');
         if (!tds || tds.length < 2) return;
         const name = (tds[0].textContent || '').toLowerCase();
@@ -602,6 +636,19 @@ if ($rootUrl === '/') $rootUrl = '';
         const ok = q === '' || name.includes(q) || loc.includes(q);
         tr.style.display = ok ? '' : 'none';
       });
+
+      let activeHeader = null;
+      let hasVisible = false;
+      rows.forEach((tr) => {
+        if (tr.getAttribute('data-group') === '1') {
+          if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
+          activeHeader = tr;
+          hasVisible = false;
+          return;
+        }
+        if (tr.style.display !== 'none') hasVisible = true;
+      });
+      if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
     }
     if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
     if (searchParking) searchParking.addEventListener('input', () => filterRows(searchParking, tbodyParking));
@@ -720,7 +767,13 @@ if ($rootUrl === '/') $rootUrl = '';
           modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
         } else {
           modalBody.innerHTML = rows.map(r => {
-          const routeLabel = (r.route_name || r.route_code || r.route_ref || '-').toString();
+          const code = (r.route_code || r.route_ref || '-').toString();
+          const name = (r.route_name || '').toString();
+          const vt = (r.vehicle_type || '').toString();
+          const routeLabel = `
+            <div class="font-black text-slate-900 dark:text-white">${code}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">${[name && name !== code ? name : '', vt ? ('Type: ' + vt) : ''].filter(Boolean).join(' • ')}</div>
+          `;
           const origin = (r.origin || '-').toString();
           const dest = (r.destination || '-').toString();
           const min = (r.fare_min === null || r.fare_min === undefined || r.fare_min === '') ? null : Number(r.fare_min);
@@ -737,13 +790,13 @@ if ($rootUrl === '/') $rootUrl = '';
           const manage = r.route_db_id
             ? `<a target="_blank" rel="noopener" title="Open Route Assignment"
                  href="?page=module2/submodule5&route_id=${Number(r.route_db_id)}"
-                 class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                 class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                  <i data-lucide="settings" class="w-4 h-4"></i>
                </a>`
             : '-';
           return `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <td class="py-3 px-3 font-semibold text-slate-900 dark:text-white">${routeLabel}</td>
+              <td class="py-3 px-3">${routeLabel}</td>
               <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${origin}</td>
               <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${dest}</td>
               <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">${fare}</td>
