@@ -60,7 +60,7 @@ function db()
     route_id VARCHAR(64) DEFAULT NULL,
     color VARCHAR(64) DEFAULT NULL,
     record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded',
-    status VARCHAR(32) DEFAULT 'Active',
+    status VARCHAR(32) DEFAULT 'Declared/linked',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
@@ -136,7 +136,7 @@ function db()
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
     ELSE 'Encoded' END");
   $conn->query("UPDATE vehicles SET current_operator_id=operator_id WHERE (current_operator_id IS NULL OR current_operator_id=0) AND operator_id IS NOT NULL AND operator_id>0");
-  $conn->query("UPDATE vehicles SET status='Active' WHERE status IN ('Linked','Unlinked') OR status IS NULL OR status=''");
+  $conn->query("UPDATE vehicles SET status='Declared/linked' WHERE status IN ('Linked','Unlinked','Inactive','Blocked') OR status IS NULL OR status=''");
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -957,6 +957,8 @@ function db()
     application_id INT NOT NULL,
     issued_date DATE,
     permit_number VARCHAR(50),
+    endorsement_status VARCHAR(32) DEFAULT NULL,
+    conditions TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
   $idxEr = $conn->query("SHOW INDEX FROM endorsement_records WHERE Key_name='uniq_endorsement_application'");
@@ -966,6 +968,19 @@ function db()
                     ON er1.application_id = er2.application_id
                    AND er1.endorsement_id < er2.endorsement_id");
     $conn->query("ALTER TABLE endorsement_records ADD UNIQUE KEY uniq_endorsement_application (application_id)");
+  }
+  $colEr = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='endorsement_records'");
+  $erCols = [];
+  if ($colEr) {
+    while ($c = $colEr->fetch_assoc()) {
+      $erCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($erCols['endorsement_status'])) {
+    $conn->query("ALTER TABLE endorsement_records ADD COLUMN endorsement_status VARCHAR(32) DEFAULT NULL");
+  }
+  if (!isset($erCols['conditions'])) {
+    $conn->query("ALTER TABLE endorsement_records ADD COLUMN conditions TEXT DEFAULT NULL");
   }
   $conn->query("CREATE TABLE IF NOT EXISTS operators (
     id INT AUTO_INCREMENT PRIMARY KEY,

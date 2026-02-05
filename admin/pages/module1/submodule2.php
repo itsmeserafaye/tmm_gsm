@@ -70,9 +70,17 @@ $sql = "SELECT v.id AS vehicle_id,
                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
                v.record_status, v.status, v.created_at,
+               v.inspection_status,
+               v.franchise_id,
+               vr.registration_status,
+               vr.orcr_no,
+               vr.orcr_date,
+               fa.status AS franchise_app_status,
                $hasOrcrSql
         FROM vehicles v
         LEFT JOIN operators o ON o.id=v.operator_id";
+$sql .= " LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id";
+$sql .= " LEFT JOIN franchise_applications fa ON fa.franchise_ref_number=v.franchise_id";
 $conds = [];
 $params = [];
 $types = '';
@@ -245,7 +253,7 @@ $typesList = vehicle_types();
           <select name="status"
             class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Unlinked', 'Linked', 'Active', 'Inactive'] as $s): ?>
+            <?php foreach (['Unlinked','Linked','Declared/linked','Pending Inspection','Inspected','Registered','Active'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
@@ -277,7 +285,7 @@ $typesList = vehicle_types();
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Plate</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Type</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Docs</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Status</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Record</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Created</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
@@ -295,7 +303,26 @@ $typesList = vehicle_types();
                 $opId = (int) ($row['operator_id'] ?? 0);
                 $rs = $opId > 0 ? 'Linked' : 'Encoded';
               }
-              $st = (string) ($row['status'] ?? '');
+              $insp = (string)($row['inspection_status'] ?? '');
+              $frAppSt = (string)($row['franchise_app_status'] ?? '');
+              $regSt = (string)($row['registration_status'] ?? '');
+              $orcrNo = trim((string)($row['orcr_no'] ?? ''));
+              $orcrDate = trim((string)($row['orcr_date'] ?? ''));
+              $frOk = in_array($frAppSt, ['Approved','LTFRB-Approved'], true);
+              $inspOk = $insp === 'Passed';
+              $regOk = in_array($regSt, ['Registered','Recorded'], true) && $orcrNo !== '' && $orcrDate !== '';
+              $st = 'Declared/linked';
+              if ($rs === 'Archived') {
+                $st = 'Archived';
+              } elseif ($frOk && $inspOk && $regOk) {
+                $st = 'Active';
+              } elseif ($inspOk && $regOk) {
+                $st = 'Registered';
+              } elseif ($inspOk) {
+                $st = 'Inspected';
+              } elseif ($rs === 'Linked') {
+                $st = 'Pending Inspection';
+              }
               $badgeRs = match ($rs) {
                 'Linked' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/20',
                 'Archived' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
@@ -304,10 +331,11 @@ $typesList = vehicle_types();
               };
               $badgeSt = match ($st) {
                 'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                'Blocked' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
-                'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
-                'Linked' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/20',
-                'Unlinked' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                'Registered' => 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20',
+                'Inspected' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
+                'Pending Inspection' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                'Declared/linked' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300',
+                'Archived' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                 default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
               };
               $hasOrcr = (int) ($row['has_orcr'] ?? 0) > 0;
@@ -331,59 +359,10 @@ $typesList = vehicle_types();
                   <?php endif; ?>
                 </td>
                 <td class="py-4 px-4 hidden lg:table-cell">
-                  <?php
-                  $plateKey = $db->real_escape_string($plateUp);
-                  $docsTbl = $db->query("SHOW TABLES LIKE 'documents'");
-                  $hasDocsTbl = (bool) ($docsTbl && $docsTbl->fetch_row());
-                  $hasOr = false;
-                  $hasCr = false;
-                  $orValid = true;
-                  if ($hasDocsTbl) {
-                    $rr = $db->query("SELECT
-                                          MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
-                                          MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr" . ($docsHasExpiry ? ",
-                                          MAX(CASE WHEN LOWER(type)='or' AND (expiry_date IS NULL OR expiry_date >= CURDATE()) THEN 1 ELSE 0 END) AS or_valid" : "") . "
-                                        FROM documents WHERE plate_number='{$plateKey}'");
-                    $m = $rr ? $rr->fetch_assoc() : null;
-                    $hasOr = (int) ($m['has_or'] ?? 0) === 1;
-                    $hasCr = (int) ($m['has_cr'] ?? 0) === 1;
-                    if ($docsHasExpiry)
-                      $orValid = (int) ($m['or_valid'] ?? 0) === 1;
-                  }
-                  $label = 'Missing';
-                  if ($hasOr && !$orValid)
-                    $label = 'OR expired';
-                  else if ($hasOr && $hasCr)
-                    $label = 'OR & CR on file';
-                  else if ($hasCr)
-                    $label = 'CR on file';
-                  $ok = $label !== 'Missing';
-                  ?>
-                  <span
-                    class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $ok ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'; ?>">
-                    <?php echo htmlspecialchars($label); ?>
-                  </span>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeSt; ?>"><?php echo htmlspecialchars($st); ?></span>
                 </td>
                 <td class="py-4 px-4">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span
-                      class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeRs; ?>"><?php echo htmlspecialchars($rs); ?></span>
-                    <span
-                      class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeSt; ?>"><?php echo htmlspecialchars($st); ?></span>
-                    <?php if ($st === 'Blocked'): ?>
-                      <span
-                        class="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-2">
-                        <i data-lucide="octagon-alert" class="w-4 h-4"></i>
-                        Operation blocked
-                      </span>
-                    <?php elseif ($st === 'Inactive'): ?>
-                      <span
-                        class="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-2">
-                        <i data-lucide="triangle-alert" class="w-4 h-4"></i>
-                        Missing OR
-                      </span>
-                    <?php endif; ?>
-                  </div>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeRs; ?>"><?php echo htmlspecialchars($rs); ?></span>
                 </td>
                 <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">
                   <?php echo htmlspecialchars(date('M d, Y', strtotime((string) ($row['created_at'] ?? 'now')))); ?>

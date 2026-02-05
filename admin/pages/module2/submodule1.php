@@ -342,13 +342,21 @@ if ($rootUrl === '/') $rootUrl = '';
       return Array.isArray(data.data) ? data.data : [];
     }
 
+    async function loadApplicationDocs(appId) {
+      const res = await fetch(rootUrl + '/admin/api/module2/list_application_docs.php?application_id=' + encodeURIComponent(appId));
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+      return Array.isArray(data.data) ? data.data : [];
+    }
+
     document.querySelectorAll('[data-app-view="1"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const appId = btn.getAttribute('data-app-id');
         openModal('<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>', 'Application');
         try {
           const a = await loadApp(appId);
-            const docs = a && a.operator_id ? await loadOperatorDocs(a.operator_id) : [];
+          const docs = a && a.operator_id ? await loadOperatorDocs(a.operator_id) : [];
+          const appDocs = a && a.application_id ? await loadApplicationDocs(a.application_id) : [];
           const routeLabel = (a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : '');
           body.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -406,6 +414,21 @@ if ($rootUrl === '/') $rootUrl = '';
                 </div>
               </div>
               <div class="space-y-4">
+                <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Supporting Documents (Application)</div>
+                  <div class="mt-3 space-y-2">
+                    ${appDocs.length ? appDocs.map((d) => {
+                      const href = rootUrl + '/admin/uploads/' + encodeURIComponent((d.file_path || '').toString());
+                      return `<a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
+                        <div>
+                          <div class="text-sm font-black text-slate-800 dark:text-white">${(d.type || '').toString()}</div>
+                          <div class="text-xs text-slate-500 dark:text-slate-400">${formatDate(d.uploaded_at)}</div>
+                        </div>
+                        <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
+                      </a>`;
+                    }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No application documents uploaded.</div>`}
+                  </div>
+                </div>
                 <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                   <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Verified Operator Documents</div>
                   <div class="mt-3 space-y-2">

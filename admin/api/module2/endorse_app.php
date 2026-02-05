@@ -14,6 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $app_id = (int)($_POST['application_id'] ?? 0);
 $notes = trim((string)($_POST['notes'] ?? ''));
+$endorsementStatusRaw = trim((string)($_POST['endorsement_status'] ?? ''));
+$conditions = trim((string)($_POST['conditions'] ?? ''));
+$conditions = substr($conditions, 0, 500);
 
 if ($app_id === 0) {
     echo json_encode(['ok' => false, 'error' => 'missing_application_id']);
@@ -60,23 +63,35 @@ try {
         exit;
     }
 
-    $permit_no = "PERMIT-" . date('Y') . "-" . str_pad((string)$app_id, 4, '0', STR_PAD_LEFT);
-    $stmtIns = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number)
-                             VALUES (?, CURDATE(), ?)
-                             ON DUPLICATE KEY UPDATE issued_date=VALUES(issued_date), permit_number=VALUES(permit_number)");
+    $allowedEndorse = ['Endorsed (Conditional)','Endorsed (Complete)','Rejected'];
+    $endorsementStatus = 'Endorsed (Complete)';
+    foreach ($allowedEndorse as $opt) {
+        if (strcasecmp($endorsementStatusRaw, $opt) === 0) { $endorsementStatus = $opt; break; }
+    }
+    $conditionsBind = $conditions !== '' ? $conditions : null;
+
+    $permit_no = $endorsementStatus === 'Rejected' ? null : ("PERMIT-" . date('Y') . "-" . str_pad((string)$app_id, 4, '0', STR_PAD_LEFT));
+    $stmtIns = $db->prepare("INSERT INTO endorsement_records (application_id, issued_date, permit_number, endorsement_status, conditions)
+                             VALUES (?, CURDATE(), ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                               issued_date=VALUES(issued_date),
+                               permit_number=VALUES(permit_number),
+                               endorsement_status=VALUES(endorsement_status),
+                               conditions=VALUES(conditions)");
     if (!$stmtIns) throw new Exception('db_prepare_failed');
-    $stmtIns->bind_param('is', $app_id, $permit_no);
+    $stmtIns->bind_param('isss', $app_id, $permit_no, $endorsementStatus, $conditionsBind);
     if (!$stmtIns->execute()) throw new Exception('insert_failed');
     $stmtIns->close();
 
-    $stmtU = $db->prepare("UPDATE franchise_applications SET status='LGU-Endorsed', endorsed_at=NOW(), remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END WHERE application_id=?");
+    $nextAppStatus = $endorsementStatus === 'Rejected' ? 'Rejected' : 'LGU-Endorsed';
+    $stmtU = $db->prepare("UPDATE franchise_applications SET status=?, endorsed_at=NOW(), remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END WHERE application_id=?");
     if (!$stmtU) throw new Exception('db_prepare_failed');
-    $stmtU->bind_param('ssi', $notes, $notes, $app_id);
+    $stmtU->bind_param('sssi', $nextAppStatus, $notes, $notes, $app_id);
     $stmtU->execute();
     $stmtU->close();
 
     $db->commit();
-    echo json_encode(['ok' => true, 'message' => 'Endorsement issued successfully', 'permit_number' => $permit_no]);
+    echo json_encode(['ok' => true, 'message' => 'Endorsement saved', 'permit_number' => $permit_no, 'endorsement_status' => $endorsementStatus]);
 } catch (Throwable $e) {
     $db->rollback();
     http_response_code(500);

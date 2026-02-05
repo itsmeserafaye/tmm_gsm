@@ -7,6 +7,35 @@ $db = db();
 
 $prefillApp = (int)($_GET['application_id'] ?? 0);
 
+$erHasStatus = false;
+$erHasConditions = false;
+$colEr = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='endorsement_records' AND COLUMN_NAME IN ('endorsement_status','conditions')");
+if ($colEr) {
+  while ($c = $colEr->fetch_assoc()) {
+    $cn = (string)($c['COLUMN_NAME'] ?? '');
+    if ($cn === 'endorsement_status') $erHasStatus = true;
+    if ($cn === 'conditions') $erHasConditions = true;
+  }
+}
+$endorsementStatusExpr = $erHasStatus ? "er.endorsement_status" : "NULL";
+$endorsementConditionsExpr = $erHasConditions ? "er.conditions" : "NULL";
+
+$endorsedRows = [];
+$sqlEnd = "SELECT fa.application_id, fa.franchise_ref_number, fa.status AS app_status, fa.endorsed_at,
+                  COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
+                  r.route_id AS route_code, r.origin, r.destination,
+                  $endorsementStatusExpr AS endorsement_status,
+                  $endorsementConditionsExpr AS conditions
+           FROM franchise_applications fa
+           LEFT JOIN operators o ON o.id=fa.operator_id
+           LEFT JOIN routes r ON r.id=fa.route_id
+           LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
+           WHERE fa.status IN ('LGU-Endorsed','Endorsed','Rejected')
+           ORDER BY COALESCE(fa.endorsed_at, fa.submitted_at) DESC
+           LIMIT 300";
+$resEnd = $db->query($sqlEnd);
+if ($resEnd) while ($r = $resEnd->fetch_assoc()) $endorsedRows[] = $r;
+
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -89,8 +118,20 @@ if ($rootUrl === '/') $rootUrl = '';
             <div id="sectionEndorse" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Endorse</div>
               <form id="formEndorse" class="space-y-4 mt-4" novalidate>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Endorsement Status</label>
+                  <select name="endorsement_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <?php foreach (['Endorsed (Complete)','Endorsed (Conditional)','Rejected'] as $s): ?>
+                      <option value="<?php echo htmlspecialchars($s); ?>"><?php echo htmlspecialchars($s); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Conditions (optional)</label>
+                  <textarea name="conditions" rows="3" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Subject to passing vehicle inspection&#10;Subject to submission of OR/CR and insurance&#10;Subject to LTFRB CPC / PA issuance"></textarea>
+                </div>
                 <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Verified documents; ready for approval."></textarea>
-                <button id="btnEndorse" class="w-full px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Endorse</button>
+                <button id="btnEndorse" class="w-full px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Save Endorsement</button>
               </form>
             </div>
             <div id="sectionApprove" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hidden">
@@ -120,6 +161,73 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div id="emptyState" class="text-sm text-slate-500 dark:text-slate-400 italic">Load an application to proceed.</div>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700">
+      <div class="text-sm font-black text-slate-900 dark:text-white">Endorsed Applications</div>
+      <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">LGU-Endorsed / Rejected records with endorsement status and conditions.</div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+          <tr class="text-left text-slate-500 dark:text-slate-400">
+            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Application</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Route</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Endorsement Status</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Conditions</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Endorsed At</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+          <?php if ($endorsedRows): ?>
+            <?php foreach ($endorsedRows as $row): ?>
+              <?php
+                $appId = (int)($row['application_id'] ?? 0);
+                $ref = (string)($row['franchise_ref_number'] ?? '');
+                $op = (string)($row['operator_name'] ?? '');
+                $rc = (string)($row['route_code'] ?? '');
+                $ro = (string)($row['origin'] ?? '');
+                $rd = (string)($row['destination'] ?? '');
+                $appSt = (string)($row['app_status'] ?? '');
+                $es = trim((string)($row['endorsement_status'] ?? ''));
+                if ($es === '') $es = ($appSt === 'Rejected') ? 'Rejected' : 'Endorsed (Complete)';
+                $cond = trim((string)($row['conditions'] ?? ''));
+                $badge = match($es) {
+                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  'Endorsed (Conditional)' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Endorsed (Complete)' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
+                };
+                $dt = (string)($row['endorsed_at'] ?? '');
+              ?>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                <td class="py-4 px-6">
+                  <div class="font-black text-slate-900 dark:text-white">APP-<?php echo $appId; ?></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($ref); ?></div>
+                </td>
+                <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo htmlspecialchars($op); ?></td>
+                <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium"><?php echo htmlspecialchars($rc . ($ro !== '' || $rd !== '' ? (' • ' . trim($ro . ' → ' . $rd)) : '')); ?></td>
+                <td class="py-4 px-4">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($es); ?></span>
+                </td>
+                <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap"><?php echo htmlspecialchars($cond !== '' ? $cond : '-'); ?></td>
+                <td class="py-4 px-4 hidden md:table-cell text-xs text-slate-500 dark:text-slate-400 font-medium"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y', strtotime($dt)) : '-'); ?></td>
+                <td class="py-4 px-4 text-right whitespace-nowrap">
+                  <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId]); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Open">
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                  </a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No endorsed applications yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -349,20 +457,20 @@ if ($rootUrl === '/') $rootUrl = '';
         if (!currentAppId) return;
         if (currentStatus !== 'Submitted') { showToast('Only Submitted applications can be endorsed.', 'error'); return; }
         btnEndorse.disabled = true;
-        btnEndorse.textContent = 'Endorsing...';
+        btnEndorse.textContent = 'Saving...';
         try {
           const fd = new FormData(formEndorse);
           fd.append('application_id', String(currentAppId));
           const res = await fetch(rootUrl + '/admin/api/module2/endorse_app.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
-          showToast('Application endorsed.');
+          showToast('Endorsement saved.');
           const a = await loadApp(currentAppId);
           render(a);
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
         } finally {
-          btnEndorse.textContent = 'Endorse';
+          btnEndorse.textContent = 'Save Endorsement';
           setEnabled();
         }
       });

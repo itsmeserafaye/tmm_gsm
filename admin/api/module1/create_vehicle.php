@@ -111,12 +111,8 @@ try {
         }
     }
 
-    $vehicleStatus = 'Inactive';
-    if ($hasOrUpload) {
-        $today = date('Y-m-d');
-        $vehicleStatus = ($orExpiry !== '' && $orExpiry < $today) ? 'Blocked' : 'Active';
-    }
     $recordStatus = ($operatorId > 0 || $operatorName !== '') ? 'Linked' : 'Encoded';
+    $vehicleStatus = $recordStatus === 'Linked' ? 'Pending Inspection' : 'Declared/linked';
 
     $opNameResolved = '';
     if ($operatorId > 0) {

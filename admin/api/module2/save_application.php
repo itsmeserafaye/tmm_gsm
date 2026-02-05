@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/security.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -15,6 +16,8 @@ $operator_id = (int)($_POST['operator_id'] ?? 0);
 $route_id = (int)($_POST['route_id'] ?? 0);
 $vehicle_count = (int)($_POST['vehicle_count'] ?? 0);
 $representative_name = trim((string)($_POST['representative_name'] ?? ''));
+
+$hasUpload = isset($_FILES['declared_fleet_doc']) && is_array($_FILES['declared_fleet_doc']);
 
 if ($operator_id <= 0 || $route_id <= 0 || $vehicle_count <= 0) {
     echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
@@ -137,12 +140,15 @@ try {
     $franchise_ref = 'APP-' . date('Ymd') . '-' . substr(uniqid(), -6);
     $route_ids_val = (string)$route_id;
 
+    $db->begin_transaction();
+
     $stmt = $db->prepare("INSERT INTO franchise_applications (franchise_ref_number, operator_id, route_id, route_ids, vehicle_count, representative_name, status, submitted_at)
                           VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW())");
     if (!$stmt) throw new Exception('db_prepare_failed');
     $stmt->bind_param('siisis', $franchise_ref, $operator_id, $route_id, $route_ids_val, $vehicle_count, $representative_name);
     $execOk = $stmt->execute();
 } catch (mysqli_sql_exception $e) {
+    $db->rollback();
     if ($e->getCode() === 1062) {
         echo json_encode(['ok' => false, 'error' => 'duplicate_reference']);
         exit;
@@ -150,20 +156,70 @@ try {
     echo json_encode(['ok' => false, 'error' => 'db_error']);
     exit;
 } catch (Throwable $e) {
+    $db->rollback();
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_error']);
     exit;
 }
 
 if ($execOk) {
-    $app_id = $db->insert_id;
-    echo json_encode([
-        'ok' => true,
-        'application_id' => $app_id,
-        'franchise_ref_number' => $franchise_ref,
-        'message' => "Application submitted. ID: APP-$app_id"
-    ]);
+    try {
+        $app_id = $db->insert_id;
+        if ($hasUpload) {
+            $f = $_FILES['declared_fleet_doc'];
+            $err = (int)($f['error'] ?? UPLOAD_ERR_NO_FILE);
+            if ($err !== UPLOAD_ERR_NO_FILE) {
+                if ($err !== UPLOAD_ERR_OK) throw new Exception('declared_fleet_upload_error');
+                $tmp = (string)($f['tmp_name'] ?? '');
+                $orig = (string)($f['name'] ?? '');
+                if ($tmp === '' || $orig === '' || !is_uploaded_file($tmp)) throw new Exception('declared_fleet_invalid_file');
+
+                $allowedExt = ['pdf','xlsx','xls','csv'];
+                $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+                if ($ext === '' || !in_array($ext, $allowedExt, true)) throw new Exception('declared_fleet_invalid_type');
+
+                $uploadDir = __DIR__ . '/../../uploads/franchise/';
+                if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+                $filename = 'APP' . $app_id . '_declared_fleet_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                $dest = $uploadDir . $filename;
+                if (!move_uploaded_file($tmp, $dest)) throw new Exception('declared_fleet_upload_failed');
+
+                $safe = tmm_scan_file_for_viruses($dest);
+                if (!$safe) {
+                    if (is_file($dest)) @unlink($dest);
+                    throw new Exception('declared_fleet_failed_scan');
+                }
+
+                $dbPath = 'franchise/' . $filename;
+                $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?)");
+                if (!$ins) {
+                    if (is_file($dest)) @unlink($dest);
+                    throw new Exception('db_prepare_failed');
+                }
+                $ins->bind_param('si', $dbPath, $app_id);
+                if (!$ins->execute()) {
+                    $ins->close();
+                    if (is_file($dest)) @unlink($dest);
+                    throw new Exception('db_error');
+                }
+                $ins->close();
+            }
+        }
+
+        $db->commit();
+        echo json_encode([
+            'ok' => true,
+            'application_id' => $app_id,
+            'franchise_ref_number' => $franchise_ref,
+            'message' => "Application submitted. ID: APP-$app_id"
+        ]);
+    } catch (Throwable $e) {
+        $db->rollback();
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => $e->getMessage() ?: 'submit_failed']);
+    }
 } else {
+    $db->rollback();
     echo json_encode(['ok' => false, 'error' => $db->error]);
 }
 ?>

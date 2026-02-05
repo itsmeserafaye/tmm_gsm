@@ -104,6 +104,14 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
         </div>
 
+        <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Declared Fleet (Planned / Owned Vehicles)</div>
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+            <div class="text-sm text-slate-600 dark:text-slate-300 font-semibold mb-2">Upload a fleet list file (PDF / Excel / CSV). This will be attached to the application.</div>
+            <input name="declared_fleet_doc" type="file" accept=".pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" class="block w-full text-sm font-semibold text-slate-700 dark:text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-white dark:file:bg-slate-800 file:text-slate-700 dark:file:text-slate-200 file:font-semibold file:ring-1 file:ring-inset file:ring-slate-200 dark:file:ring-slate-600 hover:file:bg-slate-50 dark:hover:file:bg-slate-700/40">
+          </div>
+        </div>
+
         <div class="flex items-center justify-end gap-2 pt-2">
           <button id="btnSubmitApp" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit</button>
         </div>
@@ -175,6 +183,10 @@ if ($rootUrl === '/') $rootUrl = '';
           post.append('route_id', String(routeId));
           post.append('vehicle_count', String(vehicleCount));
           post.append('representative_name', (fd.get('representative_name') || '').toString());
+          const fleetFile = form.querySelector('input[name="declared_fleet_doc"]');
+          if (fleetFile && fleetFile.files && fleetFile.files[0]) {
+            post.append('declared_fleet_doc', fleetFile.files[0]);
+          }
 
           const res = await fetch(rootUrl + '/admin/api/module2/save_application.php', { method: 'POST', body: post });
           const data = await res.json();

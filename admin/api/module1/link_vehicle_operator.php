@@ -63,7 +63,15 @@ if ($currentOperatorId > 0 && $targetOperatorId === 0) {
     echo json_encode(['ok'=>false,'error'=>'already_linked', 'current_operator_id'=>$currentOperatorId]);
     exit;
 }
-$stmt = $db->prepare("UPDATE vehicles SET operator_id=?, current_operator_id=?, operator_name=?, record_status='Linked' WHERE plate_number=?");
+$stmt = $db->prepare("UPDATE vehicles
+                       SET operator_id=?,
+                           current_operator_id=?,
+                           operator_name=?,
+                           record_status='Linked',
+                           status=CASE
+                             WHEN status IS NULL OR status='' OR status IN ('Declared/linked','Pending Inspection') THEN 'Pending Inspection'
+                             ELSE status END
+                       WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $resolvedIdBind2 = $resolvedId > 0 ? $resolvedId : null;
 $stmt->bind_param('iiss', $resolvedIdBind, $resolvedIdBind2, $resolvedName, $plate);
@@ -101,5 +109,5 @@ if ($ok) {
     }
 }
 
-echo json_encode(['ok'=>$ok, 'plate_number'=>$plate, 'operator_id'=>$resolvedId, 'operator_name'=>$resolvedName, 'vehicle_status'=>'Linked']);
+echo json_encode(['ok'=>$ok, 'plate_number'=>$plate, 'operator_id'=>$resolvedId, 'operator_name'=>$resolvedName, 'vehicle_status'=>'Pending Inspection']);
 ?> 

@@ -179,6 +179,27 @@ try {
   $stmtU->execute();
   $stmtU->close();
 
+  $hasRegs = (bool)($db->query("SHOW TABLES LIKE 'vehicle_registrations'")->fetch_row());
+  if ($hasRegs) {
+    if (!$hasCol('vehicle_registrations', 'registration_status')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN registration_status VARCHAR(32) NULL"); }
+    if (!$hasCol('vehicle_registrations', 'orcr_no')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN orcr_no VARCHAR(64) NULL"); }
+    if (!$hasCol('vehicle_registrations', 'orcr_date')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN orcr_date DATE NULL"); }
+    $stmtAct = $db->prepare("UPDATE vehicles v
+                             LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id
+                             SET v.status='Active'
+                             WHERE v.operator_id=?
+                               AND COALESCE(v.record_status,'') <> 'Archived'
+                               AND COALESCE(v.inspection_status,'')='Passed'
+                               AND COALESCE(vr.registration_status,'') IN ('Registered','Recorded')
+                               AND COALESCE(NULLIF(vr.orcr_no,''),'') <> ''
+                               AND vr.orcr_date IS NOT NULL");
+    if ($stmtAct) {
+      $stmtAct->bind_param('i', $operatorId);
+      $stmtAct->execute();
+      $stmtAct->close();
+    }
+  }
+
   $db->commit();
   echo json_encode(['ok' => true, 'message' => 'Application approved', 'application_id' => $appId, 'ltfrb_ref_no' => $ltfrbRefNo]);
 } catch (Throwable $e) {

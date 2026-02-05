@@ -209,14 +209,39 @@ try {
     $stmtSt->execute();
     $r = $stmtSt->get_result()->fetch_assoc();
     $stmtSt->close();
-    $hasOr = (int)($r['has_or'] ?? 0) === 1;
-    $orValid = (int)($r['or_valid'] ?? 0) === 1;
-    $vStatus = !$hasOr ? 'Inactive' : ($orValid ? 'Active' : 'Blocked');
-    $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
-    if ($stmtU) {
-      $stmtU->bind_param('si', $vStatus, $vehicleId);
-      $stmtU->execute();
-      $stmtU->close();
+    $regOk = $registrationStatus === 'Registered';
+    $insp = '';
+    $frRef = '';
+    $stmtV2 = $db->prepare("SELECT inspection_status, franchise_id FROM vehicles WHERE id=? LIMIT 1");
+    if ($stmtV2) {
+      $stmtV2->bind_param('i', $vehicleId);
+      $stmtV2->execute();
+      $v2 = $stmtV2->get_result()->fetch_assoc();
+      $stmtV2->close();
+      $insp = (string)($v2['inspection_status'] ?? '');
+      $frRef = trim((string)($v2['franchise_id'] ?? ''));
+    }
+    $frOk = false;
+    if ($frRef !== '') {
+      $stmtFa = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? LIMIT 1");
+      if ($stmtFa) {
+        $stmtFa->bind_param('s', $frRef);
+        $stmtFa->execute();
+        $fa = $stmtFa->get_result()->fetch_assoc();
+        $stmtFa->close();
+        $frOk = $fa && in_array((string)($fa['status'] ?? ''), ['Approved','LTFRB-Approved'], true);
+      }
+    }
+    $next = null;
+    if ($frOk && $insp === 'Passed' && $regOk) $next = 'Active';
+    else if ($insp === 'Passed' && $regOk) $next = 'Registered';
+    if ($next !== null) {
+      $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
+      if ($stmtU) {
+        $stmtU->bind_param('si', $next, $vehicleId);
+        $stmtU->execute();
+        $stmtU->close();
+      }
     }
   }
 

@@ -236,9 +236,11 @@ if ($itemStmt) {
           $regOk = ($rr && in_array($rs, ['Registered','Recorded'], true) && trim((string)($rr['orcr_no'] ?? '')) !== '' && !empty($rr['orcr_date']));
         }
       }
-      $vehOperationalStatus = ($frOk && $regOk) ? 'Active' : null;
+      if ($frOk && $regOk) $vehOperationalStatus = 'Active';
+      else if ($regOk) $vehOperationalStatus = 'Registered';
+      else $vehOperationalStatus = 'Inspected';
     } else {
-      $vehOperationalStatus = 'Inactive';
+      $vehOperationalStatus = 'Pending Inspection';
     }
 
     $hasPassedAt = false;

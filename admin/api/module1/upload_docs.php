@@ -63,46 +63,7 @@ function tmm_docs_ensure_expiry(mysqli $db): bool
 
 function tmm_update_vehicle_status_from_docs(mysqli $db, int $vehicleId, string $plate): void
 {
-    if ($vehicleId <= 0 || $plate === '')
-        return;
-    $hasDocs = $db->query("SHOW TABLES LIKE 'documents'");
-    if (!$hasDocs || !$hasDocs->fetch_row())
-        return;
-    $hasExpiry = tmm_docs_has_expiry($db);
-    $sql = $hasExpiry
-        ? "SELECT
-            MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr,
-            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
-            MAX(CASE WHEN LOWER(type)='or' AND (expiry_date IS NULL OR expiry_date >= CURDATE()) THEN 1 ELSE 0 END) AS or_valid
-           FROM documents WHERE plate_number=?"
-        : "SELECT
-            MAX(CASE WHEN LOWER(type)='cr' THEN 1 ELSE 0 END) AS has_cr,
-            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS has_or,
-            MAX(CASE WHEN LOWER(type)='or' THEN 1 ELSE 0 END) AS or_valid
-           FROM documents WHERE plate_number=?";
-    $stmt = $db->prepare($sql);
-    if (!$stmt)
-        return;
-    $stmt->bind_param('s', $plate);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    $hasCr = (int) ($row['has_cr'] ?? 0) === 1;
-    $hasOr = (int) ($row['has_or'] ?? 0) === 1;
-    $orValid = (int) ($row['or_valid'] ?? 0) === 1;
-    $status = 'Inactive';
-    if ($hasCr) {
-        if (!$hasOr)
-            $status = 'Inactive';
-        else
-            $status = $orValid ? 'Active' : 'Blocked';
-    }
-    $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
-    if (!$stmtU)
-        return;
-    $stmtU->bind_param('si', $status, $vehicleId);
-    $stmtU->execute();
-    $stmtU->close();
+    return;
 }
 
 function tmm_vehicle_docs_schema(mysqli $db): array
