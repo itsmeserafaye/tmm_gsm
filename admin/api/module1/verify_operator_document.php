@@ -23,10 +23,10 @@ if ($docStatusRaw !== '') {
   $t = strtolower($docStatusRaw);
   if ($t === 'verified') $docStatus = 'Verified';
   elseif ($t === 'rejected') $docStatus = 'Rejected';
-  elseif ($t === 'pending') $docStatus = 'Pending';
+  elseif ($t === 'pending' || $t === 'for review' || $t === 'for_review') $docStatus = 'For Review';
 }
 if ($docStatus === '' && ($isVerified === 0 || $isVerified === 1)) {
-  $docStatus = $isVerified === 1 ? 'Verified' : 'Pending';
+  $docStatus = $isVerified === 1 ? 'Verified' : 'For Review';
 }
 if ($docStatus === '') {
   http_response_code(400);
@@ -69,6 +69,13 @@ if ($remarksProvided) {
     } else {
       $finalRemarks = 'Reason: ' . $remarks;
     }
+  } else if ($docStatus === 'Verified' && $remarks !== '') {
+    $base = trim((string)$existingRemarks);
+    $parts = preg_split('/\s*\|\s*Note:\s*/i', $base);
+    $head = trim((string)($parts[0] ?? ''));
+    $finalRemarks = ($head !== '' ? $head : $base);
+    $finalRemarks = trim($finalRemarks);
+    $finalRemarks = $finalRemarks !== '' ? ($finalRemarks . ' | Note: ' . $remarks) : ('Note: ' . $remarks);
   } else {
     $finalRemarks = $remarks;
   }
@@ -103,16 +110,19 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
       ['doc_type' => 'CDA', 'label' => 'CDA Registration Certificate', 'keywords' => ['registration']],
       ['doc_type' => 'CDA', 'label' => 'CDA Certificate of Good Standing', 'keywords' => ['good standing', 'good_standing', 'standing']],
       ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
+      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
     ];
   } elseif ($opType === 'Corporation') {
     $slots = [
       ['doc_type' => 'SEC', 'label' => 'SEC Certificate of Registration', 'keywords' => ['certificate', 'registration']],
       ['doc_type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation']],
       ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
+      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
     ];
   } else {
     $slots = [
       ['doc_type' => 'GovID', 'label' => 'Valid Government ID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
+      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
     ];
   }
 
@@ -159,6 +169,9 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   for ($i = 0; $i < count($slots); $i++) {
     if ($slotPresent[$i]) continue;
     $s = $slots[$i];
+    $kw = (array)($s['keywords'] ?? []);
+    $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
+    if (in_array('declared fleet', $kwLower, true)) continue;
     foreach ($docs as $drow) {
       $did = (int)($drow['doc_id'] ?? 0);
       if ($did <= 0 || isset($used[$did])) continue;
@@ -188,6 +201,9 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   for ($i = 0; $i < count($slots); $i++) {
     if ($slotOk[$i]) continue;
     $s = $slots[$i];
+    $kw = (array)($s['keywords'] ?? []);
+    $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
+    if (in_array('declared fleet', $kwLower, true)) continue;
     foreach ($docs as $drow) {
       $did = (int)($drow['doc_id'] ?? 0);
       if ($did <= 0 || isset($used[$did])) continue;

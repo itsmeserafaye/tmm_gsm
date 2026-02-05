@@ -93,6 +93,7 @@ try {
   $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr')";
   $orCond = "LOWER(vd.`{$vdTypeCol}`)='or'";
   $crCond = "LOWER(vd.`{$vdTypeCol}`)='cr'";
+  $insCond = "LOWER(vd.`{$vdTypeCol}`) IN ('insurance','ins')";
   $verCond = "COALESCE(vd.`{$vdVerifiedCol}`,0)=1";
   $docsHasExpiry = $hasCol('documents', 'expiry_date');
   $legacyOrValidCond = $docsHasExpiry ? "(d.expiry_date IS NULL OR d.expiry_date >= CURDATE())" : "1=1";
@@ -144,6 +145,69 @@ try {
   if ($okCount < $need) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $need, 'have' => $okCount, 'missing_plates' => array_slice($missing, 0, 25)]);
+    exit;
+  }
+
+  $hasRegs = (bool)($db->query("SHOW TABLES LIKE 'vehicle_registrations'")?->fetch_row());
+  if ($hasRegs) {
+    if (!$hasCol('vehicle_registrations', 'registration_status')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN registration_status VARCHAR(32) NULL"); }
+    if (!$hasCol('vehicle_registrations', 'orcr_no')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN orcr_no VARCHAR(64) NULL"); }
+    if (!$hasCol('vehicle_registrations', 'orcr_date')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN orcr_date DATE NULL"); }
+  }
+  $stmtReady = $db->prepare("SELECT v.plate_number, COALESCE(v.record_status,'') AS record_status, COALESCE(v.inspection_status,'') AS inspection_status,
+                                    COALESCE(vr.registration_status,'') AS registration_status,
+                                    COALESCE(NULLIF(vr.orcr_no,''),'') AS orcr_no,
+                                    vr.orcr_date,
+                                    MAX(CASE WHEN {$insCond} AND {$verCond} THEN 1 ELSE 0 END) AS ins_ok,
+                                    MAX(CASE WHEN LOWER(d.type)='insurance' AND COALESCE(d.verified,0)=1 AND {$legacyOrValidCond} THEN 1 ELSE 0 END) AS legacy_ins_ok
+                             FROM vehicles v
+                             LEFT JOIN vehicle_documents vd ON {$join}
+                             LEFT JOIN documents d ON d.plate_number=v.plate_number
+                             " . ($hasRegs ? "LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id" : "LEFT JOIN (SELECT NULL AS vehicle_id, '' AS registration_status, '' AS orcr_no, NULL AS orcr_date) vr ON 1=0") . "
+                             WHERE v.operator_id=?
+                               AND COALESCE(v.record_status,'') <> 'Archived'
+                             GROUP BY v.plate_number, v.record_status, v.inspection_status, vr.registration_status, vr.orcr_no, vr.orcr_date
+                             ORDER BY v.created_at DESC");
+  $readyCount = 0;
+  $missingInspection = [];
+  $missingDocs = [];
+  if ($stmtReady) {
+    $stmtReady->bind_param('i', $operatorId);
+    $stmtReady->execute();
+    $resReady = $stmtReady->get_result();
+    while ($resReady && ($r = $resReady->fetch_assoc())) {
+      $plate = (string)($r['plate_number'] ?? '');
+      if ($plate === '') continue;
+      $isLinked = (string)($r['record_status'] ?? '') === 'Linked';
+      $inspOk = (string)($r['inspection_status'] ?? '') === 'Passed';
+      $insOk = ((int)($r['ins_ok'] ?? 0)) === 1 || ((int)($r['legacy_ins_ok'] ?? 0)) === 1;
+      $regOk = true;
+      if ($hasRegs) {
+        $rs = (string)($r['registration_status'] ?? '');
+        $orcrNo = (string)($r['orcr_no'] ?? '');
+        $orcrDate = $r['orcr_date'] ?? null;
+        $regOk = in_array($rs, ['Registered','Recorded'], true) && trim($orcrNo) !== '' && !empty($orcrDate);
+      }
+      $ok = $isLinked && $inspOk && $regOk && $insOk;
+      if ($ok) {
+        $readyCount++;
+      } else {
+        if (!$inspOk) $missingInspection[] = $plate;
+        if (!$regOk || !$insOk) $missingDocs[] = $plate;
+      }
+    }
+    $stmtReady->close();
+  }
+  if ($readyCount < $need) {
+    $db->rollback();
+    echo json_encode([
+      'ok' => false,
+      'error' => 'vehicles_not_ready',
+      'need' => $need,
+      'have' => $readyCount,
+      'missing_inspection' => array_slice(array_values(array_unique($missingInspection)), 0, 25),
+      'missing_docs' => array_slice(array_values(array_unique($missingDocs)), 0, 25),
+    ]);
     exit;
   }
 

@@ -32,15 +32,24 @@ if ($stmtOp) {
   $stmtOp->close();
 }
 
-$sql = "SELECT doc_id, doc_type, file_path, uploaded_at, doc_status, remarks, is_verified, verified_by, verified_at FROM operator_documents WHERE operator_id=?";
+$hasUsers = (bool)($db->query("SHOW TABLES LIKE 'rbac_users'")?->fetch_row());
+$sql = "SELECT od.doc_id, od.doc_type, od.file_path, od.uploaded_at, od.doc_status, od.remarks, od.is_verified, od.verified_by, od.verified_at";
+if ($hasUsers) {
+  $sql .= ", CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,'')) AS verified_by_name";
+}
+$sql .= " FROM operator_documents od";
+if ($hasUsers) {
+  $sql .= " LEFT JOIN rbac_users u ON u.id=od.verified_by";
+}
+$sql .= " WHERE od.operator_id=?";
 $params = [$operatorId];
 $types = 'i';
 if ($type !== '') {
-  $sql .= " AND doc_type=?";
+  $sql .= " AND od.doc_type=?";
   $params[] = $type;
   $types .= 's';
 }
-$sql .= " ORDER BY uploaded_at DESC";
+$sql .= " ORDER BY od.uploaded_at DESC";
 
 $stmt = $db->prepare($sql);
 if (!$stmt) {

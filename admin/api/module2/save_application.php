@@ -50,16 +50,19 @@ try {
             ['doc_type' => 'CDA', 'keywords' => ['registration'], 'label' => 'CDA Registration Certificate'],
             ['doc_type' => 'CDA', 'keywords' => ['good standing', 'good_standing', 'standing'], 'label' => 'CDA Certificate of Good Standing'],
             ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution'], 'label' => 'Board Resolution'],
+            ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
         ];
     } elseif ($opType === 'Corporation') {
         $slots = [
             ['doc_type' => 'SEC', 'keywords' => ['certificate', 'registration'], 'label' => 'SEC Certificate of Registration'],
             ['doc_type' => 'SEC', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation'], 'label' => 'Articles of Incorporation / By-laws'],
             ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution'], 'label' => 'Board Resolution'],
+            ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
         ];
     } else {
         $slots = [
             ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys'], 'label' => 'Valid Government ID'],
+            ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
         ];
     }
 
@@ -103,6 +106,9 @@ try {
     for ($i = 0; $i < count($slots); $i++) {
         if ($slotOk[$i]) continue;
         $s = $slots[$i];
+        $kw = (array)($s['keywords'] ?? []);
+        $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
+        if (in_array('declared fleet', $kwLower, true)) continue;
         foreach ($docs as $drow) {
             $did = (int)($drow['doc_id'] ?? 0);
             if ($did <= 0 || isset($used[$did])) continue;
@@ -203,6 +209,47 @@ if ($execOk) {
                     throw new Exception('db_error');
                 }
                 $ins->close();
+            }
+        }
+
+        $already = false;
+        $chkFleet = $db->prepare("SELECT 1 FROM documents WHERE application_id=? AND type='Declared Fleet' LIMIT 1");
+        if ($chkFleet) {
+            $chkFleet->bind_param('i', $app_id);
+            $chkFleet->execute();
+            $already = (bool)$chkFleet->get_result()->fetch_row();
+            $chkFleet->close();
+        }
+        if (!$already && (!$hasUpload || (int)(($_FILES['declared_fleet_doc']['error'] ?? UPLOAD_ERR_NO_FILE)) === UPLOAD_ERR_NO_FILE)) {
+            $stmtFleet = $db->prepare("SELECT file_path, doc_status, is_verified, remarks
+                                       FROM operator_documents
+                                       WHERE operator_id=?
+                                         AND doc_type='Others'
+                                         AND (doc_status='Verified' OR is_verified=1)
+                                         AND LOWER(COALESCE(remarks,'')) LIKE '%declared fleet%'
+                                       ORDER BY uploaded_at DESC, doc_id DESC
+                                       LIMIT 1");
+            if ($stmtFleet) {
+                $stmtFleet->bind_param('i', $operator_id);
+                $stmtFleet->execute();
+                $rowFleet = $stmtFleet->get_result()->fetch_assoc();
+                $stmtFleet->close();
+                $fp = $rowFleet ? trim((string)($rowFleet['file_path'] ?? '')) : '';
+                if ($fp !== '') {
+                    $hasVerifiedCol = false;
+                    $col = $db->query("SHOW COLUMNS FROM documents LIKE 'verified'");
+                    if ($col && $col->num_rows > 0) $hasVerifiedCol = true;
+                    if ($hasVerifiedCol) {
+                        $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id, verified) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?, 1)");
+                    } else {
+                        $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?)");
+                    }
+                    if ($ins) {
+                        $ins->bind_param('si', $fp, $app_id);
+                        $ins->execute();
+                        $ins->close();
+                    }
+                }
             }
         }
 

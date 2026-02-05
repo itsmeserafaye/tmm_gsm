@@ -287,19 +287,28 @@ function tmm_required_doc_list(string $operatorType): array {
             const href = rootUrl + '/admin/uploads/' + encodeURIComponent(d.file_path || '');
             const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
             const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
-            const st = String(d.doc_status || (Number(d.is_verified || 0) === 1 ? 'Verified' : 'Pending'));
+            const rawSt = String(d.doc_status || '');
+            const st = rawSt !== '' ? rawSt : (Number(d.is_verified || 0) === 1 ? 'Verified' : 'For Review');
             const isVerified = st === 'Verified';
             const isRejected = st === 'Rejected';
+            const isExpired = st === 'Expired';
             const rawRemarks = String(d.remarks || '');
-            const parts = rawRemarks.split('| Reason:');
-            const labelPart = (parts[0] || '').trim();
-            const reasonPart = parts.length > 1 ? parts.slice(1).join('| Reason:').trim() : '';
-            const title = labelPart ? `${String(d.doc_type || '')} • ${labelPart}` : String(d.doc_type || '');
+            const reasonSplit = rawRemarks.split('| Reason:');
+            const noteSplit = rawRemarks.split('| Note:');
+            const labelPart = (reasonSplit[0] || noteSplit[0] || '').trim();
+            const reasonPart = reasonSplit.length > 1 ? reasonSplit.slice(1).join('| Reason:').trim() : '';
+            const notePart = noteSplit.length > 1 ? noteSplit.slice(1).join('| Note:').trim() : '';
+            const displayTitle = labelPart || String(d.doc_type || '') || 'Document';
             const badge = isVerified
               ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
               : (isRejected
                 ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
-                : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20');
+                : (isExpired
+                  ? 'bg-slate-200 text-slate-700 ring-slate-600/20 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-500/20'
+                  : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
+            const verifiedBy = (d.verified_by_name || '').toString().trim() || (d.verified_by ? ('User #' + String(d.verified_by)) : '');
+            const vdt = d.verified_at ? new Date(d.verified_at) : null;
+            const verifiedAt = vdt && !isNaN(vdt.getTime()) ? vdt.toLocaleString() : '';
             return `
               <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                 <div class="flex items-center gap-3 min-w-0">
@@ -307,14 +316,16 @@ function tmm_required_doc_list(string $operatorType): array {
                     <i data-lucide="file" class="w-4 h-4"></i>
                   </div>
                   <div class="min-w-0">
-                    <div class="text-sm font-black text-slate-800 dark:text-white">${title}</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white">${displayTitle}</div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 truncate">${date}</div>
                     ${isRejected && (reasonPart || rawRemarks) ? `<div class="text-xs font-semibold text-rose-600 mt-1">Reason: ${reasonPart || rawRemarks}</div>` : ``}
+                    ${isVerified && (verifiedBy || verifiedAt) ? `<div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Verified by ${verifiedBy || '-'} • ${verifiedAt || '-'}</div>` : ``}
+                    ${notePart ? `<div class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">Notes: ${notePart}</div>` : ``}
                   </div>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                   <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${badge}">${st}</span>
-                  <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-set="1" data-doc-id="${String(d.doc_id || '')}" data-doc-status="${isVerified ? 'Pending' : 'Verified'}">${isVerified ? 'Mark Pending' : 'Verify'}</button>
+                  <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-doc-set="1" data-doc-id="${String(d.doc_id || '')}" data-doc-status="${isVerified ? 'For Review' : 'Verified'}">${isVerified ? 'Mark For Review' : 'Verify'}</button>
                   <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors" data-doc-reject="1" data-doc-id="${String(d.doc_id || '')}">Reject</button>
                   <a href="${href}" target="_blank" class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 transition-colors" title="Open">
                     <i data-lucide="external-link" class="w-4 h-4"></i>
@@ -330,6 +341,7 @@ function tmm_required_doc_list(string $operatorType): array {
         Individual: {
           required: [
             { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
           ],
           optional: [
             { name: 'proof_address', docType: 'BarangayCert', label: 'Proof of Address', hint: 'Barangay Clearance or Utility Bill' },
@@ -342,6 +354,7 @@ function tmm_required_doc_list(string $operatorType): array {
             { name: 'cda_registration', docType: 'CDA', label: 'CDA Registration Certificate', hint: '' },
             { name: 'cda_good_standing', docType: 'CDA', label: 'CDA Certificate of Good Standing', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing application + naming representative' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
           ],
           optional: [
             { name: 'members_list', docType: 'Others', label: 'List of Members', hint: '' },
@@ -353,6 +366,7 @@ function tmm_required_doc_list(string $operatorType): array {
             { name: 'sec_certificate', docType: 'SEC', label: 'SEC Certificate of Registration', hint: '' },
             { name: 'corp_articles_bylaws', docType: 'SEC', label: 'Articles of Incorporation / By-laws', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing operation + naming representative' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
           ],
           optional: [
             { name: 'mayors_permit', docType: 'Others', label: "Mayor’s Permit", hint: '' },
@@ -361,13 +375,45 @@ function tmm_required_doc_list(string $operatorType): array {
         },
       };
       const matrix = docMatrix[opType] || docMatrix.Individual;
-      const renderField = (f) => `
+      function fieldState(f) {
+        const label = (f && f.label) ? String(f.label).trim() : '';
+        const want = label.toLowerCase();
+        const wantAlt = (f && f.name === 'declared_fleet') ? 'declared fleet' : want;
+        const match = (rows || []).find((d) => {
+          const rem = (d && d.remarks) ? String(d.remarks) : '';
+          const head = rem.split('|')[0].trim().toLowerCase();
+          if (head && (head === want || head === wantAlt)) return true;
+          if (wantAlt && rem.toLowerCase().includes(wantAlt)) return true;
+          return false;
+        });
+        if (!match) return 'Pending Upload';
+        const st = (match.doc_status || '').toString();
+        if (st) return st;
+        return Number(match.is_verified || 0) === 1 ? 'Verified' : 'For Review';
+      }
+      const renderField = (f) => {
+        const nm = String(f.name || '');
+        const accept = nm === 'declared_fleet'
+          ? '.pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv'
+          : '.pdf,.jpg,.jpeg,.png';
+        const st = fieldState(f);
+        const badge = st === 'Verified'
+          ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+          : (st === 'Rejected'
+            ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
+            : (st === 'Pending Upload'
+              ? 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300'
+              : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
+        return `
         <div>
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">${String(f.label || '')}</label>
-          <input name="${String(f.name || '')}" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+          <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+            <span>${String(f.label || '')}</span>
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
+          </label>
+          <input name="${nm}" type="file" accept="${accept}" class="w-full text-sm">
           ${f.hint ? `<div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">${String(f.hint)}</div>` : ``}
         </div>
-      `;
+      `};
 
       const uploadHtml = `
         <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
@@ -400,15 +446,19 @@ function tmm_required_doc_list(string $operatorType): array {
       body.querySelectorAll('[data-doc-set="1"]').forEach((b) => {
         b.addEventListener('click', async () => {
           const docId = b.getAttribute('data-doc-id');
-          const next = b.getAttribute('data-doc-status') || 'Pending';
+          const next = b.getAttribute('data-doc-status') || 'For Review';
           try {
             const fd = new FormData();
             fd.append('doc_id', String(docId || ''));
             fd.append('doc_status', String(next));
+            if (String(next) === 'Verified') {
+              const note = (prompt('Verification notes (optional):') || '').trim();
+              if (note) fd.append('remarks', note);
+            }
             const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
             const data = await res.json();
             if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
-            showToast(next === 'Verified' ? 'Document verified.' : 'Document marked pending.');
+            showToast(next === 'Verified' ? 'Document verified.' : 'Document marked for review.');
             const latest = await loadOperatorDocs(operatorId);
             renderDocs(operatorId, operatorName, latest);
           } catch (err) {

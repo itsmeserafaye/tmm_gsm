@@ -342,6 +342,37 @@ if ($rootUrl === '/') $rootUrl = '';
       return Array.isArray(data.data) ? data.data : [];
     }
 
+    let routesCache = null;
+    async function loadRoutes() {
+      if (routesCache) return routesCache;
+      const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
+      const data = await res.json();
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'routes_load_failed');
+      routesCache = Array.isArray(data.data) ? data.data : [];
+      return routesCache;
+    }
+    function routeOptionLabel(r) {
+      const code = (r.route_code || r.route_id || '-').toString();
+      const name = (r.route_name || '').toString();
+      const od = ((r.origin || '') + (r.destination ? (' → ' + r.destination) : '')).trim();
+      return [code, name && name !== code ? name : '', od].filter(Boolean).join(' • ');
+    }
+
+    function operatorDocLabel(d) {
+      const remarks = (d && d.remarks) ? String(d.remarks) : '';
+      const labelPart = remarks.split('|')[0].trim();
+      if (labelPart) return labelPart;
+      const dt = (d && (d.doc_type || d.type)) ? String(d.doc_type || d.type) : '';
+      const map = {
+        GovID: 'Valid Government ID',
+        CDA: 'CDA Document',
+        SEC: 'SEC Document',
+        BarangayCert: 'Proof of Address',
+        Others: 'Supporting Document',
+      };
+      return map[dt] || dt || 'Document';
+    }
+
     async function loadApplicationDocs(appId) {
       const res = await fetch(rootUrl + '/admin/api/module2/list_application_docs.php?application_id=' + encodeURIComponent(appId));
       const data = await res.json();
@@ -367,7 +398,13 @@ if ($rootUrl === '/') $rootUrl = '';
                   <div class="mt-1 text-sm text-slate-600 dark:text-slate-300">${(a.franchise_ref_number || '').toString()}</div>
                 </div>
                 <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Details</div>
+                    <button type="button" id="btnEditApp" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Edit">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="appDetailsView">
                     <div>
                       <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</div>
                       <div class="mt-1 font-bold text-slate-900 dark:text-white">${(a.operator_name || '').toString()}</div>
@@ -411,6 +448,27 @@ if ($rootUrl === '/') $rootUrl = '';
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">${(a.remarks || '').toString() || '-'}</div>
                     </div>
                   </div>
+                  <form id="appDetailsEdit" class="hidden space-y-4" novalidate>
+                    <input type="hidden" name="application_id" value="${Number(a.application_id || 0)}">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div class="sm:col-span-2">
+                        <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route</label>
+                        <select name="route_id" id="editRouteId" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Count</label>
+                        <input name="vehicle_count" type="number" min="1" max="5000" value="${Number(a.vehicle_count || 0)}" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                      </div>
+                      <div class="sm:col-span-2">
+                        <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Representative Name</label>
+                        <input name="representative_name" maxlength="120" value="${(a.representative_name || '').toString()}" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                      <button type="button" id="btnCancelEditApp" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+                      <button id="btnSaveEditApp" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Changes</button>
+                    </div>
+                  </form>
                 </div>
               </div>
               <div class="space-y-4">
@@ -434,10 +492,14 @@ if ($rootUrl === '/') $rootUrl = '';
                   <div class="mt-3 space-y-2">
                     ${docs.length ? docs.map((d) => {
                       const href = rootUrl + '/admin/uploads/' + encodeURIComponent((d.file_path || '').toString());
+                      const vdt = d.verified_at ? new Date(d.verified_at) : null;
+                      const vdate = vdt && !isNaN(vdt.getTime()) ? vdt.toLocaleString() : '';
+                      const vby = (d.verified_by_name || '').toString().trim();
                       return `<a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all">
                         <div>
-                          <div class="text-sm font-black text-slate-800 dark:text-white">${(d.doc_type || d.type || '').toString()}</div>
+                          <div class="text-sm font-black text-slate-800 dark:text-white">${operatorDocLabel(d)}</div>
                           <div class="text-xs text-slate-500 dark:text-slate-400">${formatDate(d.uploaded_at)}</div>
+                          ${(vby || vdate) ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Verified by ${vby || '-'} • ${vdate || '-'}</div>` : ``}
                         </div>
                         <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
                       </a>`;
@@ -448,6 +510,58 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
           `;
           if (window.lucide) window.lucide.createIcons();
+
+          const btnEdit = body.querySelector('#btnEditApp');
+          const viewBox = body.querySelector('#appDetailsView');
+          const editForm = body.querySelector('#appDetailsEdit');
+          const routeSel = body.querySelector('#editRouteId');
+          const btnCancel = body.querySelector('#btnCancelEditApp');
+          const btnSave = body.querySelector('#btnSaveEditApp');
+
+          async function openEdit() {
+            if (!editForm || !viewBox) return;
+            editForm.classList.remove('hidden');
+            viewBox.classList.add('hidden');
+            if (routeSel) {
+              routeSel.innerHTML = `<option value="">Loading...</option>`;
+              const routes = await loadRoutes();
+              routeSel.innerHTML = routes.map((r) => {
+                const rid = Number(r.id || 0);
+                const selected = rid === Number(a.route_id || 0) ? 'selected' : '';
+                return `<option value="${rid}" ${selected}>${routeOptionLabel(r)}</option>`;
+              }).join('');
+            }
+          }
+          function closeEdit() {
+            if (!editForm || !viewBox) return;
+            editForm.classList.add('hidden');
+            viewBox.classList.remove('hidden');
+          }
+
+          if (btnEdit) btnEdit.addEventListener('click', () => { openEdit().catch((e) => showToast(e.message || 'Failed', 'error')); });
+          if (btnCancel) btnCancel.addEventListener('click', closeEdit);
+          if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              if (!btnSave) return;
+              btnSave.disabled = true;
+              const oldText = btnSave.textContent;
+              btnSave.textContent = 'Saving...';
+              try {
+                const fd = new FormData(editForm);
+                const res = await fetch(rootUrl + '/admin/api/module2/update_application.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!data || !data.ok) throw new Error((data && (data.message || data.error)) ? (data.message || data.error) : 'update_failed');
+                showToast('Application updated.');
+                window.location.reload();
+              } catch (err) {
+                showToast(err.message || 'Failed', 'error');
+              } finally {
+                btnSave.disabled = false;
+                btnSave.textContent = oldText;
+              }
+            });
+          }
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load.'}</div>`;
         }

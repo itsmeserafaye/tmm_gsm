@@ -511,6 +511,16 @@ if ($rootUrl === '/') $rootUrl = '';
                 const plateText = plates.length ? (' Missing OR/CR (not verified): ' + plates.slice(0, 8).join(', ') + (plates.length > 8 ? '…' : '')) : '';
                 return `Approval needs ${need} verified OR/CR. Found ${have}.${plateText}`;
               }
+              if (code === 'vehicles_not_ready') {
+                const need = Number(data.need || 0) || 0;
+                const have = Number(data.have || 0) || 0;
+                const missIns = Array.isArray(data.missing_inspection) ? data.missing_inspection.filter(Boolean) : [];
+                const missDocs = Array.isArray(data.missing_docs) ? data.missing_docs.filter(Boolean) : [];
+                const parts = [];
+                if (missIns.length) parts.push('Missing inspection: ' + missIns.slice(0, 6).join(', ') + (missIns.length > 6 ? '…' : ''));
+                if (missDocs.length) parts.push('Missing OR/CR/insurance: ' + missDocs.slice(0, 6).join(', ') + (missDocs.length > 6 ? '…' : ''));
+                return `Approval needs ${need} vehicles ready (linked, inspected, registered, insured). Found ${have}.` + (parts.length ? (' ' + parts.join(' • ')) : '');
+              }
               if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
               if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
               if (code === 'invalid_status') return 'Application status is not eligible for approval.';

@@ -1067,7 +1067,7 @@ function db()
     doc_type ENUM('GovID','CDA','SEC','BarangayCert','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending',
+    doc_status ENUM('Pending Upload','For Review','Verified','Rejected','Expired') NOT NULL DEFAULT 'For Review',
     remarks TEXT DEFAULT NULL,
     is_verified TINYINT(1) NOT NULL DEFAULT 0,
     verified_by INT DEFAULT NULL,
@@ -1096,8 +1096,10 @@ function db()
     $conn->query("ALTER TABLE operator_documents ADD COLUMN verified_at DATETIME DEFAULT NULL");
   }
   if (!isset($opDocCols['doc_status'])) {
-    $conn->query("ALTER TABLE operator_documents ADD COLUMN doc_status ENUM('Pending','Verified','Rejected') NOT NULL DEFAULT 'Pending'");
+    $conn->query("ALTER TABLE operator_documents ADD COLUMN doc_status ENUM('Pending Upload','For Review','Verified','Rejected','Expired') NOT NULL DEFAULT 'For Review'");
   }
+  @$conn->query("ALTER TABLE operator_documents MODIFY COLUMN doc_status ENUM('Pending Upload','For Review','Verified','Rejected','Expired') NOT NULL DEFAULT 'For Review'");
+  $conn->query("UPDATE operator_documents SET doc_status='For Review' WHERE doc_status='Pending' OR doc_status=''");
   if (!isset($opDocCols['remarks'])) {
     $conn->query("ALTER TABLE operator_documents ADD COLUMN remarks TEXT DEFAULT NULL");
   }

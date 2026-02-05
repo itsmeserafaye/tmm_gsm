@@ -22,15 +22,27 @@ if ($resO) {
 }
 
 $routes = [];
-$resR = $db->query("SELECT id, route_id, origin, destination, status FROM routes WHERE status='Active' ORDER BY route_id ASC LIMIT 800");
+$resR = $db->query("SELECT
+                      id,
+                      route_id,
+                      COALESCE(NULLIF(route_code,''), route_id) AS route_code,
+                      route_name,
+                      origin,
+                      destination,
+                      status
+                    FROM routes
+                    WHERE status='Active'
+                    ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
+                    LIMIT 800");
 if ($resR) {
   while ($r = $resR->fetch_assoc()) {
     $id = (int)($r['id'] ?? 0);
-    $code = trim((string)($r['route_id'] ?? ''));
+    $code = trim((string)($r['route_code'] ?? ''));
     if ($id <= 0 || $code === '') continue;
     $routes[] = [
       'route_id' => $id,
       'route_code' => $code,
+      'route_name' => (string)($r['route_name'] ?? ''),
       'origin' => (string)($r['origin'] ?? ''),
       'destination' => (string)($r['destination'] ?? ''),
       'status' => (string)($r['status'] ?? ''),
@@ -79,7 +91,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <input name="route_pick" list="routePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 45 - R_001 • Origin → Destination)">
             <datalist id="routePickList">
               <?php foreach ($routes as $r): ?>
-                <?php $label = $r['route_code'] . ' • ' . trim($r['origin'] . ' → ' . $r['destination']); ?>
+                <?php $label = $r['route_code'] . ($r['route_name'] ? (' • ' . $r['route_name']) : '') . ' • ' . trim($r['origin'] . ' → ' . $r['destination']); ?>
                 <option value="<?php echo htmlspecialchars($r['route_id'] . ' - ' . $label, ENT_QUOTES); ?>"></option>
               <?php endforeach; ?>
             </datalist>
@@ -223,6 +235,20 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       return data;
     }
+    function operatorDocLabel(d) {
+      const remarks = (d && d.remarks) ? String(d.remarks) : '';
+      const labelPart = remarks.split('|')[0].trim();
+      if (labelPart) return labelPart;
+      const dt = (d && d.doc_type) ? String(d.doc_type) : '';
+      const map = {
+        GovID: 'Valid Government ID',
+        CDA: 'CDA Document',
+        SEC: 'SEC Document',
+        BarangayCert: 'Proof of Address',
+        Others: 'Supporting Document',
+      };
+      return map[dt] || dt || 'Document';
+    }
     function renderOperatorDocs(payload) {
       if (!opDocsBox) return;
       const op = payload && payload.operator ? payload.operator : null;
@@ -243,11 +269,16 @@ if ($rootUrl === '/') $rootUrl = '';
         const href = rootUrl + '/admin/uploads/' + encodeURIComponent(String(d.file_path || ''));
         const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
         const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+        const vdt = d.verified_at ? new Date(d.verified_at) : null;
+        const vdate = vdt && !isNaN(vdt.getTime()) ? vdt.toLocaleString() : '';
+        const vby = (d.verified_by_name || '').toString().trim();
+        const name = operatorDocLabel(d);
         return `
           <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all mb-2">
             <div>
-              <div class="text-sm font-black text-slate-800 dark:text-white">${String(d.doc_type || '')}</div>
+              <div class="text-sm font-black text-slate-800 dark:text-white">${name}</div>
               <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+              ${(vby || vdate) ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Verified by ${vby || '-'} • ${vdate || '-'}</div>` : ``}
             </div>
             <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
           </a>

@@ -54,6 +54,7 @@ $fields = [
   'sec_certificate' => ['type' => 'SEC', 'label' => 'SEC Certificate of Registration'],
   'corp_articles_bylaws' => ['type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws'],
   'board_resolution' => ['type' => 'Others', 'label' => 'Board Resolution'],
+  'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet'],
   'nbi_clearance' => ['type' => 'Others', 'label' => 'NBI Clearance'],
   'authorization_letter' => ['type' => 'Others', 'label' => 'Authorization Letter'],
   'members_list' => ['type' => 'Others', 'label' => 'List of Members'],
@@ -73,7 +74,10 @@ foreach ($fields as $field => $cfg) {
   $label = isset($cfg['label']) ? $cfg['label'] : null;
   if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) continue;
   $ext = strtolower(pathinfo((string)$_FILES[$field]['name'], PATHINFO_EXTENSION));
-  if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) {
+  $allowed = $field === 'declared_fleet'
+    ? ['pdf','xlsx','xls','csv']
+    : ['jpg','jpeg','png','pdf'];
+  if (!in_array($ext, $allowed, true)) {
     $errors[] = "$field: invalid_file_type";
     continue;
   }
@@ -95,7 +99,7 @@ foreach ($fields as $field => $cfg) {
     continue;
   }
 
-  $stmt = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified) VALUES (?, ?, ?, 'Pending', ?, 0)");
+  $stmt = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified) VALUES (?, ?, ?, 'For Review', ?, 0)");
   if (!$stmt) {
     if (is_file($dest)) @unlink($dest);
     $errors[] = "$field: db_prepare_failed";
@@ -130,16 +134,19 @@ if ($uploaded) {
         ['doc_type' => 'CDA', 'keywords' => ['registration']],
         ['doc_type' => 'CDA', 'keywords' => ['good standing', 'good_standing', 'standing']],
         ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution']],
+        ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet', 'planned', 'owned'],],
       ];
     } elseif ($opType === 'Corporation') {
       $slots = [
         ['doc_type' => 'SEC', 'keywords' => ['certificate', 'registration']],
         ['doc_type' => 'SEC', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation']],
         ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution']],
+        ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet', 'planned', 'owned'],],
       ];
     } else {
       $slots = [
         ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
+        ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet', 'planned', 'owned'],],
       ];
     }
 
@@ -186,6 +193,9 @@ if ($uploaded) {
     for ($i = 0; $i < count($slots); $i++) {
       if ($slotPresent[$i]) continue;
       $s = $slots[$i];
+      $kw = (array)($s['keywords'] ?? []);
+      $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
+      if (in_array('declared fleet', $kwLower, true)) continue;
       foreach ($docs as $drow) {
         $did = (int)($drow['doc_id'] ?? 0);
         if ($did <= 0 || isset($used[$did])) continue;

@@ -28,10 +28,19 @@ if (!$opRow) {
   exit;
 }
 
-$stmt = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at, doc_status, is_verified, verified_at
-                      FROM operator_documents
-                      WHERE operator_id=? AND (doc_status='Verified' OR is_verified=1)
-                      ORDER BY verified_at DESC, uploaded_at DESC, doc_id DESC");
+$hasUsers = (bool)($db->query("SHOW TABLES LIKE 'rbac_users'")?->fetch_row());
+$sql = "SELECT od.doc_id, od.doc_type, od.file_path, od.uploaded_at, od.doc_status, od.is_verified, od.remarks,
+               od.verified_by, od.verified_at";
+if ($hasUsers) {
+  $sql .= ", CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,'')) AS verified_by_name";
+}
+$sql .= " FROM operator_documents od";
+if ($hasUsers) {
+  $sql .= " LEFT JOIN rbac_users u ON u.id=od.verified_by";
+}
+$sql .= " WHERE od.operator_id=? AND (od.doc_status='Verified' OR od.is_verified=1)
+          ORDER BY od.verified_at DESC, od.uploaded_at DESC, od.doc_id DESC";
+$stmt = $db->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);

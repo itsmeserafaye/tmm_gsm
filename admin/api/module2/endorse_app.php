@@ -63,10 +63,92 @@ try {
         exit;
     }
 
+    $hasCol = function (string $table, string $col) use ($db): bool {
+        $table = trim($table);
+        $col = trim($col);
+        if ($table === '' || $col === '') return false;
+        $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+        return $res && ($res->num_rows ?? 0) > 0;
+    };
+
+    $vdTypeCol = $hasCol('vehicle_documents', 'doc_type') ? 'doc_type'
+        : ($hasCol('vehicle_documents', 'document_type') ? 'document_type'
+        : ($hasCol('vehicle_documents', 'type') ? 'type' : 'doc_type'));
+    $vdVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified'
+        : ($hasCol('vehicle_documents', 'verified') ? 'verified'
+        : ($hasCol('vehicle_documents', 'isApproved') ? 'isApproved' : 'is_verified'));
+    $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
+    $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
+    $join = $vdHasVehicleId && $vdHasPlate
+        ? "(vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))"
+        : ($vdHasVehicleId ? "vd.vehicle_id=v.id" : ($vdHasPlate ? "vd.plate_number=v.plate_number" : "0=1"));
+    $verCond = "COALESCE(vd.`{$vdVerifiedCol}`,0)=1";
+    $insCond = "LOWER(vd.`{$vdTypeCol}`) IN ('insurance','ins')";
+    $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr')";
+    $orCond = "LOWER(vd.`{$vdTypeCol}`)='or'";
+    $crCond = "LOWER(vd.`{$vdTypeCol}`)='cr'";
+
+    $hasRegs = (bool)($db->query("SHOW TABLES LIKE 'vehicle_registrations'")?->fetch_row());
+
+    $stmtVeh = $db->prepare("SELECT v.plate_number, COALESCE(v.record_status,'') AS record_status, COALESCE(v.inspection_status,'') AS inspection_status,
+                                    COALESCE(vr.registration_status,'') AS registration_status,
+                                    COALESCE(NULLIF(vr.orcr_no,''),'') AS orcr_no,
+                                    vr.orcr_date,
+                                    MAX(CASE WHEN {$insCond} AND {$verCond} THEN 1 ELSE 0 END) AS ins_ok,
+                                    MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok,
+                                    MAX(CASE WHEN {$orCond} AND {$verCond} THEN 1 ELSE 0 END) AS or_ok,
+                                    MAX(CASE WHEN {$crCond} AND {$verCond} THEN 1 ELSE 0 END) AS cr_ok
+                             FROM vehicles v
+                             LEFT JOIN vehicle_documents vd ON {$join}
+                             " . ($hasRegs ? "LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id" : "LEFT JOIN (SELECT NULL AS vehicle_id, '' AS registration_status, '' AS orcr_no, NULL AS orcr_date) vr ON 1=0") . "
+                             WHERE v.operator_id=? AND COALESCE(v.record_status,'') <> 'Archived'
+                             GROUP BY v.plate_number, v.record_status, v.inspection_status, vr.registration_status, vr.orcr_no, vr.orcr_date
+                             ORDER BY v.created_at DESC");
+    $countInspected = 0;
+    $countDocs = 0;
+    if ($stmtVeh) {
+        $stmtVeh->bind_param('i', $opId);
+        $stmtVeh->execute();
+        $resVeh = $stmtVeh->get_result();
+        while ($resVeh && ($r = $resVeh->fetch_assoc())) {
+            $inspOk = ((string)($r['inspection_status'] ?? '')) === 'Passed';
+            if ($inspOk) $countInspected++;
+            $insOk = ((int)($r['ins_ok'] ?? 0)) === 1;
+            $orcrOk = ((int)($r['orcr_ok'] ?? 0)) === 1 || ((((int)($r['or_ok'] ?? 0)) === 1) && (((int)($r['cr_ok'] ?? 0)) === 1));
+            $regOk = true;
+            if ($hasRegs) {
+                $regSt = (string)($r['registration_status'] ?? '');
+                $orcrNo = (string)($r['orcr_no'] ?? '');
+                $orcrDate = $r['orcr_date'] ?? null;
+                $regOk = in_array($regSt, ['Registered','Recorded'], true) && trim($orcrNo) !== '' && !empty($orcrDate);
+            }
+            if ($orcrOk && $insOk && $regOk) $countDocs++;
+        }
+        $stmtVeh->close();
+    }
+
+    $suggested = [];
+    if ($countInspected < $want) $suggested[] = 'Subject to passing vehicle inspection';
+    if ($countDocs < $want) $suggested[] = 'Subject to submission of OR/CR and insurance';
+
     $allowedEndorse = ['Endorsed (Conditional)','Endorsed (Complete)','Rejected'];
     $endorsementStatus = 'Endorsed (Complete)';
     foreach ($allowedEndorse as $opt) {
         if (strcasecmp($endorsementStatusRaw, $opt) === 0) { $endorsementStatus = $opt; break; }
+    }
+    if ($endorsementStatus !== 'Rejected' && $suggested) {
+        if ($endorsementStatus === 'Endorsed (Complete)') $endorsementStatus = 'Endorsed (Conditional)';
+        $existing = trim((string)$conditions);
+        $lines = $existing !== '' ? preg_split('/\r\n|\r|\n/', $existing) : [];
+        $lines = array_values(array_filter(array_map(fn($x) => trim((string)$x), (array)$lines), fn($x) => $x !== ''));
+        foreach ($suggested as $s) {
+            $exists = false;
+            foreach ($lines as $ln) {
+                if (strcasecmp($ln, $s) === 0) { $exists = true; break; }
+            }
+            if (!$exists) $lines[] = $s;
+        }
+        $conditions = implode("\n", $lines);
     }
     $conditionsBind = $conditions !== '' ? $conditions : null;
 
