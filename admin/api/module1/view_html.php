@@ -17,6 +17,20 @@ if (!has_any_permission(['module1.view','module1.vehicles.write','module1.routes
   exit;
 }
 
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && ($r->num_rows ?? 0) > 0;
+};
+$ensureVehCols = function () use ($db, $hasCol): void {
+  if (!$hasCol('vehicles', 'or_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(12) NULL"); }
+  if (!$hasCol('vehicles', 'cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
+  if (!$hasCol('vehicles', 'cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
+  if (!$hasCol('vehicles', 'registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
+};
+$ensureVehCols();
+
 $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id, COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                              v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color,
                              v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner,
@@ -24,10 +38,18 @@ $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type,
                       FROM vehicles v
                       LEFT JOIN operators o ON o.id=v.operator_id
                       WHERE v.plate_number=?");
+header('Content-Type: text/html; charset=utf-8');
+if (!$stmt) {
+    echo '<div class="flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700">';
+    echo '  <div class="p-4 rounded-full bg-slate-100 dark:bg-slate-800 mb-4"><i data-lucide="alert-triangle" class="w-8 h-8 text-slate-400"></i></div>';
+    echo '  <h3 class="text-lg font-bold text-slate-900 dark:text-white">Unable to Load Vehicle</h3>';
+    echo '  <p class="text-slate-500 dark:text-slate-400 max-w-xs mt-2">A database query failed while loading this record.</p>';
+    echo '</div>';
+    exit;
+}
 $stmt->bind_param('s', $plate);
 $stmt->execute();
 $v = $stmt->get_result()->fetch_assoc();
-header('Content-Type: text/html; charset=utf-8');
 
 if (!$v) {
     echo '<div class="flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700">';
