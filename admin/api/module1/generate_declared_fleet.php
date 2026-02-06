@@ -36,16 +36,70 @@ if (!$op) {
   exit;
 }
 
+$systemName = tmm_get_app_setting('system_name', 'LGU PUV Management System');
+$lguName = tmm_get_app_setting('lgu_name', $systemName);
+$operatorCode = 'OP-' . str_pad((string)$operatorId, 5, '0', STR_PAD_LEFT);
+
+$applicationId = isset($_POST['application_id']) ? (int)$_POST['application_id'] : 0;
+$franchiseApplicationId = 0;
+$franchiseRef = '';
+$hasFa = (bool)($db->query("SHOW TABLES LIKE 'franchise_applications'")?->fetch_row());
+if ($hasFa) {
+  if ($applicationId > 0) {
+    $stmtFa = $db->prepare("SELECT application_id, franchise_ref_number FROM franchise_applications WHERE application_id=? AND operator_id=? LIMIT 1");
+    if ($stmtFa) {
+      $stmtFa->bind_param('ii', $applicationId, $operatorId);
+      $stmtFa->execute();
+      $fa = $stmtFa->get_result()->fetch_assoc();
+      $stmtFa->close();
+      if ($fa) {
+        $franchiseApplicationId = (int)($fa['application_id'] ?? 0);
+        $franchiseRef = trim((string)($fa['franchise_ref_number'] ?? ''));
+      }
+    }
+  }
+  if ($franchiseRef === '') {
+    $stmtFa2 = $db->prepare("SELECT application_id, franchise_ref_number FROM franchise_applications WHERE operator_id=? ORDER BY submitted_at DESC, application_id DESC LIMIT 1");
+    if ($stmtFa2) {
+      $stmtFa2->bind_param('i', $operatorId);
+      $stmtFa2->execute();
+      $fa2 = $stmtFa2->get_result()->fetch_assoc();
+      $stmtFa2->close();
+      if ($fa2) {
+        $franchiseApplicationId = (int)($fa2['application_id'] ?? 0);
+        $franchiseRef = trim((string)($fa2['franchise_ref_number'] ?? ''));
+      }
+    }
+  }
+}
+
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && ($r->num_rows ?? 0) > 0;
+};
+$ensureVehicleCols = function () use ($db, $hasCol): void {
+  if (!$hasCol('vehicles', 'or_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(12) NULL"); }
+  if (!$hasCol('vehicles', 'cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
+  if (!$hasCol('vehicles', 'cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
+  if (!$hasCol('vehicles', 'registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
+  if (!$hasCol('vehicles', 'inspection_cert_ref')) { @$db->query("ALTER TABLE vehicles ADD COLUMN inspection_cert_ref VARCHAR(64) DEFAULT NULL"); }
+};
+$ensureVehicleCols();
+
 $hasRegs = (bool)($db->query("SHOW TABLES LIKE 'vehicle_registrations'")?->fetch_row());
+$hasRegOrNumber = $hasRegs && $hasCol('vehicle_registrations', 'or_number');
 
 $sqlVeh = "SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.make, v.model, v.year_model, v.engine_no, v.chassis_no,
+                  COALESCE(v.or_number,'') AS or_number, COALESCE(v.cr_number,'') AS cr_number, COALESCE(v.inspection_cert_ref,'') AS inspection_cert_ref,
                   COALESCE(v.status,'') AS status, COALESCE(v.record_status,'') AS record_status, COALESCE(v.inspection_status,'') AS inspection_status";
 if ($hasRegs) {
   $sqlVeh .= ", COALESCE(vr.registration_status,'') AS registration_status,
                COALESCE(NULLIF(vr.orcr_no,''),'') AS orcr_no,
-               vr.orcr_date";
+               vr.orcr_date" . ($hasRegOrNumber ? ", COALESCE(NULLIF(vr.or_number,''),'') AS reg_or_number" : ", '' AS reg_or_number");
 } else {
-  $sqlVeh .= ", '' AS registration_status, '' AS orcr_no, NULL AS orcr_date";
+  $sqlVeh .= ", '' AS registration_status, '' AS orcr_no, NULL AS orcr_date, '' AS reg_or_number";
 }
 $sqlVeh .= " FROM vehicles v";
 if ($hasRegs) $sqlVeh .= " LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id";
@@ -72,16 +126,46 @@ if (!$vehicles) {
   exit;
 }
 
+$plates = array_values(array_filter(array_map(fn($v) => trim((string)($v['plate_number'] ?? '')), $vehicles), fn($x) => $x !== ''));
+$docsByPlate = [];
+$hasDocsTable = (bool)($db->query("SHOW TABLES LIKE 'documents'")?->fetch_row());
+if ($hasDocsTable && $plates) {
+  $inP = implode(',', array_fill(0, count($plates), '?'));
+  $typesP = str_repeat('s', count($plates));
+  $sqlPDocs = "SELECT plate_number, LOWER(type) AS doc_type, file_path, uploaded_at
+               FROM documents
+               WHERE plate_number IN ($inP)
+                 AND LOWER(type) IN ('or','cr')
+                 AND COALESCE(NULLIF(file_path,''),'') <> ''
+               ORDER BY uploaded_at DESC, id DESC";
+  $stmtPDocs = $db->prepare($sqlPDocs);
+  if ($stmtPDocs) {
+    $stmtPDocs->bind_param($typesP, ...$plates);
+    $stmtPDocs->execute();
+    $resPDocs = $stmtPDocs->get_result();
+    while ($resPDocs && ($d = $resPDocs->fetch_assoc())) {
+      $p = trim((string)($d['plate_number'] ?? ''));
+      $dt = trim((string)($d['doc_type'] ?? ''));
+      $fp = trim((string)($d['file_path'] ?? ''));
+      if ($p === '' || $dt === '' || $fp === '') continue;
+      if (!isset($docsByPlate[$p])) $docsByPlate[$p] = [];
+      if (!isset($docsByPlate[$p][$dt])) $docsByPlate[$p][$dt] = $fp;
+    }
+    $stmtPDocs->close();
+  }
+}
+
 $vehicleIds = array_values(array_filter(array_map(fn($v) => (int)($v['vehicle_id'] ?? 0), $vehicles), fn($x) => $x > 0));
 $docsByVehicle = [];
 if ($vehicleIds) {
   $in = implode(',', array_fill(0, count($vehicleIds), '?'));
   $types = str_repeat('i', count($vehicleIds));
-  $sqlDocs = "SELECT vehicle_id, doc_type, file_path, uploaded_at, is_verified
+  $sqlDocs = "SELECT doc_id, vehicle_id, doc_type, file_path, uploaded_at, is_verified
               FROM vehicle_documents
               WHERE vehicle_id IN ($in)
                 AND COALESCE(NULLIF(file_path,''),'') <> ''
-                AND LOWER(COALESCE(doc_type,'')) IN ('or','cr','orcr','insurance')";
+                AND LOWER(COALESCE(doc_type,'')) IN ('or','cr','orcr','insurance')
+              ORDER BY uploaded_at DESC, doc_id DESC";
   $stmtDocs = $db->prepare($sqlDocs);
   if ($stmtDocs) {
     $stmtDocs->bind_param($types, ...$vehicleIds);
@@ -105,6 +189,7 @@ $opStatus = (string)($op['status'] ?? '');
 function vstr($v): string { return trim((string)($v ?? '')); }
 
 $rows = [];
+$breakdown = [];
 foreach ($vehicles as $v) {
   $vid = (int)($v['vehicle_id'] ?? 0);
   $plate = vstr($v['plate_number'] ?? '');
@@ -114,6 +199,10 @@ foreach ($vehicles as $v) {
   $year = vstr($v['year_model'] ?? '');
   $engine = vstr($v['engine_no'] ?? '');
   $chassis = vstr($v['chassis_no'] ?? '');
+  $orNumber = vstr($v['or_number'] ?? '');
+  if ($orNumber === '') $orNumber = vstr($v['reg_or_number'] ?? '');
+  $crNumber = vstr($v['cr_number'] ?? '');
+  $inspectionCert = vstr($v['inspection_cert_ref'] ?? '');
   $st = vstr($v['status'] ?? '');
   $insp = vstr($v['inspection_status'] ?? '');
   $reg = vstr($v['registration_status'] ?? '');
@@ -125,27 +214,45 @@ foreach ($vehicles as $v) {
   $hasCr = false;
   $hasOrcr = false;
   $hasIns = false;
+  $insuranceFile = '';
+  $orFile = ($plate !== '' && isset($docsByPlate[$plate]['or'])) ? (string)$docsByPlate[$plate]['or'] : '';
+  $crFile = ($plate !== '' && isset($docsByPlate[$plate]['cr'])) ? (string)$docsByPlate[$plate]['cr'] : '';
   foreach ($docs as $d) {
     $dt = strtolower(vstr($d['doc_type'] ?? ''));
     if ($dt === 'or') $hasOr = true;
     if ($dt === 'cr') $hasCr = true;
     if ($dt === 'orcr') $hasOrcr = true;
     if ($dt === 'insurance') $hasIns = true;
+    $fp = vstr($d['file_path'] ?? '');
+    if ($fp !== '' && $dt === 'insurance' && $insuranceFile === '') $insuranceFile = $fp;
+    if ($fp !== '' && $dt === 'or' && $orFile === '') $orFile = $fp;
+    if ($fp !== '' && $dt === 'cr' && $crFile === '') $crFile = $fp;
   }
   $orcrStatus = $orcrNo !== '' ? $orcrNo : (($hasOrcr || ($hasOr && $hasCr)) ? 'Attached' : 'Missing');
+  $bt = $vehType !== '' ? $vehType : 'Unknown';
+  $breakdown[$bt] = (int)($breakdown[$bt] ?? 0) + 1;
   $rows[] = [
     'plate_number' => $plate,
     'vehicle_type' => $vehType,
-    'make_model' => trim($make . ' ' . $model),
+    'make' => $make,
+    'model' => $model,
     'year_model' => $year,
     'engine_no' => $engine,
     'chassis_no' => $chassis,
+    'or_number' => $orNumber,
+    'cr_number' => $crNumber,
     'orcr' => $orcrStatus,
     'orcr_date' => $orcrDate,
     'inspection_status' => $insp !== '' ? $insp : '-',
     'registration_status' => $reg !== '' ? $reg : '-',
     'status' => $st !== '' ? $st : '-',
     'insurance' => $hasIns ? 'Yes' : 'No',
+    'attachments' => [
+      'or_file' => $orFile,
+      'cr_file' => $crFile,
+      'insurance_file' => $insuranceFile,
+      'inspection_cert_ref' => $inspectionCert,
+    ],
   ];
 }
 
@@ -242,31 +349,90 @@ $makeToken = function (): string {
   return bin2hex(openssl_random_pseudo_bytes(16));
 };
 
-$writePreviewFiles = function () use ($rows, $uploadsDir, $operatorId, $opName, $opType, $opStatus, $now, $pdfFromLines): array {
+$writePreviewFiles = function () use ($rows, $breakdown, $uploadsDir, $operatorId, $operatorCode, $opName, $opType, $opStatus, $now, $pdfFromLines, $lguName, $systemName, $franchiseRef): array {
   $suffix = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
   $pdfFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.pdf';
   $csvFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.csv';
 
+  $fmtDate = function (string $dt): string {
+    $ts = strtotime($dt);
+    if ($ts === false) return $dt;
+    return date('M d, Y H:i', $ts);
+  };
+  $trunc = function (string $s, int $max): string {
+    $s = (string)$s;
+    if ($max <= 0) return '';
+    if (strlen($s) <= $max) return $s;
+    if ($max <= 3) return substr($s, 0, $max);
+    return substr($s, 0, $max - 3) . '...';
+  };
+  $appendixLabel = function (int $n): string {
+    $n = $n + 1;
+    $out = '';
+    while ($n > 0) {
+      $n--;
+      $out = chr(65 + ($n % 26)) . $out;
+      $n = intdiv($n, 26);
+    }
+    return $out;
+  };
+
   $lines = [];
-  $lines[] = 'Declared Fleet Report';
-  $lines[] = 'System-generated: ' . $now;
+  $lines[] = $lguName;
+  $lines[] = 'DECLARED FLEET REPORT';
   $lines[] = 'Operator: ' . $opName;
-  $lines[] = 'Type: ' . $opType . '   Status: ' . $opStatus;
+  $lines[] = 'Operator Type: ' . $opType;
+  $lines[] = 'Operator ID: ' . $operatorCode . ' (' . (string)$operatorId . ')';
+  if ($franchiseRef !== '') $lines[] = 'Franchise Application ID: ' . $franchiseRef;
+  $lines[] = 'Date Generated: ' . $fmtDate($now);
+  $lines[] = 'Generated by: ' . $systemName;
+  $lines[] = '';
+  $lines[] = 'FLEET SUMMARY';
   $lines[] = 'Total Vehicles: ' . (string)count($rows);
-  $lines[] = str_repeat('-', 94);
-  $lines[] = 'PLATE    TYPE       MAKE/MODEL          YEAR CHASSIS           OR/CR    STATUS   INS';
-  $lines[] = str_repeat('-', 94);
+  $lines[] = 'Breakdown:';
+  arsort($breakdown);
+  foreach ($breakdown as $k => $c) {
+    $lines[] = '- ' . (string)$k . ': ' . (string)$c;
+  }
+  $lines[] = '';
+  $lines[] = 'VEHICLE LIST';
+  $lines[] = str_repeat('-', 110);
+  $lines[] = sprintf("%-8s %-10s %-8s %-8s %-4s %-10s %-17s %-12s %-12s", 'PLATE', 'TYPE', 'MAKE', 'MODEL', 'YEAR', 'ENGINE', 'CHASSIS', 'OR NO', 'CR NO');
+  $lines[] = str_repeat('-', 110);
 
   foreach ($rows as $r) {
-    $plate = substr((string)($r['plate_number'] ?? ''), 0, 8);
-    $type = substr((string)($r['vehicle_type'] ?? ''), 0, 10);
-    $mm = substr((string)($r['make_model'] ?? ''), 0, 18);
-    $year = substr((string)($r['year_model'] ?? ''), 0, 4);
-    $ch = substr((string)($r['chassis_no'] ?? ''), 0, 17);
-    $orcr = substr((string)($r['orcr'] ?? ''), 0, 8);
-    $status = substr((string)($r['status'] ?? ''), 0, 8);
-    $ins = substr((string)($r['insurance'] ?? ''), 0, 3);
-    $lines[] = sprintf("%-8s %-10s %-18s %-4s %-17s %-8s %-8s %-3s", $plate, $type, $mm, $year, $ch, $orcr, $status, $ins);
+    $plate = $trunc((string)($r['plate_number'] ?? ''), 8);
+    $type = $trunc((string)($r['vehicle_type'] ?? ''), 10);
+    $make = $trunc((string)($r['make'] ?? ''), 8);
+    $model = $trunc((string)($r['model'] ?? ''), 8);
+    $year = $trunc((string)($r['year_model'] ?? ''), 4);
+    $engine = $trunc((string)($r['engine_no'] ?? ''), 10);
+    $ch = $trunc((string)($r['chassis_no'] ?? ''), 17);
+    $orNo = $trunc((string)($r['or_number'] ?? ''), 12);
+    $crNo = $trunc((string)($r['cr_number'] ?? ''), 12);
+    $lines[] = sprintf("%-8s %-10s %-8s %-8s %-4s %-10s %-17s %-12s %-12s", $plate, $type, $make, $model, $year, $engine, $ch, $orNo, $crNo);
+  }
+
+  $lines[] = '';
+  $lines[] = 'ATTACHED SUPPORTING DOCUMENTS (AUTO-PULLED)';
+  $lines[] = 'Appendix entries reference vehicle documents stored in the system uploads registry.';
+  $lines[] = '';
+  $idx = 0;
+  foreach ($rows as $r) {
+    $plate = (string)($r['plate_number'] ?? '');
+    $att = is_array($r['attachments'] ?? null) ? $r['attachments'] : [];
+    $orFile = $trunc((string)($att['or_file'] ?? ''), 60);
+    $crFile = $trunc((string)($att['cr_file'] ?? ''), 60);
+    $insFile = $trunc((string)($att['insurance_file'] ?? ''), 60);
+    $certRef = $trunc((string)($att['inspection_cert_ref'] ?? ''), 30);
+    $lbl = $appendixLabel($idx);
+    $lines[] = 'Appendix ' . $lbl . ' – OR/CR: ' . $plate;
+    $lines[] = '  OR No: ' . (string)($r['or_number'] ?? '') . ' | OR File: ' . ($orFile !== '' ? $orFile : 'Missing');
+    $lines[] = '  CR No: ' . (string)($r['cr_number'] ?? '') . ' | CR File: ' . ($crFile !== '' ? $crFile : 'Missing');
+    if ($insFile !== '') $lines[] = '  Insurance File: ' . $insFile;
+    if ($certRef !== '') $lines[] = '  Inspection Certificate Ref: ' . $certRef;
+    $lines[] = '';
+    $idx++;
   }
 
   $pdf = $pdfFromLines($lines);
@@ -279,21 +445,18 @@ $writePreviewFiles = function () use ($rows, $uploadsDir, $operatorId, $opName, 
     if (is_file($uploadsDir . '/' . $pdfFile)) @unlink($uploadsDir . '/' . $pdfFile);
     throw new Exception('write_failed');
   }
-  fputcsv($fp, ['Plate No','Vehicle Type','Make / Model','Year','Engine No','Chassis No','OR/CR','OR/CR Date','Inspection','Registration','Status','Insurance']);
+  fputcsv($fp, ['Plate No','Vehicle Type','Make','Model','Year','Engine No','Chassis No','OR No','CR No']);
   foreach ($rows as $r) {
     fputcsv($fp, [
       (string)($r['plate_number'] ?? ''),
       (string)($r['vehicle_type'] ?? ''),
-      (string)($r['make_model'] ?? ''),
+      (string)($r['make'] ?? ''),
+      (string)($r['model'] ?? ''),
       (string)($r['year_model'] ?? ''),
       (string)($r['engine_no'] ?? ''),
       (string)($r['chassis_no'] ?? ''),
-      (string)($r['orcr'] ?? ''),
-      (string)($r['orcr_date'] ?? ''),
-      (string)($r['inspection_status'] ?? ''),
-      (string)($r['registration_status'] ?? ''),
-      (string)($r['status'] ?? ''),
-      (string)($r['insurance'] ?? ''),
+      (string)($r['or_number'] ?? ''),
+      (string)($r['cr_number'] ?? ''),
     ]);
   }
   fclose($fp);
@@ -316,7 +479,10 @@ if ($commit !== '1') {
   echo json_encode([
     'ok' => true,
     'token' => $token,
-    'operator' => ['id' => $operatorId, 'name' => $opName, 'type' => $opType, 'status' => $opStatus],
+    'operator' => ['id' => $operatorId, 'code' => $operatorCode, 'name' => $opName, 'type' => $opType, 'status' => $opStatus],
+    'franchise_application' => ['application_id' => $franchiseApplicationId, 'franchise_ref_number' => $franchiseRef],
+    'system' => ['name' => $systemName, 'lgu_name' => $lguName],
+    'summary' => ['total_vehicles' => count($rows), 'breakdown' => $breakdown],
     'generated_at' => $now,
     'files' => $files,
     'rows' => $rows,

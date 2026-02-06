@@ -534,15 +534,44 @@ function tmm_required_doc_list(string $operatorType): array {
             const rows = Array.isArray(data.rows) ? data.rows : [];
             const count = rows.length;
             const previewRows = rows.slice(0, 25);
+            const op = data.operator || {};
+            const sys = data.system || {};
+            const fa = data.franchise_application || {};
+            const summary = data.summary || {};
+            const breakdown = summary.breakdown || {};
 
             const pdfUrl = pdfFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(pdfFile))) : '';
             const excelUrl = excelFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(excelFile))) : '';
+
+            const breakdownLines = Object.keys(breakdown).sort((a, b) => {
+              const av = Number(breakdown[a] || 0);
+              const bv = Number(breakdown[b] || 0);
+              if (bv !== av) return bv - av;
+              return String(a).localeCompare(String(b));
+            }).map((k) => `<div class="text-xs font-semibold text-slate-700 dark:text-slate-200">- ${esc(k)}: ${esc(breakdown[k])}</div>`).join('');
 
             const previewHtml = `
               <div class="space-y-4">
                 <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                   <div class="text-sm font-black text-slate-900 dark:text-white">Declared Fleet Preview</div>
                   <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Review the generated file first. Upload is only enabled after preview.</div>
+                  <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                      <div class="font-black text-slate-700 dark:text-slate-200">${esc((sys.lgu_name || sys.name || '').toString()) || 'LGU PUV Management System'}</div>
+                      <div class="mt-1 font-semibold text-slate-600 dark:text-slate-300">DECLARED FLEET REPORT</div>
+                      <div class="mt-2 text-slate-600 dark:text-slate-300">
+                        <div><span class="font-bold">Operator:</span> ${esc(operatorName || op.name || '')}</div>
+                        <div><span class="font-bold">Operator Type:</span> ${esc(op.type || '')}</div>
+                        <div><span class="font-bold">Operator ID:</span> ${esc(op.code || op.id || '')}</div>
+                        ${fa.franchise_ref_number ? `<div><span class="font-bold">Franchise Application ID:</span> ${esc(fa.franchise_ref_number)}</div>` : ``}
+                      </div>
+                    </div>
+                    <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                      <div class="font-black text-slate-700 dark:text-slate-200">Fleet Summary</div>
+                      <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Total Vehicles: ${esc(summary.total_vehicles || count)}</div>
+                      <div class="mt-2 space-y-1">${breakdownLines || `<div class="text-xs font-semibold text-slate-600 dark:text-slate-300">No breakdown data.</div>`}</div>
+                    </div>
+                  </div>
                   <label class="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                     <input type="checkbox" class="mt-0.5 w-4 h-4" data-fleet-confirm="1">
                     <span>I reviewed the generated file and confirm it is correct.</span>
@@ -563,12 +592,13 @@ function tmm_required_doc_list(string $operatorType): array {
                       <tr class="text-left">
                         <th class="px-3 py-2 font-black">Plate</th>
                         <th class="px-3 py-2 font-black">Type</th>
-                        <th class="px-3 py-2 font-black">Make / Model</th>
+                        <th class="px-3 py-2 font-black">Make</th>
+                        <th class="px-3 py-2 font-black">Model</th>
                         <th class="px-3 py-2 font-black">Year</th>
                         <th class="px-3 py-2 font-black">Engine</th>
                         <th class="px-3 py-2 font-black">Chassis</th>
-                        <th class="px-3 py-2 font-black">OR/CR</th>
-                        <th class="px-3 py-2 font-black">Status</th>
+                        <th class="px-3 py-2 font-black">OR No</th>
+                        <th class="px-3 py-2 font-black">CR No</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
@@ -576,12 +606,13 @@ function tmm_required_doc_list(string $operatorType): array {
                         <tr>
                           <td class="px-3 py-2 font-bold">${esc(r.plate_number || '')}</td>
                           <td class="px-3 py-2">${esc(r.vehicle_type || '')}</td>
-                          <td class="px-3 py-2">${esc(r.make_model || '')}</td>
+                          <td class="px-3 py-2">${esc(r.make || '')}</td>
+                          <td class="px-3 py-2">${esc(r.model || '')}</td>
                           <td class="px-3 py-2">${esc(r.year_model || '')}</td>
                           <td class="px-3 py-2">${esc(r.engine_no || '')}</td>
                           <td class="px-3 py-2">${esc(r.chassis_no || '')}</td>
-                          <td class="px-3 py-2">${esc(r.orcr || '')}</td>
-                          <td class="px-3 py-2">${esc(r.status || '')}</td>
+                          <td class="px-3 py-2">${esc(r.or_number || '')}</td>
+                          <td class="px-3 py-2">${esc(r.cr_number || '')}</td>
                         </tr>
                       `).join('')}
                     </tbody>
