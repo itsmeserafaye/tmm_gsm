@@ -18,7 +18,9 @@ if (!has_any_permission(['module1.view','module1.vehicles.write','module1.routes
 }
 
 $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id, COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
-                             v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color, v.status, v.created_at
+                             v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color,
+                             v.cr_number, v.cr_issue_date, v.registered_owner,
+                             v.status, v.created_at
                       FROM vehicles v
                       LEFT JOIN operators o ON o.id=v.operator_id
                       WHERE v.plate_number=?");
@@ -125,6 +127,18 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                             <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['chassis_no'] ?? '-'); ?></dd>
                         </div>
                         <div>
+                            <dt class="<?php echo $labelClass; ?>">CR Number</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_number'] ?? '') ?: '-'); ?></dd>
+                        </div>
+                        <div>
+                            <dt class="<?php echo $labelClass; ?>">CR Issue Date</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '') ?: '-'); ?></dd>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <dt class="<?php echo $labelClass; ?>">Registered Owner</dt>
+                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['registered_owner'] ?? '') ?: '-'); ?></dd>
+                        </div>
+                        <div>
                             <dt class="<?php echo $labelClass; ?>">Make / Model</dt>
                             <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim(($v['make'] ?? '') . ' ' . ($v['model'] ?? '')) ?: '-'); ?></dd>
                         </div>
@@ -191,6 +205,18 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Chassis No</label>
                                     <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">CR Number</label>
+                                    <input name="cr_number" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? '')); ?>" placeholder="e.g., CR-123456">
+                                </div>
+                                <div>
+                                    <label class="<?php echo $labelClass; ?>">CR Issue Date</label>
+                                    <input name="cr_issue_date" type="date" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '')); ?>">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="<?php echo $labelClass; ?>">Registered Owner</label>
+                                    <input name="registered_owner" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Color</label>

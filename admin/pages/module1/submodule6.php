@@ -66,8 +66,19 @@ $sql = "SELECT
   r.status,
   r.created_at,
   r.updated_at,
-  COALESCE(u.used_units,0) AS used_units
+  COALESCE(u.used_units,0) AS used_units,
+  COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
+  COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
 FROM routes r
+LEFT JOIN (
+  SELECT
+    tr.route_id,
+    GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
+    MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
+  FROM terminal_routes tr
+  JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
+  GROUP BY tr.route_id
+) tc ON tc.route_id=r.route_id
 LEFT JOIN (
   SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
   FROM franchise_applications
@@ -75,7 +86,7 @@ LEFT JOIN (
   GROUP BY route_id
 ) u ON u.route_id=r.id
 WHERE " . implode(' AND ', $conds) . "
-ORDER BY r.status='Active' DESC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
+ORDER BY r.status='Active' DESC, COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
 LIMIT 1000";
 
 $routes = [];
@@ -180,16 +191,21 @@ if ($params) {
             <th class="py-4 px-4 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
+        <tbody class="divide-y-2 divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
           <?php if (!$routes): ?>
             <tr><td colspan="8" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
           <?php endif; ?>
+          <?php $currentCat = null; ?>
           <?php foreach ($routes as $r): ?>
             <?php
               $code = trim((string)($r['route_code'] ?? ''));
               if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
               $name = trim((string)($r['route_name'] ?? ''));
               $vt = trim((string)($r['vehicle_type'] ?? ''));
+              $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
+              if ($catPrimary === '') $catPrimary = 'Unmapped';
+              $catList = trim((string)($r['terminal_categories'] ?? ''));
+              if ($catList === '') $catList = $catPrimary;
               $distanceKm = $r['distance_km'] === null || $r['distance_km'] === '' ? 0.0 : (float)$r['distance_km'];
               $au = (int)($r['authorized_units'] ?? 0);
               $used = (int)($r['used_units'] ?? 0);
@@ -226,13 +242,31 @@ if ($params) {
                 'fare_max' => $fareMax,
                 'status' => $st,
                 'used_units' => $used,
+                'terminal_categories' => $catList,
+                'primary_terminal_category' => $catPrimary,
               ];
             ?>
+            <?php if ($currentCat !== $catPrimary): ?>
+              <?php $currentCat = $catPrimary; ?>
+              <tr class="bg-slate-100/80 dark:bg-slate-900/40 border-t-2 border-slate-300 dark:border-slate-700">
+                <td colspan="8" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                  <span class="inline-flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+                    <?php echo htmlspecialchars($currentCat); ?>
+                  </span>
+                </td>
+              </tr>
+            <?php endif; ?>
             <tr>
               <td class="py-4 px-6">
                 <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($code); ?></div>
                 <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
                 <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block"><?php echo htmlspecialchars($fullRoute !== ' → ' ? $fullRoute : '-'); ?></div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                  <?php foreach (array_values(array_filter(array_map('trim', explode('•', $catList)))) as $tag): ?>
+                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-500/20"><?php echo htmlspecialchars($tag); ?></span>
+                  <?php endforeach; ?>
+                </div>
               </td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo htmlspecialchars($vt !== '' ? $vt : '-'); ?></td>
               <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$au; ?></td>
