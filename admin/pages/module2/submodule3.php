@@ -523,6 +523,7 @@ if ($rootUrl === '/') $rootUrl = '';
               }
               if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
               if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
+              if (code === 'endorsement_expired') return 'Endorsement already expired (1 year validity). Re-endorse the application.';
               if (code === 'invalid_status') return 'Application status is not eligible for approval.';
               if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
               if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';

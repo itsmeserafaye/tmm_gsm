@@ -5,10 +5,20 @@ require_any_permission(['module2.read','module2.apply','module2.endorse','module
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+$hasEndUntil = (bool)($db->query("SHOW COLUMNS FROM franchise_applications LIKE 'endorsed_until'")?->num_rows);
+if ($hasEndUntil) {
+  @$db->query("UPDATE franchise_applications
+               SET status='Expired'
+               WHERE status IN ('Endorsed','LGU-Endorsed')
+                 AND endorsed_until IS NOT NULL
+                 AND endorsed_until < CURDATE()");
+}
+
 $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications")->fetch_assoc()['c'] ?? 0);
 $statSubmitted = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Submitted'")->fetch_assoc()['c'] ?? 0);
 $statEndorsed = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Endorsed','LGU-Endorsed')")->fetch_assoc()['c'] ?? 0);
 $statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Approved','LTFRB-Approved')")->fetch_assoc()['c'] ?? 0);
+$statExpired = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Expired'")->fetch_assoc()['c'] ?? 0);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
@@ -70,7 +80,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Applications</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → LGU-Endorsed → LTFRB-Approved.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → LGU-Endorsed → LTFRB-Approved (endorsement valid for 1 year).</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
@@ -115,6 +125,13 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
       <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statApproved; ?></div>
     </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expired</div>
+        <i data-lucide="clock" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statExpired; ?></div>
+    </div>
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
@@ -142,7 +159,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="relative w-full sm:w-52">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected'] as $s): ?>
+            <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected','Expired'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -160,7 +177,7 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
-      <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected'] as $chip): ?>
+      <?php foreach (['Submitted','LGU-Endorsed','LTFRB-Approved','Rejected','Expired'] as $chip): ?>
         <a href="?<?php echo http_build_query(['page'=>'module2/submodule1','q'=>$q,'status'=>$chip]); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>
@@ -195,6 +212,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   'Endorsed', 'LGU-Endorsed' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                   'Submitted' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  'Expired' => 'bg-slate-200 text-slate-700 ring-slate-600/20 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
               ?>

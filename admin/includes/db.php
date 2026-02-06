@@ -880,15 +880,15 @@ function db()
     operator_id INT NOT NULL,
     coop_id INT,
     vehicle_count INT DEFAULT 1,
-    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted',
+    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected','Expired') DEFAULT 'Submitted',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
   $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
   $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
   if ($statusCol && ($row = $statusCol->fetch_assoc())) {
     $t = (string) ($row['Type'] ?? '');
-    if (stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
-      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected') DEFAULT 'Submitted'");
+    if (stripos($t, 'expired') === false || stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected','Expired') DEFAULT 'Submitted'");
     }
   }
   $faCols = [
@@ -900,6 +900,7 @@ function db()
     'lptrp_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'coop_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'endorsed_at' => "DATETIME DEFAULT NULL",
+    'endorsed_until' => "DATE DEFAULT NULL",
     'approved_at' => "DATETIME DEFAULT NULL",
     'remarks' => "TEXT",
     'assigned_officer_id' => "INT"

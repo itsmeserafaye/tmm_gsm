@@ -37,7 +37,7 @@ if (!preg_match('/^[0-9]{3,40}$/', $decisionOrderNo)) {
 
 $db->begin_transaction();
 try {
-  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, franchise_ref_number, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
+  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, franchise_ref_number, status, endorsed_until FROM franchise_applications WHERE application_id=? FOR UPDATE");
   if (!$stmtA) throw new Exception('db_prepare_failed');
   $stmtA->bind_param('i', $appId);
   $stmtA->execute();
@@ -53,6 +53,13 @@ try {
   if (!in_array($st, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'], true)) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'invalid_status']);
+    exit;
+  }
+  $eu = (string)($app['endorsed_until'] ?? '');
+  if ($eu !== '' && strtotime($eu) !== false && strtotime($eu) < strtotime(date('Y-m-d'))) {
+    @$db->query("UPDATE franchise_applications SET status='Expired' WHERE application_id=" . (int)$appId . " AND status IN ('Endorsed','LGU-Endorsed')");
+    $db->rollback();
+    echo json_encode(['ok' => false, 'error' => 'endorsement_expired']);
     exit;
   }
 

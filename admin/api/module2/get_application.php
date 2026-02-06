@@ -42,5 +42,12 @@ if (!$row) {
   exit;
 }
 
-echo json_encode(['ok' => true, 'data' => $row]);
+if ($row && isset($row['endorsed_until']) && in_array((string)($row['status'] ?? ''), ['Endorsed','LGU-Endorsed'], true)) {
+  $eu = (string)($row['endorsed_until'] ?? '');
+  if ($eu !== '' && strtotime($eu) !== false && strtotime($eu) < strtotime(date('Y-m-d'))) {
+    @$db->query("UPDATE franchise_applications SET status='Expired' WHERE application_id=" . (int)$appId . " AND status IN ('Endorsed','LGU-Endorsed')");
+    $row['status'] = 'Expired';
+  }
+}
 
+echo json_encode(['ok' => true, 'data' => $row]);

@@ -166,7 +166,12 @@ try {
     $stmtIns->close();
 
     $nextAppStatus = $endorsementStatus === 'Rejected' ? 'Rejected' : 'LGU-Endorsed';
-    $stmtU = $db->prepare("UPDATE franchise_applications SET status=?, endorsed_at=NOW(), remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END WHERE application_id=?");
+    $stmtU = $db->prepare("UPDATE franchise_applications
+                           SET status=?,
+                               endorsed_at=NOW(),
+                               endorsed_until=DATE_ADD(CURDATE(), INTERVAL 1 YEAR),
+                               remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
+                           WHERE application_id=?");
     if (!$stmtU) throw new Exception('db_prepare_failed');
     $stmtU->bind_param('sssi', $nextAppStatus, $notes, $notes, $app_id);
     $stmtU->execute();

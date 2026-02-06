@@ -341,7 +341,7 @@ function tmm_required_doc_list(string $operatorType): array {
         Individual: {
           required: [
             { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
           ],
           optional: [
             { name: 'proof_address', docType: 'BarangayCert', label: 'Proof of Address', hint: 'Barangay Clearance or Utility Bill' },
@@ -354,7 +354,7 @@ function tmm_required_doc_list(string $operatorType): array {
             { name: 'cda_registration', docType: 'CDA', label: 'CDA Registration Certificate', hint: '' },
             { name: 'cda_good_standing', docType: 'CDA', label: 'CDA Certificate of Good Standing', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing application + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
           ],
           optional: [
             { name: 'members_list', docType: 'Others', label: 'List of Members', hint: '' },
@@ -366,7 +366,7 @@ function tmm_required_doc_list(string $operatorType): array {
             { name: 'sec_certificate', docType: 'SEC', label: 'SEC Certificate of Registration', hint: '' },
             { name: 'corp_articles_bylaws', docType: 'SEC', label: 'Articles of Incorporation / By-laws', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing operation + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload fleet list (PDF / Excel / CSV)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
           ],
           optional: [
             { name: 'mayors_permit', docType: 'Others', label: "Mayor’s Permit", hint: '' },
@@ -375,17 +375,20 @@ function tmm_required_doc_list(string $operatorType): array {
         },
       };
       const matrix = docMatrix[opType] || docMatrix.Individual;
-      function fieldState(f) {
+      function findFieldDoc(f) {
         const label = (f && f.label) ? String(f.label).trim() : '';
         const want = label.toLowerCase();
         const wantAlt = (f && f.name === 'declared_fleet') ? 'declared fleet' : want;
-        const match = (rows || []).find((d) => {
+        return (rows || []).find((d) => {
           const rem = (d && d.remarks) ? String(d.remarks) : '';
           const head = rem.split('|')[0].trim().toLowerCase();
           if (head && (head === want || head === wantAlt)) return true;
           if (wantAlt && rem.toLowerCase().includes(wantAlt)) return true;
           return false;
-        });
+        }) || null;
+      }
+      function fieldState(f) {
+        const match = findFieldDoc(f);
         if (!match) return 'Pending Upload';
         const st = (match.doc_status || '').toString();
         if (st) return st;
@@ -397,6 +400,8 @@ function tmm_required_doc_list(string $operatorType): array {
           ? '.pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv'
           : '.pdf,.jpg,.jpeg,.png';
         const st = fieldState(f);
+        const doc = findFieldDoc(f);
+        const docHref = doc && doc.file_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(doc.file_path))) : '';
         const badge = st === 'Verified'
           ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
           : (st === 'Rejected'
@@ -404,6 +409,22 @@ function tmm_required_doc_list(string $operatorType): array {
             : (st === 'Pending Upload'
               ? 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300'
               : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
+        if (nm === 'declared_fleet') {
+          return `
+          <div>
+            <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span>${String(f.label || '')}</span>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <button type="button" data-generate-fleet="1" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">Generate Declared Fleet</button>
+              ${docHref ? `<a href="${docHref}" target="_blank" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm">Open Latest</a>` : ``}
+            </div>
+            ${f.hint ? `<div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">${String(f.hint)}</div>` : ``}
+            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Includes linked vehicles, OR/CR & insurance attachments (if uploaded).</div>
+          </div>
+        `;
+        }
         return `
         <div>
           <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
@@ -484,6 +505,31 @@ function tmm_required_doc_list(string $operatorType): array {
             renderDocs(operatorId, operatorName, latest);
           } catch (err) {
             showToast(err.message || 'Failed', 'error');
+          }
+        });
+      });
+
+      body.querySelectorAll('[data-generate-fleet="1"]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const orig = b.textContent;
+          b.disabled = true;
+          b.textContent = 'Generating...';
+          try {
+            const fd = new FormData();
+            fd.append('operator_id', String(operatorId || ''));
+            const res = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'generate_failed');
+            showToast('Declared Fleet generated (For Review).');
+            const latest = await loadOperatorDocs(operatorId);
+            renderDocs(operatorId, operatorName, latest);
+            if (data.file_path) {
+              window.open(rootUrl + '/admin/uploads/' + encodeURIComponent(String(data.file_path)), '_blank');
+            }
+          } catch (err) {
+            showToast(err.message || 'Failed', 'error');
+            b.disabled = false;
+            b.textContent = orig;
           }
         });
       });
