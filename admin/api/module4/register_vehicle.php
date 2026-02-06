@@ -14,7 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
-$orNumber = trim((string)($_POST['or_number'] ?? ''));
+$orNumberRaw = (string)($_POST['or_number'] ?? '');
+$orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
+$orNumber = substr($orNumber, 0, 12);
 $orDate = trim((string)($_POST['or_date'] ?? ''));
 $orExpiry = trim((string)($_POST['or_expiry_date'] ?? ''));
 $regYear = trim((string)($_POST['registration_year'] ?? ''));
@@ -35,6 +37,11 @@ if ($orDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $orDate)) {
 if ($orExpiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $orExpiry)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_or_expiry_date']);
+  exit;
+}
+if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'invalid_or_number']);
   exit;
 }
 if ($regYear !== '' && !preg_match('/^\d{4}$/', $regYear)) {

@@ -1079,17 +1079,21 @@ $typesList = vehicle_types();
             </div>
 
             <div class="p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CR Metadata (Optional)</div>
-              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR/CR Metadata (Optional)</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR Number</label>
+                  <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123456">
+                </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Number</label>
-                  <input name="cr_number" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., CR-2026-000123">
+                  <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., ABCD-123456">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR Issue Date</label>
                   <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 </div>
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Registered Owner</label>
                   <input name="registered_owner" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
                 </div>

@@ -100,7 +100,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
-              <input name="or_number" id="orNumber" minlength="3" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., OR-2026-0001">
+              <input name="or_number" id="orNumber" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123456">
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>

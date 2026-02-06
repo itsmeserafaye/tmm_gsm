@@ -102,12 +102,9 @@ $opName = (string)($op['display_name'] ?? '');
 $opType = (string)($op['operator_type'] ?? '');
 $opStatus = (string)($op['status'] ?? '');
 
-function h(string $v): string { return htmlspecialchars($v, ENT_QUOTES); }
 function vstr($v): string { return trim((string)($v ?? '')); }
-function yn($b): string { return $b ? 'Yes' : 'No'; }
 
-$rowsHtml = '';
-$attachHtml = '';
+$rows = [];
 foreach ($vehicles as $v) {
   $vid = (int)($v['vehicle_id'] ?? 0);
   $plate = vstr($v['plate_number'] ?? '');
@@ -135,77 +132,221 @@ foreach ($vehicles as $v) {
     if ($dt === 'orcr') $hasOrcr = true;
     if ($dt === 'insurance') $hasIns = true;
   }
-  $rowsHtml .= '<tr>'
-    . '<td>' . h($plate) . '</td>'
-    . '<td>' . h($vehType) . '</td>'
-    . '<td>' . h(trim($make . ' ' . $model)) . '</td>'
-    . '<td>' . h($year) . '</td>'
-    . '<td>' . h($engine) . '</td>'
-    . '<td>' . h($chassis) . '</td>'
-    . '<td>' . h($orcrNo !== '' ? $orcrNo : (($hasOrcr || ($hasOr && $hasCr)) ? 'Attached' : 'Missing')) . '</td>'
-    . '<td>' . h($orcrDate) . '</td>'
-    . '<td>' . h($insp !== '' ? $insp : '-') . '</td>'
-    . '<td>' . h($reg !== '' ? $reg : '-') . '</td>'
-    . '<td>' . h($st !== '' ? $st : '-') . '</td>'
-    . '<td>' . h(yn($hasIns)) . '</td>'
-    . '</tr>';
-
-  $docLinks = '';
-  foreach ($docs as $d) {
-    $fn = vstr($d['file_path'] ?? '');
-    if ($fn === '') continue;
-    $dt = vstr($d['doc_type'] ?? '');
-    $url = rawurlencode($fn);
-    $docLinks .= '<li><a href="' . h($url) . '" target="_blank">' . h($dt . ' - ' . $plate) . '</a></li>';
-    $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION));
-    if (in_array($ext, ['jpg','jpeg','png','webp'], true)) {
-      $docLinks .= '<div class="preview"><img src="' . h($url) . '" alt="' . h($dt . ' - ' . $plate) . '"></div>';
-    }
-  }
-  if ($docLinks !== '') {
-    $attachHtml .= '<h3>' . h($plate) . '</h3><ul>' . $docLinks . '</ul>';
-  } else {
-    $attachHtml .= '<h3>' . h($plate) . '</h3><div class="muted">No attached OR/CR/Insurance files found.</div>';
-  }
+  $orcrStatus = $orcrNo !== '' ? $orcrNo : (($hasOrcr || ($hasOr && $hasCr)) ? 'Attached' : 'Missing');
+  $rows[] = [
+    'plate_number' => $plate,
+    'vehicle_type' => $vehType,
+    'make_model' => trim($make . ' ' . $model),
+    'year_model' => $year,
+    'engine_no' => $engine,
+    'chassis_no' => $chassis,
+    'orcr' => $orcrStatus,
+    'orcr_date' => $orcrDate,
+    'inspection_status' => $insp !== '' ? $insp : '-',
+    'registration_status' => $reg !== '' ? $reg : '-',
+    'status' => $st !== '' ? $st : '-',
+    'insurance' => $hasIns ? 'Yes' : 'No',
+  ];
 }
-
-$html = '<!doctype html><html><head><meta charset="utf-8"><title>Declared Fleet</title>'
-  . '<style>'
-  . 'body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#0f172a;}'
-  . '.muted{color:#64748b;font-size:12px;}'
-  . 'h1{font-size:22px;margin:0 0 6px 0;}'
-  . 'h2{font-size:14px;margin:18px 0 8px 0;text-transform:uppercase;letter-spacing:.08em;color:#334155;}'
-  . 'table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}'
-  . 'th,td{border:1px solid #cbd5e1;padding:6px;vertical-align:top;}'
-  . 'th{background:#f1f5f9;text-align:left;}'
-  . 'a{color:#2563eb;text-decoration:none;}'
-  . 'a:hover{text-decoration:underline;}'
-  . '.preview img{max-width:100%;border:1px solid #cbd5e1;border-radius:8px;margin:10px 0;}'
-  . '</style></head><body>'
-  . '<h1>Declared Fleet Report</h1>'
-  . '<div class="muted">System-generated • ' . h($now) . '</div>'
-  . '<h2>Operator</h2>'
-  . '<div><strong>' . h($opName) . '</strong></div>'
-  . '<div class="muted">Type: ' . h($opType) . ' • Status: ' . h($opStatus) . '</div>'
-  . '<h2>Fleet Summary</h2>'
-  . '<table><thead><tr>'
-  . '<th>Plate No</th><th>Vehicle Type</th><th>Make / Model</th><th>Year</th><th>Engine No</th><th>Chassis No</th>'
-  . '<th>OR/CR</th><th>OR/CR Date</th><th>Inspection</th><th>Registration</th><th>Status</th><th>Insurance</th>'
-  . '</tr></thead><tbody>'
-  . $rowsHtml
-  . '</tbody></table>'
-  . '<h2>Attachments</h2>'
-  . '<div class="muted">Links open the uploaded vehicle documents (OR/CR and insurance) stored in the system.</div>'
-  . $attachHtml
-  . '</body></html>';
 
 $uploadsDir = __DIR__ . '/../../uploads';
 if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
-$filename = 'declared_fleet_operator_' . $operatorId . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.html';
-$dest = $uploadsDir . '/' . $filename;
-if (@file_put_contents($dest, $html) === false) {
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'write_failed']);
+if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+
+$commit = (string)($_POST['commit'] ?? '');
+$token = trim((string)($_POST['token'] ?? ''));
+$format = strtolower(trim((string)($_POST['format'] ?? 'pdf')));
+
+$toWin1252 = function ($s) {
+  $s = (string)$s;
+  if (function_exists('iconv')) {
+    $v = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $s);
+    if ($v !== false && $v !== null) return $v;
+  }
+  return $s;
+};
+
+$pdfEsc = function ($s) use ($toWin1252) {
+  $s = $toWin1252($s);
+  $s = str_replace("\\", "\\\\", $s);
+  $s = str_replace("(", "\\(", $s);
+  $s = str_replace(")", "\\)", $s);
+  $s = preg_replace("/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/", "", $s);
+  return $s;
+};
+
+$pdfFromLines = function (array $lines) use ($pdfEsc): string {
+  $pageWidth = 595;
+  $pageHeight = 842;
+  $marginLeft = 36;
+  $startY = 806;
+  $leading = 10;
+  $maxLines = 70;
+
+  $pages = [];
+  $cur = [];
+  foreach ($lines as $ln) {
+    $cur[] = (string)$ln;
+    if (count($cur) >= $maxLines) {
+      $pages[] = $cur;
+      $cur = [];
+    }
+  }
+  if ($cur) $pages[] = $cur;
+  if (!$pages) $pages[] = ['No records.'];
+
+  $objects = [];
+  $addObj = function ($body) use (&$objects) {
+    $objects[] = (string)$body;
+    return count($objects);
+  };
+
+  $catalogId = $addObj('');
+  $pagesId = $addObj('');
+  $fontId = $addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>");
+
+  $pageObjIds = [];
+  foreach ($pages as $pageLines) {
+    $content = "BT\n/F1 9 Tf\n" . $leading . " TL\n1 0 0 1 " . $marginLeft . " " . $startY . " Tm\n";
+    foreach ($pageLines as $ln) {
+      $content .= "(" . $pdfEsc($ln) . ") Tj\nT*\n";
+    }
+    $content .= "ET\n";
+    $contentObjId = $addObj("<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream");
+    $pageObjId = $addObj("<< /Type /Page /Parent " . $pagesId . " 0 R /MediaBox [0 0 " . $pageWidth . " " . $pageHeight . "] /Resources << /Font << /F1 " . $fontId . " 0 R >> >> /Contents " . $contentObjId . " 0 R >>");
+    $pageObjIds[] = $pageObjId;
+  }
+
+  $kids = implode(' ', array_map(function ($id) { return $id . " 0 R"; }, $pageObjIds));
+  $objects[$pagesId - 1] = "<< /Type /Pages /Count " . count($pageObjIds) . " /Kids [ " . $kids . " ] >>";
+  $objects[$catalogId - 1] = "<< /Type /Catalog /Pages " . $pagesId . " 0 R >>";
+
+  $pdf = "%PDF-1.4\n";
+  $offsets = [0];
+  for ($i = 0; $i < count($objects); $i++) {
+    $offsets[] = strlen($pdf);
+    $pdf .= ($i + 1) . " 0 obj\n" . $objects[$i] . "\nendobj\n";
+  }
+  $xrefPos = strlen($pdf);
+  $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
+  $pdf .= "0000000000 65535 f \n";
+  for ($i = 1; $i <= count($objects); $i++) {
+    $pdf .= str_pad((string)$offsets[$i], 10, '0', STR_PAD_LEFT) . " 00000 n \n";
+  }
+  $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root " . $catalogId . " 0 R >>\nstartxref\n" . $xrefPos . "\n%%EOF";
+  return $pdf;
+};
+
+$makeToken = function (): string {
+  if (function_exists('random_bytes')) return bin2hex(random_bytes(16));
+  return bin2hex(openssl_random_pseudo_bytes(16));
+};
+
+$writePreviewFiles = function () use ($rows, $uploadsDir, $operatorId, $opName, $opType, $opStatus, $now, $pdfFromLines): array {
+  $suffix = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
+  $pdfFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.pdf';
+  $csvFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.csv';
+
+  $lines = [];
+  $lines[] = 'Declared Fleet Report';
+  $lines[] = 'System-generated: ' . $now;
+  $lines[] = 'Operator: ' . $opName;
+  $lines[] = 'Type: ' . $opType . '   Status: ' . $opStatus;
+  $lines[] = 'Total Vehicles: ' . (string)count($rows);
+  $lines[] = str_repeat('-', 94);
+  $lines[] = 'PLATE    TYPE       MAKE/MODEL          YEAR CHASSIS           OR/CR    STATUS   INS';
+  $lines[] = str_repeat('-', 94);
+
+  foreach ($rows as $r) {
+    $plate = substr((string)($r['plate_number'] ?? ''), 0, 8);
+    $type = substr((string)($r['vehicle_type'] ?? ''), 0, 10);
+    $mm = substr((string)($r['make_model'] ?? ''), 0, 18);
+    $year = substr((string)($r['year_model'] ?? ''), 0, 4);
+    $ch = substr((string)($r['chassis_no'] ?? ''), 0, 17);
+    $orcr = substr((string)($r['orcr'] ?? ''), 0, 8);
+    $status = substr((string)($r['status'] ?? ''), 0, 8);
+    $ins = substr((string)($r['insurance'] ?? ''), 0, 3);
+    $lines[] = sprintf("%-8s %-10s %-18s %-4s %-17s %-8s %-8s %-3s", $plate, $type, $mm, $year, $ch, $orcr, $status, $ins);
+  }
+
+  $pdf = $pdfFromLines($lines);
+  if (@file_put_contents($uploadsDir . '/' . $pdfFile, $pdf) === false) {
+    throw new Exception('write_failed');
+  }
+
+  $fp = @fopen($uploadsDir . '/' . $csvFile, 'w');
+  if (!$fp) {
+    if (is_file($uploadsDir . '/' . $pdfFile)) @unlink($uploadsDir . '/' . $pdfFile);
+    throw new Exception('write_failed');
+  }
+  fputcsv($fp, ['Plate No','Vehicle Type','Make / Model','Year','Engine No','Chassis No','OR/CR','OR/CR Date','Inspection','Registration','Status','Insurance']);
+  foreach ($rows as $r) {
+    fputcsv($fp, [
+      (string)($r['plate_number'] ?? ''),
+      (string)($r['vehicle_type'] ?? ''),
+      (string)($r['make_model'] ?? ''),
+      (string)($r['year_model'] ?? ''),
+      (string)($r['engine_no'] ?? ''),
+      (string)($r['chassis_no'] ?? ''),
+      (string)($r['orcr'] ?? ''),
+      (string)($r['orcr_date'] ?? ''),
+      (string)($r['inspection_status'] ?? ''),
+      (string)($r['registration_status'] ?? ''),
+      (string)($r['status'] ?? ''),
+      (string)($r['insurance'] ?? ''),
+    ]);
+  }
+  fclose($fp);
+
+  return ['pdf' => $pdfFile, 'excel' => $csvFile];
+};
+
+if ($commit !== '1') {
+  $files = $writePreviewFiles();
+  $token = $makeToken();
+  if (!isset($_SESSION['tmm_declared_fleet_previews']) || !is_array($_SESSION['tmm_declared_fleet_previews'])) {
+    $_SESSION['tmm_declared_fleet_previews'] = [];
+  }
+  $_SESSION['tmm_declared_fleet_previews'][$token] = [
+    'operator_id' => $operatorId,
+    'created_at' => time(),
+    'pdf' => $files['pdf'],
+    'excel' => $files['excel'],
+  ];
+  echo json_encode([
+    'ok' => true,
+    'token' => $token,
+    'operator' => ['id' => $operatorId, 'name' => $opName, 'type' => $opType, 'status' => $opStatus],
+    'generated_at' => $now,
+    'files' => $files,
+    'rows' => $rows,
+  ]);
+  exit;
+}
+
+if ($token === '' || !isset($_SESSION['tmm_declared_fleet_previews']) || !is_array($_SESSION['tmm_declared_fleet_previews']) || !isset($_SESSION['tmm_declared_fleet_previews'][$token])) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'preview_required']);
+  exit;
+}
+$prev = $_SESSION['tmm_declared_fleet_previews'][$token];
+if ((int)($prev['operator_id'] ?? 0) !== $operatorId) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'preview_mismatch']);
+  exit;
+}
+if ((time() - (int)($prev['created_at'] ?? 0)) > 20 * 60) {
+  unset($_SESSION['tmm_declared_fleet_previews'][$token]);
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'preview_expired']);
+  exit;
+}
+
+$chosen = $format === 'excel' ? (string)($prev['excel'] ?? '') : (string)($prev['pdf'] ?? '');
+$chosen = basename($chosen);
+if ($chosen === '' || !is_file($uploadsDir . '/' . $chosen)) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'file_missing']);
   exit;
 }
 
@@ -230,25 +371,24 @@ if ($docStatus['has'] && $docStatus['value'] !== null) {
                            VALUES (?, 'Others', ?, ?, 0)");
 }
 if (!$stmtIns) {
-  if (is_file($dest)) @unlink($dest);
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
 if ($docStatus['has'] && $docStatus['value'] !== null) {
   $st = (string)$docStatus['value'];
-  $stmtIns->bind_param('isss', $operatorId, $filename, $st, $remarks);
+  $stmtIns->bind_param('isss', $operatorId, $chosen, $st, $remarks);
 } else {
-  $stmtIns->bind_param('iss', $operatorId, $filename, $remarks);
+  $stmtIns->bind_param('iss', $operatorId, $chosen, $remarks);
 }
 if (!$stmtIns->execute()) {
   $stmtIns->close();
-  if (is_file($dest)) @unlink($dest);
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_error', 'message' => (string)($db->error ?? '')]);
   exit;
 }
 $docId = (int)$db->insert_id;
 $stmtIns->close();
+unset($_SESSION['tmm_declared_fleet_previews'][$token]);
 
-echo json_encode(['ok' => true, 'doc_id' => $docId, 'file_path' => $filename]);
+echo json_encode(['ok' => true, 'doc_id' => $docId, 'file_path' => $chosen]);

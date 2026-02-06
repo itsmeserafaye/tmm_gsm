@@ -37,7 +37,13 @@ try {
     $operatorName = trim((string)($_POST['operator_name'] ?? ''));
     $ocrUsed = (int)($_POST['ocr_used'] ?? 0);
     $ocrConfirmed = (int)($_POST['ocr_confirmed'] ?? 0);
-    $crNumber = trim((string)($_POST['cr_number'] ?? ''));
+    $orNumberRaw = (string)($_POST['or_number'] ?? '');
+    $orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
+    $orNumber = substr($orNumber, 0, 12);
+    $crNumberRaw = (string)($_POST['cr_number'] ?? '');
+    $crNumber = strtoupper(preg_replace('/\s+/', '', trim($crNumberRaw)));
+    $crNumber = preg_replace('/[^A-Z0-9\-]/', '', $crNumber);
+    $crNumber = substr($crNumber, 0, 20);
     $crIssueDate = trim((string)($_POST['cr_issue_date'] ?? ''));
     $registeredOwner = trim((string)($_POST['registered_owner'] ?? ''));
 
@@ -69,12 +75,23 @@ try {
         echo json_encode(['ok' => false, 'error' => 'invalid_chassis_no']);
         exit;
     }
+    if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_or_number']);
+        exit;
+    }
+    if ($crNumber !== '' && !preg_match('/^[A-Z0-9\-]{6,20}$/', $crNumber)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_cr_number']);
+        exit;
+    }
 
     $ensureVehicleCrCols = function () use ($db): void {
         $has = function (string $col) use ($db): bool {
             $r = $db->query("SHOW COLUMNS FROM vehicles LIKE '" . $db->real_escape_string($col) . "'");
             return $r && $r->num_rows > 0;
         };
+        if (!$has('or_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(12) NULL"); }
         if (!$has('cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
         if (!$has('cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
         if (!$has('registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
@@ -138,8 +155,8 @@ try {
     $ensureVehicleCrCols();
     $db->begin_transaction();
 
-    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status, cr_number, cr_issue_date, registered_owner)
-                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status, or_number, cr_number, cr_issue_date, registered_owner)
+                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                           ON DUPLICATE KEY UPDATE
                             vehicle_type=VALUES(vehicle_type),
                             operator_id=VALUES(operator_id),
@@ -154,6 +171,7 @@ try {
                             record_status=VALUES(record_status),
                             status=VALUES(status),
                             inspection_status=COALESCE(NULLIF(inspection_status,''), VALUES(inspection_status)),
+                            or_number=CASE WHEN VALUES(or_number)<>'' THEN VALUES(or_number) ELSE or_number END,
                             cr_number=CASE WHEN VALUES(cr_number)<>'' THEN VALUES(cr_number) ELSE cr_number END,
                             cr_issue_date=CASE WHEN VALUES(cr_issue_date)<>'' THEN VALUES(cr_issue_date) ELSE cr_issue_date END,
                             registered_owner=CASE WHEN VALUES(registered_owner)<>'' THEN VALUES(registered_owner) ELSE registered_owner END");
@@ -163,7 +181,7 @@ try {
         exit;
     }
     $operatorIdBind = $operatorId > 0 ? $operatorId : null;
-    $stmt->bind_param('ssissssssssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $crNumber, $crIssueDate, $registeredOwner);
+    $stmt->bind_param('ssisssssssssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner);
     $ok = $stmt->execute();
     if (!$ok) {
         $db->rollback();

@@ -249,6 +249,8 @@ function tmm_required_doc_list(string $operatorType): array {
       setTimeout(() => { el.remove(); }, 3000);
     }
 
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
     function openModal(html, modalTitle) {
       if (!modal || !body || !title) return;
       title.textContent = modalTitle || 'Review';
@@ -524,11 +526,122 @@ function tmm_required_doc_list(string $operatorType): array {
               if (code === 'no_linked_vehicles') throw new Error('No linked vehicles found for this operator.');
               throw new Error((data && data.message) ? String(data.message) : code);
             }
-            showToast('Declared Fleet generated (For Review).');
-            const latest = await loadOperatorDocs(operatorId);
-            renderDocs(operatorId, operatorName, latest);
-            if (data.file_path) {
-              window.open(rootUrl + '/admin/uploads/' + encodeURIComponent(String(data.file_path)), '_blank');
+
+            const files = data.files || {};
+            const pdfFile = files.pdf || '';
+            const excelFile = files.excel || '';
+            const token = data.token || '';
+            const rows = Array.isArray(data.rows) ? data.rows : [];
+            const count = rows.length;
+            const previewRows = rows.slice(0, 25);
+
+            const pdfUrl = pdfFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(pdfFile))) : '';
+            const excelUrl = excelFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(excelFile))) : '';
+
+            const previewHtml = `
+              <div class="space-y-4">
+                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                  <div class="text-sm font-black text-slate-900 dark:text-white">Declared Fleet Preview</div>
+                  <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Review the generated file first. Upload is only enabled after preview.</div>
+                  <label class="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <input type="checkbox" class="mt-0.5 w-4 h-4" data-fleet-confirm="1">
+                    <span>I reviewed the generated file and confirm it is correct.</span>
+                  </label>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    ${pdfUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${esc(pdfUrl)}" target="_blank">Open PDF</a>` : ``}
+                    ${excelUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${esc(excelUrl)}" target="_blank">Open Excel (CSV)</a>` : ``}
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white transition-colors" data-fleet-upload="pdf" data-fleet-token="${esc(token)}" disabled>Upload PDF to Documents</button>
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors" data-fleet-upload="excel" data-fleet-token="${esc(token)}" disabled>Upload Excel to Documents</button>
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-fleet-back="1">Back</button>
+                  </div>
+                </div>
+
+                <div class="text-xs font-bold text-slate-600 dark:text-slate-300">Previewing ${esc(previewRows.length)} of ${esc(count)} vehicles</div>
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                  <table class="min-w-full text-xs">
+                    <thead class="bg-slate-50 dark:bg-slate-800/50">
+                      <tr class="text-left">
+                        <th class="px-3 py-2 font-black">Plate</th>
+                        <th class="px-3 py-2 font-black">Type</th>
+                        <th class="px-3 py-2 font-black">Make / Model</th>
+                        <th class="px-3 py-2 font-black">Year</th>
+                        <th class="px-3 py-2 font-black">Engine</th>
+                        <th class="px-3 py-2 font-black">Chassis</th>
+                        <th class="px-3 py-2 font-black">OR/CR</th>
+                        <th class="px-3 py-2 font-black">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                      ${previewRows.map((r) => `
+                        <tr>
+                          <td class="px-3 py-2 font-bold">${esc(r.plate_number || '')}</td>
+                          <td class="px-3 py-2">${esc(r.vehicle_type || '')}</td>
+                          <td class="px-3 py-2">${esc(r.make_model || '')}</td>
+                          <td class="px-3 py-2">${esc(r.year_model || '')}</td>
+                          <td class="px-3 py-2">${esc(r.engine_no || '')}</td>
+                          <td class="px-3 py-2">${esc(r.chassis_no || '')}</td>
+                          <td class="px-3 py-2">${esc(r.orcr || '')}</td>
+                          <td class="px-3 py-2">${esc(r.status || '')}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+
+            openModal(previewHtml, 'Declared Fleet • ' + operatorName);
+            const confirmEl = body.querySelector('[data-fleet-confirm="1"]');
+            const uploadBtns = Array.from(body.querySelectorAll('[data-fleet-upload]'));
+            const setUploadEnabled = (enabled) => {
+              uploadBtns.forEach((x) => {
+                const fmt = x.getAttribute('data-fleet-upload') || '';
+                if (fmt === 'pdf' && !pdfFile) { x.disabled = true; return; }
+                if (fmt === 'excel' && !excelFile) { x.disabled = true; return; }
+                x.disabled = !enabled;
+              });
+            };
+            setUploadEnabled(false);
+            if (confirmEl) confirmEl.addEventListener('change', () => setUploadEnabled(!!confirmEl.checked));
+            body.querySelectorAll('[data-fleet-upload]').forEach((btnUp) => {
+              btnUp.addEventListener('click', async () => {
+                const fmt = btnUp.getAttribute('data-fleet-upload') || 'pdf';
+                const tok = btnUp.getAttribute('data-fleet-token') || '';
+                const origTxt = btnUp.textContent;
+                btnUp.disabled = true;
+                btnUp.textContent = 'Uploading...';
+                try {
+                  const fd2 = new FormData();
+                  fd2.append('operator_id', String(operatorId || ''));
+                  fd2.append('commit', '1');
+                  fd2.append('token', String(tok || ''));
+                  fd2.append('format', String(fmt || 'pdf'));
+                  const res2 = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd2 });
+                  const data2 = await res2.json();
+                  if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
+                  showToast('Declared Fleet uploaded (For Review).');
+                  const latest = await loadOperatorDocs(operatorId);
+                  renderDocs(operatorId, operatorName, latest);
+                  if (data2.file_path) {
+                    window.open(rootUrl + '/admin/uploads/' + encodeURIComponent(String(data2.file_path)), '_blank');
+                  }
+                } catch (err2) {
+                  showToast(err2.message || 'Failed', 'error');
+                  btnUp.disabled = false;
+                  btnUp.textContent = origTxt;
+                }
+              });
+            });
+            const backBtn = body.querySelector('[data-fleet-back="1"]');
+            if (backBtn) {
+              backBtn.addEventListener('click', async () => {
+                try {
+                  const latest = await loadOperatorDocs(operatorId);
+                  renderDocs(operatorId, operatorName, latest);
+                } catch (e) {
+                  showToast('Failed to reload documents', 'error');
+                }
+              });
             }
           } catch (err) {
             showToast(err.message || 'Failed', 'error');
