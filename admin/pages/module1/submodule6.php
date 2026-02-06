@@ -82,7 +82,7 @@ LEFT JOIN (
 LEFT JOIN (
   SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
   FROM franchise_applications
-  WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
+  WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
   GROUP BY route_id
 ) u ON u.route_id=r.id
 WHERE " . implode(' AND ', $conds) . "

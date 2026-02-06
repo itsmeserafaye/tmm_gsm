@@ -15,15 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $appId = (int)($_POST['application_id'] ?? 0);
 $ltfrbRefNo = trim((string)($_POST['ltfrb_ref_no'] ?? ''));
 $decisionOrderNo = trim((string)($_POST['decision_order_no'] ?? ''));
+$authorityTypeRaw = strtoupper(trim((string)($_POST['authority_type'] ?? '')));
+$issueDate = trim((string)($_POST['issue_date'] ?? ''));
 $expiryDate = trim((string)($_POST['expiry_date'] ?? ''));
 $remarks = trim((string)($_POST['remarks'] ?? ''));
 
-if ($appId <= 0 || $ltfrbRefNo === '' || $decisionOrderNo === '' || $expiryDate === '') {
+if ($appId <= 0 || $ltfrbRefNo === '' || $decisionOrderNo === '' || $authorityTypeRaw === '' || $issueDate === '') {
   echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
-  exit;
-}
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiryDate)) {
-  echo json_encode(['ok' => false, 'error' => 'invalid_expiry_date']);
   exit;
 }
 if (!preg_match('/^[0-9][0-9\-\/]{2,39}$/', $ltfrbRefNo)) {
@@ -34,10 +32,31 @@ if (!preg_match('/^[0-9]{3,40}$/', $decisionOrderNo)) {
   echo json_encode(['ok' => false, 'error' => 'invalid_decision_order_no']);
   exit;
 }
+if (!in_array($authorityTypeRaw, ['PA','CPC'], true)) {
+  echo json_encode(['ok' => false, 'error' => 'invalid_authority_type']);
+  exit;
+}
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $issueDate)) {
+  echo json_encode(['ok' => false, 'error' => 'invalid_issue_date']);
+  exit;
+}
+if ($authorityTypeRaw === 'CPC') {
+  if ($expiryDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiryDate)) {
+    echo json_encode(['ok' => false, 'error' => 'invalid_expiry_date']);
+    exit;
+  }
+} else {
+  $ts = strtotime($issueDate);
+  if ($ts === false) {
+    echo json_encode(['ok' => false, 'error' => 'invalid_issue_date']);
+    exit;
+  }
+  $expiryDate = date('Y-m-d', strtotime('-1 day', strtotime('+1 year', $ts)));
+}
 
 $db->begin_transaction();
 try {
-  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, franchise_ref_number, status, endorsed_until FROM franchise_applications WHERE application_id=? FOR UPDATE");
+  $stmtA = $db->prepare("SELECT application_id, operator_id, route_id, vehicle_count, franchise_ref_number, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
   if (!$stmtA) throw new Exception('db_prepare_failed');
   $stmtA->bind_param('i', $appId);
   $stmtA->execute();
@@ -50,16 +69,9 @@ try {
   }
 
   $st = trim((string)($app['status'] ?? ''));
-  if (!in_array($st, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'], true)) {
+  if (!in_array($st, ['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued'], true)) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'invalid_status']);
-    exit;
-  }
-  $eu = (string)($app['endorsed_until'] ?? '');
-  if ($eu !== '' && strtotime($eu) !== false && strtotime($eu) < strtotime(date('Y-m-d'))) {
-    @$db->query("UPDATE franchise_applications SET status='Expired' WHERE application_id=" . (int)$appId . " AND status IN ('Endorsed','LGU-Endorsed')");
-    $db->rollback();
-    echo json_encode(['ok' => false, 'error' => 'endorsement_expired']);
     exit;
   }
 
@@ -231,22 +243,29 @@ try {
     }
   }
 
-  $stmtF = $db->prepare("INSERT INTO franchises (application_id, ltfrb_ref_no, decision_order_no, expiry_date, status)
-                          VALUES (?, ?, ?, ?, 'Active')
-                          ON DUPLICATE KEY UPDATE ltfrb_ref_no=VALUES(ltfrb_ref_no), decision_order_no=VALUES(decision_order_no), expiry_date=VALUES(expiry_date), status='Active'");
+  $stmtF = $db->prepare("INSERT INTO franchises (application_id, ltfrb_ref_no, decision_order_no, authority_type, issue_date, expiry_date, status)
+                          VALUES (?, ?, ?, ?, ?, ?, 'Active')
+                          ON DUPLICATE KEY UPDATE
+                            ltfrb_ref_no=VALUES(ltfrb_ref_no),
+                            decision_order_no=VALUES(decision_order_no),
+                            authority_type=VALUES(authority_type),
+                            issue_date=VALUES(issue_date),
+                            expiry_date=VALUES(expiry_date),
+                            status='Active'");
   if (!$stmtF) throw new Exception('db_prepare_failed');
-  $stmtF->bind_param('isss', $appId, $ltfrbRefNo, $decisionOrderNo, $expiryDate);
+  $stmtF->bind_param('isssss', $appId, $ltfrbRefNo, $decisionOrderNo, $authorityTypeRaw, $issueDate, $expiryDate);
   if (!$stmtF->execute()) throw new Exception('insert_failed');
   $stmtF->close();
 
+  $nextStatus = $authorityTypeRaw === 'PA' ? 'PA Issued' : 'CPC Issued';
   $stmtU = $db->prepare("UPDATE franchise_applications
-                          SET status='LTFRB-Approved',
+                          SET status=?,
                               approved_at=NOW(),
                               franchise_ref_number=?,
                               remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
                           WHERE application_id=?");
   if (!$stmtU) throw new Exception('db_prepare_failed');
-  $stmtU->bind_param('sssi', $ltfrbRefNo, $remarks, $remarks, $appId);
+  $stmtU->bind_param('ssssi', $nextStatus, $ltfrbRefNo, $remarks, $remarks, $appId);
   $stmtU->execute();
   $stmtU->close();
 

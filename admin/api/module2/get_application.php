@@ -19,7 +19,7 @@ $sql = "SELECT fa.*,
                o.status AS operator_status,
                r.route_id AS route_code,
                r.origin, r.destination, r.structure, r.distance_km, r.authorized_units, r.status AS route_status,
-               f.ltfrb_ref_no, f.decision_order_no, f.expiry_date AS franchise_expiry_date, f.status AS franchise_status
+               f.ltfrb_ref_no, f.decision_order_no, f.authority_type, f.issue_date, f.expiry_date AS franchise_expiry_date, f.status AS franchise_status
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id
@@ -42,11 +42,17 @@ if (!$row) {
   exit;
 }
 
-if ($row && isset($row['endorsed_until']) && in_array((string)($row['status'] ?? ''), ['Endorsed','LGU-Endorsed'], true)) {
-  $eu = (string)($row['endorsed_until'] ?? '');
-  if ($eu !== '' && strtotime($eu) !== false && strtotime($eu) < strtotime(date('Y-m-d'))) {
-    @$db->query("UPDATE franchise_applications SET status='Expired' WHERE application_id=" . (int)$appId . " AND status IN ('Endorsed','LGU-Endorsed')");
-    $row['status'] = 'Expired';
+$hasFranchises = (bool)($db->query("SHOW TABLES LIKE 'franchises'")?->fetch_row());
+if ($hasFranchises) {
+  @$db->query("UPDATE franchises SET status='Expired' WHERE status='Active' AND expiry_date IS NOT NULL AND expiry_date < CURDATE()");
+  @$db->query("UPDATE franchise_applications fa
+               JOIN franchises f ON f.application_id=fa.application_id
+               SET fa.status='Expired'
+               WHERE f.status='Expired'
+                 AND fa.status IN ('PA Issued','CPC Issued','LTFRB-Approved','Approved')");
+  if ($row && in_array((string)($row['status'] ?? ''), ['PA Issued','CPC Issued','LTFRB-Approved','Approved'], true)) {
+    $resSt = $db->query("SELECT status FROM franchise_applications WHERE application_id=" . (int)$appId . " LIMIT 1");
+    if ($resSt && ($stRow = $resSt->fetch_assoc())) $row['status'] = (string)($stRow['status'] ?? $row['status']);
   }
 }
 

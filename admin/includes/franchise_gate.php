@@ -119,13 +119,13 @@ function tmm_route_capacity_check(mysqli $db, int $routeDbId, int $wantUnits, in
   if ($excludeApplicationId > 0) {
     $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
                            FROM franchise_applications
-                           WHERE route_id=? AND application_id<>? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')");
+                           WHERE route_id=? AND application_id<>? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('ii', $routeDbId, $excludeApplicationId);
   } else {
     $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
                            FROM franchise_applications
-                           WHERE route_id=? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')");
+                           WHERE route_id=? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('i', $routeDbId);
   }

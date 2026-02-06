@@ -880,15 +880,15 @@ function db()
     operator_id INT NOT NULL,
     coop_id INT,
     vehicle_count INT DEFAULT 1,
-    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected','Expired') DEFAULT 'Submitted',
+    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued','Rejected','Expired','Revoked') DEFAULT 'Submitted',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
   $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
   $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
   if ($statusCol && ($row = $statusCol->fetch_assoc())) {
     $t = (string) ($row['Type'] ?? '');
-    if (stripos($t, 'expired') === false || stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
-      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','Rejected','Expired') DEFAULT 'Submitted'");
+    if (stripos($t, 'pa issued') === false || stripos($t, 'cpc issued') === false || stripos($t, 'revoked') === false || stripos($t, 'expired') === false || stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued','Rejected','Expired','Revoked') DEFAULT 'Submitted'");
     }
   }
   $faCols = [
@@ -921,6 +921,8 @@ function db()
     application_id INT NOT NULL,
     ltfrb_ref_no VARCHAR(80) DEFAULT NULL,
     decision_order_no VARCHAR(80) DEFAULT NULL,
+    authority_type ENUM('PA','CPC') DEFAULT NULL,
+    issue_date DATE DEFAULT NULL,
     expiry_date DATE DEFAULT NULL,
     status ENUM('Active','Expired','Revoked') DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -928,6 +930,17 @@ function db()
     INDEX idx_ltfrb_ref (ltfrb_ref_no),
     FOREIGN KEY (application_id) REFERENCES franchise_applications(application_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+
+  $frCols = [
+    'authority_type' => "ENUM('PA','CPC') DEFAULT NULL",
+    'issue_date' => "DATE DEFAULT NULL",
+  ];
+  foreach ($frCols as $col => $def) {
+    $check = $conn->query("SHOW COLUMNS FROM franchises LIKE '$col'");
+    if ($check && $check->num_rows == 0) {
+      $conn->query("ALTER TABLE franchises ADD COLUMN $col $def");
+    }
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
     fv_id INT AUTO_INCREMENT PRIMARY KEY,

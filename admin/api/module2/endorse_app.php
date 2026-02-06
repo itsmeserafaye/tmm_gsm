@@ -169,7 +169,6 @@ try {
     $stmtU = $db->prepare("UPDATE franchise_applications
                            SET status=?,
                                endorsed_at=NOW(),
-                               endorsed_until=DATE_ADD(CURDATE(), INTERVAL 1 YEAR),
                                remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
                            WHERE application_id=?");
     if (!$stmtU) throw new Exception('db_prepare_failed');

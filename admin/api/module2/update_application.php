@@ -45,7 +45,7 @@ try {
     exit;
   }
   $st = (string)($row['status'] ?? '');
-  if (in_array($st, ['LTFRB-Approved','Approved','Expired'], true)) {
+  if (in_array($st, ['LTFRB-Approved','Approved','PA Issued','CPC Issued','Expired','Revoked'], true)) {
     $db->rollback();
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'locked_status']);

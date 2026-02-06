@@ -6,13 +6,14 @@ $db = db();
 header('Content-Type: application/json');
 require_any_permission(['module2.read','module2.endorse','module2.approve','module2.history','module2.franchises.manage']);
 
-$hasEndUntil = (bool)($db->query("SHOW COLUMNS FROM franchise_applications LIKE 'endorsed_until'")?->num_rows);
-if ($hasEndUntil) {
-  @$db->query("UPDATE franchise_applications
-               SET status='Expired'
-               WHERE status IN ('Endorsed','LGU-Endorsed')
-                 AND endorsed_until IS NOT NULL
-                 AND endorsed_until < CURDATE()");
+$hasFranchises = (bool)($db->query("SHOW TABLES LIKE 'franchises'")?->fetch_row());
+if ($hasFranchises) {
+  @$db->query("UPDATE franchises SET status='Expired' WHERE status='Active' AND expiry_date IS NOT NULL AND expiry_date < CURDATE()");
+  @$db->query("UPDATE franchise_applications fa
+               JOIN franchises f ON f.application_id=fa.application_id
+               SET fa.status='Expired'
+               WHERE f.status='Expired'
+                 AND fa.status IN ('PA Issued','CPC Issued','LTFRB-Approved','Approved')");
 }
 
 $q = trim((string)($_GET['q'] ?? ''));
@@ -28,7 +29,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                r.route_id AS route_code,
                r.origin, r.destination,
                fa.vehicle_count, fa.representative_name,
-               fa.status, fa.submitted_at, fa.endorsed_at, fa.endorsed_until, fa.approved_at
+               fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id";

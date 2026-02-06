@@ -47,7 +47,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Endorsement & LTFRB Approval</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Endorse Submitted applications and record LTFRB approval to mark them as LTFRB-Approved.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Endorse Submitted applications and encode LTFRB issuance (PA / CPC). Validity countdown starts at LTFRB issue date.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -63,7 +63,7 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 space-y-6">
       <form id="formLoad" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end" novalidate>
         <div class="flex-1 relative">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Submitted Applications (Not LTFRB-Approved)</label>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Submitted Applications</label>
           <button type="button" id="appDropdownBtn"
             class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <span id="appDropdownBtnText" class="truncate">Select application</span>
@@ -135,8 +135,16 @@ if ($rootUrl === '/') $rootUrl = '';
               </form>
             </div>
             <div id="sectionApprove" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hidden">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Approval Entry</div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Issuance Entry (PA / CPC)</div>
               <form id="formApprove" class="space-y-4 mt-4" novalidate>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Authority Type</label>
+                  <select name="authority_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <?php foreach (['PA','CPC'] as $t): ?>
+                      <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LTFRB Reference No</label>
                   <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][0-9\\-\\/]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
@@ -146,8 +154,14 @@ if ($rootUrl === '/') $rootUrl = '';
                   <input name="decision_order_no" required maxlength="40" pattern="^[0-9]{3,40}$" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1002003">
                 </div>
                 <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Issue Date</label>
+                  <input name="issue_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Validity starts here (LTFRB issuance date).</div>
+                </div>
+                <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Expiry Date</label>
-                  <input name="expiry_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <input name="expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-computed for PA (1 year). Required for CPC.</div>
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Remarks</label>
@@ -284,9 +298,9 @@ if ($rootUrl === '/') $rootUrl = '';
         }
       }
 
-      // Approve Section: Visible only if Endorsed or Approved
+      // Approve Section: Visible only if endorsed or already issued (for corrections)
       if (sectionApprove) {
-        if (['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved'].includes(currentStatus)) {
+        if (['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved', 'PA Issued', 'CPC Issued'].includes(currentStatus)) {
           sectionApprove.classList.remove('hidden');
           btnApprove.disabled = false;
         } else {
@@ -312,7 +326,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     async function fetchPendingLtfrbApps(q) {
-      const url = rootUrl + '/admin/api/module2/list_applications.php?exclude_status=' + encodeURIComponent('LTFRB-Approved') + '&limit=200&q=' + encodeURIComponent(q || '');
+      const url = rootUrl + '/admin/api/module2/list_applications.php?status=' + encodeURIComponent('Submitted') + '&limit=200&q=' + encodeURIComponent(q || '');
       const res = await fetch(url);
       const data = await res.json();
       if (!data || !data.ok) return [];
@@ -427,6 +441,20 @@ if ($rootUrl === '/') $rootUrl = '';
       document.getElementById('routeMeta').textContent = 'Route status: ' + (a.route_status || '-');
       document.getElementById('vehCount').textContent = String(Number(a.vehicle_count || 0));
       document.getElementById('appStatus').textContent = currentStatus || '-';
+      if (formApprove) {
+        const typeEl = formApprove.querySelector('select[name="authority_type"]');
+        const ltfrbEl = formApprove.querySelector('input[name="ltfrb_ref_no"]');
+        const doEl = formApprove.querySelector('input[name="decision_order_no"]');
+        const issueEl = formApprove.querySelector('input[name="issue_date"]');
+        const expEl = formApprove.querySelector('input[name="expiry_date"]');
+        if (typeEl && a.authority_type) typeEl.value = String(a.authority_type);
+        if (ltfrbEl && a.ltfrb_ref_no) ltfrbEl.value = String(a.ltfrb_ref_no);
+        if (doEl && a.decision_order_no) doEl.value = String(a.decision_order_no);
+        if (issueEl && a.issue_date) issueEl.value = String(a.issue_date);
+        if (expEl && a.franchise_expiry_date) expEl.value = String(a.franchise_expiry_date);
+        if (typeEl) typeEl.dispatchEvent(new Event('change'));
+        if (issueEl) issueEl.dispatchEvent(new Event('change'));
+      }
       appDetails.classList.remove('hidden');
       emptyState.classList.add('hidden');
       setEnabled();
@@ -479,6 +507,9 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formApprove) {
       const ltfrbEl = formApprove.querySelector('input[name="ltfrb_ref_no"]');
       const doEl = formApprove.querySelector('input[name="decision_order_no"]');
+      const typeEl = formApprove.querySelector('select[name="authority_type"]');
+      const issueEl = formApprove.querySelector('input[name="issue_date"]');
+      const expEl = formApprove.querySelector('input[name="expiry_date"]');
       if (ltfrbEl) {
         ltfrbEl.addEventListener('input', () => {
           ltfrbEl.value = (ltfrbEl.value || '').toString().replace(/[^0-9\/-]+/g, '').slice(0, 40);
@@ -489,10 +520,53 @@ if ($rootUrl === '/') $rootUrl = '';
           doEl.value = (doEl.value || '').toString().replace(/\D+/g, '').slice(0, 40);
         });
       }
+      function addDays(iso, days) {
+        if (!iso) return '';
+        const d = new Date(iso + 'T00:00:00');
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() + days);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      function recomputeExpiry() {
+        if (!typeEl || !issueEl || !expEl) return;
+        const t = (typeEl.value || '').toUpperCase();
+        if (t === 'PA') {
+          const issue = (issueEl.value || '').trim();
+          if (issue) {
+            const d = new Date(issue + 'T00:00:00');
+            if (!isNaN(d.getTime())) {
+              const plusOne = new Date(d);
+              plusOne.setFullYear(plusOne.getFullYear() + 1);
+              plusOne.setDate(plusOne.getDate() - 1);
+              const yyyy = plusOne.getFullYear();
+              const mm = String(plusOne.getMonth() + 1).padStart(2, '0');
+              const dd = String(plusOne.getDate()).padStart(2, '0');
+              expEl.value = `${yyyy}-${mm}-${dd}`;
+            } else {
+              expEl.value = '';
+            }
+          } else {
+            expEl.value = '';
+          }
+          expEl.required = false;
+          expEl.readOnly = true;
+          expEl.classList.add('opacity-75');
+        } else {
+          expEl.readOnly = false;
+          expEl.classList.remove('opacity-75');
+          expEl.required = true;
+        }
+      }
+      if (typeEl) typeEl.addEventListener('change', recomputeExpiry);
+      if (issueEl) issueEl.addEventListener('change', recomputeExpiry);
+      recomputeExpiry();
       formApprove.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentAppId) return;
-        if (!(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved'].includes(currentStatus))) { showToast('Endorse the application first.', 'error'); return; }
+        if (!(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued'].includes(currentStatus))) { showToast('Endorse the application first.', 'error'); return; }
         if (!formApprove.checkValidity()) { formApprove.reportValidity(); return; }
         btnApprove.disabled = true;
         btnApprove.textContent = 'Saving...';
@@ -523,10 +597,12 @@ if ($rootUrl === '/') $rootUrl = '';
               }
               if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
               if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
-              if (code === 'endorsement_expired') return 'Endorsement already expired (1 year validity). Re-endorse the application.';
               if (code === 'invalid_status') return 'Application status is not eligible for approval.';
               if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
               if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
+              if (code === 'invalid_authority_type') return 'Authority Type must be PA or CPC.';
+              if (code === 'invalid_issue_date') return 'Invalid issue date.';
+              if (code === 'invalid_expiry_date') return 'Invalid expiry date.';
               return (data && data.message) ? String(data.message) : code;
             })();
             showToast(msg, 'error');
