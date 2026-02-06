@@ -519,7 +519,11 @@ function tmm_required_doc_list(string $operatorType): array {
             fd.append('operator_id', String(operatorId || ''));
             const res = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd });
             const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'generate_failed');
+            if (!data || !data.ok) {
+              const code = (data && data.error) ? String(data.error) : 'generate_failed';
+              if (code === 'no_linked_vehicles') throw new Error('No linked vehicles found for this operator.');
+              throw new Error((data && data.message) ? String(data.message) : code);
+            }
             showToast('Declared Fleet generated (For Review).');
             const latest = await loadOperatorDocs(operatorId);
             renderDocs(operatorId, operatorName, latest);

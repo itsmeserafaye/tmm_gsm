@@ -209,20 +209,43 @@ if (@file_put_contents($dest, $html) === false) {
   exit;
 }
 
-$stmtIns = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified)
-                         VALUES (?, 'Others', ?, 'For Review', 'Declared Fleet (System Generated)', 0)");
+function tmm_operator_docs_status_value(mysqli $db): array {
+  $res = $db->query("SHOW COLUMNS FROM operator_documents LIKE 'doc_status'");
+  if (!$res || ($res->num_rows ?? 0) === 0) return ['has' => false, 'value' => null];
+  $row = $res->fetch_assoc();
+  $type = strtolower((string)($row['Type'] ?? ''));
+  if (strpos($type, 'for review') !== false) return ['has' => true, 'value' => 'For Review'];
+  if (strpos($type, 'pending') !== false) return ['has' => true, 'value' => 'Pending'];
+  if (strpos($type, 'submitted') !== false) return ['has' => true, 'value' => 'Submitted'];
+  return ['has' => true, 'value' => null];
+}
+
+$docStatus = tmm_operator_docs_status_value($db);
+$remarks = 'Declared Fleet (Planned / Owned Vehicles) | System Generated';
+if ($docStatus['has'] && $docStatus['value'] !== null) {
+  $stmtIns = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified)
+                           VALUES (?, 'Others', ?, ?, ?, 0)");
+} else {
+  $stmtIns = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, remarks, is_verified)
+                           VALUES (?, 'Others', ?, ?, 0)");
+}
 if (!$stmtIns) {
   if (is_file($dest)) @unlink($dest);
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
-$stmtIns->bind_param('is', $operatorId, $filename);
+if ($docStatus['has'] && $docStatus['value'] !== null) {
+  $st = (string)$docStatus['value'];
+  $stmtIns->bind_param('isss', $operatorId, $filename, $st, $remarks);
+} else {
+  $stmtIns->bind_param('iss', $operatorId, $filename, $remarks);
+}
 if (!$stmtIns->execute()) {
   $stmtIns->close();
   if (is_file($dest)) @unlink($dest);
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error']);
+  echo json_encode(['ok' => false, 'error' => 'db_error', 'message' => (string)($db->error ?? '')]);
   exit;
 }
 $docId = (int)$db->insert_id;
