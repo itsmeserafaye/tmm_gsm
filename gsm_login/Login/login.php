@@ -336,6 +336,7 @@ if ($action === 'login_otp_verify') {
     }
 
     $trustDays = (int)($pending['trust_days'] ?? 10);
+    gsm_set_cookie('gsm_trust_device', $trustDays > 0 ? '1' : '0', 31536000);
     if ($trustDays > 0) td_trust($db, 'operator', $opUserId, $deviceHash, $trustDays);
 
     $plate = strtoupper(trim((string) ($pending['plate_number'] ?? '')));
@@ -377,6 +378,7 @@ if ($action === 'login_otp_verify') {
     $primaryRole = rbac_primary_role($roles);
 
     $trustDays = (int)($pending['trust_days'] ?? 10);
+    gsm_set_cookie('gsm_trust_device', $trustDays > 0 ? '1' : '0', 31536000);
     if ($trustDays > 0) td_trust($db, 'rbac', $userId, $deviceHash, $trustDays);
 
     session_regenerate_id(true);
@@ -413,6 +415,7 @@ if ($action === 'login_otp_verify') {
       gsm_send(false, 'Invalid OTP request.', null, 400);
 
     $trustDays = (int)($pending['trust_days'] ?? 10);
+    gsm_set_cookie('gsm_trust_device', $trustDays > 0 ? '1' : '0', 31536000);
     if ($trustDays > 0) td_trust($db, 'operator', $opUserId, $deviceHash, $trustDays);
 
     if ($plate === '') {
@@ -458,11 +461,13 @@ if ($action === 'operator_login') {
     gsm_send(false, (string) ($res['message'] ?? 'Invalid operator credentials'), null, 401);
   }
   $opUserId = (int) ($_SESSION['operator_user_id'] ?? 0);
+  $plateForOtp = (string)($_SESSION['operator_plate'] ?? '');
   $deviceHash = td_hash_device($deviceId);
   $mustOtp = gsm_require_operator_mfa($db);
   if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
   $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
   $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
+  if ($trustDays > 0) $mustOtp = true;
   if ($trustChoice === false && $opUserId > 0) td_forget($db, 'operator', $opUserId, $deviceHash);
   if (!$mustOtp) {
     session_regenerate_id(true);
@@ -494,7 +499,7 @@ if ($action === 'operator_login') {
     'purpose' => 'login_operator',
     'email' => $email,
     'operator_user_id' => $opUserId,
-    'plate_number' => (string)($_SESSION['operator_plate'] ?? ''),
+    'plate_number' => $plateForOtp,
     'device_hash' => $deviceHash,
     'trust_days' => $trustDays,
   ];
@@ -585,6 +590,7 @@ $mustOtp = gsm_require_mfa($db);
 if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
 $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
 $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
+  if ($trustDays > 0) $mustOtp = true;
 if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
 
 if (!$mustOtp) {

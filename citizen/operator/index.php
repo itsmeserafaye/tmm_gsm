@@ -348,14 +348,12 @@ $typesList = vehicle_types();
                         <div class="p-6 md:p-8">
                             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-900">Assisted Encoding (Walk-in)</h3>
-                                    <p class="text-xs text-slate-500">Request assisted encoding and bring your documents to the LGU/office for verification.</p>
+                                    <h3 class="text-lg font-bold text-slate-900">Portal Requests</h3>
+                                    <p class="text-xs text-slate-500">Track your submitted requests and their current status.</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <input type="text" oninput="setTableFilter('portalAppsTable', this.value)" placeholder="Filter requests…"
                                         class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
-                                    <button type="button" onclick="openPortalRequestModal('Assisted Encoding (Walk-in)')"
-                                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Request</button>
                                     <button type="button" onclick="loadPortalRequests()"
                                         class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
                                 </div>
@@ -966,9 +964,6 @@ $typesList = vehicle_types();
                 </button>
             </div>
             <form id="formVehicleEncode" onsubmit="submitNewVehicle(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
-                <input type="hidden" name="ocr_used" value="0" id="ocrUsedInput">
-                <input type="hidden" name="ocr_confirmed" value="0" id="ocrConfirmedInput">
-
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
@@ -1103,39 +1098,6 @@ $typesList = vehicle_types();
                             <input type="date" name="or_expiry_date" data-or-expiry="1"
                                 class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
                         </div>
-                    </div>
-                </div>
-
-                <div id="ocrWrap" class="p-4 rounded-xl bg-white border border-slate-200">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                            <div class="text-xs font-bold text-slate-500 uppercase">OCR Scan (CR)</div>
-                            <div class="mt-1 text-sm font-semibold text-slate-700">Scan the CR to auto-fill vehicle details.</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button type="button" id="btnScanCr"
-                                class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Scan CR & Auto-fill</button>
-                        </div>
-                    </div>
-                    <div id="ocrMsg" class="mt-3 text-sm font-semibold text-slate-600 hidden"></div>
-                    <div id="ocrResult" class="mt-3 hidden">
-                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                            <div class="text-xs font-bold text-slate-500 uppercase mb-2">Extracted</div>
-                            <div id="ocrFieldsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700"></div>
-                            <details class="mt-3">
-                                <summary class="cursor-pointer text-xs font-bold text-slate-600">Show OCR text</summary>
-                                <pre id="ocrRawPreview" class="mt-2 text-[11px] whitespace-pre-wrap break-words text-slate-600"></pre>
-                            </details>
-                        </div>
-                    </div>
-                    <div id="ocrConfirmWrap" class="mt-4 hidden">
-                        <label class="flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
-                            <input type="checkbox" id="ocrConfirm" class="mt-1 w-4 h-4" />
-                            <div class="text-sm font-semibold text-orange-900">
-                                I confirm the scanned details are correct.
-                                <div class="text-xs font-medium text-orange-700 mt-1">Required before submitting when OCR is used.</div>
-                            </div>
-                        </label>
                     </div>
                 </div>
 
@@ -2430,139 +2392,6 @@ $typesList = vehicle_types();
             if (orFileInput) orFileInput.addEventListener('change', syncOrExpiryRequired);
             if (orExpiryInput) orExpiryInput.addEventListener('change', syncOrExpiryRequired);
             syncOrExpiryRequired();
-
-            const ocrMsg = document.getElementById('ocrMsg');
-            const ocrResult = document.getElementById('ocrResult');
-            const ocrFieldsGrid = document.getElementById('ocrFieldsGrid');
-            const ocrRawPreview = document.getElementById('ocrRawPreview');
-            const ocrConfirmWrap = document.getElementById('ocrConfirmWrap');
-            const ocrConfirm = document.getElementById('ocrConfirm');
-            const ocrUsedInput = document.getElementById('ocrUsedInput');
-            const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
-            const btnScanCr = document.getElementById('btnScanCr');
-            const crFileInput = form.querySelector('input[name="cr"]');
-
-            const setOcrMsg = (text, kind) => {
-                if (!ocrMsg) return;
-                ocrMsg.textContent = text;
-                ocrMsg.classList.remove('hidden');
-                ocrMsg.className = 'mt-3 text-sm font-semibold ' + (kind === 'error' ? 'text-rose-700' : (kind === 'success' ? 'text-emerald-700' : 'text-slate-600'));
-            };
-            const setOcrUsed = (used) => {
-                if (ocrUsedInput) ocrUsedInput.value = used ? '1' : '0';
-                if (ocrConfirmWrap) ocrConfirmWrap.classList.toggle('hidden', !used);
-                if (ocrConfirmedInput) ocrConfirmedInput.value = '0';
-                if (ocrConfirm) ocrConfirm.checked = false;
-            };
-            const applyExtracted = (fields) => {
-                if (!fields || typeof fields !== 'object') return;
-                const map = {
-                    plate_no: 'plate_number',
-                    engine_no: 'engine_no',
-                    chassis_no: 'chassis_no',
-                    year_model: 'year_model',
-                    color: 'color',
-                    cr_number: 'cr_number',
-                    cr_issue_date: 'cr_issue_date',
-                    registered_owner: 'registered_owner'
-                };
-                Object.keys(map).forEach((k) => {
-                    const v = fields[k];
-                    if (!v) return;
-                    const el = form.querySelector(`[name="${map[k]}"]`);
-                    if (!el) return;
-                    el.value = String(v);
-                    el.classList.add('ring-2', 'ring-emerald-300');
-                    setTimeout(() => { el.classList.remove('ring-2', 'ring-emerald-300'); }, 1200);
-                });
-
-                const pickFromSelect = (selectEl, hiddenEl, otherWrap, otherInput, value) => {
-                    if (!selectEl || !hiddenEl) return;
-                    const raw = (value || '').toString().trim();
-                    if (!raw) return;
-                    const norm = raw.toLowerCase();
-                    const opts = Array.from(selectEl.options || []);
-                    const found = opts.find((o) => (o.value || '').toString().trim().toLowerCase() === norm);
-                    if (found) {
-                        selectEl.value = found.value;
-                        hiddenEl.value = found.value;
-                        setWrapVisible(otherWrap, false);
-                        if (otherInput) otherInput.value = '';
-                        return;
-                    }
-                    const otherOpt = opts.find((o) => (o.value || '').toString() === '__OTHER__');
-                    if (otherOpt) selectEl.value = '__OTHER__';
-                    hiddenEl.value = raw;
-                    setWrapVisible(otherWrap, true);
-                    if (otherInput) otherInput.value = raw;
-                };
-                if (fields.make) pickFromSelect(makeSelect, makeHidden, makeOtherWrap, makeOtherInput, fields.make);
-                if (fields.model) pickFromSelect(modelSelect, modelHidden, modelOtherWrap, modelOtherInput, fields.model);
-                if (fields.fuel_type) pickFromSelect(fuelSelect, fuelHidden, fuelOtherWrap, fuelOtherInput, fields.fuel_type);
-            };
-            const showOcrResult = (fields, rawPreview) => {
-                if (ocrResult) ocrResult.classList.remove('hidden');
-                if (ocrRawPreview) ocrRawPreview.textContent = (rawPreview || '').toString();
-                if (!ocrFieldsGrid) return;
-                const order = [
-                    ['plate_no', 'Plate'],
-                    ['engine_no', 'Engine'],
-                    ['chassis_no', 'Chassis'],
-                    ['make', 'Make'],
-                    ['model', 'Model'],
-                    ['year_model', 'Year'],
-                    ['fuel_type', 'Fuel'],
-                    ['color', 'Color'],
-                    ['cr_number', 'CR No'],
-                    ['cr_issue_date', 'CR Date'],
-                    ['registered_owner', 'Owner']
-                ];
-                ocrFieldsGrid.innerHTML = order.map(([k, label]) => {
-                    const v = fields && fields[k] ? String(fields[k]) : '';
-                    const vv = v !== '' ? v : '—';
-                    return `<div class="flex items-center justify-between gap-2 rounded-lg bg-white border border-slate-200 px-2.5 py-2"><span class="text-slate-500 font-black">${escapeHtml(label)}</span><span class="text-slate-800 font-bold">${escapeHtml(vv)}</span></div>`;
-                }).join('');
-            };
-
-            if (ocrConfirm) {
-                ocrConfirm.addEventListener('change', () => {
-                    if (ocrConfirmedInput) ocrConfirmedInput.value = ocrConfirm.checked ? '1' : '0';
-                });
-            }
-
-            if (btnScanCr) {
-                btnScanCr.addEventListener('click', async () => {
-                    const f = crFileInput && crFileInput.files && crFileInput.files[0] ? crFileInput.files[0] : null;
-                    if (!f) { setOcrMsg('Select a CR file first.', 'error'); return; }
-                    btnScanCr.disabled = true;
-                    btnScanCr.textContent = 'Scanning...';
-                    setOcrMsg('Scanning CR and extracting fields...', 'info');
-                    if (ocrResult) ocrResult.classList.add('hidden');
-                    try {
-                        const fd = new FormData();
-                        fd.append('action', 'puv_ocr_scan_cr');
-                        fd.append('cr', f);
-                        const r = await apiPost(fd);
-                        if (!r || !r.ok) {
-                            const msg = (r && (r.message || r.error)) ? (r.message || r.error) : 'OCR failed';
-                            throw new Error(msg);
-                        }
-                        const payload = r.data || {};
-                        const fields = payload.fields || {};
-                        const raw = payload.raw_text_preview || '';
-                        applyExtracted(fields);
-                        showOcrResult(fields, raw);
-                        setOcrUsed(true);
-                        setOcrMsg('OCR successful. Review and confirm before submitting.', 'success');
-                    } catch (e) {
-                        setOcrUsed(false);
-                        setOcrMsg((e && e.message) ? String(e.message) : 'OCR failed', 'error');
-                    } finally {
-                        btnScanCr.disabled = false;
-                        btnScanCr.textContent = 'Scan CR & Auto-fill';
-                    }
-                });
-            }
         }
 
         async function submitNewVehicle(e) {
@@ -2571,15 +2400,6 @@ $typesList = vehicle_types();
             const form = e.target;
             const btn = form.querySelector('button[type="submit"]');
             const oldText = btn ? btn.innerText : '';
-
-            const ocrUsedInput = document.getElementById('ocrUsedInput');
-            const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
-            if (ocrUsedInput && ocrUsedInput.value === '1' && ocrConfirmedInput && ocrConfirmedInput.value !== '1') {
-                toast('Confirm scanned details before submitting.', 'error');
-                const wrap = document.getElementById('ocrConfirmWrap');
-                if (wrap) wrap.classList.remove('hidden');
-                return;
-            }
             if (!form.checkValidity()) { form.reportValidity(); return; }
 
             if (btn) { btn.innerText = 'Submitting...'; btn.disabled = true; }
@@ -2592,14 +2412,6 @@ $typesList = vehicle_types();
                 toast(res.message, 'success');
                 document.getElementById('addVehicleModal').classList.add('hidden');
                 form.reset();
-                const ocr = document.getElementById('ocrResult');
-                if (ocr) ocr.classList.add('hidden');
-                const msg = document.getElementById('ocrMsg');
-                if (msg) msg.classList.add('hidden');
-                const ocrUsed = document.getElementById('ocrUsedInput');
-                const ocrConf = document.getElementById('ocrConfirmedInput');
-                if (ocrUsed) ocrUsed.value = '0';
-                if (ocrConf) ocrConf.value = '0';
                 loadFleet();
                 loadApplications();
             } else {

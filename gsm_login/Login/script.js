@@ -817,14 +817,14 @@ function handleLoginSubmit(event) {
 
     const deviceId = getOrCreateDeviceId();
     const trustEl = document.getElementById('trustDevice10Days');
-    const trustDevice = !!(trustEl && trustEl.checked);
+    let savedTrust = false;
+    try { savedTrust = (localStorage.getItem('gsm_trust_device') || '') === '1'; } catch (e) {}
+    const trustDevice = trustEl ? !!trustEl.checked : savedTrust;
     const payload = operatorMode
         ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
         : { action: 'login', email, password, device_id: deviceId };
-    if (trustDevice) {
-        payload.trust_device = 1;
-        try { localStorage.setItem('gsm_trust_device', '1'); } catch (e) {}
-    }
+    payload.trust_device = trustDevice ? 1 : 0;
+    try { localStorage.setItem('gsm_trust_device', trustDevice ? '1' : '0'); } catch (e) {}
 
     if (gsmRecaptchaSiteKey) {
         if (!captchaResponse) {

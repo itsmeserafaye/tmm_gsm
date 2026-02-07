@@ -891,9 +891,16 @@ if ($action === 'get_applications') {
 
 if ($action === 'get_routes') {
   $rows = [];
-  $res = $db->query("SELECT id, route_code, route_name FROM lptrp_routes ORDER BY route_code ASC");
-  if ($res) {
-    while ($r = $res->fetch_assoc()) $rows[] = $r;
+  if (op_table_exists($db, 'routes')) {
+    $res = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name
+                       FROM routes
+                       WHERE LOWER(COALESCE(status,''))='active'
+                       ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
+                       LIMIT 800");
+    if ($res) while ($r = $res->fetch_assoc()) $rows[] = $r;
+  } else if (op_table_exists($db, 'lptrp_routes')) {
+    $res = $db->query("SELECT id, route_code, route_name FROM lptrp_routes ORDER BY route_code ASC LIMIT 800");
+    if ($res) while ($r = $res->fetch_assoc()) $rows[] = $r;
   }
   op_send(true, ['data' => $rows]);
 }
@@ -1835,7 +1842,7 @@ if ($action === 'puv_list_routes') {
       }
 
       // Use SELECT * to be safe against schema variations, then filter in PHP
-      $res = $db->query("SELECT * FROM routes WHERE status='Active' LIMIT 800");
+      $res = $db->query("SELECT * FROM routes WHERE LOWER(COALESCE(status,''))='active' LIMIT 800");
       if ($res) {
         while ($r = $res->fetch_assoc()) {
           $id = (int)($r['id'] ?? 0);
@@ -2137,6 +2144,7 @@ if ($action === 'puv_submit_franchise_application') {
 }
 
 if ($action === 'puv_ocr_scan_cr') {
+  op_send(false, ['error' => 'Assisted encoding is available in the admin portal only.'], 403);
   op_require_csrf();
   op_require_approved($db, $userId);
 
