@@ -6,6 +6,8 @@ operator_portal_require_login($baseUrl . '/index.php');
 if (empty($_SESSION['operator_csrf'])) {
     $_SESSION['operator_csrf'] = bin2hex(random_bytes(32));
 }
+require_once __DIR__ . '/../../admin/includes/vehicle_types.php';
+$typesList = vehicle_types();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -864,10 +866,10 @@ if (empty($_SESSION['operator_csrf'])) {
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contact No</label>
-                        <input type="tel" name="contact_no" id="opRecContact" inputmode="tel" minlength="7" maxlength="20"
-                            pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$"
+                        <input type="tel" name="contact_no" id="opRecContact" inputmode="numeric" minlength="7" maxlength="20"
+                            pattern="^[0-9]{7,20}$"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="09171234567 or +639171234567">
+                            placeholder="e.g., 09171234567">
                     </div>
                 </div>
                 <div>
@@ -918,7 +920,10 @@ if (empty($_SESSION['operator_csrf'])) {
                     </svg>
                 </button>
             </div>
-            <form onsubmit="submitNewVehicle(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+            <form id="formVehicleEncode" onsubmit="submitNewVehicle(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+                <input type="hidden" name="ocr_used" value="0" id="ocrUsedInput">
+                <input type="hidden" name="ocr_confirmed" value="0" id="ocrConfirmedInput">
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
@@ -928,73 +933,98 @@ if (empty($_SESSION['operator_csrf'])) {
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Type</label>
-                        <input type="text" name="vehicle_type"
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="e.g., Jeepney" required>
+                        <select name="vehicle_type" required
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                            <option value="" disabled selected>Select type</option>
+                            <?php if (isset($typesList) && is_array($typesList)): ?>
+                                <?php foreach ($typesList as $t): ?>
+                                    <option value="<?php echo htmlspecialchars((string)$t); ?>"><?php echo htmlspecialchars((string)$t); ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Make</label>
-                        <input type="text" name="make" maxlength="40"
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="e.g., Toyota">
+                        <select id="vehMakeSelect"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"></select>
+                        <div id="vehMakeOtherWrap" class="hidden mt-2">
+                            <input id="vehMakeOtherInput" maxlength="40"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                placeholder="Type make">
+                        </div>
+                        <input id="vehMakeHidden" name="make" type="hidden">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Model</label>
-                        <input type="text" name="model" maxlength="40"
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="e.g., Hiace">
+                        <select id="vehModelSelect"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"></select>
+                        <div id="vehModelOtherWrap" class="hidden mt-2">
+                            <input id="vehModelOtherInput" maxlength="40"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                placeholder="Type model">
+                        </div>
+                        <input id="vehModelHidden" name="model" type="hidden">
                     </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Year</label>
-                        <input type="tel" name="year_model" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" data-tmm-filter="digits"
+                        <input type="tel" name="year_model" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="2018">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fuel Type</label>
-                        <input type="text" name="fuel_type" maxlength="20"
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="Diesel">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Color</label>
-                        <input type="text" name="color" maxlength="20"
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                            placeholder="White">
+                            placeholder="e.g., 2018">
                     </div>
                 </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fuel Type</label>
+                        <select id="vehFuelSelect"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"></select>
+                        <div id="vehFuelOtherWrap" class="hidden mt-2">
+                            <input id="vehFuelOtherInput" maxlength="20"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                placeholder="Type fuel type">
+                        </div>
+                        <input id="vehFuelHidden" name="fuel_type" type="hidden">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Color (optional)</label>
+                        <input type="text" name="color" maxlength="64"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="e.g., White">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Engine No</label>
-                        <input type="text" name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash"
+                        <input type="text" name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
-                            placeholder="1NZFE-12345">
+                            placeholder="e.g., 1NZFE-12345">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Chassis No (VIN)</label>
-                        <input type="text" name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin"
+                        <input type="text" name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
-                            placeholder="NCP12345678901234">
+                            placeholder="e.g., NCP12345678901234">
                     </div>
                 </div>
+
                 <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
                     <div class="text-xs font-bold text-slate-500 uppercase">OR/CR Metadata (Optional)</div>
                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR Number</label>
-                            <input type="text" name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits"
+                            <input type="text" name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$"
                                 class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                                placeholder="123456">
+                                placeholder="e.g., 123456">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR Number</label>
-                            <input type="text" name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash"
+                            <input type="text" name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters"
                                 class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
-                                placeholder="ABCD-123456">
+                                placeholder="e.g., ABCD-123456">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR Issue Date</label>
@@ -1009,6 +1039,7 @@ if (empty($_SESSION['operator_csrf'])) {
                         </div>
                     </div>
                 </div>
+
                 <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
                     <div class="text-xs font-bold text-slate-500 uppercase">Required Documents</div>
                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1019,16 +1050,50 @@ if (empty($_SESSION['operator_csrf'])) {
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR (Optional)</label>
-                            <input type="file" name="or" accept=".pdf,.jpg,.jpeg,.png"
+                            <input type="file" name="or" accept=".pdf,.jpg,.jpeg,.png" data-or-file="1"
                                 class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR Expiry Date</label>
-                            <input type="date" name="or_expiry_date"
+                            <input type="date" name="or_expiry_date" data-or-expiry="1"
                                 class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
                         </div>
                     </div>
                 </div>
+
+                <div id="ocrWrap" class="p-4 rounded-xl bg-white border border-slate-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-bold text-slate-500 uppercase">OCR Scan (CR)</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-700">Scan the CR to auto-fill vehicle details.</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="btnScanCr"
+                                class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Scan CR & Auto-fill</button>
+                        </div>
+                    </div>
+                    <div id="ocrMsg" class="mt-3 text-sm font-semibold text-slate-600 hidden"></div>
+                    <div id="ocrResult" class="mt-3 hidden">
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-2">Extracted</div>
+                            <div id="ocrFieldsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-700"></div>
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-xs font-bold text-slate-600">Show OCR text</summary>
+                                <pre id="ocrRawPreview" class="mt-2 text-[11px] whitespace-pre-wrap break-words text-slate-600"></pre>
+                            </details>
+                        </div>
+                    </div>
+                    <div id="ocrConfirmWrap" class="mt-4 hidden">
+                        <label class="flex items-start gap-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
+                            <input type="checkbox" id="ocrConfirm" class="mt-1 w-4 h-4" />
+                            <div class="text-sm font-semibold text-orange-900">
+                                I confirm the scanned details are correct.
+                                <div class="text-xs font-medium text-orange-700 mt-1">Required before submitting when OCR is used.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <button type="submit"
                     class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg hover:shadow-orange-500/30 transition">Submit
                     for Verification</button>
@@ -1568,36 +1633,378 @@ if (empty($_SESSION['operator_csrf'])) {
             }).join('');
         }
 
+        let vehicleEncodeInitDone = false;
+        function initVehicleEncodeForm() {
+            if (vehicleEncodeInitDone) return;
+            const form = document.getElementById('formVehicleEncode');
+            if (!form) return;
+            vehicleEncodeInitDone = true;
+
+            const normalizePlate = (value) => {
+                const v = (value || '').toString().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-');
+                const letters = v.replace(/[^A-Z]/g, '').slice(0, 3);
+                const digits = v.replace(/[^0-9]/g, '').slice(0, 4);
+                if (letters.length < 3) return letters + digits;
+                return letters + '-' + digits;
+            };
+            const normalizeYear = (value) => (value || '').toString().replace(/\D+/g, '').slice(0, 4);
+            const normalizeUpperNoSpaces = (value) => (value || '').toString().toUpperCase().replace(/\s+/g, '');
+            const normalizeEngine = (value) => normalizeUpperNoSpaces(value).replace(/[^A-Z0-9-]/g, '').slice(0, 20);
+            const normalizeVin = (value) => normalizeUpperNoSpaces(value).replace(/[^A-HJ-NPR-Z0-9]/g, '').slice(0, 17);
+
+            const plateInput = form.querySelector('input[name="plate_number"]');
+            if (plateInput) {
+                plateInput.addEventListener('input', () => { plateInput.value = normalizePlate(plateInput.value); });
+                plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
+            }
+            const yearInput = form.querySelector('input[name="year_model"]');
+            if (yearInput) {
+                yearInput.addEventListener('input', () => { yearInput.value = normalizeYear(yearInput.value); });
+                yearInput.addEventListener('blur', () => { yearInput.value = normalizeYear(yearInput.value); });
+            }
+            const engineInput = form.querySelector('input[name="engine_no"]');
+            if (engineInput) {
+                const validate = () => {
+                    const v = engineInput.value || '';
+                    if (v !== '' && !/^[A-Z0-9-]{5,20}$/.test(v)) engineInput.setCustomValidity('Engine No must be 5–20 characters (A–Z, 0–9, hyphen).');
+                    else engineInput.setCustomValidity('');
+                };
+                engineInput.addEventListener('input', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+                engineInput.addEventListener('blur', () => { engineInput.value = normalizeEngine(engineInput.value); validate(); });
+            }
+            const vinInput = form.querySelector('input[name="chassis_no"]');
+            if (vinInput) {
+                const validate = () => {
+                    const v = vinInput.value || '';
+                    if (v !== '' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) vinInput.setCustomValidity('Chassis No must be a 17-character VIN (no I, O, Q).');
+                    else vinInput.setCustomValidity('');
+                };
+                vinInput.addEventListener('input', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+                vinInput.addEventListener('blur', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
+            }
+
+            const makeOptions = [
+                'Toyota', 'Mitsubishi', 'Nissan', 'Isuzu', 'Suzuki', 'Hyundai', 'Kia', 'Ford', 'Honda', 'Mazda', 'Chevrolet',
+                'Foton', 'Hino', 'Daewoo', 'Mercedes-Benz', 'BMW', 'Audi', 'Volkswagen', 'BYD', 'Geely', 'Chery', 'MG', 'Changan'
+            ];
+            const modelOptionsByMake = {
+                'Toyota': ['Hiace', 'Coaster', 'Innova', 'Vios', 'Fortuner', 'Hilux', 'Tamaraw FX', 'LiteAce'],
+                'Mitsubishi': ['L300', 'L200', 'Adventure', 'Montero Sport', 'Canter', 'Rosa'],
+                'Nissan': ['Urvan', 'Navara', 'NV350', 'Almera'],
+                'Isuzu': ['N-Series', 'Elf', 'Traviz', 'D-Max', 'MU-X'],
+                'Suzuki': ['Carry', 'APV', 'Ertiga'],
+                'Hyundai': ['H-100', 'Starex', 'County'],
+                'Kia': ['K2500', 'K2700'],
+                'Ford': ['Transit', 'Ranger', 'Everest'],
+                'Honda': ['Civic', 'City', 'Brio'],
+                'Mazda': ['BT-50'],
+                'Chevrolet': ['Trailblazer'],
+                'Foton': ['Gratour', 'Tornado'],
+                'Hino': ['Dutro'],
+            };
+            const fuelOptions = ['Diesel', 'Gasoline', 'Hybrid', 'Electric', 'LPG', 'CNG'];
+
+            const makeSelect = document.getElementById('vehMakeSelect');
+            const makeOtherInput = document.getElementById('vehMakeOtherInput');
+            const makeHidden = document.getElementById('vehMakeHidden');
+            const makeOtherWrap = document.getElementById('vehMakeOtherWrap');
+            const modelSelect = document.getElementById('vehModelSelect');
+            const modelOtherInput = document.getElementById('vehModelOtherInput');
+            const modelHidden = document.getElementById('vehModelHidden');
+            const modelOtherWrap = document.getElementById('vehModelOtherWrap');
+            const fuelSelect = document.getElementById('vehFuelSelect');
+            const fuelOtherInput = document.getElementById('vehFuelOtherInput');
+            const fuelHidden = document.getElementById('vehFuelHidden');
+            const fuelOtherWrap = document.getElementById('vehFuelOtherWrap');
+
+            function setWrapVisible(wrap, visible) { if (!wrap) return; wrap.classList.toggle('hidden', !visible); }
+            function fillMakeOptions() {
+                if (!makeSelect) return;
+                makeSelect.innerHTML =
+                    `<option value="">Select</option>` +
+                    makeOptions.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('') +
+                    `<option value="__OTHER__">Other</option>`;
+            }
+            function fillFuelOptions() {
+                if (!fuelSelect) return;
+                fuelSelect.innerHTML =
+                    `<option value="">Select</option>` +
+                    fuelOptions.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('') +
+                    `<option value="__OTHER__">Other</option>`;
+            }
+            function fillModelOptions(makeValue) {
+                if (!modelSelect) return;
+                const models = modelOptionsByMake[makeValue] || [];
+                modelSelect.innerHTML =
+                    `<option value="">Select</option>` +
+                    models.map((m) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('') +
+                    `<option value="__OTHER__">Other</option>`;
+            }
+
+            fillMakeOptions();
+            fillFuelOptions();
+            fillModelOptions('');
+
+            if (makeSelect && makeHidden) {
+                makeSelect.addEventListener('change', () => {
+                    const v = makeSelect.value || '';
+                    if (v === '__OTHER__') {
+                        if (makeOtherInput) makeOtherInput.value = '';
+                        makeHidden.value = '';
+                        setWrapVisible(makeOtherWrap, true);
+                        if (makeOtherInput) makeOtherInput.focus();
+                    } else {
+                        makeHidden.value = v;
+                        setWrapVisible(makeOtherWrap, false);
+                    }
+                    fillModelOptions(v);
+                    if (modelSelect && modelHidden) {
+                        modelSelect.value = '';
+                        modelHidden.value = '';
+                        if (modelOtherInput) modelOtherInput.value = '';
+                        setWrapVisible(modelOtherWrap, false);
+                    }
+                });
+            }
+            if (modelSelect && modelHidden) {
+                modelSelect.addEventListener('change', () => {
+                    const v = modelSelect.value || '';
+                    if (v === '__OTHER__') {
+                        if (modelOtherInput) modelOtherInput.value = '';
+                        modelHidden.value = '';
+                        setWrapVisible(modelOtherWrap, true);
+                        if (modelOtherInput) modelOtherInput.focus();
+                    } else {
+                        modelHidden.value = v;
+                        setWrapVisible(modelOtherWrap, false);
+                    }
+                });
+            }
+            if (fuelSelect && fuelHidden) {
+                fuelSelect.addEventListener('change', () => {
+                    const v = fuelSelect.value || '';
+                    if (v === '__OTHER__') {
+                        if (fuelOtherInput) fuelOtherInput.value = '';
+                        fuelHidden.value = '';
+                        setWrapVisible(fuelOtherWrap, true);
+                        if (fuelOtherInput) fuelOtherInput.focus();
+                    } else {
+                        fuelHidden.value = v;
+                        setWrapVisible(fuelOtherWrap, false);
+                    }
+                });
+            }
+            if (makeOtherInput && makeHidden) {
+                makeOtherInput.addEventListener('input', () => { makeHidden.value = makeOtherInput.value; });
+                makeOtherInput.addEventListener('blur', () => { makeHidden.value = makeOtherInput.value; });
+            }
+            if (modelOtherInput && modelHidden) {
+                modelOtherInput.addEventListener('input', () => { modelHidden.value = modelOtherInput.value; });
+                modelOtherInput.addEventListener('blur', () => { modelHidden.value = modelOtherInput.value; });
+            }
+            if (fuelOtherInput && fuelHidden) {
+                fuelOtherInput.addEventListener('input', () => { fuelHidden.value = fuelOtherInput.value; });
+                fuelOtherInput.addEventListener('blur', () => { fuelHidden.value = fuelOtherInput.value; });
+            }
+
+            const orFileInput = form.querySelector('[data-or-file="1"]');
+            const orExpiryInput = form.querySelector('[data-or-expiry="1"]');
+            const syncOrExpiryRequired = () => {
+                const hasOr = !!(orFileInput && orFileInput.files && orFileInput.files.length > 0);
+                if (orExpiryInput) {
+                    orExpiryInput.required = hasOr;
+                    if (!hasOr) orExpiryInput.setCustomValidity('');
+                }
+            };
+            if (orFileInput) orFileInput.addEventListener('change', syncOrExpiryRequired);
+            if (orExpiryInput) orExpiryInput.addEventListener('change', syncOrExpiryRequired);
+            syncOrExpiryRequired();
+
+            const ocrMsg = document.getElementById('ocrMsg');
+            const ocrResult = document.getElementById('ocrResult');
+            const ocrFieldsGrid = document.getElementById('ocrFieldsGrid');
+            const ocrRawPreview = document.getElementById('ocrRawPreview');
+            const ocrConfirmWrap = document.getElementById('ocrConfirmWrap');
+            const ocrConfirm = document.getElementById('ocrConfirm');
+            const ocrUsedInput = document.getElementById('ocrUsedInput');
+            const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
+            const btnScanCr = document.getElementById('btnScanCr');
+            const crFileInput = form.querySelector('input[name="cr"]');
+
+            const setOcrMsg = (text, kind) => {
+                if (!ocrMsg) return;
+                ocrMsg.textContent = text;
+                ocrMsg.classList.remove('hidden');
+                ocrMsg.className = 'mt-3 text-sm font-semibold ' + (kind === 'error' ? 'text-rose-700' : (kind === 'success' ? 'text-emerald-700' : 'text-slate-600'));
+            };
+            const setOcrUsed = (used) => {
+                if (ocrUsedInput) ocrUsedInput.value = used ? '1' : '0';
+                if (ocrConfirmWrap) ocrConfirmWrap.classList.toggle('hidden', !used);
+                if (ocrConfirmedInput) ocrConfirmedInput.value = '0';
+                if (ocrConfirm) ocrConfirm.checked = false;
+            };
+            const applyExtracted = (fields) => {
+                if (!fields || typeof fields !== 'object') return;
+                const map = {
+                    plate_no: 'plate_number',
+                    engine_no: 'engine_no',
+                    chassis_no: 'chassis_no',
+                    year_model: 'year_model',
+                    color: 'color',
+                    cr_number: 'cr_number',
+                    cr_issue_date: 'cr_issue_date',
+                    registered_owner: 'registered_owner'
+                };
+                Object.keys(map).forEach((k) => {
+                    const v = fields[k];
+                    if (!v) return;
+                    const el = form.querySelector(`[name="${map[k]}"]`);
+                    if (!el) return;
+                    el.value = String(v);
+                    el.classList.add('ring-2', 'ring-emerald-300');
+                    setTimeout(() => { el.classList.remove('ring-2', 'ring-emerald-300'); }, 1200);
+                });
+
+                const pickFromSelect = (selectEl, hiddenEl, otherWrap, otherInput, value) => {
+                    if (!selectEl || !hiddenEl) return;
+                    const raw = (value || '').toString().trim();
+                    if (!raw) return;
+                    const norm = raw.toLowerCase();
+                    const opts = Array.from(selectEl.options || []);
+                    const found = opts.find((o) => (o.value || '').toString().trim().toLowerCase() === norm);
+                    if (found) {
+                        selectEl.value = found.value;
+                        hiddenEl.value = found.value;
+                        setWrapVisible(otherWrap, false);
+                        if (otherInput) otherInput.value = '';
+                        return;
+                    }
+                    const otherOpt = opts.find((o) => (o.value || '').toString() === '__OTHER__');
+                    if (otherOpt) selectEl.value = '__OTHER__';
+                    hiddenEl.value = raw;
+                    setWrapVisible(otherWrap, true);
+                    if (otherInput) otherInput.value = raw;
+                };
+                if (fields.make) pickFromSelect(makeSelect, makeHidden, makeOtherWrap, makeOtherInput, fields.make);
+                if (fields.model) pickFromSelect(modelSelect, modelHidden, modelOtherWrap, modelOtherInput, fields.model);
+                if (fields.fuel_type) pickFromSelect(fuelSelect, fuelHidden, fuelOtherWrap, fuelOtherInput, fields.fuel_type);
+            };
+            const showOcrResult = (fields, rawPreview) => {
+                if (ocrResult) ocrResult.classList.remove('hidden');
+                if (ocrRawPreview) ocrRawPreview.textContent = (rawPreview || '').toString();
+                if (!ocrFieldsGrid) return;
+                const order = [
+                    ['plate_no', 'Plate'],
+                    ['engine_no', 'Engine'],
+                    ['chassis_no', 'Chassis'],
+                    ['make', 'Make'],
+                    ['model', 'Model'],
+                    ['year_model', 'Year'],
+                    ['fuel_type', 'Fuel'],
+                    ['color', 'Color'],
+                    ['cr_number', 'CR No'],
+                    ['cr_issue_date', 'CR Date'],
+                    ['registered_owner', 'Owner']
+                ];
+                ocrFieldsGrid.innerHTML = order.map(([k, label]) => {
+                    const v = fields && fields[k] ? String(fields[k]) : '';
+                    const vv = v !== '' ? v : '—';
+                    return `<div class="flex items-center justify-between gap-2 rounded-lg bg-white border border-slate-200 px-2.5 py-2"><span class="text-slate-500 font-black">${escapeHtml(label)}</span><span class="text-slate-800 font-bold">${escapeHtml(vv)}</span></div>`;
+                }).join('');
+            };
+
+            if (ocrConfirm) {
+                ocrConfirm.addEventListener('change', () => {
+                    if (ocrConfirmedInput) ocrConfirmedInput.value = ocrConfirm.checked ? '1' : '0';
+                });
+            }
+
+            if (btnScanCr) {
+                btnScanCr.addEventListener('click', async () => {
+                    const f = crFileInput && crFileInput.files && crFileInput.files[0] ? crFileInput.files[0] : null;
+                    if (!f) { setOcrMsg('Select a CR file first.', 'error'); return; }
+                    btnScanCr.disabled = true;
+                    btnScanCr.textContent = 'Scanning...';
+                    setOcrMsg('Scanning CR and extracting fields...', 'info');
+                    if (ocrResult) ocrResult.classList.add('hidden');
+                    try {
+                        const fd = new FormData();
+                        fd.append('action', 'puv_ocr_scan_cr');
+                        fd.append('cr', f);
+                        const r = await apiPost(fd);
+                        if (!r || !r.ok) {
+                            const msg = (r && (r.message || r.error)) ? (r.message || r.error) : 'OCR failed';
+                            throw new Error(msg);
+                        }
+                        const payload = r.data || {};
+                        const fields = payload.fields || {};
+                        const raw = payload.raw_text_preview || '';
+                        applyExtracted(fields);
+                        showOcrResult(fields, raw);
+                        setOcrUsed(true);
+                        setOcrMsg('OCR successful. Review and confirm before submitting.', 'success');
+                    } catch (e) {
+                        setOcrUsed(false);
+                        setOcrMsg((e && e.message) ? String(e.message) : 'OCR failed', 'error');
+                    } finally {
+                        btnScanCr.disabled = false;
+                        btnScanCr.textContent = 'Scan CR & Auto-fill';
+                    }
+                });
+            }
+        }
+
         async function submitNewVehicle(e) {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const oldText = btn.innerText;
-            btn.innerText = 'Submitting...'; btn.disabled = true;
+            initVehicleEncodeForm();
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            const oldText = btn ? btn.innerText : '';
 
-            const formData = new FormData(e.target);
+            const ocrUsedInput = document.getElementById('ocrUsedInput');
+            const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
+            if (ocrUsedInput && ocrUsedInput.value === '1' && ocrConfirmedInput && ocrConfirmedInput.value !== '1') {
+                toast('Confirm scanned details before submitting.', 'error');
+                const wrap = document.getElementById('ocrConfirmWrap');
+                if (wrap) wrap.classList.remove('hidden');
+                return;
+            }
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            if (btn) { btn.innerText = 'Submitting...'; btn.disabled = true; }
+            const formData = new FormData(form);
             formData.append('action', 'add_vehicle');
-
             const res = await apiPost(formData);
-            btn.innerText = oldText; btn.disabled = false;
+            if (btn) { btn.innerText = oldText; btn.disabled = false; }
 
-            if (res.ok) {
+            if (res && res.ok) {
                 toast(res.message, 'success');
                 document.getElementById('addVehicleModal').classList.add('hidden');
-                e.target.reset();
-                loadFleet(); // or loadApplications primarily since it goes to pending apps
+                form.reset();
+                const ocr = document.getElementById('ocrResult');
+                if (ocr) ocr.classList.add('hidden');
+                const msg = document.getElementById('ocrMsg');
+                if (msg) msg.classList.add('hidden');
+                const ocrUsed = document.getElementById('ocrUsedInput');
+                const ocrConf = document.getElementById('ocrConfirmedInput');
+                if (ocrUsed) ocrUsed.value = '0';
+                if (ocrConf) ocrConf.value = '0';
+                loadFleet();
                 loadApplications();
             } else {
-                toast(res.error || 'Failed', 'error');
+                toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
             }
         }
 
         function showAddVehicleModal() {
+            initVehicleEncodeForm();
             document.getElementById('addVehicleModal').classList.remove('hidden');
         }
 
         function showOperatorRecordModal() {
             const modal = document.getElementById('operatorRecordModal');
             if (!modal) return;
+            const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '').slice(0, 20);
             const t = document.getElementById('opRecType');
             const rn = document.getElementById('opRecRegisteredName');
             const n = document.getElementById('opRecName');
@@ -1607,8 +2014,13 @@ if (empty($_SESSION['operator_csrf'])) {
             if (t && currentProfileData && currentProfileData.operator_type) t.value = currentProfileData.operator_type;
             if (rn && currentProfileData && currentProfileData.association_name && !rn.value) rn.value = currentProfileData.association_name;
             if (n && currentProfileData && currentProfileData.name && !n.value) n.value = currentProfileData.name;
-            if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = currentProfileData.contact_info;
+            if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = digitsOnly(currentProfileData.contact_info);
             if (coop && currentProfileData && currentProfileData.association_name && !coop.value) coop.value = currentProfileData.association_name;
+            if (c && !c.dataset.boundDigits) {
+                c.addEventListener('input', () => { c.value = digitsOnly(c.value); });
+                c.addEventListener('blur', () => { c.value = digitsOnly(c.value); });
+                c.dataset.boundDigits = '1';
+            }
             modal.classList.remove('hidden');
         }
 
