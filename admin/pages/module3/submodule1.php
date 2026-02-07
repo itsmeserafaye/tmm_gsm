@@ -45,7 +45,8 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
         <div class="md:col-span-4 space-y-4">
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
-            <input name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
+            <input id="plateNumberInput" name="plate_number" list="plateNumberList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
+            <datalist id="plateNumberList"></datalist>
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Type</label>
@@ -155,8 +156,20 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
     const filterWorkflow = document.getElementById('filterWorkflow');
     const filterQ = document.getElementById('filterQ');
     const btnReload = document.getElementById('btnReload');
+    const plateInput = document.getElementById('plateNumberInput');
+    const plateDatalist = document.getElementById('plateNumberList');
 
     let violationTypes = [];
+    let plates = [];
+
+    async function loadPlates() {
+      if (!plateDatalist) return;
+      const res = await fetch(rootUrl + '/admin/api/module3/vehicle_plates.php');
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) return;
+      plates = Array.isArray(data.data) ? data.data : [];
+      plateDatalist.innerHTML = plates.map((p) => `<option value="${esc(String(p || '').toUpperCase())}"></option>`).join('');
+    }
 
     async function loadViolationTypes() {
       const res = await fetch(rootUrl + '/admin/api/tickets/violation_types.php');
@@ -180,6 +193,12 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
       if (!opt) { violationFinePreview.textContent = ''; return; }
       const fine = opt.getAttribute('data-fine');
       violationFinePreview.textContent = fine ? ('Fine: ₱' + Number(fine).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})) : '';
+    }
+
+    if (plateInput) {
+      plateInput.addEventListener('input', () => {
+        plateInput.value = plateInput.value.toUpperCase();
+      });
     }
 
     async function loadViolations() {
@@ -268,6 +287,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
 
     Promise.resolve()
       .then(loadViolationTypes)
+      .then(loadPlates)
       .then(updateFinePreview)
       .then(loadViolations)
       .catch(() => { showToast('Failed to initialize.', 'error'); });

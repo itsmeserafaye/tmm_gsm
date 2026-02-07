@@ -1860,7 +1860,8 @@ $typesList = vehicle_types();
             tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
             const data = await apiGet('puv_list_franchise_applications');
             if (!data || !data.ok) {
-                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">Failed to load applications.</td></tr>';
+                const msg = (data && (data.error || data.message)) ? (data.error || data.message) : 'Failed to load applications.';
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">${escapeHtml(msg)}</td></tr>`;
                 return;
             }
             const rows = Array.isArray(data.data) ? data.data : [];

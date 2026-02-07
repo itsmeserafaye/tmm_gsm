@@ -506,6 +506,7 @@ if ($action === 'set_active_plate') {
 }
 
 if ($action === 'get_dashboard_stats') {
+  session_write_close();
   $plates = op_user_plates($db, $userId);
   if (!$plates)
     op_send(true, ['data' => ['pending_apps' => 0, 'active_vehicles' => 0, 'compliance_alerts' => 0]]);
@@ -1797,9 +1798,7 @@ if ($action === 'puv_create_transfer_request') {
 }
 
 if ($action === 'puv_list_routes') {
-  session_write_close(); // Release session lock to prevent blocking concurrent requests
-  // Allow pending users to view routes for application purposes
-  // op_require_approved($db, $userId); 
+  session_write_close();
   $rows = [];
   
   try {
@@ -1839,8 +1838,6 @@ if ($action === 'puv_list_routes') {
         });
       }
   } catch (Throwable $e) {
-      // Log error but return empty list to prevent UI freeze
-      // error_log("puv_list_routes error: " . $e->getMessage());
       op_send(true, ['data' => [], 'error' => 'Backend error']);
   }
   
@@ -1849,7 +1846,6 @@ if ($action === 'puv_list_routes') {
 
 if ($action === 'puv_list_franchise_applications') {
   session_write_close();
-  op_require_approved($db, $userId);
   $operatorId = op_get_puv_operator_id($db, $userId);
   
   // Return empty list if not linked, instead of error
@@ -1928,7 +1924,7 @@ if ($action === 'puv_list_franchise_applications') {
 }
 
 if ($action === 'puv_get_franchise_application') {
-  op_require_approved($db, $userId);
+  session_write_close();
   $operatorId = op_get_puv_operator_id($db, $userId);
   if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not linked yet.'], 400);
 

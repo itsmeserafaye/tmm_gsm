@@ -4,8 +4,14 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
 require_any_permission(['module3.issue','module3.read','module3.settle']);
-$res = $db->query("SELECT violation_code, description, fine_amount, category, sts_equivalent_code FROM violation_types ORDER BY violation_code ASC");
+$res = $db->query("SELECT violation_code, description, fine_amount, category, sts_equivalent_code, COALESCE(NULLIF(severity,''),'') AS severity
+                   FROM violation_types
+                   ORDER BY violation_code ASC");
 $items = [];
-while ($r = $res->fetch_assoc()) { $items[] = $r; }
-echo json_encode(['items' => $items]);
+if ($res) {
+  while ($r = $res->fetch_assoc()) {
+    $items[] = $r;
+  }
+}
+echo json_encode(['ok' => true, 'data' => $items]);
 ?> 
