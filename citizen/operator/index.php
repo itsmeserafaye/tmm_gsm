@@ -528,6 +528,7 @@ $typesList = vehicle_types();
                     <div>
                         <h2 class="text-2xl font-bold text-slate-900">Fleet Management</h2>
                         <p class="text-slate-500 text-sm">Monitor compliance and status of your registered vehicles.</p>
+                        <div id="operatorOnboardingBanner" class="mt-4 hidden"></div>
                         <div class="mt-4">
                             <button id="btnSubmitOpRecord" onclick="showOperatorRecordModal()"
                                 class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-black transition inline-flex items-center gap-2 mr-2">
@@ -537,7 +538,7 @@ $typesList = vehicle_types();
                                 </svg>
                                 Submit Operator Record
                             </button>
-                            <button onclick="showAddVehicleModal()"
+                            <button id="btnSubmitVehicle" onclick="showAddVehicleModal()"
                                 class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-orange-600 transition inline-flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -545,7 +546,7 @@ $typesList = vehicle_types();
                                 </svg>
                                 Submit Vehicle Encoding
                             </button>
-                            <button onclick="generateDeclaredFleetPreview()"
+                            <button id="btnDeclaredFleet" onclick="generateDeclaredFleetPreview()"
                                 class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -553,7 +554,7 @@ $typesList = vehicle_types();
                                 </svg>
                                 Generate Declared Fleet
                             </button>
-                            <button onclick="showTransferRequestModal()"
+                            <button id="btnTransferRequest" onclick="showTransferRequestModal()"
                                 class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -2632,11 +2633,21 @@ $typesList = vehicle_types();
             const a = document.getElementById('opRecAddress');
             const c = document.getElementById('opRecContact');
             const coop = document.getElementById('opRecCoop');
-            if (t && currentProfileData && currentProfileData.operator_type) t.value = currentProfileData.operator_type;
-            if (rn && currentProfileData && currentProfileData.association_name && !rn.value) rn.value = currentProfileData.association_name;
-            if (n && currentProfileData && currentProfileData.name && !n.value) n.value = currentProfileData.name;
-            if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = digitsOnly(currentProfileData.contact_info);
-            if (coop && currentProfileData && currentProfileData.association_name && !coop.value) coop.value = currentProfileData.association_name;
+            const sub = (currentProfileData && currentProfileData.operator_submission) ? currentProfileData.operator_submission : null;
+            if (sub) {
+                if (t) t.value = (sub.operator_type || currentProfileData.operator_type || 'Individual');
+                if (rn && !rn.value) rn.value = (sub.registered_name || '');
+                if (n && !n.value) n.value = (sub.name || '');
+                if (a && !a.value) a.value = (sub.address || '');
+                if (c && !c.value) c.value = digitsOnly(sub.contact_no || currentProfileData.contact_info || '');
+                if (coop && !coop.value) coop.value = (sub.coop_name || currentProfileData.association_name || '');
+            } else {
+                if (t && currentProfileData && currentProfileData.operator_type) t.value = currentProfileData.operator_type;
+                if (rn && currentProfileData && currentProfileData.association_name && !rn.value) rn.value = currentProfileData.association_name;
+                if (n && currentProfileData && currentProfileData.name && !n.value) n.value = currentProfileData.name;
+                if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = digitsOnly(currentProfileData.contact_info);
+                if (coop && currentProfileData && currentProfileData.association_name && !coop.value) coop.value = currentProfileData.association_name;
+            }
             if (c && !c.dataset.boundDigits) {
                 c.addEventListener('input', () => { c.value = digitsOnly(c.value); });
                 c.addEventListener('blur', () => { c.value = digitsOnly(c.value); });
@@ -2661,6 +2672,7 @@ $typesList = vehicle_types();
                 toast(res.message || 'Submitted', 'success');
                 document.getElementById('operatorRecordModal').classList.add('hidden');
                 e.target.reset();
+                fetchProfile();
             } else {
                 toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
             }
@@ -2985,6 +2997,111 @@ $typesList = vehicle_types();
         // --- Profile Management ---
         let currentProfileData = {};
 
+        function setBtnDisabled(btn, disabled, disabledText) {
+            if (!btn) return;
+            if (!btn.dataset.origText) btn.dataset.origText = btn.innerText;
+            btn.disabled = !!disabled;
+            if (btn.disabled) {
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+                if (disabledText) btn.innerText = disabledText;
+            } else {
+                btn.classList.remove('opacity-60', 'cursor-not-allowed');
+                btn.innerText = btn.dataset.origText || btn.innerText;
+            }
+        }
+
+        function renderOperatorOnboarding(profile) {
+            const banner = document.getElementById('operatorOnboardingBanner');
+            if (!banner) return;
+
+            const hasOp = !!(profile && profile.has_operator_record);
+            const subStatus = (profile && profile.operator_submission_status) ? String(profile.operator_submission_status) : 'None';
+            const sub = (profile && profile.operator_submission) ? profile.operator_submission : null;
+
+            let state = 'none';
+            if (hasOp) state = 'approved';
+            else if (subStatus === 'Submitted') state = 'pending';
+            else if (subStatus === 'Rejected') state = 'rejected';
+
+            const btnOp = document.getElementById('btnSubmitOpRecord');
+            const btnVeh = document.getElementById('btnSubmitVehicle');
+            const btnFleet = document.getElementById('btnDeclaredFleet');
+            const btnTransfer = document.getElementById('btnTransferRequest');
+            const btnFranchise = document.getElementById('btnSubmitFranchise');
+
+            if (state === 'approved') {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+                if (btnOp) btnOp.style.display = 'none';
+                setBtnDisabled(btnVeh, false);
+                setBtnDisabled(btnFleet, false);
+                setBtnDisabled(btnTransfer, false);
+                setBtnDisabled(btnFranchise, false);
+                return;
+            }
+
+            banner.classList.remove('hidden');
+
+            if (state === 'pending') {
+                if (btnOp) btnOp.style.display = 'none';
+                setBtnDisabled(btnVeh, true, 'Pending Verification');
+                setBtnDisabled(btnFleet, true, 'Pending Verification');
+                setBtnDisabled(btnTransfer, true, 'Pending Verification');
+                setBtnDisabled(btnFranchise, true, 'Pending Verification');
+                const details = sub ? `
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-semibold text-slate-700">
+                        <div class="p-3 rounded-xl bg-white border border-slate-200">Type: ${escapeHtml(sub.operator_type || '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-slate-200">Submitted: ${escapeHtml((sub.submitted_at || '').toString().slice(0, 19) || '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-slate-200 md:col-span-2">Name: ${escapeHtml(sub.name || sub.registered_name || '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-slate-200 md:col-span-2">Address: ${escapeHtml(sub.address || '-')}</div>
+                    </div>
+                ` : '';
+                banner.innerHTML = `
+                    <div class="p-4 rounded-2xl border border-amber-200 bg-amber-50">
+                        <div class="text-sm font-black text-amber-800">Pending Verification</div>
+                        <div class="mt-1 text-xs font-semibold text-amber-800/80">Your operator profile was submitted. While waiting for LGU validation, you can view your profile and upload missing documents.</div>
+                        ${details}
+                    </div>
+                `;
+                return;
+            }
+
+            if (state === 'rejected') {
+                if (btnOp) {
+                    btnOp.style.display = 'inline-flex';
+                    btnOp.innerText = 'Submit Corrections';
+                }
+                setBtnDisabled(btnVeh, true, 'Fix Operator Profile');
+                setBtnDisabled(btnFleet, true, 'Fix Operator Profile');
+                setBtnDisabled(btnTransfer, true, 'Fix Operator Profile');
+                setBtnDisabled(btnFranchise, true, 'Fix Operator Profile');
+                const remarks = sub && sub.approval_remarks ? String(sub.approval_remarks) : '';
+                banner.innerHTML = `
+                    <div class="p-4 rounded-2xl border border-rose-200 bg-rose-50">
+                        <div class="text-sm font-black text-rose-800">Operator Profile Rejected</div>
+                        <div class="mt-1 text-xs font-semibold text-rose-800/80">Update your operator profile and resubmit corrections for verification.</div>
+                        ${remarks ? `<div class="mt-3 p-3 rounded-xl bg-white border border-rose-200 text-xs font-semibold text-rose-800">Remarks: ${escapeHtml(remarks)}</div>` : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            if (btnOp) {
+                btnOp.style.display = 'inline-flex';
+                btnOp.innerText = 'Submit Operator Record';
+            }
+            setBtnDisabled(btnVeh, true, 'Submit Operator Record First');
+            setBtnDisabled(btnFleet, true, 'Submit Operator Record First');
+            setBtnDisabled(btnTransfer, true, 'Submit Operator Record First');
+            setBtnDisabled(btnFranchise, true, 'Submit Operator Record First');
+            banner.innerHTML = `
+                <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50">
+                    <div class="text-sm font-black text-slate-800">Operator Profile Required</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-600">Each operator account can only create one operator profile. Submit your operator record once to start LGU verification.</div>
+                </div>
+            `;
+        }
+
         async function fetchProfile() {
             const data = await apiGet('get_profile');
             if (data.ok) {
@@ -3022,6 +3139,8 @@ $typesList = vehicle_types();
                         }
                     }
                 }
+
+                renderOperatorOnboarding(currentProfileData);
             }
         }
 

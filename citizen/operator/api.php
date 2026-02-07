@@ -899,7 +899,8 @@ if ($action === 'get_routes') {
 }
 
 if ($action === 'get_profile') {
-  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks FROM operator_portal_users WHERE id=? LIMIT 1");
+  $selectPuv = op_has_col($db, 'operator_portal_users', 'puv_operator_id') ? ", puv_operator_id" : "";
+  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks{$selectPuv} FROM operator_portal_users WHERE id=? LIMIT 1");
   if (!$stmt)
     op_send(false, ['error' => 'Query failed'], 500);
   $stmt->bind_param('i', $userId);
@@ -910,18 +911,25 @@ if ($action === 'get_profile') {
   $puvOpId = (int)($row['puv_operator_id'] ?? 0);
   $hasOpRecord = $puvOpId > 0;
   $submissionStatus = 'None';
+  $submission = null;
   if ($hasOpRecord) {
       $submissionStatus = 'Approved';
   } else {
-      $stmtS = $db->prepare("SELECT status FROM operator_record_submissions WHERE portal_user_id=? ORDER BY submission_id DESC LIMIT 1");
+      $stmtS = $db->prepare("SELECT submission_id, operator_type, registered_name, name, address, contact_no, email, coop_name, status, submitted_at, approval_remarks
+                             FROM operator_record_submissions
+                             WHERE portal_user_id=?
+                             ORDER BY submission_id DESC
+                             LIMIT 1");
       if ($stmtS) {
           $stmtS->bind_param('i', $userId);
           $stmtS->execute();
           $resS = $stmtS->get_result();
-          if ($rS = $resS->fetch_assoc()) {
-              $submissionStatus = (string)($rS['status'] ?? 'Submitted');
-          }
+          $rS = $resS ? $resS->fetch_assoc() : null;
           $stmtS->close();
+          if ($rS) {
+              $submissionStatus = (string)($rS['status'] ?? 'Submitted');
+              $submission = $rS;
+          }
       }
   }
 
@@ -938,6 +946,7 @@ if ($action === 'get_profile') {
       'plate_number' => $activePlate,
       'has_operator_record' => $hasOpRecord,
       'operator_submission_status' => $submissionStatus,
+      'operator_submission' => $submission,
     ]
   ]);
 }
@@ -1206,24 +1215,28 @@ if ($action === 'submit_application') {
 
 if ($action === 'puv_submit_operator_record') {
   op_require_csrf();
-  op_require_approved($db, $userId);
 
   $u = op_get_user_row($db, $userId);
   if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+  if (((string)($u['status'] ?? '')) !== 'Active') op_send(false, ['error' => 'Account is not active'], 403);
 
   if (((int)($u['puv_operator_id'] ?? 0)) > 0) {
       op_send(false, ['error' => 'You already have an approved operator profile. Use "Edit Profile" to update details.'], 403);
   }
 
-  $stmtChk = $db->prepare("SELECT 1 FROM operator_record_submissions WHERE portal_user_id=? AND status IN ('Submitted','Approved') LIMIT 1");
+  $existing = null;
+  $stmtChk = $db->prepare("SELECT submission_id, status FROM operator_record_submissions WHERE portal_user_id=? ORDER BY submission_id DESC LIMIT 1");
   if ($stmtChk) {
-      $stmtChk->bind_param('i', $userId);
-      $stmtChk->execute();
-      if ($stmtChk->get_result()->fetch_row()) {
-          $stmtChk->close();
-          op_send(false, ['error' => 'You already have a pending or approved operator submission.'], 403);
-      }
-      $stmtChk->close();
+    $stmtChk->bind_param('i', $userId);
+    $stmtChk->execute();
+    $existing = $stmtChk->get_result()->fetch_assoc();
+    $stmtChk->close();
+  }
+  if ($existing) {
+    $st = (string)($existing['status'] ?? '');
+    if ($st === 'Submitted' || $st === 'Approved') {
+      op_send(false, ['error' => 'You already submitted your operator profile and it is pending verification.'], 403);
+    }
   }
 
   $operatorType = trim((string)($_POST['operator_type'] ?? ($u['operator_type'] ?? 'Individual')));
@@ -1244,16 +1257,31 @@ if ($action === 'puv_submit_operator_record') {
   if ($submittedBy === '') $submittedBy = $coopName;
   if ($submittedBy === '') $submittedBy = 'Operator';
 
-  $stmt = $db->prepare("INSERT INTO operator_record_submissions
-    (portal_user_id, operator_type, registered_name, name, address, contact_no, email, coop_name, status, submitted_at, submitted_by_name)
-    VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?)");
-  if (!$stmt) op_send(false, ['error' => 'Submission failed.'], 500);
-  $stmt->bind_param('issssssss', $userId, $operatorType, $registeredName, $name, $address, $contactNo, $email, $coopName, $submittedBy);
-  $ok = $stmt->execute();
-  $submissionId = (int)$stmt->insert_id;
-  $stmt->close();
-  if (!$ok) op_send(false, ['error' => 'Submission failed.'], 500);
+  $submissionId = 0;
+  $ok = false;
+  if ($existing && (int)($existing['submission_id'] ?? 0) > 0) {
+    $submissionId = (int)($existing['submission_id'] ?? 0);
+    $stmt = $db->prepare("UPDATE operator_record_submissions
+                          SET operator_type=?, registered_name=?, name=?, address=?, contact_no=?, email=?, coop_name=?,
+                              status='Submitted', submitted_at=NOW(), submitted_by_name=?,
+                              approved_by_user_id=NULL, approved_by_name=NULL, approved_at=NULL, approval_remarks=NULL, operator_id=NULL
+                          WHERE submission_id=? AND portal_user_id=?");
+    if (!$stmt) op_send(false, ['error' => 'Submission failed.'], 500);
+    $stmt->bind_param('ssssssssii', $operatorType, $registeredName, $name, $address, $contactNo, $email, $coopName, $submittedBy, $submissionId, $userId);
+    $ok = $stmt->execute();
+    $stmt->close();
+  } else {
+    $stmt = $db->prepare("INSERT INTO operator_record_submissions
+      (portal_user_id, operator_type, registered_name, name, address, contact_no, email, coop_name, status, submitted_at, submitted_by_name)
+      VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?)");
+    if (!$stmt) op_send(false, ['error' => 'Submission failed.'], 500);
+    $stmt->bind_param('issssssss', $userId, $operatorType, $registeredName, $name, $address, $contactNo, $email, $coopName, $submittedBy);
+    $ok = $stmt->execute();
+    $submissionId = (int)$stmt->insert_id;
+    $stmt->close();
+  }
+  if (!$ok || $submissionId <= 0) op_send(false, ['error' => 'Submission failed.'], 500);
 
   op_audit_event($db, $userId, $email, 'PUV_OPERATOR_SUBMITTED', 'OperatorSubmission', (string)$submissionId, [
     'operator_type' => $operatorType,

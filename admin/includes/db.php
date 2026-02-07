@@ -944,6 +944,15 @@ function db()
     FOREIGN KEY (portal_user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
+  $idxOrs = $conn->query("SHOW INDEX FROM operator_record_submissions WHERE Key_name='uniq_operator_record_portal_user'");
+  if (!$idxOrs || $idxOrs->num_rows == 0) {
+    $conn->query("DELETE ors1 FROM operator_record_submissions ors1
+                  JOIN operator_record_submissions ors2
+                    ON ors1.portal_user_id = ors2.portal_user_id
+                   AND ors1.submission_id < ors2.submission_id");
+    $conn->query("ALTER TABLE operator_record_submissions ADD UNIQUE KEY uniq_operator_record_portal_user (portal_user_id)");
+  }
+
   $conn->query("CREATE TABLE IF NOT EXISTS vehicle_record_submissions (
     submission_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     portal_user_id INT NOT NULL,
