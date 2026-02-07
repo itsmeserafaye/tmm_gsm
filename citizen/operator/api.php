@@ -1797,6 +1797,7 @@ if ($action === 'puv_create_transfer_request') {
 }
 
 if ($action === 'puv_list_routes') {
+  session_write_close(); // Release session lock to prevent blocking concurrent requests
   // Allow pending users to view routes for application purposes
   // op_require_approved($db, $userId); 
   $rows = [];
@@ -1847,6 +1848,7 @@ if ($action === 'puv_list_routes') {
 }
 
 if ($action === 'puv_list_franchise_applications') {
+  session_write_close();
   op_require_approved($db, $userId);
   $operatorId = op_get_puv_operator_id($db, $userId);
   
@@ -1860,63 +1862,67 @@ if ($action === 'puv_list_franchise_applications') {
   }
 
   $rows = [];
-  $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id, fa.route_id, fa.vehicle_count, fa.approved_vehicle_count,
-                               fa.representative_name, fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at,
-                               COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code, r.origin, r.destination,
-                               er.endorsement_status, er.conditions, er.permit_number, er.issued_date,
-                               fr.ltfrb_ref_no, fr.authority_type, fr.issue_date, fr.expiry_date,
-                               (SELECT COUNT(*) FROM documents d2 WHERE d2.application_id=fa.application_id AND LOWER(COALESCE(d2.type,''))='declared fleet' AND COALESCE(NULLIF(d2.file_path,''),'')<>'') AS declared_fleet_count
-                        FROM franchise_applications fa
-                        LEFT JOIN routes r ON r.id=fa.route_id
-                        LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
-                        LEFT JOIN franchises fr ON fr.application_id=fa.application_id
-                        WHERE fa.operator_id=?
-                        ORDER BY fa.submitted_at DESC, fa.application_id DESC
-                        LIMIT 300");
-  if ($stmt) {
-    $stmt->bind_param('i', $operatorId);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($res && ($r = $res->fetch_assoc())) {
-      $req = op_franchise_build_requirements($db, $operatorId, $r);
-      $needs = false;
-      if ($req['endorsement_blockers']) $needs = true;
-      $status = (string)($r['status'] ?? '');
-      if (in_array($status, ['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved', 'PA Issued', 'CPC Issued'], true)) {
-        if ($req['ltfrb_requirements']) $needs = true;
+  try {
+    $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id, fa.route_id, fa.vehicle_count, fa.approved_vehicle_count,
+                                 fa.representative_name, fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at,
+                                 COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code, r.origin, r.destination,
+                                 er.endorsement_status, er.conditions, er.permit_number, er.issued_date,
+                                 fr.ltfrb_ref_no, fr.authority_type, fr.issue_date, fr.expiry_date,
+                                 (SELECT COUNT(*) FROM documents d2 WHERE d2.application_id=fa.application_id AND LOWER(COALESCE(d2.type,''))='declared fleet' AND COALESCE(NULLIF(d2.file_path,''),'')<>'') AS declared_fleet_count
+                          FROM franchise_applications fa
+                          LEFT JOIN routes r ON r.id=fa.route_id
+                          LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
+                          LEFT JOIN franchises fr ON fr.application_id=fa.application_id
+                          WHERE fa.operator_id=?
+                          ORDER BY fa.submitted_at DESC, fa.application_id DESC
+                          LIMIT 300");
+    if ($stmt) {
+      $stmt->bind_param('i', $operatorId);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $req = op_franchise_build_requirements($db, $operatorId, $r);
+        $needs = false;
+        if ($req['endorsement_blockers']) $needs = true;
+        $status = (string)($r['status'] ?? '');
+        if (in_array($status, ['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved', 'PA Issued', 'CPC Issued'], true)) {
+          if ($req['ltfrb_requirements']) $needs = true;
+        }
+        $rows[] = [
+          'application_id' => (int)($r['application_id'] ?? 0),
+          'reference' => (string)($r['franchise_ref_number'] ?? ''),
+          'submitted_at' => (string)($r['submitted_at'] ?? ''),
+          'route_code' => (string)($r['route_code'] ?? ''),
+          'origin' => (string)($r['origin'] ?? ''),
+          'destination' => (string)($r['destination'] ?? ''),
+          'vehicle_count' => (int)($r['vehicle_count'] ?? 0),
+          'approved_vehicle_count' => (int)($r['approved_vehicle_count'] ?? 0),
+          'representative_name' => (string)($r['representative_name'] ?? ''),
+          'status' => $status,
+          'endorsed_at' => (string)($r['endorsed_at'] ?? ''),
+          'approved_at' => (string)($r['approved_at'] ?? ''),
+          'endorsement_status' => (string)($r['endorsement_status'] ?? ''),
+          'conditions' => (string)($r['conditions'] ?? ''),
+          'permit_number' => (string)($r['permit_number'] ?? ''),
+          'issued_date' => (string)($r['issued_date'] ?? ''),
+          'ltfrb_ref_no' => (string)($r['ltfrb_ref_no'] ?? ''),
+          'authority_type' => (string)($r['authority_type'] ?? ''),
+          'issue_date' => (string)($r['issue_date'] ?? ''),
+          'expiry_date' => (string)($r['expiry_date'] ?? ''),
+          'declared_fleet_count' => (int)($r['declared_fleet_count'] ?? 0),
+          'requirements' => [
+            'endorsement_blockers' => $req['endorsement_blockers'],
+            'ltfrb' => $req['ltfrb_requirements'],
+            'need_units' => (int)($req['need_units'] ?? 0),
+            'vehicle_metrics' => $req['vehicle_metrics'] ?? null,
+          ],
+          'needs_attention' => $needs,
+        ];
       }
-      $rows[] = [
-        'application_id' => (int)($r['application_id'] ?? 0),
-        'reference' => (string)($r['franchise_ref_number'] ?? ''),
-        'submitted_at' => (string)($r['submitted_at'] ?? ''),
-        'route_code' => (string)($r['route_code'] ?? ''),
-        'origin' => (string)($r['origin'] ?? ''),
-        'destination' => (string)($r['destination'] ?? ''),
-        'vehicle_count' => (int)($r['vehicle_count'] ?? 0),
-        'approved_vehicle_count' => (int)($r['approved_vehicle_count'] ?? 0),
-        'representative_name' => (string)($r['representative_name'] ?? ''),
-        'status' => $status,
-        'endorsed_at' => (string)($r['endorsed_at'] ?? ''),
-        'approved_at' => (string)($r['approved_at'] ?? ''),
-        'endorsement_status' => (string)($r['endorsement_status'] ?? ''),
-        'conditions' => (string)($r['conditions'] ?? ''),
-        'permit_number' => (string)($r['permit_number'] ?? ''),
-        'issued_date' => (string)($r['issued_date'] ?? ''),
-        'ltfrb_ref_no' => (string)($r['ltfrb_ref_no'] ?? ''),
-        'authority_type' => (string)($r['authority_type'] ?? ''),
-        'issue_date' => (string)($r['issue_date'] ?? ''),
-        'expiry_date' => (string)($r['expiry_date'] ?? ''),
-        'declared_fleet_count' => (int)($r['declared_fleet_count'] ?? 0),
-        'requirements' => [
-          'endorsement_blockers' => $req['endorsement_blockers'],
-          'ltfrb' => $req['ltfrb_requirements'],
-          'need_units' => (int)($req['need_units'] ?? 0),
-          'vehicle_metrics' => $req['vehicle_metrics'] ?? null,
-        ],
-        'needs_attention' => $needs,
-      ];
+      $stmt->close();
     }
-    $stmt->close();
+  } catch (Throwable $e) {
+    op_send(true, ['data' => [], 'error' => 'Backend error']);
   }
   op_send(true, ['data' => $rows]);
 }
