@@ -138,7 +138,7 @@ function tmm_route_capacity_check(mysqli $db, int $routeDbId, int $wantUnits, in
 }
 
 function tmm_can_endorse_application(mysqli $db, int $operatorId, int $routeDbId, int $vehicleCount, int $excludeApplicationId = 0): array {
-  $stmtO = $db->prepare("SELECT status, operator_type, verification_status, workflow_status FROM operators WHERE id=? LIMIT 1");
+  $stmtO = $db->prepare("SELECT status, operator_type, verification_status, workflow_status, COALESCE(NULLIF(risk_level,''),'Low') AS risk_level FROM operators WHERE id=? LIMIT 1");
   if (!$stmtO) return ['ok' => false, 'error' => 'db_prepare_failed'];
   $stmtO->bind_param('i', $operatorId);
   $stmtO->execute();
@@ -146,6 +146,18 @@ function tmm_can_endorse_application(mysqli $db, int $operatorId, int $routeDbId
   $stmtO->close();
   if (!$op) return ['ok' => false, 'error' => 'operator_not_found'];
   if (!tmm_operator_is_valid_row($op)) return ['ok' => false, 'error' => 'operator_invalid'];
+
+  $riskLevel = (string)($op['risk_level'] ?? 'Low');
+  if ($riskLevel === 'High') return ['ok' => false, 'error' => 'operator_under_review'];
+
+  $stmtCv = $db->prepare("SELECT 1 FROM vehicles WHERE operator_id=? AND COALESCE(NULLIF(compliance_status,''),'Active') IN ('Suspended','For Review') LIMIT 1");
+  if ($stmtCv) {
+    $stmtCv->bind_param('i', $operatorId);
+    $stmtCv->execute();
+    $rowCv = $stmtCv->get_result()->fetch_row();
+    $stmtCv->close();
+    if ($rowCv) return ['ok' => false, 'error' => 'operator_has_suspended_vehicles'];
+  }
 
   $slots = tmm_operator_required_doc_slots((string)($op['operator_type'] ?? ''));
   $docCheck = tmm_operator_docs_verified($db, $operatorId, $slots);

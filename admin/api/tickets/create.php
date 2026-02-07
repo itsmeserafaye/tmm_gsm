@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/violation_escalation.php';
 $db = db();
 header('Content-Type: application/json');
 require_permission('module3.issue');
@@ -46,6 +47,23 @@ $stmtV->execute();
 $resV = $stmtV->get_result();
 if ($rowV = $resV->fetch_assoc()) { $fine = (float)$rowV['fine_amount']; }
 
+$vehicleId = 0;
+$operatorId = 0;
+$franchiseRef = '';
+$stmtVeh = $db->prepare("SELECT id, COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0) AS op_id, COALESCE(NULLIF(franchise_id,''), '') AS fr
+                         FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+if ($stmtVeh) {
+  $stmtVeh->bind_param('ss', $plate, $plateNoDash);
+  $stmtVeh->execute();
+  $rowVeh = $stmtVeh->get_result()->fetch_assoc();
+  $stmtVeh->close();
+  if ($rowVeh) {
+    $vehicleId = (int)($rowVeh['id'] ?? 0);
+    $operatorId = (int)($rowVeh['op_id'] ?? 0);
+    $franchiseRef = (string)($rowVeh['fr'] ?? '');
+  }
+}
+
 $due = date('Y-m-d', strtotime('+7 days'));
 if ($date_issued !== '') {
   $due = date('Y-m-d', strtotime($date_issued . ' +7 days'));
@@ -59,6 +77,14 @@ if ($stmtIns->execute()) {
   $id = $db->insert_id;
   $ticketNo = 'TCK-' . date('Y') . '-' . str_pad((string)$id, 4, '0', STR_PAD_LEFT);
   $db->query("UPDATE tickets SET ticket_number = '" . $db->real_escape_string($ticketNo) . "' WHERE ticket_id = " . (int)$id);
+  tmm_apply_progressive_violation_policy($db, [
+    'vehicle_plate' => $plate,
+    'violation_code' => $violation,
+    'operator_id' => $operatorId,
+    'vehicle_id' => $vehicleId,
+    'franchise_ref_number' => $franchiseRef,
+    'observed_at' => $date_issued === '' ? date('Y-m-d H:i:s') : $date_issued,
+  ]);
   echo json_encode(['ok' => true, 'ticket_number' => $ticketNo, 'ticket_id' => $id]);
 } else {
   echo json_encode(['error' => 'Failed to create ticket']);

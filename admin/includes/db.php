@@ -140,6 +140,15 @@ function db()
   if (!isset($vehCols['submitted_at'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN submitted_at DATETIME DEFAULT NULL");
   }
+  if (!isset($vehCols['compliance_status'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN compliance_status ENUM('Active','Flagged','Suspended','For Review') NOT NULL DEFAULT 'Active'");
+  }
+  if (!isset($vehCols['compliance_updated_at'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN compliance_updated_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($vehCols['compliance_reason'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN compliance_reason VARCHAR(255) DEFAULT NULL");
+  }
   if (!isset($vehCols['approved_by_user_id'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN approved_by_user_id INT DEFAULT NULL");
   }
@@ -1084,11 +1093,37 @@ function db()
 
   $conn->query("CREATE TABLE IF NOT EXISTS compliance_cases (
     case_id INT AUTO_INCREMENT PRIMARY KEY,
-    franchise_ref_number VARCHAR(50) NOT NULL,
+    franchise_ref_number VARCHAR(50) NULL,
+    entity_name VARCHAR(128) NULL,
     violation_type VARCHAR(100),
+    penalty_amount DECIMAL(10,2) DEFAULT 0.00,
+    violation_details TEXT DEFAULT NULL,
     status ENUM('Open', 'Resolved', 'Escalated') DEFAULT 'Open',
     reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $colCc = $conn->query("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='compliance_cases'");
+  $ccCols = [];
+  $ccFrNullable = null;
+  if ($colCc) {
+    while ($c = $colCc->fetch_assoc()) {
+      $ccCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
+      if (($c['COLUMN_NAME'] ?? '') === 'franchise_ref_number') {
+        $ccFrNullable = (string)($c['IS_NULLABLE'] ?? '');
+      }
+    }
+  }
+  if (!isset($ccCols['penalty_amount'])) {
+    $conn->query("ALTER TABLE compliance_cases ADD COLUMN penalty_amount DECIMAL(10,2) DEFAULT 0.00");
+  }
+  if (!isset($ccCols['entity_name'])) {
+    $conn->query("ALTER TABLE compliance_cases ADD COLUMN entity_name VARCHAR(128) NULL");
+  }
+  if (!isset($ccCols['violation_details'])) {
+    $conn->query("ALTER TABLE compliance_cases ADD COLUMN violation_details TEXT NULL");
+  }
+  if ($ccFrNullable !== null && strtoupper($ccFrNullable) !== 'YES') {
+    $conn->query("ALTER TABLE compliance_cases MODIFY COLUMN franchise_ref_number VARCHAR(50) NULL");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS endorsement_records (
     endorsement_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1203,6 +1238,12 @@ function db()
   }
   if (!isset($opsCols['approved_at'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN approved_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($opsCols['risk_score'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN risk_score INT NOT NULL DEFAULT 0");
+  }
+  if (!isset($opsCols['risk_level'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN risk_level ENUM('Low','Medium','High') NOT NULL DEFAULT 'Low'");
   }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
   $conn->query("UPDATE operators SET registered_name=COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) WHERE (registered_name IS NULL OR registered_name='') AND (COALESCE(NULLIF(name,''), full_name) IS NOT NULL)");
@@ -1361,8 +1402,23 @@ function db()
     description VARCHAR(255),
     fine_amount DECIMAL(10,2) DEFAULT 0,
     category VARCHAR(64) DEFAULT NULL,
-    sts_equivalent_code VARCHAR(64) DEFAULT NULL
+    sts_equivalent_code VARCHAR(64) DEFAULT NULL,
+    severity ENUM('Minor','Severe','Critical') DEFAULT NULL
   ) ENGINE=InnoDB");
+  $colVt = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='violation_types'");
+  $vtCols = [];
+  if ($colVt) {
+    while ($c = $colVt->fetch_assoc()) {
+      $vtCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($vtCols['severity'])) {
+    $conn->query("ALTER TABLE violation_types ADD COLUMN severity ENUM('Minor','Severe','Critical') DEFAULT NULL");
+  }
+  $conn->query("UPDATE violation_types SET severity=COALESCE(severity, CASE
+    WHEN violation_code IN ('RD','DRK','NDL','EXR','UUT') THEN 'Critical'
+    WHEN category IN ('Safety','Registration','Licensing') THEN 'Severe'
+    ELSE 'Minor' END)");
   $checkV = $conn->query("SELECT COUNT(*) AS c FROM violation_types");
   if ($checkV && ($checkV->fetch_assoc()['c'] ?? 0) == 0) {
     $conn->query("INSERT INTO violation_types(violation_code, description, fine_amount, category, sts_equivalent_code) VALUES

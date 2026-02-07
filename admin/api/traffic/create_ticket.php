@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
+require_once __DIR__ . '/../../includes/violation_escalation.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -64,11 +65,13 @@ if (!$violation_code || !$plate_number) {
 $franchise_id = null;
 $coop_id = null;
 $operator_id = null;
+$vehicle_id = null;
 $status = 'Unpaid';
 
 // Check Vehicle
 $veh = null;
-$stmtVeh = $db->prepare("SELECT franchise_id, coop_name, operator_id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+$stmtVeh = $db->prepare("SELECT id, franchise_id, coop_name, COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0) AS operator_id
+                         FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
 if ($stmtVeh) {
     $stmtVeh->bind_param('ss', $plate_number, $plate_no_dash_sql);
     $stmtVeh->execute();
@@ -76,6 +79,7 @@ if ($stmtVeh) {
     $stmtVeh->close();
 }
 if ($veh) {
+    $vehicle_id = isset($veh['id']) ? (int)$veh['id'] : null;
     $franchise_id = $veh['franchise_id'] ?? null;
     $coop_name = $veh['coop_name'] ?? null;
     $operator_id = isset($veh['operator_id']) ? (int)$veh['operator_id'] : null;
@@ -165,6 +169,15 @@ if ($okIns) {
         $stmtUp->execute();
         $stmtUp->close();
     }
+
+    tmm_apply_progressive_violation_policy($db, [
+        'vehicle_plate' => $plate_number,
+        'violation_code' => $violation_code,
+        'operator_id' => $operator_id !== null ? (int)$operator_id : 0,
+        'vehicle_id' => $vehicle_id !== null ? (int)$vehicle_id : 0,
+        'franchise_ref_number' => $franchise_id !== null ? (string)$franchise_id : '',
+        'observed_at' => $issued_at,
+    ]);
     
     // 7. Handle File Uploads
     $uploadDir = __DIR__ . '/../../uploads/evidence/';

@@ -23,7 +23,7 @@ if ($plate === '' || $route === '' || $terminal === '') {
     exit;
 }
 
-$chk = $db->prepare("SELECT id, plate_number, inspection_status, status, operator_id, operator_name, vehicle_type FROM vehicles WHERE plate_number=?");
+$chk = $db->prepare("SELECT id, plate_number, inspection_status, status, operator_id, operator_name, vehicle_type, COALESCE(NULLIF(compliance_status,''),'Active') AS compliance_status FROM vehicles WHERE plate_number=?");
 $chk->bind_param('s', $plate);
 $chk->execute();
 $veh = $chk->get_result()->fetch_assoc();
@@ -38,6 +38,13 @@ $inspection = strtolower(trim((string)($veh['inspection_status'] ?? '')));
 if ($inspection !== 'passed') {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'inspection_not_passed']);
+    exit;
+}
+
+$compliance = trim((string)($veh['compliance_status'] ?? 'Active'));
+if (in_array($compliance, ['Suspended', 'For Review'], true)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'vehicle_not_eligible_for_assignment', 'compliance_status' => $compliance]);
     exit;
 }
 

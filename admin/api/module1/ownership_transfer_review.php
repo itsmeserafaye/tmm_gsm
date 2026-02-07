@@ -89,6 +89,20 @@ if ($action === 'approve') {
     }
   }
 
+  $stmtComp = $db->prepare("SELECT COALESCE(NULLIF(compliance_status,''),'Active') AS cs FROM vehicles WHERE id=? LIMIT 1");
+  if ($stmtComp) {
+    $stmtComp->bind_param('i', $vehicleId);
+    $stmtComp->execute();
+    $rowCs = $stmtComp->get_result()->fetch_assoc();
+    $stmtComp->close();
+    $cs = (string)($rowCs['cs'] ?? 'Active');
+    if (in_array($cs, ['Suspended', 'For Review'], true)) {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'vehicle_under_compliance_action', 'compliance_status' => $cs]);
+      exit;
+    }
+  }
+
   $stmtReg = $db->prepare("SELECT registration_status FROM vehicle_registrations WHERE vehicle_id=? ORDER BY registration_id DESC LIMIT 1");
   if ($stmtReg) {
     $stmtReg->bind_param('i', $vehicleId);

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/util.php';
+require_once __DIR__ . '/../../includes/violation_escalation.php';
 require_permission('module3.issue');
 
 $db = db();
@@ -40,7 +41,9 @@ if ($observedAt !== '') {
 
 $operatorId = null;
 $vehicleId = null;
+$franchiseRef = null;
 $stmtVeh = $db->prepare("SELECT id, COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0) AS op_id
+                             , COALESCE(NULLIF(franchise_id,''), '') AS franchise_ref
                          FROM vehicles WHERE plate_number=? LIMIT 1");
 if ($stmtVeh) {
   $stmtVeh->bind_param('s', $plate);
@@ -51,6 +54,7 @@ if ($stmtVeh) {
     $vehicleId = (int)($row['id'] ?? 0);
     $op = (int)($row['op_id'] ?? 0);
     if ($op > 0) $operatorId = $op;
+    $franchiseRef = trim((string)($row['franchise_ref'] ?? ''));
   }
 }
 
@@ -97,5 +101,13 @@ $id = (int)$db->insert_id;
 $stmt->close();
 
 if (!$ok) error_response(500, 'db_error');
+tmm_apply_progressive_violation_policy($db, [
+  'plate_number' => $plate,
+  'violation_code' => $violationType,
+  'operator_id' => $opBind,
+  'vehicle_id' => $vehBind,
+  'franchise_ref_number' => $franchiseRef,
+  'observed_at' => $observedAtSql ?: $now,
+]);
 tmm_audit_event($db, 'VIOLATION_RECORDED', 'Violation', (string)$id, ['plate_number' => $plate, 'violation_type' => $violationType, 'workflow_status' => $workflow]);
 echo json_encode(['ok' => true, 'violation_id' => $id]);

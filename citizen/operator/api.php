@@ -1995,6 +1995,21 @@ if ($action === 'puv_submit_franchise_application') {
   if ($operatorId <= 0) $operatorId = op_get_puv_operator_id($db, $userId);
   if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not approved yet.'], 400);
 
+  $hasRiskLevel = false;
+  $chkRisk = $db->query("SHOW COLUMNS FROM operators LIKE 'risk_level'");
+  if ($chkRisk && $chkRisk->num_rows > 0) $hasRiskLevel = true;
+  if ($hasRiskLevel) {
+    $stmtRisk = $db->prepare("SELECT COALESCE(NULLIF(risk_level,''),'Low') AS rl FROM operators WHERE id=? LIMIT 1");
+    if ($stmtRisk) {
+      $stmtRisk->bind_param('i', $operatorId);
+      $stmtRisk->execute();
+      $rowRl = $stmtRisk->get_result()->fetch_assoc();
+      $stmtRisk->close();
+      $rl = (string)($rowRl['rl'] ?? 'Low');
+      if ($rl === 'High') op_send(false, ['error' => 'Operator is under compliance review due to violations.'], 400);
+    }
+  }
+
   $routeId = (int)($_POST['route_id'] ?? 0);
   $vehicleCount = (int)($_POST['vehicle_count'] ?? 0);
   $repName = trim((string)($_POST['representative_name'] ?? ''));

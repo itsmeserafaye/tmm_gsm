@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/violation_escalation.php';
 $db = db();
 header('Content-Type: application/json');
 require_any_permission(['module5.manage_terminal','module5.parking_fees','module3.issue']);
@@ -47,16 +48,21 @@ function tmm_create_traffic_ticket_from_parking(mysqli $db, string $plate, ?int 
 
   $franchiseId = null;
   $coopId = null;
+  $vehicleId = 0;
+  $operatorId = 0;
   $status = 'Pending';
-  $stmtVeh = $db->prepare("SELECT franchise_id, coop_name FROM vehicles WHERE plate_number=? LIMIT 1");
+  $stmtVeh = $db->prepare("SELECT id, franchise_id, coop_name, COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0) AS operator_id
+                           FROM vehicles WHERE plate_number=? LIMIT 1");
   if ($stmtVeh) {
     $stmtVeh->bind_param('s', $plate);
     $stmtVeh->execute();
     $veh = $stmtVeh->get_result()->fetch_assoc();
     $stmtVeh->close();
     if ($veh) {
+      $vehicleId = (int)($veh['id'] ?? 0);
       $franchiseId = $veh['franchise_id'] ?? null;
       $coopName = $veh['coop_name'] ?? null;
+      $operatorId = (int)($veh['operator_id'] ?? 0);
       if ($coopName) {
         $stmtCoop = $db->prepare("SELECT id FROM coops WHERE coop_name=? LIMIT 1");
         if ($stmtCoop) {
@@ -103,6 +109,16 @@ function tmm_create_traffic_ticket_from_parking(mysqli $db, string $plate, ?int 
     $stmtIns->bind_param('ssssisdsss', $ticketNumber, $violationCode, $plate, $fr, $ci, $location, $fine, $issuedAt, $issuedBy, $status);
     $ok = $stmtIns->execute();
     $stmtIns->close();
+  }
+  if ($ok) {
+    tmm_apply_progressive_violation_policy($db, [
+      'vehicle_plate' => $plate,
+      'violation_code' => $violationCode,
+      'operator_id' => $operatorId,
+      'vehicle_id' => $vehicleId,
+      'franchise_ref_number' => $franchiseId !== null ? (string)$franchiseId : '',
+      'observed_at' => $issuedAt,
+    ]);
   }
   return ['ok' => (bool)$ok, 'ticket_number' => $ticketNumber, 'status' => $status];
 }
