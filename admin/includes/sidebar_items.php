@@ -28,18 +28,18 @@ $sidebarItems = [
       ['id' => 'submodule1', 'label' => 'Franchise Applications', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history','module2.apply']],
       ['id' => 'submodule2', 'label' => 'Submit Franchise Application', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.apply']],
       ['id' => 'submodule3', 'label' => 'Endorsement & LTFRB Approval', 'path' => '/module2/submodule3', 'anyPermissions' => ['module2.endorse','module2.approve','module2.history']],
-      ['id' => 'submodule4', 'label' => 'Operator Document Validation', 'path' => '/module2/submodule4', 'anyPermissions' => ['module1.write','module2.endorse','module2.approve','module2.apply']],
+      ['id' => 'submodule4', 'label' => 'Operator Document Validation', 'path' => '/puv-database/operator-document-validation', 'anyPermissions' => ['module1.write','module2.endorse','module2.approve','module2.apply']],
       ['id' => 'submodule5', 'label' => 'Route Assignment', 'path' => '/module2/submodule5', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history']],
     ],
   ],
   [
     'id' => 'module3',
-    'label' => 'Traffic Violation & Ticketing',
+    'label' => 'Violation & Ticketing Management',
     'icon' => 'ticket',
     'subItems' => [
-      ['id' => 'submodule1', 'label' => 'Issue Ticket', 'path' => '/module3/submodule1', 'anyPermissions' => ['module3.issue','module3.read']],
-      ['id' => 'submodule2', 'label' => 'Treasury Payment', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.settle']],
-      ['id' => 'submodule3', 'label' => 'Analytics & Reports', 'path' => '/module3/submodule3', 'anyPermissions' => ['module3.analytics']],
+      ['id' => 'submodule1', 'label' => 'Violation Recording', 'path' => '/module3/submodule1', 'anyPermissions' => ['module3.issue','module3.read']],
+      ['id' => 'submodule2', 'label' => 'Ticket Tracking', 'path' => '/module3/submodule2', 'anyPermissions' => ['module3.issue','module3.read']],
+      ['id' => 'submodule3', 'label' => 'Reports & Monitoring', 'path' => '/module3/submodule3', 'anyPermissions' => ['module3.analytics']],
     ],
   ],
   [

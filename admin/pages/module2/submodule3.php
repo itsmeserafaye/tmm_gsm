@@ -246,6 +246,53 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 </div>
 
+<div id="modalFinalizeApproval" class="fixed inset-0 z-[200] hidden">
+  <div id="modalFinalizeApprovalBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalFinalizeApprovalPanel" class="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white">Finalize Approval</div>
+        <button type="button" id="modalFinalizeApprovalClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+        <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Submitted (Reference)</div>
+          <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <div>
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Requested Units</div>
+              <div id="finalRefUnits" class="mt-1 font-black">-</div>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Requested Route</div>
+              <div id="finalRefRoute" class="mt-1 font-black">-</div>
+            </div>
+          </div>
+        </div>
+
+        <form id="formFinalizeApproval" class="space-y-4" novalidate>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Approved Units</label>
+              <input id="finalApprovedUnits" name="approved_vehicle_count" type="number" min="1" max="500" step="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Assigned Routes</label>
+              <div id="finalRoutesBox" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto text-sm font-semibold"></div>
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Select the final assigned routes for this authority.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button type="button" id="btnFinalizeCancel" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+            <button id="btnFinalizeConfirm" class="px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Confirm & Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
@@ -441,6 +488,7 @@ if ($rootUrl === '/') $rootUrl = '';
       document.getElementById('routeMeta').textContent = 'Route status: ' + (a.route_status || '-');
       document.getElementById('vehCount').textContent = String(Number(a.vehicle_count || 0));
       document.getElementById('appStatus').textContent = currentStatus || '-';
+      window.__currentRouteId = Number(a.route_id || 0) || 0;
       if (formApprove) {
         const typeEl = formApprove.querySelector('select[name="authority_type"]');
         const ltfrbEl = formApprove.querySelector('input[name="ltfrb_ref_no"]');
@@ -563,61 +611,175 @@ if ($rootUrl === '/') $rootUrl = '';
       if (typeEl) typeEl.addEventListener('change', recomputeExpiry);
       if (issueEl) issueEl.addEventListener('change', recomputeExpiry);
       recomputeExpiry();
+      const modalFinalize = document.getElementById('modalFinalizeApproval');
+      const modalFinalizeBackdrop = document.getElementById('modalFinalizeApprovalBackdrop');
+      const modalFinalizePanel = document.getElementById('modalFinalizeApprovalPanel');
+      const modalFinalizeClose = document.getElementById('modalFinalizeApprovalClose');
+      const btnFinalizeCancel = document.getElementById('btnFinalizeCancel');
+      const btnFinalizeConfirm = document.getElementById('btnFinalizeConfirm');
+      const finalRefUnits = document.getElementById('finalRefUnits');
+      const finalRefRoute = document.getElementById('finalRefRoute');
+      const finalApprovedUnits = document.getElementById('finalApprovedUnits');
+      const finalRoutesBox = document.getElementById('finalRoutesBox');
+      const formFinalize = document.getElementById('formFinalizeApproval');
+
+      let cachedRoutes = null;
+      let pendingApprovalEntries = null;
+
+      function openFinalizeModal() {
+        if (!modalFinalize || !modalFinalizeBackdrop || !modalFinalizePanel) return;
+        modalFinalize.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          modalFinalizeBackdrop.classList.remove('opacity-0');
+          modalFinalizePanel.classList.remove('scale-95', 'opacity-0');
+        });
+        if (window.lucide) window.lucide.createIcons();
+      }
+      function closeFinalizeModal() {
+        if (!modalFinalize || !modalFinalizeBackdrop || !modalFinalizePanel) return;
+        modalFinalizePanel.classList.add('scale-95', 'opacity-0');
+        modalFinalizeBackdrop.classList.add('opacity-0');
+        setTimeout(() => {
+          modalFinalize.classList.add('hidden');
+        }, 200);
+      }
+      if (modalFinalizeBackdrop) modalFinalizeBackdrop.addEventListener('click', closeFinalizeModal);
+      if (modalFinalizeClose) modalFinalizeClose.addEventListener('click', closeFinalizeModal);
+      if (btnFinalizeCancel) btnFinalizeCancel.addEventListener('click', closeFinalizeModal);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalFinalize && !modalFinalize.classList.contains('hidden')) closeFinalizeModal(); });
+
+      async function loadRoutes() {
+        if (cachedRoutes) return cachedRoutes;
+        const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error('routes_load_failed');
+        cachedRoutes = Array.isArray(data.data) ? data.data : [];
+        return cachedRoutes;
+      }
+      function renderRoutesList(selectedIds) {
+        if (!finalRoutesBox) return;
+        const rows = Array.isArray(cachedRoutes) ? cachedRoutes : [];
+        if (!rows.length) {
+          finalRoutesBox.innerHTML = `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</div>`;
+          return;
+        }
+        const sel = new Set((selectedIds || []).map((x) => Number(x)));
+        finalRoutesBox.innerHTML = rows.map((r) => {
+          const id = Number(r.id || r.route_id || 0);
+          const code = (r.route_code || r.route_id || '').toString();
+          const name = (r.route_name || '').toString();
+          const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
+          const label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
+          const checked = sel.has(id) ? 'checked' : '';
+          return `<label class="flex items-start gap-3 p-2 rounded-lg hover:bg-white/60 dark:hover:bg-slate-900/30 cursor-pointer">
+                    <input type="checkbox" class="mt-1 w-4 h-4" value="${id}" ${checked}>
+                    <span>${escapeHtml(label)}</span>
+                  </label>`;
+        }).join('');
+      }
+
+      async function openFinalizeForCurrentApp() {
+        if (!currentAppId) return;
+        const reqUnits = (document.getElementById('vehCount')?.textContent || '').toString().trim() || '-';
+        const reqRoute = (document.getElementById('routeLabel')?.textContent || '').toString().trim() || '-';
+        if (finalRefUnits) finalRefUnits.textContent = reqUnits;
+        if (finalRefRoute) finalRefRoute.textContent = reqRoute;
+        const defaultUnits = Number(reqUnits.replace(/\D+/g, '')) || 1;
+        if (finalApprovedUnits) finalApprovedUnits.value = String(defaultUnits);
+        try {
+          await loadRoutes();
+          const curRouteId = Number((window.__currentRouteId || 0)) || 0;
+          renderRoutesList(curRouteId > 0 ? [curRouteId] : []);
+        } catch (_) {
+          if (finalRoutesBox) finalRoutesBox.innerHTML = `<div class="text-sm text-rose-600 font-semibold">Failed to load routes.</div>`;
+        }
+        openFinalizeModal();
+      }
+
+      async function postApproval(finalUnits, finalRouteIdsCsv) {
+        const fd = new FormData();
+        (pendingApprovalEntries || []).forEach(([k, v]) => fd.append(k, v));
+        fd.append('approved_vehicle_count', String(finalUnits));
+        fd.append('approved_route_ids', String(finalRouteIdsCsv));
+        const res = await fetch(rootUrl + '/admin/api/module2/approve_application.php', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) {
+          const code = (data && data.error) ? String(data.error) : 'approve_failed';
+          const msg = (function () {
+            if (code === 'invalid_assigned_routes') return 'Invalid assigned routes.';
+            if (code === 'orcr_required_for_approval') {
+              const need = Number(data.need || 0) || 0;
+              const have = Number(data.have || 0) || 0;
+              const plates = Array.isArray(data.missing_plates) ? data.missing_plates.filter(Boolean) : [];
+              const plateText = plates.length ? (' Missing OR/CR (not verified): ' + plates.slice(0, 8).join(', ') + (plates.length > 8 ? '…' : '')) : '';
+              return `Approval needs ${need} verified OR/CR. Found ${have}.${plateText}`;
+            }
+            if (code === 'vehicles_not_ready') {
+              const need = Number(data.need || 0) || 0;
+              const have = Number(data.have || 0) || 0;
+              const missIns = Array.isArray(data.missing_inspection) ? data.missing_inspection.filter(Boolean) : [];
+              const missDocs = Array.isArray(data.missing_docs) ? data.missing_docs.filter(Boolean) : [];
+              const parts = [];
+              if (missIns.length) parts.push('Missing inspection: ' + missIns.slice(0, 6).join(', ') + (missIns.length > 6 ? '…' : ''));
+              if (missDocs.length) parts.push('Missing OR/CR/insurance: ' + missDocs.slice(0, 6).join(', ') + (missDocs.length > 6 ? '…' : ''));
+              return `Approval needs ${need} vehicles ready (linked, inspected, registered, insured). Found ${have}.` + (parts.length ? (' ' + parts.join(' • ')) : '');
+            }
+            if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
+            if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
+            if (code === 'invalid_status') return 'Application status is not eligible for approval.';
+            if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
+            if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
+            if (code === 'invalid_authority_type') return 'Authority Type must be PA or CPC.';
+            if (code === 'invalid_issue_date') return 'Invalid issue date.';
+            if (code === 'invalid_expiry_date') return 'Invalid expiry date.';
+            return (data && data.message) ? String(data.message) : code;
+          })();
+          throw new Error(msg);
+        }
+        return data;
+      }
+
       formApprove.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentAppId) return;
         if (!(['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued'].includes(currentStatus))) { showToast('Endorse the application first.', 'error'); return; }
         if (!formApprove.checkValidity()) { formApprove.reportValidity(); return; }
-        btnApprove.disabled = true;
-        btnApprove.textContent = 'Saving...';
-        try {
-          const fd = new FormData(formApprove);
-          fd.append('application_id', String(currentAppId));
-          const res = await fetch(rootUrl + '/admin/api/module2/approve_application.php', { method: 'POST', body: fd });
-          const data = await res.json().catch(() => null);
-          if (!data || !data.ok) {
-            const code = (data && data.error) ? String(data.error) : 'approve_failed';
-            const msg = (function(){
-              if (code === 'orcr_required_for_approval') {
-                const need = Number(data.need || 0) || 0;
-                const have = Number(data.have || 0) || 0;
-                const plates = Array.isArray(data.missing_plates) ? data.missing_plates.filter(Boolean) : [];
-                const plateText = plates.length ? (' Missing OR/CR (not verified): ' + plates.slice(0, 8).join(', ') + (plates.length > 8 ? '…' : '')) : '';
-                return `Approval needs ${need} verified OR/CR. Found ${have}.${plateText}`;
-              }
-              if (code === 'vehicles_not_ready') {
-                const need = Number(data.need || 0) || 0;
-                const have = Number(data.have || 0) || 0;
-                const missIns = Array.isArray(data.missing_inspection) ? data.missing_inspection.filter(Boolean) : [];
-                const missDocs = Array.isArray(data.missing_docs) ? data.missing_docs.filter(Boolean) : [];
-                const parts = [];
-                if (missIns.length) parts.push('Missing inspection: ' + missIns.slice(0, 6).join(', ') + (missIns.length > 6 ? '…' : ''));
-                if (missDocs.length) parts.push('Missing OR/CR/insurance: ' + missDocs.slice(0, 6).join(', ') + (missDocs.length > 6 ? '…' : ''));
-                return `Approval needs ${need} vehicles ready (linked, inspected, registered, insured). Found ${have}.` + (parts.length ? (' ' + parts.join(' • ')) : '');
-              }
-              if (code === 'no_linked_vehicles') return 'Operator has no linked vehicles. Link vehicles first.';
-              if (code === 'duplicate_ltfrb_ref_no') return 'LTFRB Ref No already exists.';
-              if (code === 'invalid_status') return 'Application status is not eligible for approval.';
-              if (code === 'invalid_ltfrb_ref_no') return 'Invalid LTFRB Ref No format.';
-              if (code === 'invalid_decision_order_no') return 'Decision Order No must be numeric.';
-              if (code === 'invalid_authority_type') return 'Authority Type must be PA or CPC.';
-              if (code === 'invalid_issue_date') return 'Invalid issue date.';
-              if (code === 'invalid_expiry_date') return 'Invalid expiry date.';
-              return (data && data.message) ? String(data.message) : code;
-            })();
-            showToast(msg, 'error');
-            return;
-          }
-          showToast('Application approved.');
-          const a = await loadApp(currentAppId);
-          render(a);
-        } catch (err) {
-          showToast('Failed to save approval.', 'error');
-        } finally {
-          btnApprove.textContent = 'Save Approval';
-          setEnabled();
-        }
+        pendingApprovalEntries = Array.from(new FormData(formApprove).entries());
+        pendingApprovalEntries.push(['application_id', String(currentAppId)]);
+        openFinalizeForCurrentApp();
       });
+
+      if (btnFinalizeConfirm && formFinalize) {
+        formFinalize.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!pendingApprovalEntries || !pendingApprovalEntries.length) return;
+          const units = Number(finalApprovedUnits ? finalApprovedUnits.value : 0) || 0;
+          if (units <= 0) { showToast('Approved units must be at least 1.', 'error'); return; }
+          const routeIds = [];
+          if (finalRoutesBox) {
+            finalRoutesBox.querySelectorAll('input[type="checkbox"]').forEach((cb) => { if (cb.checked) routeIds.push(Number(cb.value || 0)); });
+          }
+          const idsClean = routeIds.filter((x) => x > 0);
+          if (!idsClean.length) { showToast('Select at least one assigned route.', 'error'); return; }
+          const csv = Array.from(new Set(idsClean)).join(',');
+          btnFinalizeConfirm.disabled = true;
+          btnFinalizeConfirm.textContent = 'Saving...';
+          try {
+            await postApproval(units, csv);
+            closeFinalizeModal();
+            showToast('Application approved.');
+            const a = await loadApp(currentAppId);
+            render(a);
+          } catch (err) {
+            showToast((err && err.message) ? err.message : 'Failed to save approval.', 'error');
+          } finally {
+            btnFinalizeConfirm.disabled = false;
+            btnFinalizeConfirm.textContent = 'Confirm & Save';
+            btnApprove.textContent = 'Save Approval';
+            setEnabled();
+          }
+        });
+      }
     }
 
     if (<?php echo json_encode($prefillApp > 0); ?>) {

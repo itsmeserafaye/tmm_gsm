@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/franchise_gate.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -19,6 +20,24 @@ $authorityTypeRaw = strtoupper(trim((string)($_POST['authority_type'] ?? '')));
 $issueDate = trim((string)($_POST['issue_date'] ?? ''));
 $expiryDate = trim((string)($_POST['expiry_date'] ?? ''));
 $remarks = trim((string)($_POST['remarks'] ?? ''));
+$approvedVehicleCount = (int)($_POST['approved_vehicle_count'] ?? 0);
+$approvedRouteIdsRaw = trim((string)($_POST['approved_route_ids'] ?? ''));
+
+$parseIds = function (string $raw): array {
+  $raw = trim($raw);
+  if ($raw === '') return [];
+  $raw = preg_replace('/[^0-9,]/', '', $raw);
+  $parts = array_values(array_filter(array_map('trim', explode(',', $raw)), fn($x) => $x !== ''));
+  $ids = [];
+  foreach ($parts as $p) {
+    $n = (int)$p;
+    if ($n > 0) $ids[] = $n;
+  }
+  $ids = array_values(array_unique($ids));
+  return array_slice($ids, 0, 20);
+};
+
+$approvedRouteIds = $parseIds($approvedRouteIdsRaw);
 
 if ($appId <= 0 || $ltfrbRefNo === '' || $decisionOrderNo === '' || $authorityTypeRaw === '' || $issueDate === '') {
   echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
@@ -79,13 +98,42 @@ try {
   $routeDbId = (int)($app['route_id'] ?? 0);
   $need = (int)($app['vehicle_count'] ?? 0);
   if ($need <= 0) $need = 1;
+  $approvedNeed = $approvedVehicleCount > 0 ? $approvedVehicleCount : $need;
+  if ($approvedNeed <= 0) $approvedNeed = 1;
+  if ($approvedNeed > 500) $approvedNeed = 500;
+
+  $primaryRouteId = $routeDbId;
+  if ($approvedRouteIds) $primaryRouteId = (int)$approvedRouteIds[0];
+  if ($primaryRouteId <= 0) $primaryRouteId = $routeDbId;
   if ($operatorId <= 0) {
     $db->rollback();
     echo json_encode(['ok' => false, 'error' => 'missing_operator_id']);
     exit;
   }
 
-  $gate = tmm_can_endorse_application($db, $operatorId, $routeDbId, $need, $appId);
+  if ($approvedRouteIds) {
+    $in = implode(',', array_fill(0, count($approvedRouteIds), '?'));
+    $types = str_repeat('i', count($approvedRouteIds));
+    $sqlChk = "SELECT id FROM routes WHERE status='Active' AND id IN ($in)";
+    $stmtChk = $db->prepare($sqlChk);
+    if (!$stmtChk) throw new Exception('db_prepare_failed');
+    $stmtChk->bind_param($types, ...$approvedRouteIds);
+    $stmtChk->execute();
+    $resChk = $stmtChk->get_result();
+    $found = [];
+    while ($resChk && ($r = $resChk->fetch_assoc())) $found[] = (int)($r['id'] ?? 0);
+    $stmtChk->close();
+    sort($found);
+    $wanted = $approvedRouteIds;
+    sort($wanted);
+    if ($found !== $wanted) {
+      $db->rollback();
+      echo json_encode(['ok' => false, 'error' => 'invalid_assigned_routes']);
+      exit;
+    }
+  }
+
+  $gate = tmm_can_endorse_application($db, $operatorId, $primaryRouteId, $approvedNeed, $appId);
   if (!$gate['ok']) {
     $db->rollback();
     echo json_encode($gate);
@@ -161,9 +209,9 @@ try {
     echo json_encode(['ok' => false, 'error' => 'no_linked_vehicles']);
     exit;
   }
-  if ($okCount < $need) {
+  if ($okCount < $approvedNeed) {
     $db->rollback();
-    echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $need, 'have' => $okCount, 'missing_plates' => array_slice($missing, 0, 25)]);
+    echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $approvedNeed, 'have' => $okCount, 'missing_plates' => array_slice($missing, 0, 25)]);
     exit;
   }
 
@@ -217,12 +265,12 @@ try {
     }
     $stmtReady->close();
   }
-  if ($readyCount < $need) {
+  if ($readyCount < $approvedNeed) {
     $db->rollback();
     echo json_encode([
       'ok' => false,
       'error' => 'vehicles_not_ready',
-      'need' => $need,
+      'need' => $approvedNeed,
       'have' => $readyCount,
       'missing_inspection' => array_slice(array_values(array_unique($missingInspection)), 0, 25),
       'missing_docs' => array_slice(array_values(array_unique($missingDocs)), 0, 25),
@@ -258,14 +306,24 @@ try {
   $stmtF->close();
 
   $nextStatus = $authorityTypeRaw === 'PA' ? 'PA Issued' : 'CPC Issued';
+  $routeIdsCsv = $approvedRouteIds ? implode(',', $approvedRouteIds) : (string)$routeDbId;
+  $approvedByUserId = (int)($_SESSION['user_id'] ?? 0);
+  $approvedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+  if ($approvedByName === '') $approvedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+  if ($approvedByName === '') $approvedByName = 'Admin';
   $stmtU = $db->prepare("UPDATE franchise_applications
                           SET status=?,
                               approved_at=NOW(),
+                              approved_by_user_id=?,
+                              approved_by_name=?,
                               franchise_ref_number=?,
+                              approved_vehicle_count=?,
+                              approved_route_ids=?,
+                              route_ids=?,
                               remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
                           WHERE application_id=?");
   if (!$stmtU) throw new Exception('db_prepare_failed');
-  $stmtU->bind_param('ssssi', $nextStatus, $ltfrbRefNo, $remarks, $remarks, $appId);
+  $stmtU->bind_param('sississsssi', $nextStatus, $approvedByUserId, $approvedByName, $ltfrbRefNo, $approvedNeed, $routeIdsCsv, $routeIdsCsv, $remarks, $remarks, $appId);
   $stmtU->execute();
   $stmtU->close();
 
@@ -291,6 +349,7 @@ try {
   }
 
   $db->commit();
+  tmm_audit_event($db, 'FRANCHISE_APPLICATION_APPROVED', 'FranchiseApplication', (string)$appId, ['approved_vehicle_count' => $approvedNeed, 'approved_route_ids' => $routeIdsCsv, 'authority_type' => $authorityTypeRaw]);
   echo json_encode(['ok' => true, 'message' => 'Application approved', 'application_id' => $appId, 'ltfrb_ref_no' => $ltfrbRefNo]);
 } catch (Throwable $e) {
   $db->rollback();

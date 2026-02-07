@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/franchise_gate.php';
+require_once __DIR__ . '/../../includes/util.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -166,17 +167,24 @@ try {
     $stmtIns->close();
 
     $nextAppStatus = $endorsementStatus === 'Rejected' ? 'Rejected' : 'LGU-Endorsed';
+    $endorsedByUserId = (int)($_SESSION['user_id'] ?? 0);
+    $endorsedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+    if ($endorsedByName === '') $endorsedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+    if ($endorsedByName === '') $endorsedByName = 'Admin';
     $stmtU = $db->prepare("UPDATE franchise_applications
                            SET status=?,
                                endorsed_at=NOW(),
+                               endorsed_by_user_id=?,
+                               endorsed_by_name=?,
                                remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
                            WHERE application_id=?");
     if (!$stmtU) throw new Exception('db_prepare_failed');
-    $stmtU->bind_param('sssi', $nextAppStatus, $notes, $notes, $app_id);
+    $stmtU->bind_param('sisssi', $nextAppStatus, $endorsedByUserId, $endorsedByName, $notes, $notes, $app_id);
     $stmtU->execute();
     $stmtU->close();
 
     $db->commit();
+    tmm_audit_event($db, 'FRANCHISE_APPLICATION_ENDORSED', 'FranchiseApplication', (string)$app_id, ['endorsement_status' => $endorsementStatus, 'permit_number' => $permit_no]);
     echo json_encode(['ok' => true, 'message' => 'Endorsement saved', 'permit_number' => $permit_no, 'endorsement_status' => $endorsementStatus]);
 } catch (Throwable $e) {
     $db->rollback();

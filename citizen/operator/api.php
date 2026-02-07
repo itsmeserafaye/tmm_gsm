@@ -1324,6 +1324,142 @@ if ($action === 'puv_create_transfer_request') {
   }
 }
 
+if ($action === 'puv_list_routes') {
+  op_require_approved($db, $userId);
+  $rows = [];
+  $res = $db->query("SELECT id, route_id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name, origin, destination, status
+                     FROM routes
+                     WHERE status='Active'
+                     ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
+                     LIMIT 800");
+  if ($res) {
+    while ($r = $res->fetch_assoc()) {
+      $id = (int)($r['id'] ?? 0);
+      if ($id <= 0) continue;
+      $rows[] = [
+        'route_id' => $id,
+        'route_code' => (string)($r['route_code'] ?? ''),
+        'route_name' => (string)($r['route_name'] ?? ''),
+        'origin' => (string)($r['origin'] ?? ''),
+        'destination' => (string)($r['destination'] ?? ''),
+      ];
+    }
+  }
+  op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'puv_submit_franchise_application') {
+  op_require_csrf();
+  op_require_approved($db, $userId);
+
+  $u = op_get_user_row($db, $userId);
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+
+  $operatorId = (int)($u['puv_operator_id'] ?? 0);
+  if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not approved yet.'], 400);
+
+  $routeId = (int)($_POST['route_id'] ?? 0);
+  $vehicleCount = (int)($_POST['vehicle_count'] ?? 0);
+  $repName = trim((string)($_POST['representative_name'] ?? ''));
+  if ($routeId <= 0 || $vehicleCount <= 0) op_send(false, ['error' => 'Missing required fields.'], 400);
+  if ($vehicleCount > 500) $vehicleCount = 500;
+  $repName = substr($repName, 0, 150);
+
+  $submittedBy = trim((string)($u['full_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = trim((string)($u['association_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = 'Operator';
+  $email = strtolower(trim((string)($u['email'] ?? '')));
+
+  $stmtR = $db->prepare("SELECT id, status FROM routes WHERE id=? LIMIT 1");
+  if (!$stmtR) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmtR->bind_param('i', $routeId);
+  $stmtR->execute();
+  $route = $stmtR->get_result()->fetch_assoc();
+  $stmtR->close();
+  if (!$route) op_send(false, ['error' => 'route_not_found'], 404);
+  if ((string)($route['status'] ?? '') !== 'Active') op_send(false, ['error' => 'route_inactive'], 400);
+
+  $franchiseRef = 'APP-' . date('Ymd') . '-' . substr(uniqid(), -6);
+  $routeIdsVal = (string)$routeId;
+
+  $uploadsDir = __DIR__ . '/../../admin/uploads/franchise/';
+  if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
+
+  $hasUpload = isset($_FILES['declared_fleet_doc']) && is_array($_FILES['declared_fleet_doc']) && (int)($_FILES['declared_fleet_doc']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+
+  $db->begin_transaction();
+  try {
+    $stmt = $db->prepare("INSERT INTO franchise_applications
+                          (franchise_ref_number, operator_id, route_id, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_portal_user_id, submitted_by_name, submitted_channel)
+                          VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, 'operator_portal')");
+    if (!$stmt) throw new Exception('db_prepare_failed');
+    $stmt->bind_param('siisisiss', $franchiseRef, $operatorId, $routeId, $routeIdsVal, $vehicleCount, $repName, $userId, $submittedBy);
+    if (!$stmt->execute()) throw new Exception('insert_failed');
+    $appId = (int)$db->insert_id;
+    $stmt->close();
+
+    if ($hasUpload) {
+      $f = $_FILES['declared_fleet_doc'];
+      $tmp = (string)($f['tmp_name'] ?? '');
+      $orig = (string)($f['name'] ?? '');
+      if ($tmp === '' || $orig === '' || !is_uploaded_file($tmp)) throw new Exception('declared_fleet_invalid_file');
+      $allowedExt = ['pdf','xlsx','xls','csv'];
+      $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+      if ($ext === '' || !in_array($ext, $allowedExt, true)) throw new Exception('declared_fleet_invalid_type');
+      $filename = 'APP' . $appId . '_declared_fleet_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+      $dest = $uploadsDir . $filename;
+      if (!move_uploaded_file($tmp, $dest)) throw new Exception('declared_fleet_upload_failed');
+      $safe = tmm_scan_file_for_viruses($dest);
+      if (!$safe) {
+        if (is_file($dest)) @unlink($dest);
+        throw new Exception('declared_fleet_failed_scan');
+      }
+      $dbPath = 'franchise/' . $filename;
+      $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?)");
+      if (!$ins) { if (is_file($dest)) @unlink($dest); throw new Exception('db_prepare_failed'); }
+      $ins->bind_param('si', $dbPath, $appId);
+      if (!$ins->execute()) { $ins->close(); if (is_file($dest)) @unlink($dest); throw new Exception('db_error'); }
+      $ins->close();
+    } else {
+      $stmtFleet = $db->prepare("SELECT file_path
+                                 FROM operator_documents
+                                 WHERE operator_id=?
+                                   AND doc_type='Others'
+                                   AND (doc_status='Verified' OR is_verified=1)
+                                   AND LOWER(COALESCE(remarks,'')) LIKE '%declared fleet%'
+                                 ORDER BY uploaded_at DESC, doc_id DESC
+                                 LIMIT 1");
+      if ($stmtFleet) {
+        $stmtFleet->bind_param('i', $operatorId);
+        $stmtFleet->execute();
+        $rowFleet = $stmtFleet->get_result()->fetch_assoc();
+        $stmtFleet->close();
+        $fp = $rowFleet ? trim((string)($rowFleet['file_path'] ?? '')) : '';
+        if ($fp !== '') {
+          $hasVerifiedCol = false;
+          $col = $db->query("SHOW COLUMNS FROM documents LIKE 'verified'");
+          if ($col && $col->num_rows > 0) $hasVerifiedCol = true;
+          $ins = $hasVerifiedCol
+            ? $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id, verified) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?, 1)")
+            : $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?)");
+          if ($ins) {
+            $ins->bind_param('si', $fp, $appId);
+            $ins->execute();
+            $ins->close();
+          }
+        }
+      }
+    }
+
+    $db->commit();
+    op_audit_event($db, $userId, $email, 'PUV_FRANCHISE_SUBMITTED', 'FranchiseApplication', (string)$appId, ['route_id' => $routeId, 'vehicle_count' => $vehicleCount]);
+    op_send(true, ['message' => 'Franchise application submitted for admin review.', 'data' => ['application_id' => $appId, 'franchise_ref_number' => $franchiseRef]]);
+  } catch (Throwable $e) {
+    $db->rollback();
+    op_send(false, ['error' => 'Submission failed.'], 500);
+  }
+}
+
 if ($action === 'puv_ocr_scan_cr') {
   op_require_csrf();
   op_require_approved($db, $userId);

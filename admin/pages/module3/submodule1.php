@@ -1,675 +1,275 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module3.issue','module3.read']);
+require_any_permission(['module3.issue','module3.read','module3.analytics']);
 
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
-$unpaid = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Unpaid'")->fetch_assoc()['c'] ?? 0);
-$settled = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Settled'")->fetch_assoc()['c'] ?? 0);
-$escalated = (int)($db->query("SELECT COUNT(*) AS c FROM tickets WHERE status='Escalated'")->fetch_assoc()['c'] ?? 0);
-$finesToday = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status='Settled' AND DATE(date_issued)=CURDATE()")->fetch_assoc()['total'] ?? 0);
-$finesThisMonth = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status='Settled' AND YEAR(date_issued)=YEAR(CURDATE()) AND MONTH(date_issued)=MONTH(CURDATE())")->fetch_assoc()['total'] ?? 0);
-$outstandingFines = (float)($db->query("SELECT COALESCE(SUM(fine_amount),0) AS total FROM tickets WHERE status<>'Settled'")->fetch_assoc()['total'] ?? 0);
-
-$tickets = [];
-$res = $db->query("SELECT ticket_number, external_ticket_number, ticket_source, violation_code, vehicle_plate, issued_by, status, date_issued FROM tickets ORDER BY date_issued DESC LIMIT 20");
-if ($res) {
-  while ($row = $res->fetch_assoc()) {
-    $tickets[] = $row;
-  }
-}
+$pending = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_status='Pending'")->fetch_assoc()['c'] ?? 0);
+$verified = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_status='Verified'")->fetch_assoc()['c'] ?? 0);
+$closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_status='Closed'")->fetch_assoc()['c'] ?? 0);
 ?>
+
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Issue Ticket</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Enter the plate number (auto-fetch vehicle/operator), capture driver name, violation type, location, and upload evidence.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Violation Recording</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Record observed violations with evidence, then verify or close for LGU monitoring.</p>
     </div>
   </div>
 
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-amber-400 transition-colors">
-      <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Unpaid Tickets</div>
-        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
-      </div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($unpaid); ?></div>
-      <div class="mt-1 text-xs text-slate-500">Awaiting settlement</div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending</div>
+      <div class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"><?php echo number_format($pending); ?></div>
     </div>
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-emerald-400 transition-colors">
-      <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Settled Tickets</div>
-        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
-      </div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($settled); ?></div>
-      <div class="mt-1 text-xs text-slate-500">Paid and closed</div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Verified</div>
+      <div class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo number_format($verified); ?></div>
     </div>
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-rose-400 transition-colors">
-      <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Escalated Cases</div>
-        <i data-lucide="trending-up" class="w-4 h-4 text-rose-600 dark:text-rose-400"></i>
-      </div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($escalated); ?></div>
-      <div class="mt-1 text-xs text-slate-500">Action required</div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Closed</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($closed); ?></div>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Collected Today</div>
-      <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">₱<?php echo number_format($finesToday, 2); ?></div>
-      <div class="text-xs text-slate-500 mt-1">Settled tickets issued today</div>
-    </div>
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Collected This Month</div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white">₱<?php echo number_format($finesThisMonth, 2); ?></div>
-      <div class="text-xs text-slate-500 mt-1">All settled tickets this month</div>
-    </div>
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Outstanding Fines</div>
-      <div class="text-2xl font-bold text-rose-600 dark:text-rose-400">₱<?php echo number_format($outstandingFines, 2); ?></div>
-      <div class="text-xs text-slate-500 mt-1">Tickets not yet settled</div>
-    </div>
-  </div>
-
-  <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
-  <!-- Create Ticket Form -->
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-visible">
-    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center gap-3">
-      <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-        <i data-lucide="file-warning" class="w-5 h-5"></i>
-      </div>
-      <div>
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">Issue New Ticket</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Log a new traffic violation or incident</p>
-      </div>
+  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <div class="text-base font-black text-slate-900 dark:text-white">Record Violation</div>
+      <div class="text-sm text-slate-500 dark:text-slate-400">Creates a violation record with workflow status.</div>
     </div>
-    
     <div class="p-6">
-      <form id="create-ticket-form" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
-        <!-- Violation & Vehicle Info -->
+      <form id="formCreateViolation" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
         <div class="md:col-span-4 space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issuance Mode</label>
-            <div class="relative">
-              <select id="ticket-source" name="ticket_source" class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
-                <option value="LOCAL_STS_COMPAT">Local STS-Compliant Ticket (TMM)</option>
-                <option value="STS_PAPER">Paper STS Ticket (Manual Entry)</option>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-            <div class="mt-1 text-[11px] text-slate-500">Use “Paper STS Ticket” if the enforcer issued an official STS ticket manually; TMM will store it as a reference.</div>
-          </div>
-
-          <div id="external-ticket-wrap" class="hidden">
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">STS Ticket Number</label>
-            <input id="external-ticket-number" name="external_ticket_number" minlength="3" maxlength="64" pattern="^(?:[0-9A-Za-z/]|-){3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., STS-2026-000123">
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
+            <input name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Type</label>
-            <div class="relative">
-              <select id="violation-select" name="violation_type" required class="w-full pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none text-sm font-semibold text-slate-900 dark:text-white">
-                <option value="">Select Violation</option>
-              </select>
-              <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-            </div>
-            <div id="violation-fine-preview" class="mt-1 text-xs font-bold text-rose-600 h-4"></div>
-            <div id="violation-sts-preview" class="mt-0.5 text-[11px] text-slate-500 h-4"></div>
+            <select id="violationTypeSelect" name="violation_type" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold"></select>
+            <div id="violationFinePreview" class="mt-1 text-xs font-bold text-rose-600"></div>
           </div>
-          
-          <div class="relative">
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Vehicle Plate</label>
-            <button type="button" id="plateDropdownBtn"
-              class="w-full flex items-center justify-between gap-3 px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
-              <span id="plateDropdownBtnText" class="truncate text-slate-500 dark:text-slate-400">Select plate</span>
-              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-            </button>
-            <div id="plateDropdownPanel"
-              class="hidden absolute left-0 right-0 mt-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl z-[120] overflow-hidden">
-              <div class="p-3 border-b border-slate-200 dark:border-slate-700">
-                <input id="plateDropdownSearch" type="text" autocomplete="off"
-                  class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase placeholder:normal-case"
-                  placeholder="Search plate… (type to filter)">
-              </div>
-              <div id="plateDropdownList" class="max-h-[60vh] overflow-auto"></div>
-            </div>
-            <input id="ticket-plate-input" type="hidden" name="plate_no" value="">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Driver Name</label>
-            <input id="ticket-driver-input" name="driver_name" maxlength="120" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Juan Dela Cruz">
-          </div>
-        </div>
-
-        <!-- Location & Time -->
-        <div class="md:col-span-4 space-y-4">
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Location</label>
-            <div class="relative">
-              <i data-lucide="map-pin" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-              <input name="location" required maxlength="180" class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Main St. corner 2nd Ave, Barangay, City">
-            </div>
+            <input name="location" maxlength="255" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Street / route / area">
           </div>
-          
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date & Time</label>
-            <input id="issued-at" type="datetime-local" name="issued_at" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issuing Officer (Opt)</label>
-            <input name="officer_name" maxlength="120" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., Officer Admin">
+            <input name="violation_date" type="datetime-local" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
           </div>
         </div>
 
-        <!-- Evidence & Notes -->
-        <div class="md:col-span-4 space-y-4">
+        <div class="md:col-span-5 space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Evidence (Photo/Video)</label>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex flex-col items-center justify-center h-24 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-rose-50 hover:border-rose-300 transition-all">
-                  <i data-lucide="camera" class="w-6 h-6 text-slate-400 mb-1"></i>
-                  <span class="text-[10px] text-slate-500">Photo</span>
-                  <input type="file" name="photo" accept="image/*" class="hidden" onchange="this.previousElementSibling.previousElementSibling.classList.add('text-rose-500')">
-              </label>
-              <label class="flex flex-col items-center justify-center h-24 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-rose-50 hover:border-rose-300 transition-all">
-                  <i data-lucide="video" class="w-6 h-6 text-slate-400 mb-1"></i>
-                  <span class="text-[10px] text-slate-500">Video</span>
-                  <input type="file" name="video" accept="video/*" class="hidden" onchange="this.previousElementSibling.previousElementSibling.classList.add('text-rose-500')">
-              </label>
-            </div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Remarks</label>
+            <textarea name="remarks" rows="6" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Optional notes by LGU officer"></textarea>
           </div>
-          
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Notes</label>
-            <textarea name="notes" rows="2" maxlength="300" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none text-sm font-semibold text-slate-900 dark:text-white" placeholder="e.g., No helmet; obstructing traffic; with passenger."></textarea>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Evidence (optional)</label>
+            <input name="evidence" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">
           </div>
         </div>
 
-        <div class="md:col-span-12 pt-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end">
-          <button type="submit" id="btnSubmitTicket" class="px-6 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all active:scale-[0.98] flex items-center gap-2 text-sm">
-            <span>Generate Ticket</span>
-            <i data-lucide="arrow-right" class="w-4 h-4"></i>
-          </button>
+        <div class="md:col-span-3 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
+            <select name="workflow_status" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+              <option value="Pending">Pending</option>
+              <option value="Verified">Verified</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <button id="btnCreateViolation" class="w-full py-3 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-black">Save</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Recent Tickets Table -->
   <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-          <i data-lucide="history" class="w-5 h-5"></i>
-        </div>
-        <h3 class="font-bold text-slate-900 dark:text-white text-sm">Recent Violations</h3>
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <div class="text-base font-black text-slate-900 dark:text-white">Recent Violations</div>
+        <div class="text-sm text-slate-500 dark:text-slate-400">Monitor and update workflow status.</div>
+      </div>
+      <div class="flex gap-2">
+        <select id="filterWorkflow" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          <option value="">All</option>
+          <option value="Pending">Pending</option>
+          <option value="Verified">Verified</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <input id="filterQ" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/type/location…">
+        <button id="btnReload" class="px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
       </div>
     </div>
-    
-    <?php if (has_permission('reports.export')): ?>
-      <?php tmm_render_export_toolbar([
-        [
-          'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php',
-          'label' => 'CSV',
-          'icon' => 'download',
-          'target' => '_blank'
-        ],
-        [
-          'href' => ($rootUrl ?? '') . '/admin/api/tickets/export_csv.php?format=excel',
-          'label' => 'Excel',
-          'icon' => 'file-spreadsheet',
-          'target' => '_blank'
-        ]
-      ]); ?>
-    <?php endif; ?>
-
     <div class="overflow-x-auto">
-      <table class="min-w-full text-sm text-left">
-        <thead class="bg-slate-50 dark:bg-slate-700/30 text-slate-500 dark:text-slate-200 font-medium border-b border-slate-200 dark:border-slate-700">
-          <tr>
-            <th class="py-3 px-6">Ticket #</th>
-            <th class="py-3 px-4">Violation</th>
-            <th class="py-3 px-4">Plate Number</th>
-            <th class="py-3 px-4">Issued By</th>
-            <th class="py-3 px-4">Status</th>
-            <th class="py-3 px-4 text-right">Actions</th>
+      <table class="min-w-full text-sm">
+        <thead class="bg-white dark:bg-slate-800">
+          <tr class="text-left text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+            <th class="px-5 py-3">Date</th>
+            <th class="px-5 py-3">Plate</th>
+            <th class="px-5 py-3">Operator</th>
+            <th class="px-5 py-3">Type</th>
+            <th class="px-5 py-3">Location</th>
+            <th class="px-5 py-3">Status</th>
+            <th class="px-5 py-3">Action</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-          <?php if (empty($tickets)): ?>
-            <tr>
-              <td colspan="6" class="py-8 text-center text-slate-400">
-                <div class="flex flex-col items-center gap-2">
-                  <i data-lucide="check-circle-2" class="w-8 h-8 stroke-1 text-emerald-500"></i>
-                  <span>No tickets logged recently.</span>
-                </div>
-              </td>
-            </tr>
-          <?php else: ?>
-            <?php foreach ($tickets as $t): ?>
-              <?php
-                $status = $t['status'] ?? 'Pending';
-                $badgeClass = 'bg-slate-100 text-slate-600 border border-slate-200';
-                if ($status === 'Validated') $badgeClass = 'bg-blue-50 text-blue-700 border border-blue-100';
-                elseif ($status === 'Settled') $badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-                elseif ($status === 'Escalated') $badgeClass = 'bg-rose-50 text-rose-700 border border-rose-100';
-                elseif ($status === 'Pending') $badgeClass = 'bg-amber-50 text-amber-700 border border-amber-100';
-              ?>
-              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                <td class="py-3 px-6 font-semibold text-slate-900 dark:text-white">
-                  <div><?php echo htmlspecialchars($t['ticket_number']); ?></div>
-                  <?php if (!empty($t['external_ticket_number'])): ?>
-                    <div class="text-[10px] text-slate-500 font-semibold">STS Ref: <?php echo htmlspecialchars($t['external_ticket_number']); ?></div>
-                  <?php endif; ?>
-                </td>
-                <td class="py-3 px-4 text-slate-600 dark:text-slate-300"><?php echo htmlspecialchars($t['violation_code']); ?></td>
-                <td class="py-3 px-4">
-                  <span class="font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600">
-                    <?php echo htmlspecialchars($t['vehicle_plate']); ?>
-                  </span>
-                </td>
-                <td class="py-3 px-4 text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($t['issued_by'] ?: '—'); ?></td>
-                <td class="py-3 px-4">
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium <?php echo $badgeClass; ?>">
-                    <?php echo htmlspecialchars($status); ?>
-                  </span>
-                </td>
-                <td class="py-3 px-4 text-right">
-                  <div class="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <button onclick="TMMViewEvidence && TMMViewEvidence.open('<?php echo htmlspecialchars($t['ticket_number']); ?>')" class="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="View Evidence">
-                      <i data-lucide="eye" class="w-4 h-4"></i>
-                    </button>
-                    <button onclick="TMMUploadEvidence && TMMUploadEvidence.open('<?php echo htmlspecialchars($t['ticket_number']); ?>')" class="p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors" title="Upload Evidence">
-                      <i data-lucide="upload" class="w-4 h-4"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
+        <tbody id="violationsTbody" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
       </table>
     </div>
   </div>
 </div>
 
 <script>
-(function() {
-  if (window.lucide) window.lucide.createIcons();
+  (function(){
+    const rootUrl = <?php echo json_encode((string)$rootUrl); ?>;
 
-  function showToast(msg, type = 'success') {
-    const container = document.getElementById('toast-container');
-    if(!container) return;
-    const toast = document.createElement('div');
-    const colors = type === 'success' ? 'bg-emerald-500' : (type === 'error' ? 'bg-rose-500' : 'bg-amber-500');
-    const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-    
-    toast.className = `${colors} text-white px-4 py-3 rounded-xl shadow-lg shadow-black/5 flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 min-w-[300px] backdrop-blur-md`;
-    toast.innerHTML = `
-      <i data-lucide="${icon}" class="w-5 h-5"></i>
-      <span class="font-medium text-sm">${msg}</span>
-    `;
-    
-    container.appendChild(toast);
-    if (window.lucide) window.lucide.createIcons();
-    requestAnimationFrame(() => toast.classList.remove('translate-y-10', 'opacity-0'));
-    setTimeout(() => { toast.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => toast.remove(), 300); }, 3000);
-  }
+    function showToast(message, type) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = (type || 'success').toString();
+      const color = t === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold ${color}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
+      setTimeout(() => { el.remove(); }, 3000);
+    }
 
-  // --- Logic from original script, adapted ---
-  var form = document.getElementById('create-ticket-form');
-  var btn = document.getElementById('btnSubmitTicket');
-  var violationSelect = document.getElementById('violation-select');
-  var finePreview = document.getElementById('violation-fine-preview');
-  var stsPreview = document.getElementById('violation-sts-preview');
-  var plateInput = document.getElementById('ticket-plate-input');
-  var driverInput = document.getElementById('ticket-driver-input');
-  var plateDropdownBtn = document.getElementById('plateDropdownBtn');
-  var plateDropdownBtnText = document.getElementById('plateDropdownBtnText');
-  var plateDropdownPanel = document.getElementById('plateDropdownPanel');
-  var plateDropdownSearch = document.getElementById('plateDropdownSearch');
-  var plateDropdownList = document.getElementById('plateDropdownList');
-  var plateDebounceId = null;
-  var violationMap = {};
-  var ticketSourceSel = document.getElementById('ticket-source');
-  var externalWrap = document.getElementById('external-ticket-wrap');
-  var externalInput = document.getElementById('external-ticket-number');
-  var issuedAt = document.getElementById('issued-at');
+    const esc = (v) => String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;');
 
-  function normalizePlate(value) {
-    var v = (value || '').toString().toUpperCase().replace(/\s+/g, '');
-    v = v.replace(/[^A-Z0-9-]/g, '');
-    v = v.replace(/-+/g, '-');
-    if (v.indexOf('-') >= 0) return v;
-    var m4 = v.match(/^([A-Z0-9]+)(\d{4})$/);
-    if (m4) return m4[1] + '-' + m4[2];
-    var m3 = v.match(/^([A-Z0-9]+)(\d{3})$/);
-    if (m3) return m3[1] + '-' + m3[2];
-    return v;
-  }
+    const violationTypeSelect = document.getElementById('violationTypeSelect');
+    const violationFinePreview = document.getElementById('violationFinePreview');
+    const formCreate = document.getElementById('formCreateViolation');
+    const btnCreate = document.getElementById('btnCreateViolation');
+    const tbody = document.getElementById('violationsTbody');
+    const filterWorkflow = document.getElementById('filterWorkflow');
+    const filterQ = document.getElementById('filterQ');
+    const btnReload = document.getElementById('btnReload');
 
-  function syncTicketSourceUI() {
-    if (!ticketSourceSel || !externalWrap || !externalInput) return;
-    var v = (ticketSourceSel.value || '').toString();
-    var manual = v === 'STS_PAPER';
-    externalWrap.classList.toggle('hidden', !manual);
-    externalInput.required = manual;
-  }
-  if (ticketSourceSel) {
-    ticketSourceSel.addEventListener('change', syncTicketSourceUI);
-    syncTicketSourceUI();
-  }
+    let violationTypes = [];
 
-  if (issuedAt && !issuedAt.value) {
-    var d = new Date();
-    var pad = function (n) { return String(n).padStart(2, '0'); };
-    issuedAt.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-  }
+    async function loadViolationTypes() {
+      const res = await fetch(rootUrl + '/admin/api/tickets/violation_types.php');
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error('violation_types_load_failed');
+      violationTypes = Array.isArray(data.data) ? data.data : [];
+      if (violationTypeSelect) {
+        const opts = [`<option value="">Select</option>`].concat(violationTypes.map((v) => {
+          const code = (v.violation_code || '').toString();
+          const desc = (v.description || '').toString();
+          const fine = Number(v.fine_amount || 0) || 0;
+          return `<option value="${esc(code)}" data-fine="${esc(fine)}">${esc(code)} • ${esc(desc)}</option>`;
+        }));
+        violationTypeSelect.innerHTML = opts.join('');
+      }
+    }
 
-  // Load Violation Types
-  if (violationSelect) {
-    violationMap = {};
-    violationSelect.innerHTML = '<option value="">Select Violation</option>';
-    fetch('api/tickets/violation_types.php')
-      .then(r => r.json())
-      .then(data => {
-        if (data && Array.isArray(data.items)) {
-          data.items.forEach(item => {
-            if(!item.violation_code) return;
-            if (violationMap[item.violation_code]) return;
-            violationMap[item.violation_code] = item;
-            var opt = document.createElement('option');
-            opt.value = item.violation_code;
-            var sts = (item.sts_equivalent_code || '').toString().trim();
-            opt.textContent = sts ? `${item.violation_code} (${sts}) — ${item.description || ''}` : `${item.violation_code} — ${item.description || ''}`;
-            violationSelect.appendChild(opt);
-          });
+    function updateFinePreview() {
+      if (!violationTypeSelect || !violationFinePreview) return;
+      const opt = violationTypeSelect.options[violationTypeSelect.selectedIndex];
+      if (!opt) { violationFinePreview.textContent = ''; return; }
+      const fine = opt.getAttribute('data-fine');
+      violationFinePreview.textContent = fine ? ('Fine: ₱' + Number(fine).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})) : '';
+    }
+
+    async function loadViolations() {
+      if (!tbody) return;
+      tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-slate-500">Loading…</td></tr>`;
+      const qs = new URLSearchParams();
+      if (filterWorkflow && filterWorkflow.value) qs.set('workflow_status', filterWorkflow.value);
+      if (filterQ && filterQ.value.trim() !== '') qs.set('q', filterQ.value.trim());
+      const res = await fetch(rootUrl + '/admin/api/module3/violations_list.php?' + qs.toString());
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) { tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-rose-600 font-semibold">Failed to load.</td></tr>`; return; }
+      const rows = Array.isArray(data.data) ? data.data : [];
+      if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-6 text-center text-slate-500">No records.</td></tr>`; return; }
+      tbody.innerHTML = rows.map((r) => {
+        const id = r.id;
+        const dt = (r.violation_date || '').toString();
+        const plate = (r.plate_number || '').toString();
+        const opName = (r.operator_name || '').toString();
+        const type = (r.violation_type || '').toString();
+        const desc = (r.violation_desc || '').toString();
+        const loc = (r.location || '').toString();
+        const wf = (r.workflow_status || '').toString();
+        const ev = (r.evidence_path || '').toString();
+        const evLink = ev ? `<a class="text-blue-700 hover:underline font-bold" target="_blank" href="${esc(rootUrl + '/admin/uploads/' + encodeURIComponent(ev))}">Evidence</a>` : `<span class="text-slate-400">—</span>`;
+        return `<tr>
+          <td class="px-5 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${esc(dt)}</td>
+          <td class="px-5 py-3 font-black">${esc(plate)}</td>
+          <td class="px-5 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${esc(opName || '-')}</td>
+          <td class="px-5 py-3 text-xs font-semibold">${esc(type)}${desc ? (' • ' + esc(desc)) : ''}</td>
+          <td class="px-5 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${esc(loc || '-')}</td>
+          <td class="px-5 py-3 text-xs font-black">${esc(wf)}</td>
+          <td class="px-5 py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              ${evLink}
+              <button data-wf="Pending" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">Pending</button>
+              <button data-wf="Verified" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Verify</button>
+              <button data-wf="Closed" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-xs font-bold">Close</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+      tbody.querySelectorAll('button[data-wf][data-id]').forEach((b) => {
+        b.addEventListener('click', async () => {
+          const wf = b.getAttribute('data-wf');
+          const id = b.getAttribute('data-id');
+          const remarks = prompt('Remarks (optional):', '');
+          const fd = new FormData();
+          fd.append('violation_id', String(id));
+          fd.append('workflow_status', String(wf));
+          fd.append('remarks', String(remarks || ''));
+          const res2 = await fetch(rootUrl + '/admin/api/module3/violations_update_status.php', { method: 'POST', body: fd });
+          const d2 = await res2.json().catch(() => null);
+          if (!d2 || !d2.ok) { showToast('Failed to update.', 'error'); return; }
+          showToast('Updated.');
+          loadViolations();
+        });
+      });
+    }
+
+    if (violationTypeSelect) violationTypeSelect.addEventListener('change', updateFinePreview);
+    if (btnReload) btnReload.addEventListener('click', loadViolations);
+    if (filterWorkflow) filterWorkflow.addEventListener('change', loadViolations);
+    if (filterQ) filterQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadViolations(); } });
+
+    if (formCreate) {
+      formCreate.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!formCreate.checkValidity()) { formCreate.reportValidity(); return; }
+        if (btnCreate) { btnCreate.disabled = true; btnCreate.textContent = 'Saving...'; }
+        try {
+          const fd = new FormData(formCreate);
+          const res = await fetch(rootUrl + '/admin/api/module3/violations_create.php', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.error) ? String(data.error) : 'save_failed');
+          showToast('Saved.');
+          formCreate.reset();
+          updateFinePreview();
+          loadViolations();
+        } catch (err) {
+          showToast((err && err.message) ? err.message : 'Failed.', 'error');
+        } finally {
+          if (btnCreate) { btnCreate.disabled = false; btnCreate.textContent = 'Save'; }
         }
       });
-      
-    violationSelect.addEventListener('change', function() {
-      var code = this.value;
-      if (code && violationMap[code]) {
-        var fine = parseFloat(violationMap[code].fine_amount || 0);
-        finePreview.textContent = 'Fine Amount: ₱' + fine.toLocaleString('en-US', {minimumFractionDigits: 2});
-        var sts = (violationMap[code].sts_equivalent_code || '').toString().trim();
-        if (stsPreview) stsPreview.textContent = sts ? ('STS Code: ' + sts) : '';
-      } else {
-        finePreview.textContent = '';
-        if (stsPreview) stsPreview.textContent = '';
-      }
-    });
-  }
-
-  function setPlateLabel(text, isPlaceholder) {
-    if (!plateDropdownBtnText) return;
-    plateDropdownBtnText.textContent = (text || '').toString() || 'Select plate';
-    if (isPlaceholder) plateDropdownBtnText.className = 'truncate text-slate-500 dark:text-slate-400';
-    else plateDropdownBtnText.className = 'truncate text-slate-900 dark:text-white';
-  }
-
-  function openPlateDropdown() {
-    if (!plateDropdownPanel) return;
-    plateDropdownPanel.classList.remove('hidden');
-    if (plateDropdownSearch) {
-      plateDropdownSearch.focus();
-      plateDropdownSearch.select();
     }
-  }
 
-  function closePlateDropdown() {
-    if (!plateDropdownPanel) return;
-    plateDropdownPanel.classList.add('hidden');
-  }
-
-  function isPlateDropdownOpen() {
-    return plateDropdownPanel && !plateDropdownPanel.classList.contains('hidden');
-  }
-
-  function pickPlate(plate, operatorName) {
-    if (!plateInput) return;
-    var p = normalizePlate(plate || '');
-    plateInput.value = p;
-    setPlateLabel(p, !p);
-    if (driverInput && operatorName && (!driverInput.value || driverInput.value.trim() === '')) {
-      driverInput.value = String(operatorName);
-    }
-    closePlateDropdown();
-  }
-
-  var platePickQuery = '';
-  var platePickOffset = 0;
-  var platePickLimit = 200;
-  var platePickLoading = false;
-  var platePickDone = false;
-  var platePickSeen = {};
-
-  function renderPlateItems(items, query, append) {
-    if (!plateDropdownList) return;
-    if (!append) {
-      plateDropdownList.innerHTML = '';
-      platePickSeen = {};
-    }
-    var q = normalizePlate(query || '');
-    if (!append && q) {
-      var useBtn = document.createElement('button');
-      useBtn.type = 'button';
-      useBtn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
-      useBtn.innerHTML = '<div class="font-bold text-slate-800 dark:text-white text-sm">Use: ' + q + '</div><div class="text-xs text-slate-500">Manual entry</div>';
-      useBtn.addEventListener('click', function () { pickPlate(q, ''); });
-      plateDropdownList.appendChild(useBtn);
-    }
-    if (!items || !items.length) {
-      if (append) return;
-      var empty = document.createElement('div');
-      empty.className = 'px-4 py-3 text-sm text-slate-500 italic';
-      empty.textContent = 'No matches.';
-      plateDropdownList.appendChild(empty);
-      return;
-    }
-    items.forEach(function (item) {
-      if (!item || !item.plate_number) return;
-      var key = String(item.plate_number || '');
-      if (!key) return;
-      if (platePickSeen[key]) return;
-      platePickSeen[key] = true;
-      var st = (item.status || '').toString();
-      var stLabel = '';
-      var stClass = '';
-      if (st === 'Blocked') { stLabel = 'Operation blocked'; stClass = 'bg-rose-100 text-rose-700 border border-rose-200'; }
-      else if (st === 'Inactive') { stLabel = 'Inactive'; stClass = 'bg-amber-100 text-amber-700 border border-amber-200'; }
-      else if (st === 'Active') { stLabel = 'Active'; stClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200'; }
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 border-b border-slate-100 dark:border-slate-800';
-      btn.innerHTML = '<div class="flex items-center justify-between gap-2">' +
-        '<div class="font-bold text-slate-800 dark:text-white text-sm">' + String(item.plate_number) + '</div>' +
-        (stLabel ? ('<span class="px-2 py-0.5 rounded-full text-[10px] font-black ' + stClass + '">' + stLabel + '</span>') : '') +
-        '</div>' +
-        '<div class="text-xs text-slate-500">' + String(item.operator_name || 'Unknown Operator') + '</div>';
-      btn.addEventListener('click', function () { pickPlate(item.plate_number, item.operator_name || ''); });
-      plateDropdownList.appendChild(btn);
-    });
-    var tail = plateDropdownList.lastElementChild;
-    if (tail) tail.classList.add('border-b-0');
-  }
-
-  function fetchPlates(q, offset, limit) {
-    var qq = (q || '').toString().trim();
-    var off = Number(offset || 0);
-    var lim = Number(limit || 200);
-    return fetch('api/module1/list_vehicles.php?q=' + encodeURIComponent(qq) + '&offset=' + encodeURIComponent(String(off)) + '&limit=' + encodeURIComponent(String(lim)))
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (!data || !data.ok || !Array.isArray(data.data)) return [];
-        return data.data || [];
-      })
-      .catch(function () { return []; });
-  }
-
-  function loadMorePlates(reset) {
-    if (!plateDropdownList) return;
-    if (platePickLoading) return;
-    if (platePickDone && !reset) return;
-    if (reset) {
-      platePickOffset = 0;
-      platePickDone = false;
-      platePickQuery = (plateDropdownSearch ? (plateDropdownSearch.value || '') : '').toString();
-      plateDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
-    }
-    platePickLoading = true;
-    var q = platePickQuery;
-    var off = platePickOffset;
-    fetchPlates(q, off, platePickLimit).then(function (items) {
-      var arr = Array.isArray(items) ? items : [];
-      if (reset) plateDropdownList.innerHTML = '';
-      renderPlateItems(arr, q, !reset);
-      if (arr.length < platePickLimit) platePickDone = true;
-      else platePickOffset = platePickOffset + platePickLimit;
-    }).finally(function () {
-      platePickLoading = false;
-    });
-  }
-
-  if (plateDropdownBtn) {
-    setPlateLabel('', true);
-    plateDropdownBtn.addEventListener('click', function () {
-      if (isPlateDropdownOpen()) closePlateDropdown();
-      else {
-        openPlateDropdown();
-        loadMorePlates(true);
-      }
-    });
-  }
-
-  if (plateDropdownSearch) {
-    plateDropdownSearch.addEventListener('input', function () {
-      if (plateDebounceId) clearTimeout(plateDebounceId);
-      plateDebounceId = setTimeout(function () {
-        loadMorePlates(true);
-      }, 180);
-    });
-    plateDropdownSearch.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { e.preventDefault(); closePlateDropdown(); }
-    });
-  }
-
-  if (plateDropdownList) {
-    plateDropdownList.addEventListener('scroll', function () {
-      if (platePickLoading || platePickDone) return;
-      if ((plateDropdownList.scrollTop + plateDropdownList.clientHeight) >= (plateDropdownList.scrollHeight - 40)) {
-        loadMorePlates(false);
-      }
-    });
-  }
-
-  document.addEventListener('click', function (e) {
-    if (!isPlateDropdownOpen()) return;
-    var t = e.target;
-    if (!t) return;
-    if (plateDropdownPanel && plateDropdownPanel.contains(t)) return;
-    if (plateDropdownBtn && plateDropdownBtn.contains(t)) return;
-    closePlateDropdown();
-  });
-
-  // Form Submit
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      var violationVal = violationSelect ? (violationSelect.value || '').toString().trim() : '';
-      if (!violationVal) { showToast('Select a violation type.', 'error'); return; }
-
-      var p = plateInput ? normalizePlate(plateInput.value) : '';
-      if (plateInput) plateInput.value = p;
-      if (!p) { showToast('Select a vehicle plate.', 'error'); return; }
-
-      var locEl = form.querySelector('input[name="location"]');
-      var locVal = locEl ? (locEl.value || '').toString().trim() : '';
-      if (!locVal) { showToast('Enter a location.', 'error'); return; }
-
-      var issuedVal = issuedAt ? (issuedAt.value || '').toString().trim() : '';
-      if (!issuedVal) { showToast('Select date & time.', 'error'); return; }
-
-      if (ticketSourceSel && externalInput) {
-        var src = (ticketSourceSel.value || '').toString();
-        if (src === 'STS_PAPER') {
-          var ext = (externalInput.value || '').toString().trim();
-          if (!ext) { showToast('STS ticket number is required for paper tickets.', 'error'); return; }
-          if (!/^[A-Za-z0-9\-\/]{3,64}$/.test(ext.replace(/\s+/g, ''))) { showToast('Invalid STS ticket number format.', 'error'); return; }
-        }
-      }
-      
-      btn.disabled = true;
-      const originalContent = btn.innerHTML;
-      btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...';
-      if(window.lucide) window.lucide.createIcons();
-
-      var fd = new FormData(form);
-      fetch('api/traffic/create_ticket.php', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.ok) {
-            showToast(`Ticket ${data.ticket_number || ''} created successfully!`, 'success');
-            form.reset();
-            finePreview.textContent = '';
-            setPlateLabel('', true);
-            setTimeout(() => window.location.reload(), 1500);
-          } else {
-            showToast((data && data.error) ? data.error : 'Failed to create ticket', 'error');
-          }
-        })
-        .catch(err => showToast('Network error: ' + err.message, 'error'))
-        .finally(() => {
-          btn.disabled = false;
-          btn.innerHTML = originalContent;
-          if(window.lucide) window.lucide.createIcons();
-        });
-    });
-  }
-
-  // Evidence Modals (Simplified versions of previous logic)
-  window.TMMUploadEvidence = {
-    open: function(ticketNo) {
-      // Create a simple modal on the fly or use a hidden one. 
-      // For brevity in this modernization, I'll implement a basic prompt or file input trigger if needed, 
-      // but ideally we'd use a nice modal like in Module 2. 
-      // For now, let's just alert that this feature is preserved.
-      // Re-implementing the modal logic from the old file but cleaner:
-      
-      let input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*,video/*,application/pdf';
-      input.onchange = e => {
-        if (e.target.files.length > 0) {
-            let fd = new FormData();
-            fd.append('ticket_number', ticketNo);
-            fd.append('evidence', e.target.files[0]);
-            
-            showToast('Uploading evidence...', 'info');
-            fetch('api/tickets/evidence_upload.php', { method: 'POST', body: fd })
-                .then(r => r.json())
-                .then(d => {
-                    if(d.ok) showToast('Evidence uploaded!', 'success');
-                    else showToast(d.error || 'Upload failed', 'error');
-                });
-        }
-      };
-      input.click();
-    }
-  };
-
-  window.TMMViewEvidence = {
-    open: function(ticketNo) {
-        // Redirect to detail view or open modal
-        // Using a simple redirect for now as the "View" action
-        window.location.href = '?page=module3/submodule3&ticket=' + encodeURIComponent(ticketNo);
-    }
-  };
-
-})();
+    Promise.resolve()
+      .then(loadViolationTypes)
+      .then(updateFinePreview)
+      .then(loadViolations)
+      .catch(() => { showToast('Failed to initialize.', 'error'); });
+  })();
 </script>

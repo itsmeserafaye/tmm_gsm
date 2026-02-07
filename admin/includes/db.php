@@ -1016,6 +1016,16 @@ function db()
     'endorsed_at' => "DATETIME DEFAULT NULL",
     'endorsed_until' => "DATE DEFAULT NULL",
     'approved_at' => "DATETIME DEFAULT NULL",
+    'submitted_by_portal_user_id' => "INT DEFAULT NULL",
+    'submitted_by_user_id' => "INT DEFAULT NULL",
+    'submitted_by_name' => "VARCHAR(150) DEFAULT NULL",
+    'submitted_channel' => "VARCHAR(32) DEFAULT NULL",
+    'endorsed_by_user_id' => "INT DEFAULT NULL",
+    'endorsed_by_name' => "VARCHAR(150) DEFAULT NULL",
+    'approved_by_user_id' => "INT DEFAULT NULL",
+    'approved_by_name' => "VARCHAR(150) DEFAULT NULL",
+    'approved_vehicle_count' => "INT DEFAULT NULL",
+    'approved_route_ids' => "VARCHAR(255) DEFAULT NULL",
     'remarks' => "TEXT",
     'assigned_officer_id' => "INT"
   ];
@@ -1538,6 +1548,86 @@ function db()
     FROM payment_records pr
     LEFT JOIN ticket_payments tp ON tp.ticket_id=pr.ticket_id AND tp.amount_paid=pr.amount_paid AND tp.paid_at=pr.date_paid
     WHERE tp.payment_id IS NULL");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS violations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    plate_number VARCHAR(20) NOT NULL,
+    violation_type VARCHAR(50) NOT NULL,
+    amount DECIMAL(10,2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'Unpaid',
+    violation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    vehicle_id INT DEFAULT NULL,
+    operator_id INT DEFAULT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    evidence_path VARCHAR(255) DEFAULT NULL,
+    workflow_status VARCHAR(20) DEFAULT 'Pending',
+    remarks TEXT DEFAULT NULL,
+    recorded_by_user_id INT DEFAULT NULL,
+    recorded_by_name VARCHAR(150) DEFAULT NULL,
+    recorded_at DATETIME DEFAULT NULL,
+    INDEX (plate_number),
+    INDEX (operator_id),
+    INDEX (workflow_status)
+  ) ENGINE=InnoDB");
+  $colViol = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='violations'");
+  $haveWorkflowStatus = false;
+  $haveLocation = false;
+  $haveEvidence = false;
+  $haveRemarks = false;
+  $haveRecordedBy = false;
+  $haveRecordedAt = false;
+  $haveOperatorId = false;
+  $haveVehicleId = false;
+  if ($colViol) {
+    while ($c = $colViol->fetch_assoc()) {
+      $cn = $c['COLUMN_NAME'] ?? '';
+      if ($cn === 'workflow_status') $haveWorkflowStatus = true;
+      if ($cn === 'location') $haveLocation = true;
+      if ($cn === 'evidence_path') $haveEvidence = true;
+      if ($cn === 'remarks') $haveRemarks = true;
+      if ($cn === 'recorded_by_user_id' || $cn === 'recorded_by_name') $haveRecordedBy = true;
+      if ($cn === 'recorded_at') $haveRecordedAt = true;
+      if ($cn === 'operator_id') $haveOperatorId = true;
+      if ($cn === 'vehicle_id') $haveVehicleId = true;
+    }
+  }
+  if (!$haveWorkflowStatus) $conn->query("ALTER TABLE violations ADD COLUMN workflow_status VARCHAR(20) DEFAULT 'Pending'");
+  if (!$haveLocation) $conn->query("ALTER TABLE violations ADD COLUMN location VARCHAR(255) DEFAULT NULL");
+  if (!$haveEvidence) $conn->query("ALTER TABLE violations ADD COLUMN evidence_path VARCHAR(255) DEFAULT NULL");
+  if (!$haveRemarks) $conn->query("ALTER TABLE violations ADD COLUMN remarks TEXT DEFAULT NULL");
+  if (!$haveOperatorId) $conn->query("ALTER TABLE violations ADD COLUMN operator_id INT DEFAULT NULL");
+  if (!$haveVehicleId) $conn->query("ALTER TABLE violations ADD COLUMN vehicle_id INT DEFAULT NULL");
+  if (!$haveRecordedBy) {
+    $conn->query("ALTER TABLE violations ADD COLUMN recorded_by_user_id INT DEFAULT NULL");
+    $conn->query("ALTER TABLE violations ADD COLUMN recorded_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!$haveRecordedAt) $conn->query("ALTER TABLE violations ADD COLUMN recorded_at DATETIME DEFAULT NULL");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS sts_tickets (
+    sts_ticket_id INT AUTO_INCREMENT PRIMARY KEY,
+    sts_ticket_no VARCHAR(64) NOT NULL,
+    issued_by VARCHAR(128) DEFAULT NULL,
+    date_issued DATE DEFAULT NULL,
+    fine_amount DECIMAL(10,2) DEFAULT 0,
+    status ENUM('Pending Payment','Paid','Closed') DEFAULT 'Pending Payment',
+    verification_notes TEXT DEFAULT NULL,
+    linked_violation_id INT DEFAULT NULL,
+    ticket_scan_path VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_sts_ticket_no (sts_ticket_no),
+    INDEX (status),
+    INDEX (linked_violation_id)
+  ) ENGINE=InnoDB");
+  $colSts = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='sts_tickets'");
+  $haveStsScan = false;
+  if ($colSts) {
+    while ($c = $colSts->fetch_assoc()) {
+      if (($c['COLUMN_NAME'] ?? '') === 'ticket_scan_path') $haveStsScan = true;
+    }
+  }
+  if (!$haveStsScan) $conn->query("ALTER TABLE sts_tickets ADD COLUMN ticket_scan_path VARCHAR(255) DEFAULT NULL");
   $colPay = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='payment_records'");
   $havePayChannel = false;
   $haveExternalPaymentId = false;

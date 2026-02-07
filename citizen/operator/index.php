@@ -588,6 +588,14 @@ $typesList = vehicle_types();
                                 </svg>
                                 Create Transfer Request
                             </button>
+                            <button onclick="showFranchiseApplicationModal()"
+                                class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4M7 12a5 5 0 1110 0 5 5 0 01-10 0z"></path>
+                                </svg>
+                                Submit Franchise Application
+                            </button>
                         </div>
                     </div>
 
@@ -841,7 +849,7 @@ $typesList = vehicle_types();
     <!-- Operator Record Submission Modal -->
     <div id="operatorRecordModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">Submit Operator Record</h3>
@@ -906,7 +914,7 @@ $typesList = vehicle_types();
     <!-- Add Vehicle Modal -->
     <div id="addVehicleModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">Vehicle Encoding & Documents</h3>
@@ -1103,7 +1111,7 @@ $typesList = vehicle_types();
 
     <div id="declaredFleetModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">Declared Fleet Preview</h3>
@@ -1121,7 +1129,7 @@ $typesList = vehicle_types();
 
     <div id="transferRequestModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">Create Ownership Transfer Request</h3>
@@ -1187,10 +1195,61 @@ $typesList = vehicle_types();
         </div>
     </div>
 
+    <div id="franchiseApplicationModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Submit Franchise Application</h3>
+                    <p class="text-xs text-slate-500 mt-1">Submit your requested route and vehicle count. LTFRB-approved units/routes may differ after review.</p>
+                </div>
+                <button type="button" onclick="closeFranchiseApplicationModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="franchiseApplicationForm" onsubmit="submitFranchiseApplication(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Requested Vehicle Count</label>
+                        <input type="number" name="vehicle_count" min="1" max="500" value="1" required
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Requested Route</label>
+                        <select name="route_id" id="franchiseRouteSelect" required
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                            <option value="">Loading…</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Representative Name (optional)</label>
+                    <input type="text" name="representative_name" maxlength="150"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Authorized representative">
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="text-xs font-bold text-slate-500 uppercase">Declared Fleet (optional)</div>
+                    <div class="mt-2 text-xs text-slate-500">If you already generated Declared Fleet in this portal, you can skip upload.</div>
+                    <input type="file" name="declared_fleet_doc" accept=".pdf,.xlsx,.xls,.csv"
+                        class="mt-3 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeFranchiseApplicationModal()"
+                        class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" id="btnSubmitFranchise"
+                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Upload Payment Modal -->
     <div id="paymentModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-bold text-slate-800">Upload Payment Proof</h3>
                 <button onclick="document.getElementById('paymentModal').classList.add('hidden')"
@@ -2242,6 +2301,58 @@ $typesList = vehicle_types();
                 toast(res.message || 'Submitted', 'success');
                 e.target.reset();
                 closeTransferRequestModal();
+            } else {
+                toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
+            }
+        }
+
+        function closeFranchiseApplicationModal() {
+            const m = document.getElementById('franchiseApplicationModal');
+            if (m) m.classList.add('hidden');
+        }
+
+        async function showFranchiseApplicationModal() {
+            const modal = document.getElementById('franchiseApplicationModal');
+            const sel = document.getElementById('franchiseRouteSelect');
+            const form = document.getElementById('franchiseApplicationForm');
+            if (!modal || !sel || !form) return;
+            modal.classList.remove('hidden');
+            sel.innerHTML = `<option value="">Loading…</option>`;
+            const data = await apiGet('puv_list_routes');
+            if (!data || !data.ok) {
+                sel.innerHTML = `<option value="">Failed to load routes</option>`;
+                return;
+            }
+            const rows = Array.isArray(data.data) ? data.data : [];
+            if (!rows.length) {
+                sel.innerHTML = `<option value="">No active routes</option>`;
+                return;
+            }
+            sel.innerHTML = `<option value="">Select route…</option>` + rows.map((r) => {
+                const id = String(r.route_id || '');
+                const code = String(r.route_code || '');
+                const name = String(r.route_name || '');
+                const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
+                const label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
+                return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
+            }).join('');
+        }
+
+        async function submitFranchiseApplication(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmitFranchise');
+            const old = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = 'Submitting…'; }
+
+            const fd = new FormData(e.target);
+            fd.append('action', 'puv_submit_franchise_application');
+            const res = await apiPost(fd);
+
+            if (btn) { btn.disabled = false; btn.innerText = old; }
+            if (res && res.ok) {
+                toast(res.message || 'Submitted', 'success');
+                e.target.reset();
+                closeFranchiseApplicationModal();
             } else {
                 toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
             }
