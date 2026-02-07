@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 header('Content-Type: application/json');
 
@@ -35,6 +36,7 @@ try {
     $color = trim((string)($_POST['color'] ?? ''));
     $operatorId = isset($_POST['operator_id']) && $_POST['operator_id'] !== '' ? (int)$_POST['operator_id'] : 0;
     $operatorName = trim((string)($_POST['operator_name'] ?? ''));
+    $assisted = (int)($_POST['assisted'] ?? 0) === 1;
     $ocrUsed = (int)($_POST['ocr_used'] ?? 0);
     $ocrConfirmed = (int)($_POST['ocr_confirmed'] ?? 0);
     $orNumberRaw = (string)($_POST['or_number'] ?? '');
@@ -95,6 +97,9 @@ try {
         if (!$has('cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
         if (!$has('cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
         if (!$has('registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
+        if (!$has('submitted_by_portal_user_id')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_by_portal_user_id INT DEFAULT NULL"); }
+        if (!$has('submitted_by_name')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_by_name VARCHAR(150) DEFAULT NULL"); }
+        if (!$has('submitted_at')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_at DATETIME DEFAULT NULL"); }
     };
 
     $ensureExpiryCol = function () use ($db): bool {
@@ -153,10 +158,13 @@ try {
     $inspectionStatus = 'Pending';
 
     $ensureVehicleCrCols();
+    $submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+    if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+    if ($submittedByName === '') $submittedByName = 'Admin';
     $db->begin_transaction();
 
-    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status, or_number, cr_number, cr_issue_date, registered_owner)
-                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    $stmt = $db->prepare("INSERT INTO vehicles(plate_number, vehicle_type, operator_id, operator_name, engine_no, chassis_no, make, model, year_model, fuel_type, color, record_status, status, inspection_status, or_number, cr_number, cr_issue_date, registered_owner, submitted_by_portal_user_id, submitted_by_name, submitted_at)
+                          VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                           ON DUPLICATE KEY UPDATE
                             vehicle_type=VALUES(vehicle_type),
                             operator_id=VALUES(operator_id),
@@ -174,14 +182,20 @@ try {
                             or_number=CASE WHEN VALUES(or_number)<>'' THEN VALUES(or_number) ELSE or_number END,
                             cr_number=CASE WHEN VALUES(cr_number)<>'' THEN VALUES(cr_number) ELSE cr_number END,
                             cr_issue_date=CASE WHEN VALUES(cr_issue_date)<>'' THEN VALUES(cr_issue_date) ELSE cr_issue_date END,
-                            registered_owner=CASE WHEN VALUES(registered_owner)<>'' THEN VALUES(registered_owner) ELSE registered_owner END");
+                            registered_owner=CASE WHEN VALUES(registered_owner)<>'' THEN VALUES(registered_owner) ELSE registered_owner END,
+                            submitted_by_portal_user_id=COALESCE(submitted_by_portal_user_id, VALUES(submitted_by_portal_user_id)),
+                            submitted_by_name=COALESCE(NULLIF(submitted_by_name,''), VALUES(submitted_by_name)),
+                            submitted_at=COALESCE(submitted_at, VALUES(submitted_at))");
     if (!$stmt) {
         http_response_code(500);
         echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
         exit;
     }
     $operatorIdBind = $operatorId > 0 ? $operatorId : null;
-    $stmt->bind_param('ssisssssssssssssss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner);
+    $submittedPortalUserId = null;
+    $submittedNameBind = $assisted ? $submittedByName : null;
+    $submittedAtBind = $assisted ? date('Y-m-d H:i:s') : null;
+    $stmt->bind_param('ssissssssssssssssiss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner, $submittedPortalUserId, $submittedNameBind, $submittedAtBind);
     $ok = $stmt->execute();
     if (!$ok) {
         $db->rollback();
@@ -251,7 +265,10 @@ try {
 
     $db->commit();
 
-    echo json_encode(['ok' => true, 'vehicle_id' => $vehicleId, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus]);
+    if ($assisted) {
+        tmm_audit_event($db, 'PUV_ASSISTED_VEHICLE_ENCODED', 'Vehicle', (string)$vehicleId, ['assisted' => true, 'plate_number' => $plate]);
+    }
+    echo json_encode(['ok' => true, 'vehicle_id' => $vehicleId, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus, 'assisted' => $assisted]);
 } catch (Exception $e) {
     if (defined('TMM_TEST')) {
         throw $e;

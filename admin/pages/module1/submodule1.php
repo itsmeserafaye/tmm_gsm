@@ -84,9 +84,13 @@ if ($rootUrl === '/') $rootUrl = '';
       <?php if (has_permission('module1.write')): ?>
         <button id="btnOpenAddOperator" type="button" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
           <i data-lucide="user-plus" class="w-4 h-4"></i>
-          Add Operator
+          Assisted Encoding (Walk-in)
         </button>
       <?php endif; ?>
+      <div class="inline-flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+        <i data-lucide="info" class="w-4 h-4"></i>
+        Operator records are submitted via Operator Portal. Use Assisted Encoding for walk-ins.
+      </div>
     </div>
   </div>
 
@@ -112,6 +116,40 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inactive</div>
       <div class="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400"><?php echo number_format($statInactive); ?></div>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div>
+        <div class="text-lg font-bold text-slate-900 dark:text-white">Operator Record Submissions</div>
+        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Submitted by operators via Operator Portal. Approve or reject to finalize the official operator record.</div>
+      </div>
+      <div class="flex gap-2">
+        <select id="subStatus" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+          <option value="Submitted">Submitted</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <input id="subQ" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search name/email…">
+        <button id="btnReloadSubs" class="rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+      </div>
+    </div>
+
+    <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300">
+          <tr>
+            <th class="px-4 py-3 text-left font-black">Submitted</th>
+            <th class="px-4 py-3 text-left font-black">Operator</th>
+            <th class="px-4 py-3 text-left font-black">Type</th>
+            <th class="px-4 py-3 text-left font-black">Contact</th>
+            <th class="px-4 py-3 text-left font-black">Status</th>
+            <th class="px-4 py-3 text-left font-black">Action</th>
+          </tr>
+        </thead>
+        <tbody id="submissionsTbody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+      </table>
     </div>
   </div>
 
@@ -302,6 +340,89 @@ if ($rootUrl === '/') $rootUrl = '';
         .replace(/>/g, '&gt;');
     }
 
+    const subStatus = document.getElementById('subStatus');
+    const subQ = document.getElementById('subQ');
+    const btnReloadSubs = document.getElementById('btnReloadSubs');
+    const submissionsTbody = document.getElementById('submissionsTbody');
+
+    async function loadOperatorSubmissions() {
+      if (!submissionsTbody) return;
+      submissionsTbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Loading…</td></tr>`;
+      try {
+        const qs = new URLSearchParams();
+        qs.set('status', (subStatus && subStatus.value) ? subStatus.value : 'Submitted');
+        if (subQ && subQ.value.trim() !== '') qs.set('q', subQ.value.trim());
+        const res = await fetch(rootUrl + '/admin/api/module1/operator_submissions_list.php?' + qs.toString());
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const rows = Array.isArray(data.data) ? data.data : [];
+        if (!rows.length) {
+          submissionsTbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No submissions found.</td></tr>`;
+          return;
+        }
+        submissionsTbody.innerHTML = rows.map((r) => {
+          const sid = r.submission_id;
+          const who = (r.submitted_by_name || '').toString();
+          const email = (r.email || '').toString();
+          const opName = (r.registered_name || r.name || '').toString();
+          const type = (r.operator_type || '').toString();
+          const contact = ((r.contact_no || '') + (email ? (' • ' + email) : '')).trim();
+          const st = (r.status || '').toString();
+          const submittedAt = (r.submitted_at || '').toString();
+          const actionHtml = st === 'Submitted'
+            ? `<div class="flex gap-2">
+                 <button data-sub-approve="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Approve</button>
+                 <button data-sub-reject="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Reject</button>
+               </div>`
+            : `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${escAttr(r.approved_by_name || '')} ${escAttr(r.approved_at || '')}</div>`;
+          return `<tr>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(submittedAt)}</td>
+            <td class="px-4 py-3">
+              <div class="font-bold text-slate-900 dark:text-white">${escAttr(opName || who || 'Operator')}</div>
+              <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Submitted by ${escAttr(who || 'Operator')}</div>
+            </td>
+            <td class="px-4 py-3 text-xs font-semibold">${escAttr(type)}</td>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(contact)}</td>
+            <td class="px-4 py-3 text-xs font-black">${escAttr(st)}</td>
+            <td class="px-4 py-3">${actionHtml}</td>
+          </tr>`;
+        }).join('');
+
+        submissionsTbody.querySelectorAll('[data-sub-approve]').forEach((b) => {
+          b.addEventListener('click', () => reviewOperatorSubmission(b.getAttribute('data-sub-approve'), 'approve'));
+        });
+        submissionsTbody.querySelectorAll('[data-sub-reject]').forEach((b) => {
+          b.addEventListener('click', () => reviewOperatorSubmission(b.getAttribute('data-sub-reject'), 'reject'));
+        });
+      } catch (e) {
+        submissionsTbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-rose-600 font-semibold">${escAttr(e.message || 'Failed')}</td></tr>`;
+      }
+    }
+
+    async function reviewOperatorSubmission(submissionId, decision) {
+      if (!submissionId) return;
+      const remarks = prompt((decision === 'approve' ? 'Approval remarks (optional):' : 'Rejection reason:') , '');
+      if (decision === 'reject' && (!remarks || !remarks.trim())) { showToast('Rejection reason is required.', 'error'); return; }
+      const fd = new FormData();
+      fd.append('submission_id', String(submissionId));
+      fd.append('decision', String(decision));
+      fd.append('remarks', String(remarks || ''));
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module1/operator_submissions_review.php', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
+        showToast(decision === 'approve' ? 'Approved.' : 'Rejected.');
+        loadOperatorSubmissions();
+      } catch (e) {
+        showToast(e.message || 'Failed', 'error');
+      }
+    }
+
+    if (btnReloadSubs) btnReloadSubs.addEventListener('click', loadOperatorSubmissions);
+    if (subStatus) subStatus.addEventListener('change', loadOperatorSubmissions);
+    if (subQ) subQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadOperatorSubmissions(); } });
+    loadOperatorSubmissions();
+
     const modal = document.getElementById('modalOp');
     const backdrop = document.getElementById('modalOpBackdrop');
     const panel = document.getElementById('modalOpPanel');
@@ -337,6 +458,7 @@ if ($rootUrl === '/') $rootUrl = '';
       btnAdd.addEventListener('click', () => {
         openModal(`
           <form id="formAddOperator" class="space-y-5" novalidate>
+            <input type="hidden" name="assisted" value="1">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type</label>
@@ -370,7 +492,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Note</div>
-              <div class="text-sm text-slate-700 dark:text-slate-200 mt-1">New operators start as Draft. Upload and validate documents in the Documents screen.</div>
+              <div class="text-sm text-slate-700 dark:text-slate-200 mt-1">Assisted encoding is for walk-ins without device access. This creates a Draft operator record; upload/validate documents in the Documents screen.</div>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
@@ -378,7 +500,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <button id="btnSaveOperator" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
             </div>
           </form>
-        `, 'Add Operator');
+        `, 'Assisted Operator Encoding (Walk-in)');
 
         const cancel = body.querySelector('[data-op-cancel="1"]');
         if (cancel) cancel.addEventListener('click', closeModal);

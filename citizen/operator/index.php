@@ -554,13 +554,37 @@ if (empty($_SESSION['operator_csrf'])) {
                         <h2 class="text-2xl font-bold text-slate-900">Fleet Management</h2>
                         <p class="text-slate-500 text-sm">Monitor compliance and status of your registered vehicles.</p>
                         <div class="mt-4">
+                            <button onclick="showOperatorRecordModal()"
+                                class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-black transition inline-flex items-center gap-2 mr-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                                Submit Operator Record
+                            </button>
                             <button onclick="showAddVehicleModal()"
-                                class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-orange-600 transition flex items-center gap-2">
+                                class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-orange-600 transition inline-flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4v16m8-8H4"></path>
                                 </svg>
-                                Add Vehicle
+                                Submit Vehicle Encoding
+                            </button>
+                            <button onclick="generateDeclaredFleetPreview()"
+                                class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6M9 8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                Generate Declared Fleet
+                            </button>
+                            <button onclick="showTransferRequestModal()"
+                                class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16l-4-4m0 0l4-4m-4 4h18M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                                </svg>
+                                Create Transfer Request
                             </button>
                         </div>
                     </div>
@@ -812,12 +836,80 @@ if (empty($_SESSION['operator_csrf'])) {
         </div>
     </div>
 
+    <!-- Operator Record Submission Modal -->
+    <div id="operatorRecordModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Submit Operator Record</h3>
+                    <p class="text-xs text-slate-500 mt-1">Submit your operator details for admin verification and approval.</p>
+                </div>
+                <button type="button" onclick="document.getElementById('operatorRecordModal').classList.add('hidden')"
+                    class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="submitOperatorRecord(event)" class="space-y-4" novalidate>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Operator Type</label>
+                        <select name="operator_type" id="opRecType" class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                            <option value="Individual">Individual</option>
+                            <option value="Cooperative">Cooperative</option>
+                            <option value="Corporation">Corporation</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contact No</label>
+                        <input type="tel" name="contact_no" id="opRecContact" inputmode="tel" minlength="7" maxlength="20"
+                            pattern="^(\\+639\\d{9}|09\\d{9}|(\\+63|0)9\\d{2}[- ]?\\d{3}[- ]?\\d{4}|0[2-8]\\d{7,8})$"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="09171234567 or +639171234567">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Registered Name</label>
+                    <input type="text" name="registered_name" id="opRecRegisteredName"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Registered name (if applicable)">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Operator Name</label>
+                    <input type="text" name="name" id="opRecName"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Name to display in records">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Address</label>
+                    <input type="text" name="address" id="opRecAddress"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Complete address">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Coop / Association Name (optional)</label>
+                    <input type="text" name="coop_name" id="opRecCoop"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="e.g., XYZ Cooperative">
+                </div>
+                <button type="submit"
+                    class="w-full py-3 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:shadow-slate-900/30 transition">Submit
+                    for Verification</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Add Vehicle Modal -->
     <div id="addVehicleModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-slate-800">Register New Vehicle</h3>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Vehicle Encoding & Documents</h3>
+                    <p class="text-xs text-slate-500 mt-1">Submit vehicle details and OR/CR documents for admin verification.</p>
+                </div>
                 <button onclick="document.getElementById('addVehicleModal').classList.add('hidden')"
                     class="text-slate-400 hover:text-slate-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -826,22 +918,206 @@ if (empty($_SESSION['operator_csrf'])) {
                     </svg>
                 </button>
             </div>
-            <form onsubmit="submitNewVehicle(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">Plate Number</label>
-                    <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
-                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition uppercase"
-                        placeholder="ABC-1234" required>
+            <form onsubmit="submitNewVehicle(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
+                        <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition uppercase text-sm font-semibold"
+                            placeholder="ABC-1234" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Type</label>
+                        <input type="text" name="vehicle_type"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="e.g., Jeepney" required>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">LTO OR/CR</label>
-                    <input type="file" name="or_cr_doc"
-                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200"
-                        accept="image/*,application/pdf" required>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Make</label>
+                        <input type="text" name="make" maxlength="40"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="e.g., Toyota">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Model</label>
+                        <input type="text" name="model" maxlength="40"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="e.g., Hiace">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Year</label>
+                        <input type="tel" name="year_model" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" data-tmm-filter="digits"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="2018">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fuel Type</label>
+                        <input type="text" name="fuel_type" maxlength="20"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="Diesel">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Color</label>
+                        <input type="text" name="color" maxlength="20"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="White">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Engine No</label>
+                        <input type="text" name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
+                            placeholder="1NZFE-12345">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Chassis No (VIN)</label>
+                        <input type="text" name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
+                            placeholder="NCP12345678901234">
+                    </div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="text-xs font-bold text-slate-500 uppercase">OR/CR Metadata (Optional)</div>
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR Number</label>
+                            <input type="text" name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                placeholder="123456">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR Number</label>
+                            <input type="text" name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold uppercase"
+                                placeholder="ABCD-123456">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR Issue Date</label>
+                            <input type="date" name="cr_issue_date"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Registered Owner</label>
+                            <input type="text" name="registered_owner" maxlength="150"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                placeholder="Name as it appears on CR">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="text-xs font-bold text-slate-500 uppercase">Required Documents</div>
+                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR (Required)</label>
+                            <input type="file" name="cr" accept=".pdf,.jpg,.jpeg,.png" required
+                                class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR (Optional)</label>
+                            <input type="file" name="or" accept=".pdf,.jpg,.jpeg,.png"
+                                class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR Expiry Date</label>
+                            <input type="date" name="or_expiry_date"
+                                class="w-full px-4 py-3 bg-white rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        </div>
+                    </div>
                 </div>
                 <button type="submit"
                     class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg hover:shadow-orange-500/30 transition">Submit
                     for Verification</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="declaredFleetModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 animate-fade-in">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Declared Fleet Preview</h3>
+                    <p class="text-xs text-slate-500 mt-1">Review the generated file first. Upload is only enabled after confirmation.</p>
+                </div>
+                <button type="button" onclick="closeDeclaredFleetModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="declaredFleetBody"></div>
+        </div>
+    </div>
+
+    <div id="transferRequestModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 animate-fade-in">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Create Ownership Transfer Request</h3>
+                    <p class="text-xs text-slate-500 mt-1">Select one of your linked vehicles and provide the new owner name.</p>
+                </div>
+                <button type="button" onclick="closeTransferRequestModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="transferRequestForm" onsubmit="submitTransferRequest(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle</label>
+                    <select name="vehicle_id" id="transferVehicleSelect" required
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        <option value="">Loading…</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">New Owner (Text Only)</label>
+                    <input type="text" name="to_operator_name" minlength="3" maxlength="255" required
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Full name / Cooperative / Corporation name">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Transfer Type</label>
+                        <select name="transfer_type"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                            <option value="Sale">Sale</option>
+                            <option value="Donation">Donation</option>
+                            <option value="Inheritance">Inheritance</option>
+                            <option value="Reassignment" selected>Reassignment</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">LTO Reference No (optional)</label>
+                        <input type="text" name="lto_reference_no" maxlength="128"
+                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                            placeholder="e.g., LTO-REF-2026-000123">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">OR/CR (optional)</label>
+                        <input type="file" name="orcr_doc" accept=".pdf,.jpg,.jpeg,.png"
+                            class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Deed / Authorization (required)</label>
+                        <input type="file" name="deed_doc" accept=".pdf,.jpg,.jpeg,.png" required
+                            class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeTransferRequestModal()"
+                        class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" id="btnSubmitTransfer"
+                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Submit</button>
+                </div>
             </form>
         </div>
     </div>
@@ -946,6 +1222,7 @@ if (empty($_SESSION['operator_csrf'])) {
 
     <script>
         const csrfToken = <?php echo json_encode((string) ($_SESSION['operator_csrf'] ?? '')); ?>;
+        const appBaseUrl = <?php echo json_encode((string) $baseUrl); ?>;
 
         function toast(message, variant = 'info') {
             const container = document.getElementById('toastContainer');
@@ -1115,6 +1392,19 @@ if (empty($_SESSION['operator_csrf'])) {
                     showSection('applications');
                     toast('Inspection request form prepared for ' + plate, 'success');
                 };
+                window.requestVehicleLink = async function (plate) {
+                    const ok = confirm('Submit a link request for ' + plate + ' to your operator record?');
+                    if (!ok) return;
+                    const fd = new FormData();
+                    fd.append('action', 'puv_request_vehicle_link');
+                    fd.append('plate_number', plate);
+                    const r = await apiPost(fd);
+                    if (r && r.ok) {
+                        toast(r.message || 'Submitted', 'success');
+                    } else {
+                        toast(r && (r.error || r.message) ? (r.error || r.message) : 'Failed', 'error');
+                    }
+                };
                 tbody.innerHTML = data.data.map(v => `
                     <tr class="hover:bg-slate-50 group transition">
                         <td class="p-5 font-bold text-slate-700">${v.plate_number}</td>
@@ -1126,10 +1416,16 @@ if (empty($_SESSION['operator_csrf'])) {
                         <td class="p-5 text-slate-600 text-sm">${v.inspection_status || 'N/A'}</td>
                         <td class="p-5 text-slate-500 text-xs">${v.inspection_last_date || '-'}</td>
                         <td class="p-5">
-                            ${v.inspection_status && v.inspection_status === 'Passed'
-                        ? '<span class="text-xs font-bold text-emerald-600">Compliant</span>'
-                        : `<button type="button" onclick="quickRequestInspection('${v.plate_number}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">Request Inspection</button>`
-                    }
+                            <div class="flex flex-wrap gap-3 items-center">
+                                ${v.inspection_status && v.inspection_status === 'Passed'
+                            ? '<span class="text-xs font-bold text-emerald-600">Compliant</span>'
+                            : `<button type="button" onclick="quickRequestInspection('${v.plate_number}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">Request Inspection</button>`
+                        }
+                                ${v.record_status && v.record_status === 'Linked'
+                            ? '<span class="text-xs font-bold text-emerald-600">Linked</span>'
+                            : `<button type="button" onclick="requestVehicleLink('${v.plate_number}')" class="text-xs font-bold text-slate-700 hover:text-slate-900 transition">Request Link</button>`
+                        }
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -1297,6 +1593,246 @@ if (empty($_SESSION['operator_csrf'])) {
 
         function showAddVehicleModal() {
             document.getElementById('addVehicleModal').classList.remove('hidden');
+        }
+
+        function showOperatorRecordModal() {
+            const modal = document.getElementById('operatorRecordModal');
+            if (!modal) return;
+            const t = document.getElementById('opRecType');
+            const rn = document.getElementById('opRecRegisteredName');
+            const n = document.getElementById('opRecName');
+            const a = document.getElementById('opRecAddress');
+            const c = document.getElementById('opRecContact');
+            const coop = document.getElementById('opRecCoop');
+            if (t && currentProfileData && currentProfileData.operator_type) t.value = currentProfileData.operator_type;
+            if (rn && currentProfileData && currentProfileData.association_name && !rn.value) rn.value = currentProfileData.association_name;
+            if (n && currentProfileData && currentProfileData.name && !n.value) n.value = currentProfileData.name;
+            if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = currentProfileData.contact_info;
+            if (coop && currentProfileData && currentProfileData.association_name && !coop.value) coop.value = currentProfileData.association_name;
+            modal.classList.remove('hidden');
+        }
+
+        async function submitOperatorRecord(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const oldText = btn ? btn.innerText : '';
+            if (btn) { btn.innerText = 'Submitting...'; btn.disabled = true; }
+
+            const fd = new FormData(e.target);
+            fd.append('action', 'puv_submit_operator_record');
+            const res = await apiPost(fd);
+
+            if (btn) { btn.innerText = oldText; btn.disabled = false; }
+
+            if (res && res.ok) {
+                toast(res.message || 'Submitted', 'success');
+                document.getElementById('operatorRecordModal').classList.add('hidden');
+                e.target.reset();
+            } else {
+                toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
+            }
+        }
+
+        function closeDeclaredFleetModal() {
+            const m = document.getElementById('declaredFleetModal');
+            const b = document.getElementById('declaredFleetBody');
+            if (b) b.innerHTML = '';
+            if (m) m.classList.add('hidden');
+        }
+
+        async function generateDeclaredFleetPreview() {
+            const modal = document.getElementById('declaredFleetModal');
+            const body = document.getElementById('declaredFleetBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            body.innerHTML = `<div class="p-6 text-center text-slate-500 font-semibold">Generating…</div>`;
+
+            const fd = new FormData();
+            fd.append('action', 'puv_generate_declared_fleet');
+            const res = await apiPost(fd);
+            if (!res || !res.ok) {
+                body.innerHTML = `<div class="p-6 text-center text-rose-600 font-semibold">${escapeHtml((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed')}</div>`;
+                return;
+            }
+
+            const token = res.token || '';
+            const files = res.files || {};
+            const pdfFile = files.pdf || '';
+            const excelFile = files.excel || '';
+            const rows = Array.isArray(res.rows) ? res.rows : [];
+            const previewRows = rows.slice(0, 25);
+            const op = res.operator || {};
+            const sys = res.system || {};
+            const summary = res.summary || {};
+            const breakdown = summary.breakdown || {};
+
+            const pdfUrl = pdfFile ? (appBaseUrl + '/admin/uploads/' + encodeURIComponent(String(pdfFile))) : '';
+            const excelUrl = excelFile ? (appBaseUrl + '/admin/uploads/' + encodeURIComponent(String(excelFile))) : '';
+
+            const breakdownLines = Object.keys(breakdown).sort((a, b) => {
+                const av = Number(breakdown[a] || 0);
+                const bv = Number(breakdown[b] || 0);
+                if (bv !== av) return bv - av;
+                return String(a).localeCompare(String(b));
+            }).map((k) => `<div class="text-xs font-semibold text-slate-700">- ${escapeHtml(k)}: ${escapeHtml(breakdown[k])}</div>`).join('');
+
+            body.innerHTML = `
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div class="font-black text-slate-900">${escapeHtml((sys.lgu_name || sys.name || '').toString()) || 'LGU PUV Management System'}</div>
+                    <div class="mt-1 font-semibold text-slate-600">DECLARED FLEET REPORT</div>
+                    <div class="mt-2 text-slate-700">
+                      <div><span class="font-bold">Operator:</span> ${escapeHtml(op.name || '')}</div>
+                      <div><span class="font-bold">Operator Type:</span> ${escapeHtml(op.type || '')}</div>
+                      <div><span class="font-bold">Operator ID:</span> ${escapeHtml(op.code || op.id || '')}</div>
+                    </div>
+                  </div>
+                  <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div class="font-black text-slate-900">Fleet Summary</div>
+                    <div class="mt-1 text-xs font-semibold text-slate-600">Total Vehicles: ${escapeHtml(summary.total_vehicles || rows.length)}</div>
+                    <div class="mt-2 space-y-1">${breakdownLines || `<div class="text-xs font-semibold text-slate-600">No breakdown data.</div>`}</div>
+                  </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="flex flex-wrap gap-2 items-center">
+                    ${pdfUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition" href="${escapeHtml(pdfUrl)}" target="_blank">Open PDF</a>` : ``}
+                    ${excelUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition" href="${escapeHtml(excelUrl)}" target="_blank">Open Excel (CSV)</a>` : ``}
+                  </div>
+                  <label class="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-700">
+                    <input type="checkbox" class="mt-0.5 w-4 h-4" data-fleet-confirm="1">
+                    <span>I reviewed the generated file and confirm it is correct.</span>
+                  </label>
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-primary text-white hover:bg-orange-600 transition" data-fleet-upload="pdf" data-fleet-token="${escapeHtml(token)}" disabled>Upload PDF</button>
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-900 text-white hover:bg-black transition" data-fleet-upload="excel" data-fleet-token="${escapeHtml(token)}" disabled>Upload Excel</button>
+                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition" onclick="closeDeclaredFleetModal()">Close</button>
+                  </div>
+                </div>
+
+                <div class="text-xs font-bold text-slate-600">Previewing ${escapeHtml(previewRows.length)} of ${escapeHtml(rows.length)} vehicles</div>
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                  <table class="min-w-full text-xs">
+                    <thead class="bg-slate-50">
+                      <tr class="text-left">
+                        <th class="px-3 py-2 font-black">Plate</th>
+                        <th class="px-3 py-2 font-black">Type</th>
+                        <th class="px-3 py-2 font-black">Make</th>
+                        <th class="px-3 py-2 font-black">Model</th>
+                        <th class="px-3 py-2 font-black">Year</th>
+                        <th class="px-3 py-2 font-black">Engine</th>
+                        <th class="px-3 py-2 font-black">Chassis</th>
+                        <th class="px-3 py-2 font-black">OR No</th>
+                        <th class="px-3 py-2 font-black">CR No</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                      ${previewRows.map((r) => `
+                        <tr>
+                          <td class="px-3 py-2 font-bold">${escapeHtml(r.plate_number || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.vehicle_type || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.make || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.model || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.year_model || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.engine_no || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.chassis_no || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.or_number || '')}</td>
+                          <td class="px-3 py-2">${escapeHtml(r.cr_number || '')}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+
+            const confirmEl = body.querySelector('[data-fleet-confirm="1"]');
+            const uploadBtns = Array.from(body.querySelectorAll('[data-fleet-upload]'));
+            const setUploadEnabled = (enabled) => {
+                uploadBtns.forEach((x) => {
+                    const fmt = x.getAttribute('data-fleet-upload') || '';
+                    if (fmt === 'pdf' && !pdfFile) { x.disabled = true; return; }
+                    if (fmt === 'excel' && !excelFile) { x.disabled = true; return; }
+                    x.disabled = !enabled;
+                });
+            };
+            setUploadEnabled(false);
+            if (confirmEl) confirmEl.addEventListener('change', () => setUploadEnabled(!!confirmEl.checked));
+
+            uploadBtns.forEach((btnUp) => {
+                btnUp.addEventListener('click', async () => {
+                    const fmt = btnUp.getAttribute('data-fleet-upload') || 'pdf';
+                    const tok = btnUp.getAttribute('data-fleet-token') || '';
+                    const old = btnUp.innerText;
+                    btnUp.disabled = true;
+                    btnUp.innerText = 'Uploading…';
+                    const fd2 = new FormData();
+                    fd2.append('action', 'puv_generate_declared_fleet');
+                    fd2.append('commit', '1');
+                    fd2.append('token', tok);
+                    fd2.append('format', fmt);
+                    const res2 = await apiPost(fd2);
+                    if (res2 && res2.ok) {
+                        toast('Declared Fleet uploaded for review.', 'success');
+                        btnUp.innerText = old;
+                        closeDeclaredFleetModal();
+                    } else {
+                        toast((res2 && (res2.error || res2.message)) ? (res2.error || res2.message) : 'Upload failed', 'error');
+                        btnUp.innerText = old;
+                        btnUp.disabled = false;
+                    }
+                });
+            });
+        }
+
+        function closeTransferRequestModal() {
+            const m = document.getElementById('transferRequestModal');
+            if (m) m.classList.add('hidden');
+        }
+
+        async function showTransferRequestModal() {
+            const modal = document.getElementById('transferRequestModal');
+            const sel = document.getElementById('transferVehicleSelect');
+            const form = document.getElementById('transferRequestForm');
+            if (!modal || !sel || !form) return;
+            modal.classList.remove('hidden');
+            sel.innerHTML = `<option value="">Loading…</option>`;
+            const data = await apiGet('puv_get_owned_vehicles');
+            if (!data || !data.ok) {
+                sel.innerHTML = `<option value="">Failed to load vehicles</option>`;
+                return;
+            }
+            const rows = Array.isArray(data.data) ? data.data : [];
+            if (!rows.length) {
+                sel.innerHTML = `<option value="">No linked vehicles</option>`;
+                return;
+            }
+            sel.innerHTML = `<option value="">Select vehicle…</option>` + rows.map((r) => {
+                const id = String(r.vehicle_id || '');
+                const plate = String(r.plate_number || '');
+                return `<option value="${escapeHtml(id)}">${escapeHtml(plate)}</option>`;
+            }).join('');
+        }
+
+        async function submitTransferRequest(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmitTransfer');
+            const old = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = 'Submitting…'; }
+
+            const fd = new FormData(e.target);
+            fd.append('action', 'puv_create_transfer_request');
+            const res = await apiPost(fd);
+
+            if (btn) { btn.disabled = false; btn.innerText = old; }
+            if (res && res.ok) {
+                toast(res.message || 'Submitted', 'success');
+                e.target.reset();
+                closeTransferRequestModal();
+            } else {
+                toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Failed', 'error');
+            }
         }
 
         async function submitPayment(e) {

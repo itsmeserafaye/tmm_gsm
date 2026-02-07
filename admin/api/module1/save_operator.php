@@ -13,6 +13,7 @@ $email = trim((string)($_POST['email'] ?? ''));
 $status = trim((string)($_POST['status'] ?? ''));
 $contactLegacy = trim((string)($_POST['contact_info'] ?? ''));
 $_workflow = trim((string)($_POST['workflow_status'] ?? ''));
+$assisted = (int)($_POST['assisted'] ?? 0) === 1;
 
 if ($name === '' || strlen($name) < 3) {
     http_response_code(400);
@@ -51,8 +52,12 @@ if ($email !== '' && !preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
 $now = date('Y-m-d H:i:s');
 $verificationStatus = 'Draft';
 $workflowStatus = 'Draft';
-$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+$submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+if ($submittedByName === '') $submittedByName = 'Admin';
+
+$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                       ON DUPLICATE KEY UPDATE
                         contact_info=VALUES(contact_info),
                         operator_type=VALUES(operator_type),
@@ -64,14 +69,18 @@ $stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_t
                         status=VALUES(status),
                         verification_status=IF(verification_status='Inactive','Inactive',verification_status),
                         workflow_status=IF(workflow_status='Inactive','Inactive',workflow_status),
-                        updated_at=VALUES(updated_at)");
+                        updated_at=VALUES(updated_at),
+                        submitted_by_name=COALESCE(NULLIF(submitted_by_name,''), VALUES(submitted_by_name)),
+                        submitted_at=COALESCE(submitted_at, VALUES(submitted_at))");
 if (!$stmt) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
 }
 $contactInfo = trim(($contactNo !== '' ? $contactNo : '') . (($contactNo !== '' && $email !== '') ? ' / ' : '') . ($email !== '' ? $email : ''));
-$stmt->bind_param('ssssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $contactNo, $email, $status, $verificationStatus, $workflowStatus, $now);
+$submitNameBind = $assisted ? $submittedByName : null;
+$submitAtBind = $assisted ? $now : null;
+$stmt->bind_param('ssssssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $contactNo, $email, $status, $verificationStatus, $workflowStatus, $now, $submitNameBind, $submitAtBind);
 if ($stmt->execute()) {
     $id = (int)($db->insert_id ?: ($stmt->insert_id ?? 0));
     if ($id <= 0) {
@@ -84,7 +93,11 @@ if ($stmt->execute()) {
             $id = (int)($row['id'] ?? 0);
         }
     }
-    echo json_encode(['ok' => true, 'operator_id' => $id]);
+    if ($assisted) {
+        require_once __DIR__ . '/../../includes/util.php';
+        tmm_audit_event($db, 'PUV_ASSISTED_OPERATOR_ENCODED', 'Operator', (string)$id, ['assisted' => true]);
+    }
+    echo json_encode(['ok' => true, 'operator_id' => $id, 'assisted' => $assisted]);
 } else {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'save_failed']);

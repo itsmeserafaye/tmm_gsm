@@ -19,7 +19,7 @@ $sql = "SELECT
   t.from_operator_id,
   COALESCE(NULLIF(ofr.registered_name,''), NULLIF(ofr.name,''), ofr.full_name) AS from_operator_name,
   t.to_operator_id,
-  COALESCE(NULLIF(oto.registered_name,''), NULLIF(oto.name,''), oto.full_name) AS to_operator_name,
+  COALESCE(NULLIF(t.to_operator_name,''), COALESCE(NULLIF(oto.registered_name,''), NULLIF(oto.name,''), oto.full_name)) AS to_operator_name,
   t.transfer_type,
   t.lto_reference_no,
   t.deed_of_sale_path,
@@ -29,6 +29,8 @@ $sql = "SELECT
   t.reviewed_by,
   t.reviewed_at,
   t.remarks,
+  t.requested_by_name,
+  t.requested_at,
   t.created_at
 FROM vehicle_ownership_transfers t
 JOIN vehicles v ON v.id=t.vehicle_id
@@ -41,13 +43,14 @@ $types = '';
 
 if ($q !== '') {
   $qNoDash = preg_replace('/[^A-Za-z0-9]/', '', $q);
-  $conds[] = "(v.plate_number LIKE ? OR REPLACE(v.plate_number,'-','') LIKE ? OR ofr.name LIKE ? OR ofr.full_name LIKE ? OR ofr.registered_name LIKE ? OR oto.name LIKE ? OR oto.full_name LIKE ? OR oto.registered_name LIKE ?)";
+  $conds[] = "(v.plate_number LIKE ? OR REPLACE(v.plate_number,'-','') LIKE ? OR ofr.name LIKE ? OR ofr.full_name LIKE ? OR ofr.registered_name LIKE ? OR oto.name LIKE ? OR oto.full_name LIKE ? OR oto.registered_name LIKE ? OR t.to_operator_name LIKE ? OR t.requested_by_name LIKE ?)";
   $like = "%$q%";
   $params[] = $like;
   $params[] = "%$qNoDash%";
   $params[] = $like; $params[] = $like; $params[] = $like;
   $params[] = $like; $params[] = $like; $params[] = $like;
-  $types .= 'ssssssss';
+  $params[] = $like; $params[] = $like;
+  $types .= 'ssssssssss';
 }
 if ($status !== '') {
   $allowed = ['Pending','Approved','Rejected'];

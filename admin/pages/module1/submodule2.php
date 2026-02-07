@@ -163,9 +163,13 @@ $typesList = vehicle_types();
         <button id="btnOpenAddVehicle" type="button"
           class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
           <i data-lucide="plus" class="w-4 h-4"></i>
-          Add Vehicle
+          Assisted Encoding (Walk-in)
         </button>
       <?php endif; ?>
+      <div class="inline-flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+        <i data-lucide="info" class="w-4 h-4"></i>
+        Vehicle encoding is submitted via Operator Portal. Use Assisted Encoding for walk-ins.
+      </div>
     </div>
   </div>
 
@@ -197,6 +201,42 @@ $typesList = vehicle_types();
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Missing OR/CR</div>
       <div class="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
         <?php echo number_format($statMissingOrcr); ?></div>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div>
+        <div class="text-lg font-bold text-slate-900 dark:text-white">Vehicle Encoding Submissions</div>
+        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Submitted by operators via Operator Portal. Approve or reject to finalize the official vehicle record.</div>
+      </div>
+      <div class="flex gap-2">
+        <select id="vehSubStatus" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+          <option value="Submitted">Submitted</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <input id="vehSubQ" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate/type…">
+        <button id="btnReloadVehSubs" class="rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+      </div>
+    </div>
+
+    <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300">
+          <tr>
+            <th class="px-4 py-3 text-left font-black">Submitted</th>
+            <th class="px-4 py-3 text-left font-black">Plate</th>
+            <th class="px-4 py-3 text-left font-black">Type</th>
+            <th class="px-4 py-3 text-left font-black">Engine</th>
+            <th class="px-4 py-3 text-left font-black">Chassis</th>
+            <th class="px-4 py-3 text-left font-black">Docs</th>
+            <th class="px-4 py-3 text-left font-black">Status</th>
+            <th class="px-4 py-3 text-left font-black">Action</th>
+          </tr>
+        </thead>
+        <tbody id="vehSubmissionsTbody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+      </table>
     </div>
   </div>
 
@@ -459,6 +499,99 @@ $typesList = vehicle_types();
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
     }
+
+    const escAttr = (v) => String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/\"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const vehSubStatus = document.getElementById('vehSubStatus');
+    const vehSubQ = document.getElementById('vehSubQ');
+    const btnReloadVehSubs = document.getElementById('btnReloadVehSubs');
+    const vehSubmissionsTbody = document.getElementById('vehSubmissionsTbody');
+
+    async function loadVehicleSubmissions() {
+      if (!vehSubmissionsTbody) return;
+      vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Loading…</td></tr>`;
+      try {
+        const qs = new URLSearchParams();
+        qs.set('status', (vehSubStatus && vehSubStatus.value) ? vehSubStatus.value : 'Submitted');
+        if (vehSubQ && vehSubQ.value.trim() !== '') qs.set('q', vehSubQ.value.trim());
+        const res = await fetch(rootUrl + '/admin/api/module1/vehicle_submissions_list.php?' + qs.toString());
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const rows = Array.isArray(data.data) ? data.data : [];
+        if (!rows.length) {
+          vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No submissions found.</td></tr>`;
+          return;
+        }
+        vehSubmissionsTbody.innerHTML = rows.map((r) => {
+          const sid = r.submission_id;
+          const plate = (r.plate_number || '').toString();
+          const type = (r.vehicle_type || '').toString();
+          const engine = (r.engine_no || '').toString();
+          const chassis = (r.chassis_no || '').toString();
+          const st = (r.status || '').toString();
+          const submittedAt = (r.submitted_at || '').toString();
+          const cr = (r.cr_file_path || '').toString();
+          const orf = (r.or_file_path || '').toString();
+          const docs = [
+            cr ? `<a class="text-blue-700 hover:underline font-bold" target="_blank" href="${escAttr(rootUrl + '/admin/uploads/' + encodeURIComponent(cr))}">CR</a>` : `<span class="text-slate-400">CR</span>`,
+            orf ? `<a class="text-blue-700 hover:underline font-bold" target="_blank" href="${escAttr(rootUrl + '/admin/uploads/' + encodeURIComponent(orf))}">OR</a>` : `<span class="text-slate-400">OR</span>`
+          ].join(' • ');
+          const actionHtml = st === 'Submitted'
+            ? `<div class="flex gap-2">
+                 <button data-vehsub-approve="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Approve</button>
+                 <button data-vehsub-reject="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Reject</button>
+               </div>`
+            : `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${escAttr(r.approved_by_name || '')} ${escAttr(r.approved_at || '')}</div>`;
+          return `<tr>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(submittedAt)}</td>
+            <td class="px-4 py-3 font-bold text-slate-900 dark:text-white">${escAttr(plate)}</td>
+            <td class="px-4 py-3 text-xs font-semibold">${escAttr(type)}</td>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(engine)}</td>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(chassis)}</td>
+            <td class="px-4 py-3 text-xs font-semibold">${docs}</td>
+            <td class="px-4 py-3 text-xs font-black">${escAttr(st)}</td>
+            <td class="px-4 py-3">${actionHtml}</td>
+          </tr>`;
+        }).join('');
+
+        vehSubmissionsTbody.querySelectorAll('[data-vehsub-approve]').forEach((b) => {
+          b.addEventListener('click', () => reviewVehicleSubmission(b.getAttribute('data-vehsub-approve'), 'approve'));
+        });
+        vehSubmissionsTbody.querySelectorAll('[data-vehsub-reject]').forEach((b) => {
+          b.addEventListener('click', () => reviewVehicleSubmission(b.getAttribute('data-vehsub-reject'), 'reject'));
+        });
+      } catch (e) {
+        vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-rose-600 font-semibold">${escAttr(e.message || 'Failed')}</td></tr>`;
+      }
+    }
+
+    async function reviewVehicleSubmission(submissionId, decision) {
+      if (!submissionId) return;
+      const remarks = prompt((decision === 'approve' ? 'Approval remarks (optional):' : 'Rejection reason:') , '');
+      if (decision === 'reject' && (!remarks || !remarks.trim())) { showToast('Rejection reason is required.', 'error'); return; }
+      const fd = new FormData();
+      fd.append('submission_id', String(submissionId));
+      fd.append('decision', String(decision));
+      fd.append('remarks', String(remarks || ''));
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module1/vehicle_submissions_review.php', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
+        showToast(decision === 'approve' ? 'Approved.' : 'Rejected.');
+        loadVehicleSubmissions();
+      } catch (e) {
+        showToast(e.message || 'Failed', 'error');
+      }
+    }
+
+    if (btnReloadVehSubs) btnReloadVehSubs.addEventListener('click', loadVehicleSubmissions);
+    if (vehSubStatus) vehSubStatus.addEventListener('change', loadVehicleSubmissions);
+    if (vehSubQ) vehSubQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadVehicleSubmissions(); } });
+    loadVehicleSubmissions();
 
     const modal = document.getElementById('modalVeh');
     const backdrop = document.getElementById('modalVehBackdrop');
@@ -1014,6 +1147,7 @@ $typesList = vehicle_types();
       btnAdd.addEventListener('click', () => {
         openModal(`
           <form id="formAddVehicle" class="space-y-5" novalidate>
+            <input type="hidden" name="assisted" value="1">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
@@ -1160,7 +1294,7 @@ $typesList = vehicle_types();
               <button id="btnSaveVehicle" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
             </div>
           </form>
-        `, 'Add Vehicle');
+        `, 'Assisted Vehicle Encoding (Walk-in)');
 
         const cancel = body.querySelector('[data-veh-cancel="1"]');
         if (cancel) cancel.addEventListener('click', closeModal);

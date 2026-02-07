@@ -4,6 +4,8 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
 }
 require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../includes/operator_portal.php';
+require_once __DIR__ . '/../../admin/includes/security.php';
+require_once __DIR__ . '/../../admin/includes/util.php';
 
 header('Content-Type: application/json');
 
@@ -59,6 +61,29 @@ function op_send(bool $ok, array $payload = [], int $code = 200): void
   http_response_code($code);
   echo json_encode(array_merge(['ok' => $ok], $payload));
   exit;
+}
+
+function op_audit_event(mysqli $db, int $portalUserId, string $email, string $action, string $entityType = '', string $entityKey = '', array $meta = []): void
+{
+  $action = trim($action);
+  if ($action === '') return;
+  $entityType = trim($entityType);
+  $entityKey = trim($entityKey);
+  $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+  $ua = trim((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+  $metaJson = '';
+  if ($meta) {
+    $metaJson = json_encode($meta, JSON_UNESCAPED_SLASHES);
+    if ($metaJson === false) $metaJson = '';
+    if (strlen($metaJson) > 20000) $metaJson = substr($metaJson, 0, 20000);
+  }
+
+  $stmt = $db->prepare("INSERT INTO audit_events (event_time, actor_user_id, actor_email, actor_role, action, entity_type, entity_key, ip_address, user_agent, meta_json)
+                        VALUES (NOW(), ?, ?, 'Operator Portal', ?, ?, ?, ?, ?, ?)");
+  if (!$stmt) return;
+  $stmt->bind_param('issssssss', $portalUserId, $email, $action, $entityType, $entityKey, $ip, $ua, $metaJson);
+  $stmt->execute();
+  $stmt->close();
 }
 
 function op_require_csrf(): void
@@ -381,7 +406,10 @@ if ($action === 'get_fleet_status') {
   $in = implode(',', array_fill(0, count($plates), '?'));
   $types = str_repeat('s', count($plates));
 
-  $sql = "SELECT plate_number, status, inspection_status, inspection_passed_at FROM vehicles WHERE plate_number IN ($in) ORDER BY plate_number ASC";
+  $sql = "SELECT plate_number, status, record_status, operator_id, current_operator_id, inspection_status, inspection_passed_at
+          FROM vehicles
+          WHERE plate_number IN ($in)
+          ORDER BY plate_number ASC";
   $stmt = $db->prepare($sql);
   if (!$stmt)
     op_send(false, ['error' => 'Query failed'], 500);
@@ -394,6 +422,9 @@ if ($action === 'get_fleet_status') {
       $rows[] = [
         'plate_number' => $row['plate_number'],
         'status' => $row['status'] ?? 'Active',
+        'record_status' => $row['record_status'] ?? null,
+        'operator_id' => isset($row['operator_id']) ? (int)$row['operator_id'] : null,
+        'current_operator_id' => isset($row['current_operator_id']) ? (int)$row['current_operator_id'] : null,
         'inspection_status' => $row['inspection_status'] ?? null,
         'inspection_last_date' => $row['inspection_passed_at'] ? substr((string) $row['inspection_passed_at'], 0, 10) : null,
       ];
@@ -718,55 +749,724 @@ if ($action === 'submit_application') {
   op_send(true, ['ref' => 'OP-' . strtoupper(bin2hex(random_bytes(4)))]);
 }
 
-if ($action === 'add_vehicle') {
+if ($action === 'puv_submit_operator_record') {
   op_require_csrf();
   op_require_approved($db, $userId);
-  $plate = strtoupper(trim((string) ($_POST['plate_number'] ?? '')));
-  if ($plate === '')
-    op_send(false, ['error' => 'Plate number required'], 400);
 
-  $orCrPath = '';
-  if (!empty($_FILES['or_cr_doc'])) {
-    $file = $_FILES['or_cr_doc'];
-    if ($file['error'] === UPLOAD_ERR_OK) {
-      $targetDir = __DIR__ . '/uploads/';
-      if (!is_dir($targetDir)) {
-        @mkdir($targetDir, 0777, true);
+  $u = op_get_user_row($db, $userId);
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+
+  $operatorType = trim((string)($_POST['operator_type'] ?? ($u['operator_type'] ?? 'Individual')));
+  if (!in_array($operatorType, ['Individual','Cooperative','Corporation'], true)) $operatorType = 'Individual';
+
+  $registeredName = trim((string)($_POST['registered_name'] ?? ''));
+  $name = trim((string)($_POST['name'] ?? ''));
+  $address = trim((string)($_POST['address'] ?? ''));
+  $contactNo = trim((string)($_POST['contact_no'] ?? ($_POST['contact_info'] ?? ($u['contact_info'] ?? ''))));
+  $email = strtolower(trim((string)($u['email'] ?? '')));
+  $coopName = trim((string)($_POST['coop_name'] ?? ($_POST['association_name'] ?? ($u['association_name'] ?? ''))));
+
+  $submittedBy = trim((string)($u['full_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = $coopName;
+  if ($submittedBy === '') $submittedBy = 'Operator';
+
+  $stmt = $db->prepare("INSERT INTO operator_record_submissions
+    (portal_user_id, operator_type, registered_name, name, address, contact_no, email, coop_name, status, submitted_at, submitted_by_name)
+    VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?)");
+  if (!$stmt) op_send(false, ['error' => 'Submission failed.'], 500);
+  $stmt->bind_param('issssssss', $userId, $operatorType, $registeredName, $name, $address, $contactNo, $email, $coopName, $submittedBy);
+  $ok = $stmt->execute();
+  $submissionId = (int)$stmt->insert_id;
+  $stmt->close();
+  if (!$ok) op_send(false, ['error' => 'Submission failed.'], 500);
+
+  op_audit_event($db, $userId, $email, 'PUV_OPERATOR_SUBMITTED', 'OperatorSubmission', (string)$submissionId, [
+    'operator_type' => $operatorType,
+    'registered_name' => $registeredName,
+  ]);
+
+  op_send(true, [
+    'message' => 'Operator record submitted for admin verification.',
+    'data' => ['submission_id' => $submissionId]
+  ]);
+}
+
+if ($action === 'puv_get_my_operator_submissions') {
+  $rows = [];
+  $stmt = $db->prepare("SELECT submission_id, operator_type, registered_name, name, status, submitted_at, approved_at, approved_by_name, approval_remarks, operator_id
+                        FROM operator_record_submissions
+                        WHERE portal_user_id=?
+                        ORDER BY submitted_at DESC, submission_id DESC
+                        LIMIT 25");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
+    $stmt->close();
+  }
+  op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'puv_get_my_vehicle_submissions') {
+  $rows = [];
+  $stmt = $db->prepare("SELECT submission_id, plate_number, vehicle_type, status, submitted_at, approved_at, approved_by_name, approval_remarks, vehicle_id
+                        FROM vehicle_record_submissions
+                        WHERE portal_user_id=?
+                        ORDER BY submitted_at DESC, submission_id DESC
+                        LIMIT 50");
+  if ($stmt) {
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
+    $stmt->close();
+  }
+  op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'puv_generate_declared_fleet') {
+  op_require_csrf();
+  op_require_approved($db, $userId);
+
+  $u = op_get_user_row($db, $userId);
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+  $email = strtolower(trim((string)($u['email'] ?? '')));
+  $submittedBy = trim((string)($u['full_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = trim((string)($u['association_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = 'Operator';
+
+  $operatorId = (int)($u['puv_operator_id'] ?? 0);
+  if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not approved yet.'], 400);
+
+  $commit = (string)($_POST['commit'] ?? '');
+  $token = trim((string)($_POST['token'] ?? ''));
+  $format = strtolower(trim((string)($_POST['format'] ?? 'pdf')));
+  if (!in_array($format, ['pdf','excel'], true)) $format = 'pdf';
+
+  $opStmt = $db->prepare("SELECT id, operator_type, COALESCE(NULLIF(name,''), full_name) AS display_name, status FROM operators WHERE id=? LIMIT 1");
+  if (!$opStmt) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $opStmt->bind_param('i', $operatorId);
+  $opStmt->execute();
+  $op = $opStmt->get_result()->fetch_assoc();
+  $opStmt->close();
+  if (!$op) op_send(false, ['error' => 'operator_not_found'], 404);
+
+  $systemName = tmm_get_app_setting('system_name', 'LGU PUV Management System');
+  $lguName = tmm_get_app_setting('lgu_name', $systemName);
+  $operatorCode = 'OP-' . str_pad((string)$operatorId, 5, '0', STR_PAD_LEFT);
+
+  $vehicles = [];
+  $stmtVeh = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.make, v.model, v.year_model, v.engine_no, v.chassis_no,
+                                  COALESCE(v.or_number,'') AS or_number, COALESCE(v.cr_number,'') AS cr_number, COALESCE(v.inspection_cert_ref,'') AS inspection_cert_ref,
+                                  COALESCE(v.status,'') AS status
+                           FROM vehicles v
+                           WHERE COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=?
+                             AND COALESCE(v.record_status,'') <> 'Archived'
+                           ORDER BY v.plate_number ASC");
+  if ($stmtVeh) {
+    $stmtVeh->bind_param('i', $operatorId);
+    $stmtVeh->execute();
+    $res = $stmtVeh->get_result();
+    while ($res && ($r = $res->fetch_assoc())) $vehicles[] = $r;
+    $stmtVeh->close();
+  }
+  if (!$vehicles) op_send(false, ['error' => 'no_linked_vehicles'], 400);
+
+  $plates = array_values(array_filter(array_map(fn($v) => trim((string)($v['plate_number'] ?? '')), $vehicles), fn($x) => $x !== ''));
+  $docsByPlate = [];
+  if ($plates) {
+    $inP = implode(',', array_fill(0, count($plates), '?'));
+    $typesP = str_repeat('s', count($plates));
+    $sqlPDocs = "SELECT plate_number, LOWER(type) AS doc_type, file_path, uploaded_at
+                 FROM documents
+                 WHERE plate_number IN ($inP)
+                   AND LOWER(type) IN ('or','cr')
+                   AND COALESCE(NULLIF(file_path,''),'') <> ''
+                 ORDER BY uploaded_at DESC, id DESC";
+    $stmtPDocs = $db->prepare($sqlPDocs);
+    if ($stmtPDocs) {
+      $stmtPDocs->bind_param($typesP, ...$plates);
+      $stmtPDocs->execute();
+      $resPDocs = $stmtPDocs->get_result();
+      while ($resPDocs && ($d = $resPDocs->fetch_assoc())) {
+        $p = trim((string)($d['plate_number'] ?? ''));
+        $dt = trim((string)($d['doc_type'] ?? ''));
+        $fp = trim((string)($d['file_path'] ?? ''));
+        if ($p === '' || $dt === '' || $fp === '') continue;
+        if (!isset($docsByPlate[$p])) $docsByPlate[$p] = [];
+        if (!isset($docsByPlate[$p][$dt])) $docsByPlate[$p][$dt] = $fp;
       }
-      $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-      $filename = 'orcr_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-      if (@move_uploaded_file($file['tmp_name'], $targetDir . $filename)) {
-        $orCrPath = 'uploads/' . $filename;
-      }
+      $stmtPDocs->close();
     }
   }
 
+  $now = date('Y-m-d H:i:s');
+  $opName = (string)($op['display_name'] ?? '');
+  $opType = (string)($op['operator_type'] ?? '');
+  $opStatus = (string)($op['status'] ?? '');
+
+  $toWin1252 = function ($s) {
+    $s = (string)$s;
+    if (function_exists('iconv')) {
+      $v = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $s);
+      if ($v !== false && $v !== null) return $v;
+    }
+    return $s;
+  };
+  $pdfEsc = function ($s) use ($toWin1252) {
+    $s = $toWin1252($s);
+    $s = str_replace("\\", "\\\\", $s);
+    $s = str_replace("(", "\\(", $s);
+    $s = str_replace(")", "\\)", $s);
+    $s = preg_replace("/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/", "", $s);
+    return $s;
+  };
+  $pdfFromLines = function (array $lines) use ($pdfEsc): string {
+    $pageWidth = 595;
+    $pageHeight = 842;
+    $marginLeft = 36;
+    $startY = 806;
+    $leading = 10;
+    $maxLines = 70;
+    $pages = [];
+    $cur = [];
+    foreach ($lines as $ln) {
+      $cur[] = (string)$ln;
+      if (count($cur) >= $maxLines) { $pages[] = $cur; $cur = []; }
+    }
+    if ($cur) $pages[] = $cur;
+    if (!$pages) $pages[] = ['No records.'];
+    $objects = [];
+    $addObj = function ($body) use (&$objects) { $objects[] = (string)$body; return count($objects); };
+    $catalogId = $addObj('');
+    $pagesId = $addObj('');
+    $fontId = $addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>");
+    $pageObjIds = [];
+    foreach ($pages as $pageLines) {
+      $content = "BT\n/F1 9 Tf\n" . $leading . " TL\n1 0 0 1 " . $marginLeft . " " . $startY . " Tm\n";
+      foreach ($pageLines as $ln) { $content .= "(" . $pdfEsc($ln) . ") Tj\nT*\n"; }
+      $content .= "ET\n";
+      $contentObjId = $addObj("<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream");
+      $pageObjId = $addObj("<< /Type /Page /Parent " . $pagesId . " 0 R /MediaBox [0 0 " . $pageWidth . " " . $pageHeight . "] /Resources << /Font << /F1 " . $fontId . " 0 R >> >> /Contents " . $contentObjId . " 0 R >>");
+      $pageObjIds[] = $pageObjId;
+    }
+    $kids = implode(' ', array_map(function ($id) { return $id . " 0 R"; }, $pageObjIds));
+    $objects[$pagesId - 1] = "<< /Type /Pages /Count " . count($pageObjIds) . " /Kids [ " . $kids . " ] >>";
+    $objects[$catalogId - 1] = "<< /Type /Catalog /Pages " . $pagesId . " 0 R >>";
+    $pdf = "%PDF-1.4\n";
+    $offsets = [0];
+    for ($i = 0; $i < count($objects); $i++) { $offsets[] = strlen($pdf); $pdf .= ($i + 1) . " 0 obj\n" . $objects[$i] . "\nendobj\n"; }
+    $xrefPos = strlen($pdf);
+    $pdf .= "xref\n0 " . (count($objects) + 1) . "\n";
+    $pdf .= "0000000000 65535 f \n";
+    for ($i = 1; $i <= count($objects); $i++) { $pdf .= str_pad((string)$offsets[$i], 10, '0', STR_PAD_LEFT) . " 00000 n \n"; }
+    $pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root " . $catalogId . " 0 R >>\nstartxref\n" . $xrefPos . "\n%%EOF";
+    return $pdf;
+  };
+
+  $trunc = function (string $s, int $max): string {
+    $s = (string)$s;
+    if ($max <= 0) return '';
+    if (strlen($s) <= $max) return $s;
+    if ($max <= 3) return substr($s, 0, $max);
+    return substr($s, 0, $max - 3) . '...';
+  };
+  $fmtDate = function (string $dt): string {
+    $ts = strtotime($dt);
+    if ($ts === false) return $dt;
+    return date('M d, Y H:i', $ts);
+  };
+  $appendixLabel = function (int $n): string {
+    $n = $n + 1;
+    $out = '';
+    while ($n > 0) { $n--; $out = chr(65 + ($n % 26)) . $out; $n = intdiv($n, 26); }
+    return $out;
+  };
+
+  $rows = [];
+  $breakdown = [];
+  foreach ($vehicles as $v) {
+    $plate = trim((string)($v['plate_number'] ?? ''));
+    $vehType = trim((string)($v['vehicle_type'] ?? ''));
+    $bt = $vehType !== '' ? $vehType : 'Unknown';
+    $breakdown[$bt] = (int)($breakdown[$bt] ?? 0) + 1;
+    $rows[] = [
+      'plate_number' => $plate,
+      'vehicle_type' => $vehType,
+      'make' => trim((string)($v['make'] ?? '')),
+      'model' => trim((string)($v['model'] ?? '')),
+      'year_model' => trim((string)($v['year_model'] ?? '')),
+      'engine_no' => trim((string)($v['engine_no'] ?? '')),
+      'chassis_no' => trim((string)($v['chassis_no'] ?? '')),
+      'or_number' => trim((string)($v['or_number'] ?? '')),
+      'cr_number' => trim((string)($v['cr_number'] ?? '')),
+      'attachments' => [
+        'or_file' => ($plate !== '' && isset($docsByPlate[$plate]['or'])) ? (string)$docsByPlate[$plate]['or'] : '',
+        'cr_file' => ($plate !== '' && isset($docsByPlate[$plate]['cr'])) ? (string)$docsByPlate[$plate]['cr'] : '',
+        'inspection_cert_ref' => trim((string)($v['inspection_cert_ref'] ?? '')),
+      ],
+    ];
+  }
+  arsort($breakdown);
+
+  $uploadsDir = __DIR__ . '/../../admin/uploads';
+  if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
+
+  $makeToken = function (): string {
+    if (function_exists('random_bytes')) return bin2hex(random_bytes(16));
+    return bin2hex(openssl_random_pseudo_bytes(16));
+  };
+
+  $writePreviewFiles = function () use ($rows, $breakdown, $uploadsDir, $operatorId, $operatorCode, $opName, $opType, $opStatus, $now, $pdfFromLines, $lguName, $systemName, $fmtDate, $trunc, $appendixLabel): array {
+    $suffix = date('Ymd_His') . '_' . bin2hex(random_bytes(3));
+    $pdfFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.pdf';
+    $csvFile = 'declared_fleet_operator_' . $operatorId . '_' . $suffix . '.csv';
+    $lines = [];
+    $lines[] = $lguName;
+    $lines[] = 'DECLARED FLEET REPORT';
+    $lines[] = 'Operator: ' . $opName;
+    $lines[] = 'Operator Type: ' . $opType;
+    $lines[] = 'Operator ID: ' . $operatorCode . ' (' . (string)$operatorId . ')';
+    $lines[] = 'Date Generated: ' . $fmtDate($now);
+    $lines[] = 'Generated by: ' . $systemName;
+    $lines[] = '';
+    $lines[] = 'FLEET SUMMARY';
+    $lines[] = 'Total Vehicles: ' . (string)count($rows);
+    $lines[] = 'Breakdown:';
+    foreach ($breakdown as $k => $c) { $lines[] = '- ' . (string)$k . ': ' . (string)$c; }
+    $lines[] = '';
+    $lines[] = 'VEHICLE LIST';
+    $lines[] = str_repeat('-', 110);
+    $lines[] = sprintf("%-8s %-10s %-8s %-8s %-4s %-10s %-17s %-12s %-12s", 'PLATE', 'TYPE', 'MAKE', 'MODEL', 'YEAR', 'ENGINE', 'CHASSIS', 'OR NO', 'CR NO');
+    $lines[] = str_repeat('-', 110);
+    foreach ($rows as $r) {
+      $lines[] = sprintf(
+        "%-8s %-10s %-8s %-8s %-4s %-10s %-17s %-12s %-12s",
+        $trunc((string)($r['plate_number'] ?? ''), 8),
+        $trunc((string)($r['vehicle_type'] ?? ''), 10),
+        $trunc((string)($r['make'] ?? ''), 8),
+        $trunc((string)($r['model'] ?? ''), 8),
+        $trunc((string)($r['year_model'] ?? ''), 4),
+        $trunc((string)($r['engine_no'] ?? ''), 10),
+        $trunc((string)($r['chassis_no'] ?? ''), 17),
+        $trunc((string)($r['or_number'] ?? ''), 12),
+        $trunc((string)($r['cr_number'] ?? ''), 12)
+      );
+    }
+    $lines[] = '';
+    $lines[] = 'ATTACHED SUPPORTING DOCUMENTS (AUTO-PULLED)';
+    $lines[] = 'Appendix entries reference vehicle documents stored in the system uploads registry.';
+    $lines[] = '';
+    $idx = 0;
+    foreach ($rows as $r) {
+      $plate = (string)($r['plate_number'] ?? '');
+      $att = is_array($r['attachments'] ?? null) ? $r['attachments'] : [];
+      $orFile = $trunc((string)($att['or_file'] ?? ''), 60);
+      $crFile = $trunc((string)($att['cr_file'] ?? ''), 60);
+      $certRef = $trunc((string)($att['inspection_cert_ref'] ?? ''), 30);
+      $lbl = $appendixLabel($idx);
+      $lines[] = 'Appendix ' . $lbl . ' – OR/CR: ' . $plate;
+      $lines[] = '  OR No: ' . (string)($r['or_number'] ?? '') . ' | OR File: ' . ($orFile !== '' ? $orFile : 'Missing');
+      $lines[] = '  CR No: ' . (string)($r['cr_number'] ?? '') . ' | CR File: ' . ($crFile !== '' ? $crFile : 'Missing');
+      if ($certRef !== '') $lines[] = '  Inspection Certificate Ref: ' . $certRef;
+      $lines[] = '';
+      $idx++;
+    }
+    $pdf = $pdfFromLines($lines);
+    if (@file_put_contents($uploadsDir . '/' . $pdfFile, $pdf) === false) throw new Exception('write_failed');
+    $fp = @fopen($uploadsDir . '/' . $csvFile, 'w');
+    if (!$fp) { if (is_file($uploadsDir . '/' . $pdfFile)) @unlink($uploadsDir . '/' . $pdfFile); throw new Exception('write_failed'); }
+    fputcsv($fp, ['Plate No','Vehicle Type','Make','Model','Year','Engine No','Chassis No','OR No','CR No']);
+    foreach ($rows as $r) {
+      fputcsv($fp, [
+        (string)($r['plate_number'] ?? ''),
+        (string)($r['vehicle_type'] ?? ''),
+        (string)($r['make'] ?? ''),
+        (string)($r['model'] ?? ''),
+        (string)($r['year_model'] ?? ''),
+        (string)($r['engine_no'] ?? ''),
+        (string)($r['chassis_no'] ?? ''),
+        (string)($r['or_number'] ?? ''),
+        (string)($r['cr_number'] ?? ''),
+      ]);
+    }
+    fclose($fp);
+    return ['pdf' => $pdfFile, 'excel' => $csvFile];
+  };
+
+  if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) { @session_start(); }
+
+  if ($commit !== '1') {
+    $files = $writePreviewFiles();
+    $token = $makeToken();
+    if (!isset($_SESSION['tmm_declared_fleet_previews']) || !is_array($_SESSION['tmm_declared_fleet_previews'])) {
+      $_SESSION['tmm_declared_fleet_previews'] = [];
+    }
+    $_SESSION['tmm_declared_fleet_previews'][$token] = [
+      'operator_id' => $operatorId,
+      'created_at' => time(),
+      'pdf' => $files['pdf'],
+      'excel' => $files['excel'],
+    ];
+    op_send(true, [
+      'token' => $token,
+      'operator' => ['id' => $operatorId, 'code' => $operatorCode, 'name' => $opName, 'type' => $opType, 'status' => $opStatus],
+      'system' => ['name' => $systemName, 'lgu_name' => $lguName],
+      'summary' => ['total_vehicles' => count($rows), 'breakdown' => $breakdown],
+      'generated_at' => $now,
+      'files' => $files,
+      'rows' => $rows,
+    ]);
+  }
+
+  if ($token === '' || !isset($_SESSION['tmm_declared_fleet_previews']) || !is_array($_SESSION['tmm_declared_fleet_previews']) || !isset($_SESSION['tmm_declared_fleet_previews'][$token])) {
+    op_send(false, ['error' => 'preview_required'], 400);
+  }
+  $prev = $_SESSION['tmm_declared_fleet_previews'][$token];
+  if ((int)($prev['operator_id'] ?? 0) !== $operatorId) op_send(false, ['error' => 'preview_mismatch'], 400);
+  if ((time() - (int)($prev['created_at'] ?? 0)) > 20 * 60) {
+    unset($_SESSION['tmm_declared_fleet_previews'][$token]);
+    op_send(false, ['error' => 'preview_expired'], 400);
+  }
+  $chosen = $format === 'excel' ? (string)($prev['excel'] ?? '') : (string)($prev['pdf'] ?? '');
+  $chosen = basename($chosen);
+  if ($chosen === '' || !is_file($uploadsDir . '/' . $chosen)) op_send(false, ['error' => 'file_missing'], 400);
+
+  $remarks = 'Declared Fleet (Planned / Owned Vehicles) | System Generated';
+  $hasDocStatusCol = false;
+  $r = $db->query("SHOW COLUMNS FROM operator_documents LIKE 'doc_status'");
+  if ($r && ($r->num_rows ?? 0) > 0) $hasDocStatusCol = true;
+  $stmtIns = $hasDocStatusCol
+    ? $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified) VALUES (?, 'Others', ?, 'For Review', ?, 0)")
+    : $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, remarks, is_verified) VALUES (?, 'Others', ?, ?, 0)");
+  if (!$stmtIns) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  if ($hasDocStatusCol) {
+    $stmtIns->bind_param('iss', $operatorId, $chosen, $remarks);
+  } else {
+    $stmtIns->bind_param('iss', $operatorId, $chosen, $remarks);
+  }
+  $ok = $stmtIns->execute();
+  $docId = (int)$db->insert_id;
+  $stmtIns->close();
+  unset($_SESSION['tmm_declared_fleet_previews'][$token]);
+  if (!$ok) op_send(false, ['error' => 'db_error'], 500);
+
+  op_audit_event($db, $userId, $email, 'PUV_DECLARED_FLEET_UPLOADED', 'OperatorDocument', (string)$docId, ['file' => $chosen, 'operator_id' => $operatorId]);
+  op_send(true, ['doc_id' => $docId, 'file_path' => $chosen]);
+}
+
+if ($action === 'puv_request_vehicle_link') {
+  op_require_csrf();
+  op_require_approved($db, $userId);
+
+  $plateRaw = (string)($_POST['plate_number'] ?? '');
+  $plateNorm = strtoupper(preg_replace('/\s+/', '', trim($plateRaw)));
+  $plateNorm = preg_replace('/[^A-Z0-9-]/', '', $plateNorm);
+  $letters = substr(preg_replace('/[^A-Z]/', '', $plateNorm), 0, 3);
+  $digits = substr(preg_replace('/[^0-9]/', '', $plateNorm), 0, 4);
+  $plate = ($letters !== '' && $digits !== '') ? ($letters . '-' . $digits) : $plateNorm;
+  if ($plate === '' || !preg_match('/^[A-Z]{3}\-[0-9]{3,4}$/', $plate)) {
+    op_send(false, ['error' => 'Invalid plate number.'], 400);
+  }
+
   $u = op_get_user_row($db, $userId);
-  $opName = '';
-  if ($u) {
-    $opName = trim((string) ($u['association_name'] ?? ''));
-    if ($opName === '')
-      $opName = trim((string) ($u['full_name'] ?? ''));
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+  $operatorId = (int)($u['puv_operator_id'] ?? 0);
+  if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not approved yet.'], 400);
+  $submittedBy = trim((string)($u['full_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = trim((string)($u['association_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = 'Operator';
+  $email = strtolower(trim((string)($u['email'] ?? '')));
+
+  $stmtVeh = $db->prepare("SELECT id, operator_id, record_status FROM vehicles WHERE plate_number=? LIMIT 1");
+  if (!$stmtVeh) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmtVeh->bind_param('s', $plate);
+  $stmtVeh->execute();
+  $veh = $stmtVeh->get_result()->fetch_assoc();
+  $stmtVeh->close();
+  if (!$veh) op_send(false, ['error' => 'vehicle_not_found'], 404);
+
+  $stmtDup = $db->prepare("SELECT request_id FROM vehicle_link_requests WHERE portal_user_id=? AND plate_number=? AND status='Pending' LIMIT 1");
+  if ($stmtDup) {
+    $stmtDup->bind_param('is', $userId, $plate);
+    $stmtDup->execute();
+    $dup = $stmtDup->get_result()->fetch_assoc();
+    $stmtDup->close();
+    if ($dup) op_send(true, ['message' => 'Link request already pending.']);
   }
-  if ($opName === '')
-    $opName = 'Operator';
 
-  $stmtVeh = $db->prepare("INSERT IGNORE INTO vehicles (plate_number, operator_name, record_status, status) VALUES (?, ?, 'Encoded', 'Active')");
-  if ($stmtVeh) {
-    $stmtVeh->bind_param('ss', $plate, $opName);
-    $stmtVeh->execute();
-    $stmtVeh->close();
+  $stmtIns = $db->prepare("INSERT INTO vehicle_link_requests (portal_user_id, plate_number, requested_operator_id, status, submitted_at, submitted_by_name)
+                           VALUES (?, ?, ?, 'Pending', NOW(), ?)");
+  if (!$stmtIns) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmtIns->bind_param('isis', $userId, $plate, $operatorId, $submittedBy);
+  $ok = $stmtIns->execute();
+  $reqId = (int)$stmtIns->insert_id;
+  $stmtIns->close();
+  if (!$ok) op_send(false, ['error' => 'db_error'], 500);
+
+  op_audit_event($db, $userId, $email, 'PUV_LINK_REQUEST_SUBMITTED', 'VehicleLinkRequest', (string)$reqId, ['plate_number' => $plate, 'requested_operator_id' => $operatorId]);
+  op_send(true, ['message' => 'Link request submitted for admin approval.', 'data' => ['request_id' => $reqId]]);
+}
+
+if ($action === 'puv_get_owned_vehicles') {
+  op_require_approved($db, $userId);
+  $u = op_get_user_row($db, $userId);
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+  $operatorId = (int)($u['puv_operator_id'] ?? 0);
+  if ($operatorId <= 0) op_send(true, ['data' => []]);
+
+  $rows = [];
+  $stmt = $db->prepare("SELECT id AS vehicle_id, UPPER(plate_number) AS plate_number
+                        FROM vehicles
+                        WHERE COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0)=?
+                          AND COALESCE(NULLIF(plate_number,''),'') <> ''
+                        ORDER BY plate_number ASC");
+  if ($stmt) {
+    $stmt->bind_param('i', $operatorId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
+    $stmt->close();
+  }
+  op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'puv_create_transfer_request') {
+  op_require_csrf();
+  op_require_approved($db, $userId);
+
+  $u = op_get_user_row($db, $userId);
+  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+  $operatorId = (int)($u['puv_operator_id'] ?? 0);
+  if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not approved yet.'], 400);
+  $submittedBy = trim((string)($u['full_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = trim((string)($u['association_name'] ?? ''));
+  if ($submittedBy === '') $submittedBy = 'Operator';
+  $email = strtolower(trim((string)($u['email'] ?? '')));
+
+  $vehicleId = (int)($_POST['vehicle_id'] ?? 0);
+  if ($vehicleId <= 0) op_send(false, ['error' => 'Vehicle is required.'], 400);
+  $toOperatorName = trim((string)($_POST['to_operator_name'] ?? ''));
+  if ($toOperatorName === '' || strlen($toOperatorName) < 3) op_send(false, ['error' => 'New owner name is required.'], 400);
+  $toOperatorName = substr($toOperatorName, 0, 255);
+
+  $transferType = trim((string)($_POST['transfer_type'] ?? 'Reassignment'));
+  if (!in_array($transferType, ['Sale','Donation','Inheritance','Reassignment'], true)) $transferType = 'Reassignment';
+  $ltoRef = trim((string)($_POST['lto_reference_no'] ?? ''));
+  $ltoRef = $ltoRef !== '' ? substr($ltoRef, 0, 128) : '';
+
+  $deed = $_FILES['deed_doc'] ?? null;
+  if (!is_array($deed) || (int)($deed['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    op_send(false, ['error' => 'Deed/authorization document is required.'], 400);
+  }
+  $orcr = $_FILES['orcr_doc'] ?? null;
+  $hasOrcr = is_array($orcr) && (int)($orcr['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+
+  $stmtVeh = $db->prepare("SELECT id, plate_number FROM vehicles
+                           WHERE id=? AND COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0)=?
+                           LIMIT 1");
+  if (!$stmtVeh) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmtVeh->bind_param('ii', $vehicleId, $operatorId);
+  $stmtVeh->execute();
+  $veh = $stmtVeh->get_result()->fetch_assoc();
+  $stmtVeh->close();
+  if (!$veh) op_send(false, ['error' => 'vehicle_not_owned'], 400);
+  $plate = strtoupper(trim((string)($veh['plate_number'] ?? '')));
+
+  $uploadsDir = __DIR__ . '/../../admin/uploads';
+  if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
+  $moveAndScan = function (array $file, string $suffix) use ($uploadsDir, $plate): string {
+    $name = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) throw new Exception('invalid_file_type');
+    $filename = $plate . '_' . $suffix . '_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
+    $dest = $uploadsDir . '/' . $filename;
+    if (!move_uploaded_file((string)$file['tmp_name'], $dest)) throw new Exception('upload_move_failed');
+    $safe = tmm_scan_file_for_viruses($dest);
+    if (!$safe) { if (is_file($dest)) @unlink($dest); throw new Exception('file_failed_security_scan'); }
+    return $filename;
+  };
+
+  try {
+    $deedPath = $moveAndScan($deed, 'deed');
+    $orcrPath = $hasOrcr ? $moveAndScan($orcr, 'orcr') : null;
+
+    $stmtIns = $db->prepare("INSERT INTO vehicle_ownership_transfers
+      (vehicle_id, from_operator_id, to_operator_id, to_operator_name, transfer_type, lto_reference_no, deed_of_sale_path, orcr_path, status, effective_date,
+       requested_by_portal_user_id, requested_by_name, requested_at)
+      VALUES
+      (?, ?, NULL, ?, ?, ?, ?, ?, 'Pending', NULL, ?, ?, NOW())");
+    if (!$stmtIns) op_send(false, ['error' => 'db_prepare_failed'], 500);
+    $orcrBind = $orcrPath !== null ? $orcrPath : null;
+    $ltoBind = $ltoRef !== '' ? $ltoRef : null;
+    $stmtIns->bind_param('iisssssis', $vehicleId, $operatorId, $toOperatorName, $transferType, $ltoBind, $deedPath, $orcrBind, $userId, $submittedBy);
+    $ok = $stmtIns->execute();
+    $transferId = (int)$stmtIns->insert_id;
+    $stmtIns->close();
+    if (!$ok) op_send(false, ['error' => 'db_error'], 500);
+
+    op_audit_event($db, $userId, $email, 'PUV_TRANSFER_REQUEST_SUBMITTED', 'OwnershipTransfer', (string)$transferId, [
+      'plate_number' => $plate,
+      'to_operator_name' => $toOperatorName,
+      'transfer_type' => $transferType,
+    ]);
+
+    op_send(true, ['message' => 'Transfer request submitted for admin approval.', 'data' => ['transfer_id' => $transferId]]);
+  } catch (Throwable $e) {
+    op_send(false, ['error' => $e instanceof Exception ? $e->getMessage() : 'Submission failed.'], 400);
+  }
+}
+
+if ($action === 'add_vehicle') {
+  op_require_csrf();
+  op_require_approved($db, $userId);
+  $plateRaw = (string)($_POST['plate_number'] ?? '');
+  $plateNorm = strtoupper(preg_replace('/\s+/', '', trim($plateRaw)));
+  $plateNorm = preg_replace('/[^A-Z0-9-]/', '', $plateNorm);
+  $letters = substr(preg_replace('/[^A-Z]/', '', $plateNorm), 0, 3);
+  $digits = substr(preg_replace('/[^0-9]/', '', $plateNorm), 0, 4);
+  $plate = ($letters !== '' && $digits !== '') ? ($letters . '-' . $digits) : $plateNorm;
+  if ($plate === '' || !preg_match('/^[A-Z]{3}\-[0-9]{3,4}$/', $plate)) {
+    op_send(false, ['error' => 'Invalid plate number.'], 400);
   }
 
-  $docsJson = json_encode($orCrPath ? [$orCrPath] : []);
-  $stmt = $db->prepare("INSERT INTO operator_portal_applications(user_id, plate_number, type, status, notes, documents) VALUES(?, ?, 'Vehicle Registration', 'Pending', 'New vehicle registration', ?)");
-  if (!$stmt)
-    op_send(false, ['error' => 'Submission failed'], 500);
-  $stmt->bind_param('iss', $userId, $plate, $docsJson);
-  $stmt->execute();
-  $stmt->close();
+  $type = trim((string)($_POST['vehicle_type'] ?? ''));
+  if ($type === '') op_send(false, ['error' => 'Vehicle type required.'], 400);
 
-  op_send(true, ['message' => 'Vehicle registration submitted for verification.']);
+  $engineNoRaw = (string)($_POST['engine_no'] ?? '');
+  $engineNo = strtoupper(preg_replace('/\s+/', '', trim($engineNoRaw)));
+  $engineNo = preg_replace('/[^A-Z0-9\-]/', '', $engineNo);
+  if ($engineNo !== '' && !preg_match('/^[A-Z0-9\-]{5,20}$/', $engineNo)) {
+    op_send(false, ['error' => 'Invalid engine number.'], 400);
+  }
+  $chassisNoRaw = (string)($_POST['chassis_no'] ?? '');
+  $chassisNo = strtoupper(preg_replace('/\s+/', '', trim($chassisNoRaw)));
+  $chassisNo = preg_replace('/[^A-HJ-NPR-Z0-9]/', '', $chassisNo);
+  if ($chassisNo !== '' && !preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $chassisNo)) {
+    op_send(false, ['error' => 'Invalid chassis number (VIN).'], 400);
+  }
+
+  $make = trim((string)($_POST['make'] ?? ''));
+  $model = trim((string)($_POST['model'] ?? ''));
+  $yearModel = trim((string)($_POST['year_model'] ?? ''));
+  $fuelType = trim((string)($_POST['fuel_type'] ?? ''));
+  $color = trim((string)($_POST['color'] ?? ''));
+
+  $orNumberRaw = (string)($_POST['or_number'] ?? '');
+  $orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
+  $orNumber = substr($orNumber, 0, 12);
+  if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
+    op_send(false, ['error' => 'Invalid OR number.'], 400);
+  }
+  $crNumberRaw = (string)($_POST['cr_number'] ?? '');
+  $crNumber = strtoupper(preg_replace('/\s+/', '', trim($crNumberRaw)));
+  $crNumber = preg_replace('/[^A-Z0-9\-]/', '', $crNumber);
+  $crNumber = substr($crNumber, 0, 64);
+  if ($crNumber !== '' && !preg_match('/^[A-Z0-9\-]{6,20}$/', $crNumber)) {
+    op_send(false, ['error' => 'Invalid CR number.'], 400);
+  }
+  $crIssueDate = trim((string)($_POST['cr_issue_date'] ?? ''));
+  if ($crIssueDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $crIssueDate)) {
+    op_send(false, ['error' => 'Invalid CR issue date.'], 400);
+  }
+  $registeredOwner = trim((string)($_POST['registered_owner'] ?? ''));
+
+  $crFile = $_FILES['cr'] ?? null;
+  if (!is_array($crFile) || (int)($crFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    op_send(false, ['error' => 'CR file is required.'], 400);
+  }
+
+  $orFile = $_FILES['or'] ?? null;
+  $hasOrUpload = is_array($orFile) && (int)($orFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+  $orExpiry = trim((string)($_POST['or_expiry_date'] ?? ''));
+  if ($hasOrUpload) {
+    if ($orExpiry === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $orExpiry)) {
+      op_send(false, ['error' => 'OR expiry date is required when OR file is uploaded.'], 400);
+    }
+  } else {
+    $orExpiry = '';
+  }
+
+  $u = op_get_user_row($db, $userId);
+  $submittedBy = $u ? (trim((string)($u['full_name'] ?? '')) ?: trim((string)($u['association_name'] ?? ''))) : '';
+  if ($submittedBy === '') $submittedBy = 'Operator';
+  $email = $u ? strtolower(trim((string)($u['email'] ?? ''))) : '';
+
+  $uploadsDir = __DIR__ . '/../../admin/uploads';
+  if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
+
+  $moveAndScan = function (array $file, string $suffix) use ($uploadsDir, $plate): string {
+    $name = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) {
+      throw new Exception('invalid_file_type');
+    }
+    $filename = $plate . '_' . $suffix . '_' . time() . '_' . bin2hex(random_bytes(3)) . '.' . $ext;
+    $dest = $uploadsDir . '/' . $filename;
+    if (!move_uploaded_file((string)$file['tmp_name'], $dest)) {
+      throw new Exception('upload_move_failed');
+    }
+    $safe = tmm_scan_file_for_viruses($dest);
+    if (!$safe) {
+      if (is_file($dest)) { @unlink($dest); }
+      throw new Exception('file_failed_security_scan');
+    }
+    return $filename;
+  };
+
+  try {
+    $crPath = $moveAndScan($crFile, 'cr');
+    $orPath = $hasOrUpload ? $moveAndScan($orFile, 'or') : null;
+
+    $stmt = $db->prepare("INSERT INTO vehicle_record_submissions
+      (portal_user_id, plate_number, vehicle_type, engine_no, chassis_no, make, model, year_model, fuel_type, color, or_number, cr_number, cr_issue_date, registered_owner,
+       cr_file_path, or_file_path, or_expiry_date, status, submitted_at, submitted_by_name)
+      VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?)");
+    if (!$stmt) op_send(false, ['error' => 'Submission failed.'], 500);
+    $orExpiryBind = $orExpiry !== '' ? $orExpiry : null;
+    $crIssueBind = $crIssueDate !== '' ? $crIssueDate : null;
+    $orPathBind = $orPath !== null ? $orPath : null;
+    $stmt->bind_param(
+      'isssssssssssssssss',
+      $userId,
+      $plate,
+      $type,
+      $engineNo,
+      $chassisNo,
+      $make,
+      $model,
+      $yearModel,
+      $fuelType,
+      $color,
+      $orNumber,
+      $crNumber,
+      $crIssueBind,
+      $registeredOwner,
+      $crPath,
+      $orPathBind,
+      $orExpiryBind,
+      $submittedBy
+    );
+    $ok = $stmt->execute();
+    $submissionId = (int)$stmt->insert_id;
+    $stmt->close();
+    if (!$ok) op_send(false, ['error' => 'Submission failed.'], 500);
+
+    op_audit_event($db, $userId, $email, 'PUV_VEHICLE_SUBMITTED', 'VehicleSubmission', (string)$submissionId, [
+      'plate_number' => $plate,
+      'vehicle_type' => $type,
+    ]);
+
+    op_send(true, [
+      'message' => 'Vehicle encoding submitted for admin verification.',
+      'data' => ['submission_id' => $submissionId, 'plate_number' => $plate]
+    ]);
+  } catch (Throwable $e) {
+    op_send(false, ['error' => $e instanceof Exception ? $e->getMessage() : 'Submission failed.'], 400);
+  }
 }
 
 if ($action === 'get_fees') {

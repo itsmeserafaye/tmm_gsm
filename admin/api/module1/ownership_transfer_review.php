@@ -51,6 +51,10 @@ if ($curStatus !== 'Pending') {
 
 $vehicleId = (int)($t['vehicle_id'] ?? 0);
 $toOperatorId = (int)($t['to_operator_id'] ?? 0);
+$toOperatorIdPost = (int)($_POST['to_operator_id'] ?? 0);
+if ($action === 'approve' && $toOperatorId <= 0 && $toOperatorIdPost > 0) {
+  $toOperatorId = $toOperatorIdPost;
+}
 if ($vehicleId <= 0 || $toOperatorId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_transfer']);
@@ -67,6 +71,11 @@ if (!$veh) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'ve
 $plate = (string)($veh['plate_number'] ?? '');
 
 if ($action === 'approve') {
+  if ($toOperatorId <= 0) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'missing_to_operator_id']);
+    exit;
+  }
   $stmtTix = $db->prepare("SELECT 1 FROM tickets WHERE vehicle_plate=? AND status IN ('Unpaid','Pending','Validated','Escalated') LIMIT 1");
   if ($stmtTix) {
     $stmtTix->bind_param('s', $plate);
@@ -117,10 +126,10 @@ $remarksBind = $remarks !== '' ? $remarks : null;
 $db->begin_transaction();
 try {
   $stmtUp = $db->prepare("UPDATE vehicle_ownership_transfers
-                          SET status=?, reviewed_by=?, reviewed_at=NOW(), remarks=?, effective_date=COALESCE(?, effective_date)
+                          SET status=?, reviewed_by=?, reviewed_at=NOW(), remarks=?, effective_date=COALESCE(?, effective_date), to_operator_id=COALESCE(NULLIF(?,0), to_operator_id)
                           WHERE transfer_id=?");
   if (!$stmtUp) throw new Exception('db_prepare_failed');
-  $stmtUp->bind_param('sissi', $newStatus, $userId, $remarksBind, $eff, $transferId);
+  $stmtUp->bind_param('sissii', $newStatus, $userId, $remarksBind, $eff, $toOperatorId, $transferId);
   if (!$stmtUp->execute()) throw new Exception('update_failed');
   $stmtUp->close();
 

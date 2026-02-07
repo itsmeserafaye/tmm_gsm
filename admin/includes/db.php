@@ -131,6 +131,24 @@ function db()
   if (!isset($vehCols['record_status'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded'");
   }
+  if (!isset($vehCols['submitted_by_portal_user_id'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN submitted_by_portal_user_id INT DEFAULT NULL");
+  }
+  if (!isset($vehCols['submitted_by_name'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN submitted_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!isset($vehCols['submitted_at'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN submitted_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($vehCols['approved_by_user_id'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN approved_by_user_id INT DEFAULT NULL");
+  }
+  if (!isset($vehCols['approved_by_name'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN approved_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!isset($vehCols['approved_at'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN approved_at DATETIME DEFAULT NULL");
+  }
   $conn->query("UPDATE vehicles SET record_status=CASE
     WHEN record_status IN ('Encoded','Linked','Archived') THEN record_status
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
@@ -199,6 +217,25 @@ function db()
     FOREIGN KEY (from_operator_id) REFERENCES operators(id) ON DELETE SET NULL,
     FOREIGN KEY (to_operator_id) REFERENCES operators(id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
+  $colVot = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='vehicle_ownership_transfers'");
+  $votCols = [];
+  if ($colVot) {
+    while ($c = $colVot->fetch_assoc()) {
+      $votCols[(string) ($c['COLUMN_NAME'] ?? '')] = true;
+    }
+  }
+  if (!isset($votCols['to_operator_name'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN to_operator_name VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($votCols['requested_by_portal_user_id'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN requested_by_portal_user_id INT DEFAULT NULL");
+  }
+  if (!isset($votCols['requested_by_name'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN requested_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!isset($votCols['requested_at'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN requested_at DATETIME DEFAULT NULL");
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS terminal_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -807,6 +844,7 @@ function db()
 
   $opUserCols = [
     'operator_type' => "VARCHAR(16) DEFAULT 'Individual'",
+    'puv_operator_id' => "INT DEFAULT NULL",
     'approval_status' => "ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending'",
     'verification_submitted_at' => "DATETIME DEFAULT NULL",
     'approval_remarks' => "TEXT DEFAULT NULL",
@@ -871,6 +909,82 @@ function db()
     INDEX idx_user_status (user_id, status),
     CONSTRAINT fk_operator_portal_app_user FOREIGN KEY (user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE,
     CONSTRAINT fk_operator_portal_app_plate FOREIGN KEY (plate_number) REFERENCES vehicles(plate_number) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS operator_record_submissions (
+    submission_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    portal_user_id INT NOT NULL,
+    operator_type VARCHAR(16) DEFAULT 'Individual',
+    registered_name VARCHAR(255) DEFAULT NULL,
+    name VARCHAR(255) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    contact_no VARCHAR(64) DEFAULT NULL,
+    email VARCHAR(128) DEFAULT NULL,
+    coop_name VARCHAR(128) DEFAULT NULL,
+    status ENUM('Submitted','Approved','Rejected') NOT NULL DEFAULT 'Submitted',
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submitted_by_name VARCHAR(150) DEFAULT NULL,
+    approved_by_user_id INT DEFAULT NULL,
+    approved_by_name VARCHAR(150) DEFAULT NULL,
+    approved_at DATETIME DEFAULT NULL,
+    approval_remarks TEXT DEFAULT NULL,
+    operator_id INT DEFAULT NULL,
+    INDEX idx_portal_status (portal_user_id, status),
+    INDEX idx_status (status),
+    INDEX idx_submitted_at (submitted_at),
+    FOREIGN KEY (portal_user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS vehicle_record_submissions (
+    submission_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    portal_user_id INT NOT NULL,
+    operator_submission_id BIGINT DEFAULT NULL,
+    plate_number VARCHAR(32) NOT NULL,
+    vehicle_type VARCHAR(64) NOT NULL,
+    engine_no VARCHAR(20) DEFAULT NULL,
+    chassis_no VARCHAR(17) DEFAULT NULL,
+    make VARCHAR(100) DEFAULT NULL,
+    model VARCHAR(100) DEFAULT NULL,
+    year_model VARCHAR(8) DEFAULT NULL,
+    fuel_type VARCHAR(64) DEFAULT NULL,
+    color VARCHAR(64) DEFAULT NULL,
+    or_number VARCHAR(12) DEFAULT NULL,
+    cr_number VARCHAR(64) DEFAULT NULL,
+    cr_issue_date DATE DEFAULT NULL,
+    registered_owner VARCHAR(150) DEFAULT NULL,
+    cr_file_path VARCHAR(255) DEFAULT NULL,
+    or_file_path VARCHAR(255) DEFAULT NULL,
+    or_expiry_date DATE DEFAULT NULL,
+    status ENUM('Submitted','Approved','Rejected') NOT NULL DEFAULT 'Submitted',
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submitted_by_name VARCHAR(150) DEFAULT NULL,
+    approved_by_user_id INT DEFAULT NULL,
+    approved_by_name VARCHAR(150) DEFAULT NULL,
+    approved_at DATETIME DEFAULT NULL,
+    approval_remarks TEXT DEFAULT NULL,
+    vehicle_id INT DEFAULT NULL,
+    INDEX idx_portal_status (portal_user_id, status),
+    INDEX idx_plate (plate_number),
+    INDEX idx_status (status),
+    INDEX idx_submitted_at (submitted_at),
+    FOREIGN KEY (portal_user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS vehicle_link_requests (
+    request_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    portal_user_id INT NOT NULL,
+    plate_number VARCHAR(32) NOT NULL,
+    requested_operator_id INT DEFAULT NULL,
+    status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submitted_by_name VARCHAR(150) DEFAULT NULL,
+    reviewed_by_user_id INT DEFAULT NULL,
+    reviewed_by_name VARCHAR(150) DEFAULT NULL,
+    reviewed_at DATETIME DEFAULT NULL,
+    remarks TEXT DEFAULT NULL,
+    INDEX idx_portal_status (portal_user_id, status),
+    INDEX idx_plate_status (plate_number, status),
+    FOREIGN KEY (portal_user_id) REFERENCES operator_portal_users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
 
   // Module 2: Franchise Management Tables
@@ -1061,6 +1175,24 @@ function db()
   }
   if (!isset($opsCols['updated_at'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN updated_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($opsCols['portal_user_id'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN portal_user_id INT DEFAULT NULL");
+  }
+  if (!isset($opsCols['submitted_by_name'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN submitted_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!isset($opsCols['submitted_at'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN submitted_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($opsCols['approved_by_user_id'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN approved_by_user_id INT DEFAULT NULL");
+  }
+  if (!isset($opsCols['approved_by_name'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN approved_by_name VARCHAR(150) DEFAULT NULL");
+  }
+  if (!isset($opsCols['approved_at'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN approved_at DATETIME DEFAULT NULL");
   }
   $conn->query("UPDATE operators SET name=COALESCE(NULLIF(name,''), full_name) WHERE (name IS NULL OR name='') AND full_name IS NOT NULL AND full_name<>''");
   $conn->query("UPDATE operators SET registered_name=COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) WHERE (registered_name IS NULL OR registered_name='') AND (COALESCE(NULLIF(name,''), full_name) IS NOT NULL)");

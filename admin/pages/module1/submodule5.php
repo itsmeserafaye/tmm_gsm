@@ -57,80 +57,10 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Upload deed/authorization and choose the new operator.</div>
       </div>
       <div class="p-5">
-        <?php if (!$canCreate): ?>
-          <div class="text-sm text-slate-500 dark:text-slate-400 italic">You don't have permission to create transfer requests.</div>
-        <?php else: ?>
-          <form id="formCreateTransfer" class="space-y-4" enctype="multipart/form-data" novalidate>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-              <div class="relative" data-combobox="1" data-kind="vehicle">
-                <input type="hidden" name="vehicle_id" value="" data-combo-id="1">
-                <input required readonly class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer uppercase" placeholder="Select vehicle" data-combo-display="1">
-                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" data-combo-toggle="1">
-                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                </button>
-                <div class="absolute left-0 right-0 mt-2 z-[80] hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden" data-combo-panel="1">
-                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
-                    <input type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search in dropdown..." data-combo-search="1">
-                  </div>
-                  <div class="max-h-72 overflow-auto" data-combo-list="1"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Transfer Type</label>
-                <select name="transfer_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <?php foreach (['Sale','Donation','Inheritance','Reassignment'] as $t): ?>
-                    <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Effective Date (optional)</label>
-                <input name="effective_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">New Operator</label>
-              <div class="relative" data-combobox="1" data-kind="operator">
-                <input type="hidden" name="to_operator_id" value="" data-combo-id="1">
-                <input required readonly class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select operator" data-combo-display="1">
-                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" data-combo-toggle="1">
-                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                </button>
-                <div class="absolute left-0 right-0 mt-2 z-[80] hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden" data-combo-panel="1">
-                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
-                    <input type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search in dropdown..." data-combo-search="1">
-                  </div>
-                  <div class="max-h-72 overflow-auto" data-combo-list="1"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">LTO Reference No (optional)</label>
-                <input name="lto_reference_no" maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LTO-REF-2026-000123">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR/CR (optional)</label>
-                <input name="orcr_doc" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Deed of Sale / Authorization (required)</label>
-              <input name="deed_doc" type="file" required accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-            </div>
-
-            <div class="flex items-center justify-end gap-2 pt-1">
-              <button id="btnCreateTransfer" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit Request</button>
-            </div>
-          </form>
-        <?php endif; ?>
+        <div class="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Note</div>
+          <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Transfer requests are created in the Operator Portal. This screen is for approval and decision-making.</div>
+        </div>
       </div>
     </div>
 
@@ -171,6 +101,14 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Effective Date</label>
         <input type="date" name="effective_date" required class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
         <p class="text-xs text-slate-400 mt-1.5">Date when the transfer becomes legally active.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">New Operator</label>
+        <div id="approveRequestedTo" class="text-xs text-slate-500 dark:text-slate-400 mb-2"></div>
+        <select id="approveToOperatorSelect" name="to_operator_id" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+          <option value="">Select operator…</option>
+        </select>
+        <p class="text-xs text-slate-400 mt-1.5">Required if the request was submitted with text-only new owner.</p>
       </div>
       <div class="flex items-center justify-end gap-3 pt-2">
         <button type="button" id="btnCancelApprove" class="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
@@ -320,7 +258,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         const orcr = r.orcr_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.orcr_path))) : '';
         const actions = (canReview && st === 'Pending') ? `
           <div class="flex items-center gap-2">
-            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors" data-act="approve" data-id="${escapeHtml(id)}">Approve</button>
+            <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors" data-act="approve" data-id="${escapeHtml(id)}" data-toid="${escapeHtml(String(r.to_operator_id || ''))}" data-toname="${escapeHtml(String(r.to_operator_name || ''))}">Approve</button>
             <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors" data-act="reject" data-id="${escapeHtml(id)}">Reject</button>
           </div>
         ` : '';
@@ -334,7 +272,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
                   <span class="inline-flex items-center rounded-lg bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-bold text-slate-500 dark:text-slate-400 ring-1 ring-inset ring-slate-200 dark:ring-slate-700">${escapeHtml(type)}</span>
                 </div>
                 <div class="mt-2 text-sm text-slate-600 dark:text-slate-300 font-semibold">From: ${escapeHtml(from)} → To: ${escapeHtml(to)}</div>
-                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">${escapeHtml(when)}</div>
+                <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">${escapeHtml(when)}${r.requested_by_name ? (' • Requested by ' + escapeHtml(String(r.requested_by_name))) : ''}</div>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   ${deed ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(deed)}" target="_blank">Deed</a>` : ``}
                   ${orcr ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(orcr)}" target="_blank">OR/CR</a>` : ``}
@@ -361,6 +299,23 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
               form.querySelector('[name="transfer_id"]').value = id;
               // Set default date to today
               form.querySelector('[name="effective_date"]').value = new Date().toISOString().split('T')[0];
+              const sel = document.getElementById('approveToOperatorSelect');
+              const reqTo = document.getElementById('approveRequestedTo');
+              const toIdRaw = btn.getAttribute('data-toid') || '';
+              const toId = parseInt(toIdRaw, 10) || 0;
+              const toName = btn.getAttribute('data-toname') || '';
+              if (reqTo) {
+                reqTo.textContent = toName ? ('Requested new owner: ' + toName) : '';
+              }
+              if (sel) {
+                if (!sel.dataset.loaded) {
+                  const opts = operators.map((o) => `<option value="${escapeHtml(String(o.id || ''))}">${escapeHtml(String(o.display_name || ''))}</option>`).join('');
+                  sel.insertAdjacentHTML('beforeend', opts);
+                  sel.dataset.loaded = '1';
+                }
+                sel.value = toId > 0 ? String(toId) : '';
+                sel.required = toId <= 0;
+              }
               modal.classList.remove('hidden');
               modal.classList.add('flex');
             }
@@ -393,6 +348,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         const raw = (err && err.message) ? String(err.message) : '';
         const msg = raw === 'active_violations' ? 'Cannot approve: vehicle has active violations.'
           : raw === 'orcr_not_valid' ? 'Cannot approve: OR/CR is not valid.'
+          : raw === 'missing_to_operator_id' ? 'Select the new operator before approving.'
           : (raw || 'Failed');
         showToast(msg, 'error');
       }

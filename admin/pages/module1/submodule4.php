@@ -145,6 +145,39 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+      <div>
+        <div class="text-lg font-bold text-slate-900 dark:text-white">Vehicle Link Requests</div>
+        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Submitted by operators via Operator Portal. Approve to link the vehicle to the operator record.</div>
+      </div>
+      <div class="flex gap-2">
+        <select id="linkReqStatus" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <input id="linkReqQ" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate…">
+        <button id="btnReloadLinkReq" class="rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+      </div>
+    </div>
+
+    <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300">
+          <tr>
+            <th class="px-4 py-3 text-left font-black">Submitted</th>
+            <th class="px-4 py-3 text-left font-black">Plate</th>
+            <th class="px-4 py-3 text-left font-black">Requested By</th>
+            <th class="px-4 py-3 text-left font-black">Status</th>
+            <th class="px-4 py-3 text-left font-black">Action</th>
+          </tr>
+        </thead>
+        <tbody id="linkReqTbody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/link-vehicle-to-operator">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -311,6 +344,88 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
     }
+
+    const escAttr = (v) => String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/\"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const linkReqStatus = document.getElementById('linkReqStatus');
+    const linkReqQ = document.getElementById('linkReqQ');
+    const btnReloadLinkReq = document.getElementById('btnReloadLinkReq');
+    const linkReqTbody = document.getElementById('linkReqTbody');
+
+    async function loadLinkRequests() {
+      if (!linkReqTbody) return;
+      linkReqTbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Loading…</td></tr>`;
+      try {
+        const qs = new URLSearchParams();
+        qs.set('status', (linkReqStatus && linkReqStatus.value) ? linkReqStatus.value : 'Pending');
+        if (linkReqQ && linkReqQ.value.trim() !== '') qs.set('q', linkReqQ.value.trim());
+        const res = await fetch(rootUrl + '/admin/api/module1/vehicle_link_requests_list.php?' + qs.toString());
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const rows = Array.isArray(data.data) ? data.data : [];
+        if (!rows.length) {
+          linkReqTbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No requests found.</td></tr>`;
+          return;
+        }
+        linkReqTbody.innerHTML = rows.map((r) => {
+          const rid = r.request_id;
+          const plate = (r.plate_number || '').toString();
+          const who = (r.submitted_by_name || '').toString();
+          const st = (r.status || '').toString();
+          const submittedAt = (r.submitted_at || '').toString();
+          const actionHtml = st === 'Pending'
+            ? `<div class="flex gap-2">
+                 <button data-link-approve="${escAttr(rid)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Approve</button>
+                 <button data-link-reject="${escAttr(rid)}" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Reject</button>
+               </div>`
+            : `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${escAttr(r.reviewed_by_name || '')} ${escAttr(r.reviewed_at || '')}</div>`;
+          return `<tr>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(submittedAt)}</td>
+            <td class="px-4 py-3 font-bold text-slate-900 dark:text-white">${escAttr(plate)}</td>
+            <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(who)}</td>
+            <td class="px-4 py-3 text-xs font-black">${escAttr(st)}</td>
+            <td class="px-4 py-3">${actionHtml}</td>
+          </tr>`;
+        }).join('');
+
+        linkReqTbody.querySelectorAll('[data-link-approve]').forEach((b) => {
+          b.addEventListener('click', () => reviewLinkRequest(b.getAttribute('data-link-approve'), 'approve'));
+        });
+        linkReqTbody.querySelectorAll('[data-link-reject]').forEach((b) => {
+          b.addEventListener('click', () => reviewLinkRequest(b.getAttribute('data-link-reject'), 'reject'));
+        });
+      } catch (e) {
+        linkReqTbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-rose-600 font-semibold">${escAttr(e.message || 'Failed')}</td></tr>`;
+      }
+    }
+
+    async function reviewLinkRequest(requestId, decision) {
+      if (!requestId) return;
+      const remarks = prompt((decision === 'approve' ? 'Approval remarks (optional):' : 'Rejection reason:') , '');
+      if (decision === 'reject' && (!remarks || !remarks.trim())) { showToast('Rejection reason is required.', 'error'); return; }
+      const fd = new FormData();
+      fd.append('request_id', String(requestId));
+      fd.append('decision', String(decision));
+      fd.append('remarks', String(remarks || ''));
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module1/vehicle_link_requests_review.php', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'review_failed');
+        showToast(decision === 'approve' ? 'Approved.' : 'Rejected.');
+        loadLinkRequests();
+      } catch (e) {
+        showToast(e.message || 'Failed', 'error');
+      }
+    }
+
+    if (btnReloadLinkReq) btnReloadLinkReq.addEventListener('click', loadLinkRequests);
+    if (linkReqStatus) linkReqStatus.addEventListener('change', loadLinkRequests);
+    if (linkReqQ) linkReqQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadLinkRequests(); } });
+    loadLinkRequests();
 
     document.querySelectorAll('form[data-link-form="1"]').forEach((form) => {
       const box = form.querySelector('[data-plate-combobox="1"]');
