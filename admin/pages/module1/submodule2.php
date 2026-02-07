@@ -159,13 +159,6 @@ $typesList = vehicle_types();
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Link Operator
       </a>
-      <?php if (has_permission('module1.vehicles.write')): ?>
-        <button id="btnOpenAddVehicle" type="button"
-          class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
-          <i data-lucide="plus" class="w-4 h-4"></i>
-          Assisted Encoding (Walk-in)
-        </button>
-      <?php endif; ?>
       <div class="inline-flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
         <i data-lucide="info" class="w-4 h-4"></i>
         Vehicle encoding is submitted via Operator Portal. Use Assisted Encoding for walk-ins.
@@ -202,6 +195,16 @@ $typesList = vehicle_types();
       <div class="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
         <?php echo number_format($statMissingOrcr); ?></div>
     </div>
+  </div>
+
+  <div class="flex justify-end">
+    <?php if (has_permission('module1.vehicles.write')): ?>
+      <button id="btnOpenAddVehicle" type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Assisted Encoding (Walk-in)
+      </button>
+    <?php endif; ?>
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">

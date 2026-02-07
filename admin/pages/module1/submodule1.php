@@ -81,12 +81,6 @@ if ($rootUrl === '/') $rootUrl = '';
           Link Vehicle
         </a>
       <?php endif; ?>
-      <?php if (has_permission('module1.write')): ?>
-        <button id="btnOpenAddOperator" type="button" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
-          <i data-lucide="user-plus" class="w-4 h-4"></i>
-          Assisted Encoding (Walk-in)
-        </button>
-      <?php endif; ?>
       <div class="inline-flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
         <i data-lucide="info" class="w-4 h-4"></i>
         Operator records are submitted via Operator Portal. Use Assisted Encoding for walk-ins.
@@ -117,6 +111,15 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inactive</div>
       <div class="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400"><?php echo number_format($statInactive); ?></div>
     </div>
+  </div>
+
+  <div class="flex justify-end">
+    <?php if (has_permission('module1.write')): ?>
+      <button id="btnOpenAddOperator" type="button" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+        <i data-lucide="user-plus" class="w-4 h-4"></i>
+        Assisted Encoding (Walk-in)
+      </button>
+    <?php endif; ?>
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">

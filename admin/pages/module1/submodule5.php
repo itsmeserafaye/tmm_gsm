@@ -12,7 +12,7 @@ if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 
 $canReview = has_permission('module1.write');
-$canCreate = has_any_permission(['module1.vehicles.write','module1.write']);
+$canCreate = has_permission('module1.vehicles.write');
 
 $vehicles = [];
 $resV = $db->query("SELECT v.id, UPPER(v.plate_number) AS plate_number, v.operator_id, COALESCE(NULLIF(o.registered_name,''), NULLIF(o.name,''), o.full_name, v.operator_name) AS operator_name
@@ -57,10 +57,102 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Upload deed/authorization and choose the new operator.</div>
       </div>
       <div class="p-5">
-        <div class="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Note</div>
-          <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Transfer requests are created in the Operator Portal. This screen is for approval and decision-making.</div>
-        </div>
+        <?php if ($canCreate): ?>
+          <form id="formCreateTransfer" class="space-y-4" enctype="multipart/form-data" novalidate>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Vehicle</label>
+              <div class="relative" data-combobox="1" data-kind="vehicle">
+                <input type="hidden" name="vehicle_id" data-combo-id="1" required>
+                <div class="flex items-center gap-2">
+                  <input type="text" data-combo-display="1" readonly
+                    class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer"
+                    placeholder="Select vehicle…">
+                  <button type="button" data-combo-toggle="1" class="shrink-0 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
+                  </button>
+                </div>
+                <div data-combo-panel="1" class="hidden absolute z-20 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                    <input type="text" data-combo-search="1"
+                      class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold"
+                      placeholder="Search plate/operator…">
+                  </div>
+                  <div data-combo-list="1" class="max-h-64 overflow-y-auto"></div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">New Operator</label>
+              <div class="relative" data-combobox="1" data-kind="operator">
+                <input type="hidden" name="to_operator_id" data-combo-id="1" required>
+                <div class="flex items-center gap-2">
+                  <input type="text" data-combo-display="1" readonly
+                    class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer"
+                    placeholder="Select operator…">
+                  <button type="button" data-combo-toggle="1" class="shrink-0 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
+                  </button>
+                </div>
+                <div data-combo-panel="1" class="hidden absolute z-20 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+                  <div class="p-3 border-b border-slate-200 dark:border-slate-700">
+                    <input type="text" data-combo-search="1"
+                      class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold"
+                      placeholder="Search operator…">
+                  </div>
+                  <div data-combo-list="1" class="max-h-64 overflow-y-auto"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Transfer Type</label>
+                <select name="transfer_type" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                  <option value="Sale">Sale</option>
+                  <option value="Donation">Donation</option>
+                  <option value="Inheritance">Inheritance</option>
+                  <option value="Reassignment" selected>Reassignment</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">LTO Reference No (optional)</label>
+                <input type="text" name="lto_reference_no" maxlength="64"
+                  class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="e.g., OR/CR / reference">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Effective Date (optional)</label>
+              <input type="date" name="effective_date"
+                class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Deed/Authorization (required)</label>
+                <input type="file" name="deed_doc" accept=".pdf,.jpg,.jpeg,.png" required
+                  class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-slate-700 dark:file:text-slate-100">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">OR/CR (optional)</label>
+                <input type="file" name="orcr_doc" accept=".pdf,.jpg,.jpeg,.png"
+                  class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:file:bg-slate-700 dark:file:text-slate-100">
+              </div>
+            </div>
+
+            <button id="btnCreateTransfer" type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-black text-white px-4 py-3 text-sm font-bold shadow-lg transition-all active:scale-[0.98]">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              Submit Transfer Request
+            </button>
+          </form>
+        <?php else: ?>
+          <div class="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Note</div>
+            <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Transfer requests are created in the Operator Portal. This screen is for approval and decision-making.</div>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
 
