@@ -1799,6 +1799,11 @@ if ($action === 'puv_create_transfer_request') {
 if ($action === 'puv_list_routes') {
   op_require_approved($db, $userId);
   $rows = [];
+  
+  if (!op_table_exists($db, 'routes')) {
+      op_send(true, ['data' => []]); // Return empty list instead of failing if table missing
+  }
+
   $res = $db->query("SELECT id, route_id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name, origin, destination, status
                      FROM routes
                      WHERE status='Active'
@@ -1823,7 +1828,15 @@ if ($action === 'puv_list_routes') {
 if ($action === 'puv_list_franchise_applications') {
   op_require_approved($db, $userId);
   $operatorId = op_get_puv_operator_id($db, $userId);
-  if ($operatorId <= 0) op_send(false, ['error' => 'Operator record is not linked yet.'], 400);
+  
+  // Return empty list if not linked, instead of error
+  if ($operatorId <= 0) {
+      op_send(true, ['data' => []]);
+  }
+
+  if (!op_table_exists($db, 'franchise_applications')) {
+      op_send(true, ['data' => []]);
+  }
 
   $rows = [];
   $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id, fa.route_id, fa.vehicle_count, fa.approved_vehicle_count,
@@ -2599,6 +2612,30 @@ if ($action === 'upload_payment') {
   } else {
     op_send(false, ['error' => 'Update failed or invalid fee.'], 400);
   }
+}
+
+if ($action === 'puv_get_violation_types') {
+  op_require_approved($db, $userId);
+  // Philippine PUV Common Violations
+  $types = [
+      ['code' => 'COL', 'name' => 'Colorum (Unregistered)'],
+      ['code' => 'RTC', 'name' => 'Refusal to Convey'],
+      ['code' => 'OVC', 'name' => 'Overcharging / Undercharging'],
+      ['code' => 'DWD', 'name' => 'Driving Without Driver\'s License'],
+      ['code' => 'UVR', 'name' => 'Unregistered Vehicle'],
+      ['code' => 'RDL', 'name' => 'Reckless Driving'],
+      ['code' => 'OBS', 'name' => 'Obstruction of Traffic'],
+      ['code' => 'DTS', 'name' => 'Disregarding Traffic Signs'],
+      ['code' => 'OVL', 'name' => 'Overloading'],
+      ['code' => 'SMK', 'name' => 'Smoke Belching'],
+      ['code' => 'NPT', 'name' => 'No Plate Attached'],
+      ['code' => 'FWE', 'name' => 'Failure to Wear Seatbelt'],
+      ['code' => 'DUI', 'name' => 'Driving Under Influence'],
+      ['code' => 'CUT', 'name' => 'Cutting Trip'],
+      ['code' => 'OOS', 'name' => 'Out of Line / Out of Service Area'],
+      ['code' => 'NOP', 'name' => 'No Permit to Operate'],
+  ];
+  op_send(true, ['data' => $types]);
 }
 
 if ($action === 'get_violations') {

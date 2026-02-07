@@ -1231,6 +1231,53 @@ $typesList = vehicle_types();
         </div>
     </div>
 
+    <!-- Record Violation Modal -->
+    <div id="recordViolationModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 animate-fade-in">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Record Violation</h3>
+                    <p class="text-xs text-slate-500 mt-1">Self-report a violation for your vehicle.</p>
+                </div>
+                <button type="button" onclick="document.getElementById('recordViolationModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="recordViolationForm" onsubmit="submitPortalRequest(event)" class="space-y-4">
+                <input type="hidden" name="request_type" value="Violation Encoding">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
+                    <select id="violationPlateSelect" name="plate_number" required
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        <option value="">Loading vehicles...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Violation Type</label>
+                    <select id="violationTypeSelect" name="violation_type" required
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        <option value="">Select Violation Type...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Details / Notes</label>
+                    <textarea name="notes" rows="3" placeholder="Additional details..."
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Attachment (Optional)</label>
+                    <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                </div>
+                <button type="submit" id="btnSubmitViolation"
+                    class="w-full py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
     <div id="vehicleViewModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
         <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
@@ -2021,6 +2068,43 @@ $typesList = vehicle_types();
                     </div>
                 </div>
             `;
+        }
+
+        async function showRecordViolationModal() {
+            const modal = document.getElementById('recordViolationModal');
+            const form = document.getElementById('recordViolationForm');
+            const plateSelect = document.getElementById('violationPlateSelect');
+            const typeSelect = document.getElementById('violationTypeSelect');
+
+            if (!modal || !form || !plateSelect || !typeSelect) return;
+            
+            modal.classList.remove('hidden');
+            
+            // Populate Plates (Owned Vehicles)
+            plateSelect.innerHTML = '<option value="">Loading vehicles...</option>';
+            const vData = await apiGet('puv_get_owned_vehicles');
+            if (vData && vData.ok && Array.isArray(vData.data)) {
+                if (vData.data.length > 0) {
+                    plateSelect.innerHTML = '<option value="">Select Plate / Vehicle...</option>' + 
+                        vData.data.map(v => `<option value="${escapeHtml(v.plate_number)}">${escapeHtml(v.plate_number)} ${v.make ? '- '+escapeHtml(v.make) : ''}</option>`).join('');
+                } else {
+                    plateSelect.innerHTML = '<option value="">No vehicles found</option>';
+                }
+            } else {
+                plateSelect.innerHTML = '<option value="">Failed to load vehicles</option>';
+            }
+
+            // Populate Violation Types
+            if (typeSelect.children.length <= 1) { // Only load if not already loaded
+                typeSelect.innerHTML = '<option value="">Loading types...</option>';
+                const tData = await apiGet('puv_get_violation_types');
+                if (tData && tData.ok && Array.isArray(tData.data)) {
+                    typeSelect.innerHTML = '<option value="">Select Violation Type...</option>' + 
+                        tData.data.map(t => `<option value="${escapeHtml(t.code)}">${escapeHtml(t.name)}</option>`).join('');
+                } else {
+                    typeSelect.innerHTML = '<option value="">Failed to load types</option>';
+                }
+            }
         }
 
         async function loadViolations() {
