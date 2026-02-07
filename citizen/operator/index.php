@@ -528,14 +528,6 @@ $typesList = vehicle_types();
                         <p class="text-slate-500 text-sm">Monitor compliance and status of your registered vehicles.</p>
                         <div id="operatorOnboardingBanner" class="mt-4 hidden"></div>
                         <div class="mt-4">
-                            <button id="btnSubmitOpRecord" onclick="showOperatorRecordModal()"
-                                class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-black transition inline-flex items-center gap-2 mr-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                </svg>
-                                Submit Operator Record
-                            </button>
                             <button id="btnSubmitVehicle" onclick="showAddVehicleModal()"
                                 class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-orange-600 transition inline-flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -605,6 +597,7 @@ $typesList = vehicle_types();
                         <button type="button" onclick="openPortalRequestModal('Violation Encoding')"
                             class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Violation Encoding</button>
                     </div>
+                    <div id="violationsSummary" class="hidden"></div>
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
                         <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
                             <div class="text-sm font-bold text-slate-800">Violation Records</div>
@@ -1587,7 +1580,7 @@ $typesList = vehicle_types();
             if (form) form.reset();
         }
 
-        async function openPortalRequestModal(type) {
+        async function openPortalRequestModal(type, preselectPlate) {
             const modal = document.getElementById('portalRequestModal');
             const title = document.getElementById('portalReqTitle');
             const typeInput = document.getElementById('portalReqType');
@@ -1615,6 +1608,12 @@ $typesList = vehicle_types();
                 const plate = String(r.plate_number || '');
                 return `<option value="${escapeHtml(plate)}">${escapeHtml(plate)}</option>`;
             }).join('');
+            const pick = (preselectPlate || '').toString().trim().toUpperCase();
+            if (pick) {
+                const opts = Array.from(plateSel.options || []);
+                const found = opts.find((o) => (o.value || '').toString().toUpperCase() === pick);
+                if (found) plateSel.value = found.value;
+            }
         }
 
         async function submitPortalRequest(e) {
@@ -1809,6 +1808,8 @@ $typesList = vehicle_types();
                             <div class="text-xs font-bold text-slate-700">Uploads</div>
                             <div class="mt-1 text-xs text-slate-500 font-semibold">View documents uploaded for this vehicle.</div>
                         </div>
+                        <button type="button" onclick="openPortalRequestModal('Vehicle Update', '${escapeHtml(plateNo)}')"
+                            class="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-black transition">Request Update</button>
                     </div>
                     <div class="mt-3 space-y-2">
                         ${docRows || '<div class="p-4 text-center text-slate-400 italic text-sm">No uploads found.</div>'}
@@ -2095,9 +2096,32 @@ $typesList = vehicle_types();
 
         async function loadViolations() {
             const tbody = document.getElementById('violationsTable');
+            const summaryBox = document.getElementById('violationsSummary');
             if (!tbody) return;
             tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
             const data = await apiGet('get_violations');
+            if (summaryBox) {
+                const s = data && data.summary ? data.summary : null;
+                const openCount = s ? Number(s.open_count || 0) : 0;
+                const totalCount = s ? Number(s.total_count || 0) : 0;
+                const byPlate = s && s.by_plate ? s.by_plate : {};
+                if (openCount > 0) {
+                    const topPlates = Object.keys(byPlate || {}).slice(0, 5).map((p) => `${p} (${byPlate[p]})`).join(', ');
+                    const tone = openCount >= 3 ? 'rose' : 'amber';
+                    const wrapClass = tone === 'rose'
+                        ? 'border-rose-200 bg-rose-50 text-rose-800'
+                        : 'border-amber-200 bg-amber-50 text-amber-800';
+                    summaryBox.className = `p-4 rounded-2xl border ${wrapClass}`;
+                    summaryBox.innerHTML = `
+                        <div class="text-sm font-black">Unsettled Tickets: ${escapeHtml(String(openCount))}</div>
+                        <div class="mt-1 text-xs font-semibold opacity-80">Total records: ${escapeHtml(String(totalCount))}${topPlates ? (' • Plates: ' + escapeHtml(topPlates)) : ''}</div>
+                    `;
+                    summaryBox.classList.remove('hidden');
+                } else {
+                    summaryBox.classList.add('hidden');
+                    summaryBox.innerHTML = '';
+                }
+            }
             if (!data || !data.ok || !data.data.length) {
                 tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">No violations found.</td></tr>';
                 applyTableFilter('violationsTable');
@@ -2110,7 +2134,18 @@ $typesList = vehicle_types();
                     <td class="p-4 font-mono text-sm text-slate-600">${escapeHtml(r.plate || '')}</td>
                     <td class="p-4 text-sm text-slate-800">${escapeHtml(r.violation || '')}</td>
                     <td class="p-4 font-bold text-rose-600">${escapeHtml(r.amount || '0.00')}</td>
-                    <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${r.status !== 'Paid' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">${escapeHtml(r.status || '')}</span></td>
+                    <td class="p-4">${(() => {
+                        const st = (r.status || '').toString();
+                        const k = st.toLowerCase();
+                        const cls = (k === 'settled' || k === 'paid')
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : (k === 'validated')
+                                ? 'bg-blue-100 text-blue-700'
+                                : (k === 'pending')
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-rose-100 text-rose-700';
+                        return `<span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${cls}">${escapeHtml(st || '')}</span>`;
+                    })()}</td>
                 </tr>
              `).join('');
             applyTableFilter('violationsTable');
@@ -2703,25 +2738,7 @@ $typesList = vehicle_types();
             const form = document.getElementById('franchiseApplicationForm');
             if (!modal || !sel || !form) return;
             modal.classList.remove('hidden');
-            sel.innerHTML = `<option value="">Loading…</option>`;
-            const data = await apiGet('puv_list_routes');
-            if (!data || !data.ok) {
-                sel.innerHTML = `<option value="">Failed to load routes</option>`;
-                return;
-            }
-            const rows = Array.isArray(data.data) ? data.data : [];
-            if (!rows.length) {
-                sel.innerHTML = `<option value="">No active routes</option>`;
-                return;
-            }
-            sel.innerHTML = `<option value="">Select route…</option>` + rows.map((r) => {
-                const id = String(r.route_id || '');
-                const code = String(r.route_code || '');
-                const name = String(r.route_name || '');
-                const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
-                const label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
-                return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
-            }).join('');
+            await loadFranchiseRoutes();
         }
 
         async function submitFranchiseApplication(e) {
@@ -2826,7 +2843,8 @@ $typesList = vehicle_types();
             const banner = document.getElementById('operatorOnboardingBanner');
             if (!banner) return;
 
-            const hasOp = !!(profile && profile.has_operator_record);
+            const approvalStatus = (profile && profile.approval_status) ? String(profile.approval_status) : '';
+            const hasOp = !!(profile && profile.has_operator_record) || approvalStatus.toLowerCase() === 'approved';
             const subStatus = (profile && profile.operator_submission_status) ? String(profile.operator_submission_status) : 'None';
             const sub = (profile && profile.operator_submission) ? profile.operator_submission : null;
 
@@ -2835,16 +2853,29 @@ $typesList = vehicle_types();
             else if (subStatus === 'Submitted') state = 'pending';
             else if (subStatus === 'Rejected') state = 'rejected';
 
-            const btnOp = document.getElementById('btnSubmitOpRecord');
             const btnVeh = document.getElementById('btnSubmitVehicle');
             const btnFleet = document.getElementById('btnDeclaredFleet');
             const btnTransfer = document.getElementById('btnTransferRequest');
             const btnFranchise = document.getElementById('btnSubmitFranchise');
 
             if (state === 'approved') {
-                banner.classList.add('hidden');
-                banner.innerHTML = '';
-                if (btnOp) btnOp.style.display = 'none';
+                banner.classList.remove('hidden');
+                const details = `
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-semibold text-emerald-900">
+                        <div class="p-3 rounded-xl bg-white border border-emerald-200">Name: ${escapeHtml((profile && profile.name) ? String(profile.name) : '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-emerald-200">Type: ${escapeHtml((profile && profile.operator_type) ? String(profile.operator_type) : '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-emerald-200 md:col-span-2">Association: ${escapeHtml((profile && profile.association_name) ? String(profile.association_name) : '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-emerald-200">Email: ${escapeHtml((profile && profile.email) ? String(profile.email) : '-')}</div>
+                        <div class="p-3 rounded-xl bg-white border border-emerald-200">Contact: ${escapeHtml((profile && profile.contact_info) ? String(profile.contact_info) : '-')}</div>
+                    </div>
+                `;
+                banner.innerHTML = `
+                    <div class="p-4 rounded-2xl border border-emerald-200 bg-emerald-50">
+                        <div class="text-sm font-black text-emerald-800">Operator Profile Validated</div>
+                        <div class="mt-1 text-xs font-semibold text-emerald-800/80">Your operator record is already validated. You can manage your fleet and applications.</div>
+                        ${details}
+                    </div>
+                `;
                 setBtnDisabled(btnVeh, false);
                 setBtnDisabled(btnFleet, false);
                 setBtnDisabled(btnTransfer, false);
@@ -2852,10 +2883,8 @@ $typesList = vehicle_types();
                 return;
             }
 
-            banner.classList.remove('hidden');
-
             if (state === 'pending') {
-                if (btnOp) btnOp.style.display = 'none';
+                banner.classList.remove('hidden');
                 setBtnDisabled(btnVeh, true, 'Pending Verification');
                 setBtnDisabled(btnFleet, true, 'Pending Verification');
                 setBtnDisabled(btnTransfer, true, 'Pending Verification');
@@ -2879,10 +2908,7 @@ $typesList = vehicle_types();
             }
 
             if (state === 'rejected') {
-                if (btnOp) {
-                    btnOp.style.display = 'inline-flex';
-                    btnOp.innerText = 'Submit Corrections';
-                }
+                banner.classList.remove('hidden');
                 setBtnDisabled(btnVeh, true, 'Fix Operator Profile');
                 setBtnDisabled(btnFleet, true, 'Fix Operator Profile');
                 setBtnDisabled(btnTransfer, true, 'Fix Operator Profile');
@@ -2898,20 +2924,12 @@ $typesList = vehicle_types();
                 return;
             }
 
-            if (btnOp) {
-                btnOp.style.display = 'inline-flex';
-                btnOp.innerText = 'Submit Operator Record';
-            }
             setBtnDisabled(btnVeh, true, 'Submit Operator Record First');
             setBtnDisabled(btnFleet, true, 'Submit Operator Record First');
             setBtnDisabled(btnTransfer, true, 'Submit Operator Record First');
             setBtnDisabled(btnFranchise, true, 'Submit Operator Record First');
-            banner.innerHTML = `
-                <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50">
-                    <div class="text-sm font-black text-slate-800">Operator Profile Required</div>
-                    <div class="mt-1 text-xs font-semibold text-slate-600">Each operator account can only create one operator profile. Submit your operator record once to start LGU verification.</div>
-                </div>
-            `;
+            banner.classList.add('hidden');
+            banner.innerHTML = '';
         }
 
         async function fetchProfile() {
@@ -2936,21 +2954,6 @@ $typesList = vehicle_types();
                 document.getElementById('editName').value = data.data.name || '';
                 document.getElementById('editEmail').value = data.data.email || '';
                 document.getElementById('editContact').value = data.data.contact_info || '';
-
-                // Hide Submit Operator Record button if already submitted/approved
-                const btnOpRec = document.getElementById('btnSubmitOpRecord');
-                if (btnOpRec) {
-                    if (data.data.has_operator_record) {
-                        btnOpRec.style.display = 'none';
-                    } else {
-                        const subStatus = data.data.operator_submission_status || 'None';
-                        if (subStatus === 'Submitted' || subStatus === 'Approved') {
-                            btnOpRec.style.display = 'none';
-                        } else {
-                            btnOpRec.style.display = 'inline-flex';
-                        }
-                    }
-                }
 
                 renderOperatorOnboarding(currentProfileData);
             }
@@ -3226,11 +3229,41 @@ $typesList = vehicle_types();
             }
         }
 
+        let franchiseRoutesLoaded = false;
+        async function loadFranchiseRoutes(force = false) {
+            if (franchiseRoutesLoaded && !force) return;
+            const sel = document.getElementById('franchiseRouteSelect');
+            if (!sel) return;
+            sel.innerHTML = `<option value="">Loading…</option>`;
+            const data = await apiGet('puv_list_routes');
+            if (!data || !data.ok) {
+                sel.innerHTML = `<option value="">Failed to load routes</option>`;
+                franchiseRoutesLoaded = false;
+                return;
+            }
+            const rows = Array.isArray(data.data) ? data.data : [];
+            if (!rows.length) {
+                sel.innerHTML = `<option value="">No active routes</option>`;
+                franchiseRoutesLoaded = false;
+                return;
+            }
+            sel.innerHTML = `<option value="">Select route…</option>` + rows.map((r) => {
+                const id = String(r.route_id || '');
+                const code = String(r.route_code || '');
+                const name = String(r.route_name || '');
+                const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
+                const label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
+                return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
+            }).join('');
+            franchiseRoutesLoaded = true;
+        }
+
         // Initial Load
         (async function init() {
             await initSession();
             await fetchProfile();
             await loadVerificationStatus(false, false);
+            loadFranchiseRoutes();
             loadStats();
             loadPortalRequests();
             loadApplications();

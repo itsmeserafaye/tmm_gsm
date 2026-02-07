@@ -546,7 +546,26 @@ if ($action === 'get_dashboard_stats') {
     $stmt->close();
   }
 
-  op_send(true, ['data' => ['pending_apps' => $pending, 'active_vehicles' => $activeVehicles, 'compliance_alerts' => $alerts]]);
+  $openTickets = 0;
+  if (op_table_exists($db, 'tickets')) {
+    $sql = "SELECT COUNT(*) AS c FROM tickets WHERE vehicle_plate IN ($in) AND LOWER(COALESCE(status,'')) <> 'settled'";
+    $stmt = $db->prepare($sql);
+    if ($stmt) {
+      $stmt->bind_param($types, ...$plates);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      $openTickets = (int) (($res && ($r = $res->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+      $stmt->close();
+    }
+  }
+  $alertsCombined = $alerts + $openTickets;
+
+  op_send(true, ['data' => [
+    'pending_apps' => $pending,
+    'active_vehicles' => $activeVehicles,
+    'compliance_alerts' => $alertsCombined,
+    'open_violations' => $openTickets
+  ]]);
 }
 
 if ($action === 'get_ai_insights') {
@@ -577,6 +596,25 @@ if ($action === 'get_ai_insights') {
         'title' => 'Compliance Status',
         'desc' => 'All vehicles show Passed inspection status in the system.',
         'type' => 'low',
+      ];
+    }
+
+    $openTickets = 0;
+    if (op_table_exists($db, 'tickets')) {
+      $stmtVio = $db->prepare("SELECT COUNT(*) AS c FROM tickets WHERE vehicle_plate IN ($in) AND LOWER(COALESCE(status,'')) <> 'settled'");
+      if ($stmtVio) {
+        $stmtVio->bind_param($types, ...$plates);
+        $stmtVio->execute();
+        $resVio = $stmtVio->get_result();
+        $openTickets = (int) (($resVio && ($r = $resVio->fetch_assoc())) ? ($r['c'] ?? 0) : 0);
+        $stmtVio->close();
+      }
+    }
+    if ($openTickets > 0) {
+      $insights[] = [
+        'title' => 'Violation Alert',
+        'desc' => $openTickets . ' unsettled ticket(s) found. Visit the Violations module to review and settle.',
+        'type' => ($openTickets >= 3) ? 'high' : 'medium',
       ];
     }
 
@@ -1837,40 +1875,44 @@ if ($action === 'puv_list_routes') {
   $rows = [];
   
   try {
-      if (!op_table_exists($db, 'routes')) {
+      $source = null;
+      $res = null;
+
+      if (op_table_exists($db, 'routes')) {
+          $source = 'routes';
+          $res = $db->query("SELECT * FROM routes WHERE LOWER(COALESCE(status,''))='active' LIMIT 800");
+      } else if (op_table_exists($db, 'lptrp_routes')) {
+          $source = 'lptrp_routes';
+          $res = $db->query("SELECT * FROM lptrp_routes LIMIT 800");
+      } else {
           op_send(true, ['data' => []]);
       }
 
-      // Use SELECT * to be safe against schema variations, then filter in PHP
-      $res = $db->query("SELECT * FROM routes WHERE LOWER(COALESCE(status,''))='active' LIMIT 800");
       if ($res) {
-        while ($r = $res->fetch_assoc()) {
-          $id = (int)($r['id'] ?? 0);
-          if ($id <= 0) continue;
-          
-          // Map fields with fallbacks
-          $routeId = (string)($r['route_id'] ?? '');
-          $routeCode = (string)($r['route_code'] ?? '');
-          $routeName = (string)($r['route_name'] ?? '');
-          
-          // Logic from admin: COALESCE(NULLIF(route_code,''), route_id)
-          $displayCode = $routeCode !== '' ? $routeCode : $routeId;
-          
-          $rows[] = [
-            'route_id' => $id,
-            'route_code' => $displayCode,
-            'route_name' => $routeName,
-            'origin' => (string)($r['origin'] ?? ''),
-            'destination' => (string)($r['destination'] ?? ''),
-          ];
-        }
-        
-        // Sort in PHP to match SQL: ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
-        usort($rows, function($a, $b) {
-            $nameA = $a['route_name'] ?: $a['route_code'];
-            $nameB = $b['route_name'] ?: $b['route_code'];
-            return strnatcasecmp($nameA, $nameB);
-        });
+          while ($r = $res->fetch_assoc()) {
+              $id = (int)($r['id'] ?? 0);
+              if ($id <= 0) continue;
+
+              $routeIdText = (string)($r['route_id'] ?? '');
+              $routeCode = (string)($r['route_code'] ?? '');
+              $routeName = (string)($r['route_name'] ?? '');
+
+              $displayCode = $routeCode !== '' ? $routeCode : $routeIdText;
+
+              $rows[] = [
+                  'route_id' => $id,
+                  'route_code' => $displayCode,
+                  'route_name' => $routeName,
+                  'origin' => (string)($r['origin'] ?? ''),
+                  'destination' => (string)($r['destination'] ?? ''),
+              ];
+          }
+
+          usort($rows, function ($a, $b) {
+              $nameA = $a['route_name'] ?: $a['route_code'];
+              $nameB = $b['route_name'] ?: $b['route_code'];
+              return strnatcasecmp($nameA, $nameB);
+          });
       }
   } catch (Throwable $e) {
       op_send(true, ['data' => [], 'error' => 'Backend error']);
@@ -2690,54 +2732,125 @@ if ($action === 'upload_payment') {
 
 if ($action === 'puv_get_violation_types') {
   op_require_approved($db, $userId);
-  // Philippine PUV Common Violations
-  $types = [
-      ['code' => 'COL', 'name' => 'Colorum (Unregistered)'],
-      ['code' => 'RTC', 'name' => 'Refusal to Convey'],
-      ['code' => 'OVC', 'name' => 'Overcharging / Undercharging'],
-      ['code' => 'DWD', 'name' => 'Driving Without Driver\'s License'],
-      ['code' => 'UVR', 'name' => 'Unregistered Vehicle'],
-      ['code' => 'RDL', 'name' => 'Reckless Driving'],
-      ['code' => 'OBS', 'name' => 'Obstruction of Traffic'],
-      ['code' => 'DTS', 'name' => 'Disregarding Traffic Signs'],
-      ['code' => 'OVL', 'name' => 'Overloading'],
-      ['code' => 'SMK', 'name' => 'Smoke Belching'],
-      ['code' => 'NPT', 'name' => 'No Plate Attached'],
-      ['code' => 'FWE', 'name' => 'Failure to Wear Seatbelt'],
-      ['code' => 'DUI', 'name' => 'Driving Under Influence'],
-      ['code' => 'CUT', 'name' => 'Cutting Trip'],
-      ['code' => 'OOS', 'name' => 'Out of Line / Out of Service Area'],
-      ['code' => 'NOP', 'name' => 'No Permit to Operate'],
-  ];
+  $types = [];
+  if (op_table_exists($db, 'violation_types')) {
+    $res = $db->query("SELECT violation_code, description, fine_amount FROM violation_types ORDER BY violation_code ASC");
+    if ($res) {
+      while ($r = $res->fetch_assoc()) {
+        $code = (string)($r['violation_code'] ?? '');
+        if ($code === '') continue;
+        $types[] = [
+          'code' => $code,
+          'name' => (string)($r['description'] ?? $code),
+          'fine_amount' => (float)($r['fine_amount'] ?? 0),
+        ];
+      }
+    }
+  }
+
+  if (!$types) {
+    $types = [
+        ['code' => 'COL', 'name' => 'Colorum (Unregistered)'],
+        ['code' => 'RTC', 'name' => 'Refusal to Convey'],
+        ['code' => 'OVC', 'name' => 'Overcharging / Undercharging'],
+        ['code' => 'DWD', 'name' => 'Driving Without Driver\'s License'],
+        ['code' => 'UVR', 'name' => 'Unregistered Vehicle'],
+        ['code' => 'RDL', 'name' => 'Reckless Driving'],
+        ['code' => 'OBS', 'name' => 'Obstruction of Traffic'],
+        ['code' => 'DTS', 'name' => 'Disregarding Traffic Signs'],
+        ['code' => 'OVL', 'name' => 'Overloading'],
+        ['code' => 'SMK', 'name' => 'Smoke Belching'],
+        ['code' => 'NPT', 'name' => 'No Plate Attached'],
+        ['code' => 'FWE', 'name' => 'Failure to Wear Seatbelt'],
+        ['code' => 'DUI', 'name' => 'Driving Under Influence'],
+        ['code' => 'CUT', 'name' => 'Cutting Trip'],
+        ['code' => 'OOS', 'name' => 'Out of Line / Out of Service Area'],
+        ['code' => 'NOP', 'name' => 'No Permit to Operate'],
+    ];
+  }
+
   op_send(true, ['data' => $types]);
 }
 
 if ($action === 'get_violations') {
   $plates = op_user_plates($db, $userId);
   if (!$plates)
-    op_send(true, ['data' => []]);
+    op_send(true, ['data' => [], 'summary' => ['open_count' => 0, 'total_count' => 0, 'by_plate' => []]]);
   $in = implode(',', array_fill(0, count($plates), '?'));
   $types = str_repeat('s', count($plates));
 
   $rows = [];
-  $stmt = $db->prepare("SELECT * FROM violations WHERE plate_number IN ($in) ORDER BY violation_date DESC");
-  if ($stmt) {
-    $stmt->bind_param($types, ...$plates);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($r = $res->fetch_assoc()) {
-      $rows[] = [
-        'ticket_no' => $r['id'],
-        'plate' => $r['plate_number'],
-        'violation' => $r['violation_type'],
-        'amount' => $r['amount'],
-        'status' => $r['status'],
-        'date' => $r['violation_date']
-      ];
+  $summary = ['open_count' => 0, 'total_count' => 0, 'by_plate' => []];
+
+  if (op_table_exists($db, 'tickets')) {
+    $sql = "SELECT t.ticket_id, t.ticket_number, t.external_ticket_number, t.date_issued, t.vehicle_plate, t.violation_code, t.status, t.fine_amount,
+                   vt.description AS violation_description
+            FROM tickets t
+            LEFT JOIN violation_types vt ON vt.violation_code = t.violation_code
+            WHERE t.vehicle_plate IN ($in)
+            ORDER BY t.date_issued DESC
+            LIMIT 500";
+    $stmt = $db->prepare($sql);
+    if ($stmt) {
+      $stmt->bind_param($types, ...$plates);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $status = (string)($r['status'] ?? '');
+        $plate = (string)($r['vehicle_plate'] ?? '');
+        $code = (string)($r['violation_code'] ?? '');
+        $desc = (string)($r['violation_description'] ?? '');
+        $label = trim($code . ($desc !== '' ? (' - ' . $desc) : ''));
+        $rows[] = [
+          'ticket_no' => (string)($r['ticket_number'] ?? ($r['external_ticket_number'] ?? ($r['ticket_id'] ?? ''))),
+          'plate' => $plate,
+          'violation' => $label !== '' ? $label : $code,
+          'amount' => (string)($r['fine_amount'] ?? '0.00'),
+          'status' => $status,
+          'date' => (string)($r['date_issued'] ?? ''),
+        ];
+        $summary['total_count']++;
+        $normStatus = strtolower($status);
+        $isOpen = !in_array($normStatus, ['settled', 'paid'], true);
+        if ($isOpen) {
+          $summary['open_count']++;
+          if (!isset($summary['by_plate'][$plate])) $summary['by_plate'][$plate] = 0;
+          $summary['by_plate'][$plate]++;
+        }
+      }
+      $stmt->close();
     }
-    $stmt->close();
+  } else if (op_table_exists($db, 'violations')) {
+    $stmt = $db->prepare("SELECT * FROM violations WHERE plate_number IN ($in) ORDER BY violation_date DESC LIMIT 500");
+    if ($stmt) {
+      $stmt->bind_param($types, ...$plates);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $status = (string)($r['status'] ?? '');
+        $plate = (string)($r['plate_number'] ?? '');
+        $rows[] = [
+          'ticket_no' => (string)($r['id'] ?? ''),
+          'plate' => $plate,
+          'violation' => (string)($r['violation_type'] ?? ''),
+          'amount' => (string)($r['amount'] ?? '0.00'),
+          'status' => $status,
+          'date' => (string)($r['violation_date'] ?? ''),
+        ];
+        $summary['total_count']++;
+        $normStatus = strtolower($status);
+        $isOpen = !in_array($normStatus, ['settled', 'paid'], true);
+        if ($isOpen) {
+          $summary['open_count']++;
+          if (!isset($summary['by_plate'][$plate])) $summary['by_plate'][$plate] = 0;
+          $summary['by_plate'][$plate]++;
+        }
+      }
+      $stmt->close();
+    }
   }
-  op_send(true, ['data' => $rows]);
+
+  op_send(true, ['data' => $rows, 'summary' => $summary]);
 }
 
 if ($action === 'get_notifications') {
