@@ -1801,9 +1801,10 @@ if ($action === 'puv_list_routes') {
   $rows = [];
   
   if (!op_table_exists($db, 'routes')) {
-      op_send(true, ['data' => []]); // Return empty list instead of failing if table missing
+      op_send(true, ['data' => []]);
   }
 
+  // Use the same robust query as admin/api/module2/routes_list.php
   $res = $db->query("SELECT id, route_id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name, origin, destination, status
                      FROM routes
                      WHERE status='Active'
