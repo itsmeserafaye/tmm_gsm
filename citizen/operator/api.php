@@ -906,6 +906,24 @@ if ($action === 'get_profile') {
   $res = $stmt->get_result();
   $row = $res ? $res->fetch_assoc() : null;
   $stmt->close();
+  $puvOpId = (int)($row['puv_operator_id'] ?? 0);
+  $hasOpRecord = $puvOpId > 0;
+  $submissionStatus = 'None';
+  if ($hasOpRecord) {
+      $submissionStatus = 'Approved';
+  } else {
+      $stmtS = $db->prepare("SELECT status FROM operator_record_submissions WHERE portal_user_id=? ORDER BY submission_id DESC LIMIT 1");
+      if ($stmtS) {
+          $stmtS->bind_param('i', $userId);
+          $stmtS->execute();
+          $resS = $stmtS->get_result();
+          if ($rS = $resS->fetch_assoc()) {
+              $submissionStatus = (string)($rS['status'] ?? 'Submitted');
+          }
+          $stmtS->close();
+      }
+  }
+
   op_send(true, [
     'data' => [
       'name' => $row['full_name'] ?? 'Operator',
@@ -917,6 +935,8 @@ if ($action === 'get_profile') {
       'verification_submitted_at' => $row['verification_submitted_at'] ?? null,
       'approval_remarks' => $row['approval_remarks'] ?? null,
       'plate_number' => $activePlate,
+      'has_operator_record' => $hasOpRecord,
+      'operator_submission_status' => $submissionStatus,
     ]
   ]);
 }
@@ -1189,6 +1209,21 @@ if ($action === 'puv_submit_operator_record') {
 
   $u = op_get_user_row($db, $userId);
   if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
+
+  if (((int)($u['puv_operator_id'] ?? 0)) > 0) {
+      op_send(false, ['error' => 'You already have an approved operator profile. Use "Edit Profile" to update details.'], 403);
+  }
+
+  $stmtChk = $db->prepare("SELECT 1 FROM operator_record_submissions WHERE portal_user_id=? AND status IN ('Submitted','Approved') LIMIT 1");
+  if ($stmtChk) {
+      $stmtChk->bind_param('i', $userId);
+      $stmtChk->execute();
+      if ($stmtChk->get_result()->fetch_row()) {
+          $stmtChk->close();
+          op_send(false, ['error' => 'You already have a pending or approved operator submission.'], 403);
+      }
+      $stmtChk->close();
+  }
 
   $operatorType = trim((string)($_POST['operator_type'] ?? ($u['operator_type'] ?? 'Individual')));
   if (!in_array($operatorType, ['Individual','Cooperative','Corporation'], true)) $operatorType = 'Individual';

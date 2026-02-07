@@ -529,7 +529,7 @@ $typesList = vehicle_types();
                         <h2 class="text-2xl font-bold text-slate-900">Fleet Management</h2>
                         <p class="text-slate-500 text-sm">Monitor compliance and status of your registered vehicles.</p>
                         <div class="mt-4">
-                            <button onclick="showOperatorRecordModal()"
+                            <button id="btnSubmitOpRecord" onclick="showOperatorRecordModal()"
                                 class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-black transition inline-flex items-center gap-2 mr-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -2505,6 +2505,17 @@ $typesList = vehicle_types();
         }
 
         function showOperatorRecordModal() {
+            if (currentProfileData) {
+                if (currentProfileData.has_operator_record) {
+                    toast('You already have an approved operator profile.', 'error');
+                    return;
+                }
+                const subStatus = currentProfileData.operator_submission_status || 'None';
+                if (subStatus === 'Submitted' || subStatus === 'Approved') {
+                    toast('You already have a pending operator record submission.', 'error');
+                    return;
+                }
+            }
             const modal = document.getElementById('operatorRecordModal');
             if (!modal) return;
             const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '').slice(0, 20);
@@ -2889,6 +2900,21 @@ $typesList = vehicle_types();
                 document.getElementById('editName').value = data.data.name || '';
                 document.getElementById('editEmail').value = data.data.email || '';
                 document.getElementById('editContact').value = data.data.contact_info || '';
+
+                // Hide Submit Operator Record button if already submitted/approved
+                const btnOpRec = document.getElementById('btnSubmitOpRecord');
+                if (btnOpRec) {
+                    if (data.data.has_operator_record) {
+                        btnOpRec.style.display = 'none';
+                    } else {
+                        const subStatus = data.data.operator_submission_status || 'None';
+                        if (subStatus === 'Submitted' || subStatus === 'Approved') {
+                            btnOpRec.style.display = 'none';
+                        } else {
+                            btnOpRec.style.display = 'inline-flex';
+                        }
+                    }
+                }
             }
         }
 
