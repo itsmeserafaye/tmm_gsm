@@ -1456,20 +1456,42 @@ $typesList = vehicle_types();
         }
 
         async function apiGet(action) {
-            const res = await fetch('api.php?action=' + encodeURIComponent(action), { headers: { 'Accept': 'application/json' } });
-            return await res.json();
+            try {
+                const res = await fetch('api.php?action=' + encodeURIComponent(action), { headers: { 'Accept': 'application/json' } });
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('API Parse Error (' + action + '):', text);
+                    return { ok: false, error: 'Invalid server response' };
+                }
+            } catch (e) {
+                console.error('API Network Error (' + action + '):', e);
+                return { ok: false, error: 'Network error' };
+            }
         }
 
         async function apiGetWithParams(action, params = {}) {
-            const usp = new URLSearchParams();
-            usp.set('action', String(action || ''));
-            Object.keys(params || {}).forEach((k) => {
-                const v = params[k];
-                if (v === undefined || v === null) return;
-                usp.set(String(k), String(v));
-            });
-            const res = await fetch('api.php?' + usp.toString(), { headers: { 'Accept': 'application/json' } });
-            return await res.json();
+            try {
+                const usp = new URLSearchParams();
+                usp.set('action', String(action || ''));
+                Object.keys(params || {}).forEach((k) => {
+                    const v = params[k];
+                    if (v === undefined || v === null) return;
+                    usp.set(String(k), String(v));
+                });
+                const res = await fetch('api.php?' + usp.toString(), { headers: { 'Accept': 'application/json' } });
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('API Parse Error (' + action + '):', text);
+                    return { ok: false, error: 'Invalid server response' };
+                }
+            } catch (e) {
+                console.error('API Network Error (' + action + '):', e);
+                return { ok: false, error: 'Network error' };
+            }
         }
 
         async function apiPost(formData) {

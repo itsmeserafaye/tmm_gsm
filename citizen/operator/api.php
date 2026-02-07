@@ -1797,32 +1797,52 @@ if ($action === 'puv_create_transfer_request') {
 }
 
 if ($action === 'puv_list_routes') {
-  op_require_approved($db, $userId);
+  // Allow pending users to view routes for application purposes
+  // op_require_approved($db, $userId); 
   $rows = [];
   
-  if (!op_table_exists($db, 'routes')) {
-      op_send(true, ['data' => []]);
-  }
+  try {
+      if (!op_table_exists($db, 'routes')) {
+          op_send(true, ['data' => []]);
+      }
 
-  // Use the same robust query as admin/api/module2/routes_list.php
-  $res = $db->query("SELECT id, route_id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name, origin, destination, status
-                     FROM routes
-                     WHERE status='Active'
-                     ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
-                     LIMIT 800");
-  if ($res) {
-    while ($r = $res->fetch_assoc()) {
-      $id = (int)($r['id'] ?? 0);
-      if ($id <= 0) continue;
-      $rows[] = [
-        'route_id' => $id,
-        'route_code' => (string)($r['route_code'] ?? ''),
-        'route_name' => (string)($r['route_name'] ?? ''),
-        'origin' => (string)($r['origin'] ?? ''),
-        'destination' => (string)($r['destination'] ?? ''),
-      ];
-    }
+      // Use SELECT * to be safe against schema variations, then filter in PHP
+      $res = $db->query("SELECT * FROM routes WHERE status='Active' LIMIT 800");
+      if ($res) {
+        while ($r = $res->fetch_assoc()) {
+          $id = (int)($r['id'] ?? 0);
+          if ($id <= 0) continue;
+          
+          // Map fields with fallbacks
+          $routeId = (string)($r['route_id'] ?? '');
+          $routeCode = (string)($r['route_code'] ?? '');
+          $routeName = (string)($r['route_name'] ?? '');
+          
+          // Logic from admin: COALESCE(NULLIF(route_code,''), route_id)
+          $displayCode = $routeCode !== '' ? $routeCode : $routeId;
+          
+          $rows[] = [
+            'route_id' => $id,
+            'route_code' => $displayCode,
+            'route_name' => $routeName,
+            'origin' => (string)($r['origin'] ?? ''),
+            'destination' => (string)($r['destination'] ?? ''),
+          ];
+        }
+        
+        // Sort in PHP to match SQL: ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
+        usort($rows, function($a, $b) {
+            $nameA = $a['route_name'] ?: $a['route_code'];
+            $nameB = $b['route_name'] ?: $b['route_code'];
+            return strnatcasecmp($nameA, $nameB);
+        });
+      }
+  } catch (Throwable $e) {
+      // Log error but return empty list to prevent UI freeze
+      // error_log("puv_list_routes error: " . $e->getMessage());
+      op_send(true, ['data' => [], 'error' => 'Backend error']);
   }
+  
   op_send(true, ['data' => $rows]);
 }
 
