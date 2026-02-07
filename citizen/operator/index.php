@@ -176,14 +176,6 @@ $typesList = vehicle_types();
                 Downloads
             </button>
 
-            <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Active Plate</div>
-                <select id="plateSelect"
-                    class="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
-                    <option>Loading...</option>
-                </select>
-                <div class="mt-2 text-[11px] text-slate-500">Used when submitting new applications.</div>
-            </div>
         </nav>
 
         <div class="p-4 border-t border-slate-100">
@@ -352,6 +344,40 @@ $typesList = vehicle_types();
                         </div>
                     </div>
 
+                    <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-6 md:p-8">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">Assisted Encoding (Walk-in)</h3>
+                                    <p class="text-xs text-slate-500">Request assisted encoding and bring your documents to the LGU/office for verification.</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" oninput="setTableFilter('portalAppsTable', this.value)" placeholder="Filter requests…"
+                                        class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                                    <button type="button" onclick="openPortalRequestModal('Assisted Encoding (Walk-in)')"
+                                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Request</button>
+                                    <button type="button" onclick="loadPortalRequests()"
+                                        class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Plate</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="portalAppsTable" class="divide-y divide-slate-100">
+                                        <tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- AI Insights Feed -->
                     <div
                         class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
@@ -452,8 +478,12 @@ $typesList = vehicle_types();
                                     <h3 class="text-lg font-bold text-slate-900">Franchise Applications & Endorsement</h3>
                                     <p class="text-xs text-slate-500">View your status and what is required for LTFRB approval.</p>
                                 </div>
-                                <button type="button" onclick="loadApplications()"
-                                    class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" oninput="setTableFilter('appsTable', this.value)" placeholder="Filter applications…"
+                                        class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                                    <button type="button" onclick="loadApplications()"
+                                        class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
+                                </div>
                             </div>
                             <div class="overflow-x-auto rounded-xl border border-slate-200">
                                 <table class="w-full text-left text-sm">
@@ -535,18 +565,25 @@ $typesList = vehicle_types();
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                            <div class="text-sm font-bold text-slate-800">My Vehicles</div>
+                            <input type="text" oninput="setTableFilter('fleetTable', this.value)" placeholder="Filter vehicles…"
+                                class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">
                                             Plate Number</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider hidden md:table-cell">
+                                            Type</th>
                                         <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">
                                             Status</th>
-                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                                            Inspection</th>
-                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">
-                                            Validity</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider hidden sm:table-cell">
+                                            Record</th>
+                                        <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider hidden sm:table-cell">
+                                            Created</th>
                                         <th class="p-5 font-semibold text-xs text-slate-500 uppercase tracking-wider">
                                             Actions</th>
                                     </tr>
@@ -561,11 +598,20 @@ $typesList = vehicle_types();
 
                 <!-- VIOLATIONS -->
                 <section id="violations" class="hidden space-y-8">
-                    <div>
-                         <h2 class="text-2xl font-bold text-slate-900">Violations</h2>
-                         <p class="text-slate-500 text-sm">Review traffic citations and settlement status.</p>
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                             <h2 class="text-2xl font-bold text-slate-900">Violations</h2>
+                             <p class="text-slate-500 text-sm">Review traffic citations and settlement status.</p>
+                        </div>
+                        <button type="button" onclick="openPortalRequestModal('Violation Encoding')"
+                            class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Violation Encoding</button>
                     </div>
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                            <div class="text-sm font-bold text-slate-800">Violation Records</div>
+                            <input type="text" oninput="setTableFilter('violationsTable', this.value)" placeholder="Filter violations…"
+                                class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-50 border-b border-slate-200">
@@ -593,6 +639,11 @@ $typesList = vehicle_types();
                          <p class="text-slate-500 text-sm">Track assessed fees and upload proof of payment.</p>
                     </div>
                      <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                            <div class="text-sm font-bold text-slate-800">Assessed Fees</div>
+                            <input type="text" oninput="setTableFilter('feesTable', this.value)" placeholder="Filter fees…"
+                                class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-50 border-b border-slate-200">
@@ -620,6 +671,11 @@ $typesList = vehicle_types();
                         <p class="text-slate-500 text-sm">View inspection status and requests.</p>
                     </div>
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                            <div class="text-sm font-bold text-slate-800">Inspection Status</div>
+                            <input type="text" oninput="setTableFilter('inspectionsTable', this.value)" placeholder="Filter inspections…"
+                                class="w-56 max-w-[60vw] px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-primary outline-none">
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-50 border-b border-slate-200">
@@ -655,6 +711,51 @@ $typesList = vehicle_types();
 
             </div>
         </main>
+    </div>
+
+    <div id="portalRequestModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800" id="portalReqTitle">Request</h3>
+                    <p class="text-xs text-slate-500 mt-1">Submit a request for admin/LGU processing.</p>
+                </div>
+                <button type="button" onclick="closePortalRequestModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="portalRequestForm" onsubmit="submitPortalRequest(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
+                <input type="hidden" name="type" id="portalReqType">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle</label>
+                    <select name="plate_number" id="portalReqPlate" required
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                        <option value="">Loading…</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes (optional)</label>
+                    <textarea name="notes" rows="4" maxlength="2000"
+                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                        placeholder="Add details or instructions for the LGU/admin…"></textarea>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="text-xs font-bold text-slate-500 uppercase">Attachments (optional)</div>
+                    <div class="mt-2 text-xs text-slate-500">You can attach images/PDF for review.</div>
+                    <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png"
+                        class="mt-3 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" onclick="closePortalRequestModal()"
+                        class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" id="btnPortalReqSubmit"
+                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Submit</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Profile Modal (Refined) -->
@@ -1130,6 +1231,26 @@ $typesList = vehicle_types();
         </div>
     </div>
 
+    <div id="vehicleViewModal"
+        class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-white rounded-2xl shadow-xl max-w-4xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Vehicle Details</h3>
+                    <p class="text-xs text-slate-500 mt-1">View your vehicle information and uploaded documents.</p>
+                </div>
+                <button type="button" onclick="closeVehicleViewModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="vehicleViewBody" class="space-y-4">
+                <div class="p-6 text-center text-slate-400 italic">Loading…</div>
+            </div>
+        </div>
+    </div>
+
     <div id="franchiseViewModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
         <div class="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
@@ -1269,8 +1390,38 @@ $typesList = vehicle_types();
             return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
+        const tableFilterState = {};
+        function setTableFilter(tbodyId, value) {
+            tableFilterState[tbodyId] = String(value || '').toLowerCase();
+            applyTableFilter(tbodyId);
+        }
+
+        function applyTableFilter(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+            const q = String(tableFilterState[tbodyId] || '').trim();
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach(tr => {
+                const text = (tr.innerText || tr.textContent || '').toLowerCase();
+                const hide = q !== '' && !text.includes(q);
+                tr.classList.toggle('hidden', hide);
+            });
+        }
+
         async function apiGet(action) {
             const res = await fetch('api.php?action=' + encodeURIComponent(action), { headers: { 'Accept': 'application/json' } });
+            return await res.json();
+        }
+
+        async function apiGetWithParams(action, params = {}) {
+            const usp = new URLSearchParams();
+            usp.set('action', String(action || ''));
+            Object.keys(params || {}).forEach((k) => {
+                const v = params[k];
+                if (v === undefined || v === null) return;
+                usp.set(String(k), String(v));
+            });
+            const res = await fetch('api.php?' + usp.toString(), { headers: { 'Accept': 'application/json' } });
             return await res.json();
         }
 
@@ -1286,41 +1437,14 @@ $typesList = vehicle_types();
         async function initSession() {
             const data = await apiGet('get_session');
             if (!data || !data.ok) return;
-            const sel = document.getElementById('plateSelect');
             const plates = Array.isArray(data.data.plates) ? data.data.plates : [];
             const active = data.data.active_plate || '';
-            if (sel) {
-                sel.innerHTML = '';
-                if (!plates.length) {
-                    const opt = document.createElement('option');
-                    opt.textContent = 'No assigned plates';
-                    opt.value = '';
-                    sel.appendChild(opt);
-                } else {
-                    plates.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p;
-                        opt.textContent = p;
-                        if (p === active) opt.selected = true;
-                        sel.appendChild(opt);
-                    });
-                }
-                sel.addEventListener('change', async function () {
-                    const v = this.value || '';
-                    if (!v) return;
-                    const fd = new FormData();
-                    fd.append('action', 'set_active_plate');
-                    fd.append('plate_number', v);
-                    const r = await apiPost(fd);
-                    if (r && r.ok) {
-                        toast('Active plate set to ' + v, 'success');
-                        loadStats();
-                        loadApplications();
-                    } else {
-                        toast(r && r.error ? r.error : 'Failed to change plate', 'error');
-                    }
-                }, { once: true });
-            }
+            const operatorType = (data.data && data.data.operator_type) ? String(data.data.operator_type) : '';
+            window.operatorPlates = plates;
+            window.activePlate = active;
+
+            const sub = document.getElementById('sidebarSub');
+            if (sub) sub.textContent = operatorType ? operatorType : 'View Profile';
         }
 
         // --- Navigation ---
@@ -1336,7 +1460,7 @@ $typesList = vehicle_types();
             const activeBtn = document.getElementById('nav-' + id);
             if (activeBtn) activeBtn.classList.add('active');
 
-            if (id === 'dashboard') loadStats();
+            if (id === 'dashboard') { loadStats(); loadPortalRequests(); }
             if (id === 'applications') loadApplications();
             if (id === 'fleet') loadFleet();
             if (id === 'violations') loadViolations();
@@ -1392,73 +1516,273 @@ $typesList = vehicle_types();
             }
         }
 
+        async function loadPortalRequests() {
+            const tbody = document.getElementById('portalAppsTable');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
+            const data = await apiGet('get_applications');
+            if (!data || !data.ok) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Failed to load requests.</td></tr>';
+                applyTableFilter('portalAppsTable');
+                return;
+            }
+            const rows = Array.isArray(data.data) ? data.data : [];
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">No requests yet.</td></tr>';
+                applyTableFilter('portalAppsTable');
+                return;
+            }
+            tbody.innerHTML = rows.map(r => {
+                const d = (r.created_at || '').toString().slice(0, 10);
+                const st = (r.status || 'Pending').toString();
+                const badge = st === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (st === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-4 text-xs text-slate-500">${escapeHtml(d || '-')}</td>
+                        <td class="p-4 font-mono text-sm text-slate-700 font-semibold">${escapeHtml(r.plate_number || '-')}</td>
+                        <td class="p-4 text-sm text-slate-700 font-semibold">${escapeHtml(r.type || '')}</td>
+                        <td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${badge}">${escapeHtml(st)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+            applyTableFilter('portalAppsTable');
+        }
+
+        function closePortalRequestModal() {
+            const modal = document.getElementById('portalRequestModal');
+            if (modal) modal.classList.add('hidden');
+            const form = document.getElementById('portalRequestForm');
+            if (form) form.reset();
+        }
+
+        async function openPortalRequestModal(type) {
+            const modal = document.getElementById('portalRequestModal');
+            const title = document.getElementById('portalReqTitle');
+            const typeInput = document.getElementById('portalReqType');
+            const plateSel = document.getElementById('portalReqPlate');
+            const form = document.getElementById('portalRequestForm');
+            if (!modal || !typeInput || !plateSel || !form) return;
+
+            const t = String(type || '').trim() || 'Request';
+            if (title) title.textContent = t;
+            typeInput.value = t;
+
+            modal.classList.remove('hidden');
+            plateSel.innerHTML = `<option value="">Loading…</option>`;
+            const data = await apiGet('puv_get_owned_vehicles');
+            if (!data || !data.ok) {
+                plateSel.innerHTML = `<option value="">Failed to load vehicles</option>`;
+                return;
+            }
+            const rows = Array.isArray(data.data) ? data.data : [];
+            if (!rows.length) {
+                plateSel.innerHTML = `<option value="">No owned vehicles</option>`;
+                return;
+            }
+            plateSel.innerHTML = `<option value="">Select vehicle…</option>` + rows.map((r) => {
+                const plate = String(r.plate_number || '');
+                return `<option value="${escapeHtml(plate)}">${escapeHtml(plate)}</option>`;
+            }).join('');
+        }
+
+        async function submitPortalRequest(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnPortalReqSubmit');
+            const old = btn ? btn.innerText : '';
+            if (btn) { btn.disabled = true; btn.innerText = 'Submitting…'; }
+
+            const fd = new FormData(e.target);
+            fd.append('action', 'submit_application');
+            const res = await apiPost(fd);
+
+            if (btn) { btn.disabled = false; btn.innerText = old; }
+            if (res && res.ok) {
+                toast('Request submitted.', 'success');
+                closePortalRequestModal();
+                loadPortalRequests();
+                loadStats();
+            } else {
+                toast((res && (res.error || res.message)) ? (res.error || res.message) : 'Submission failed', 'error');
+            }
+        }
+
         async function loadFleet() {
             const data = await apiGet('get_fleet_status');
             if (data.ok) {
                 const tbody = document.getElementById('fleetTable');
                 if (data.data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">No vehicles found in your fleet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 italic">No vehicles found in your fleet.</td></tr>';
                     return;
                 }
-                window.quickRequestInspection = async function (plate) {
-                    const sel = document.getElementById('plateSelect');
-                    if (sel && plate) {
-                        sel.value = plate;
-                        const fd = new FormData();
-                        fd.append('action', 'set_active_plate');
-                        fd.append('plate_number', plate);
-                        const r = await apiPost(fd);
-                        if (!(r && r.ok)) {
-                            toast(r && r.error ? r.error : 'Failed to set active plate', 'error');
-                            return;
-                        }
-                    }
-                    const appType = document.getElementById('appTypeSelect');
-                    if (appType) {
-                        appType.value = 'Vehicle Inspection';
-                        toggleAppFields();
-                    }
-                    showSection('applications');
-                    toast('Inspection request form prepared for ' + plate, 'success');
-                };
-                window.requestVehicleLink = async function (plate) {
-                    const ok = confirm('Submit a link request for ' + plate + ' to your operator record?');
-                    if (!ok) return;
-                    const fd = new FormData();
-                    fd.append('action', 'puv_request_vehicle_link');
-                    fd.append('plate_number', plate);
-                    const r = await apiPost(fd);
-                    if (r && r.ok) {
-                        toast(r.message || 'Submitted', 'success');
-                    } else {
-                        toast(r && (r.error || r.message) ? (r.error || r.message) : 'Failed', 'error');
-                    }
-                };
-                tbody.innerHTML = data.data.map(v => `
-                    <tr class="hover:bg-slate-50 group transition">
-                        <td class="p-5 font-bold text-slate-700">${v.plate_number}</td>
-                        <td class="p-5">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold ${v.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                ${v.status}
-                            </span>
-                        </td>
-                        <td class="p-5 text-slate-600 text-sm">${v.inspection_status || 'N/A'}</td>
-                        <td class="p-5 text-slate-500 text-xs">${v.inspection_last_date || '-'}</td>
-                        <td class="p-5">
-                            <div class="flex flex-wrap gap-3 items-center">
-                                ${v.inspection_status && v.inspection_status === 'Passed'
-                            ? '<span class="text-xs font-bold text-emerald-600">Compliant</span>'
-                            : `<button type="button" onclick="quickRequestInspection('${v.plate_number}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">Request Inspection</button>`
-                        }
-                                ${v.record_status && v.record_status === 'Linked'
-                            ? '<span class="text-xs font-bold text-emerald-600">Linked</span>'
-                            : `<button type="button" onclick="requestVehicleLink('${v.plate_number}')" class="text-xs font-bold text-slate-700 hover:text-slate-900 transition">Request Link</button>`
-                        }
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = data.data.map(v => {
+                    const plate = (v.plate_number || '').toString();
+                    const type = (v.vehicle_type || '').toString();
+                    const rs = (v.record_status || '').toString();
+                    const st = (v.computed_status || v.status || '').toString();
+                    const created = (v.created_at || '').toString().slice(0, 10);
+                    const badgeSt = (st === 'Active')
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : (st === 'Registered')
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : (st === 'Inspected')
+                                ? 'bg-violet-100 text-violet-700'
+                                : (st === 'Pending Inspection')
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : (st === 'Archived')
+                                        ? 'bg-rose-100 text-rose-700'
+                                        : 'bg-slate-100 text-slate-700';
+                    const badgeRs = (rs === 'Linked')
+                        ? 'bg-blue-100 text-blue-700'
+                        : (rs === 'Archived')
+                            ? 'bg-rose-100 text-rose-700'
+                            : (rs === 'Encoded')
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-slate-100 text-slate-700';
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-5">
+                                <div class="font-bold text-slate-800">${escapeHtml(plate)}</div>
+                                <div class="text-[11px] text-slate-500 mt-1">ID: ${escapeHtml(String(v.vehicle_id || ''))}</div>
+                            </td>
+                            <td class="p-5 hidden md:table-cell">
+                                <span class="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-500/10">${escapeHtml(type)}</span>
+                            </td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeSt}">${escapeHtml(st)}</span>
+                            </td>
+                            <td class="p-5 hidden sm:table-cell">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeRs}">${escapeHtml(rs || '-')}</span>
+                            </td>
+                            <td class="p-5 hidden sm:table-cell text-xs text-slate-600 font-semibold">${escapeHtml(created || '-')}</td>
+                            <td class="p-5">
+                                <button type="button" onclick="openVehicleViewModal('${escapeHtml(plate)}')" class="text-xs font-bold text-primary hover:text-primary-dark transition">View</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                applyTableFilter('fleetTable');
             }
+        }
+
+        function closeVehicleViewModal() {
+            const modal = document.getElementById('vehicleViewModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function fileHref(filePath) {
+            const fp = (filePath || '').toString().trim();
+            if (!fp) return '';
+            if (/^https?:\/\//i.test(fp)) return fp;
+            if (fp.startsWith('/')) return fp;
+            return '../../admin/uploads/' + fp.replace(/^(\.\/)+/, '');
+        }
+
+        async function openVehicleViewModal(plate) {
+            const modal = document.getElementById('vehicleViewModal');
+            const body = document.getElementById('vehicleViewBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            body.innerHTML = '<div class="p-6 text-center text-slate-400 italic">Loading…</div>';
+
+            const data = await apiGetWithParams('puv_get_vehicle_details', { plate: String(plate || '') });
+            if (!data || !data.ok || !data.data) {
+                body.innerHTML = '<div class="p-6 text-center text-slate-500 text-sm font-semibold">Failed to load vehicle details.</div>';
+                return;
+            }
+
+            const v = data.data.vehicle || {};
+            const docs = Array.isArray(data.data.documents) ? data.data.documents : [];
+            const plateNo = (v.plate_number || plate || '').toString();
+            const type = (v.vehicle_type || '').toString();
+            const make = (v.make || '').toString();
+            const model = (v.model || '').toString();
+            const year = (v.year_model || '').toString();
+            const engine = (v.engine_no || '').toString();
+            const chassis = (v.chassis_no || '').toString();
+            const orNo = (v.or_number || '').toString();
+            const crNo = (v.cr_number || '').toString();
+            const crDate = (v.cr_issue_date || '').toString();
+            const owner = (v.registered_owner || '').toString();
+            const recordStatus = (v.record_status || '').toString();
+            const status = (v.status || '').toString();
+            const insp = (v.inspection_status || '').toString();
+            const inspAt = (v.inspection_passed_at || '').toString();
+            const regSt = (v.registration_status || '').toString();
+            const orcrNo = (v.orcr_no || '').toString();
+            const orcrDate = (v.orcr_date || '').toString();
+
+            const docRows = docs.map(d => {
+                const href = fileHref(d.file_path || '');
+                const label = (d.doc_type || '').toString();
+                const verified = !!d.is_verified;
+                const badge = verified ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
+                const up = (d.uploaded_at || '').toString().slice(0, 19).replace('T', ' ');
+                const exp = (d.expiry_date || '').toString();
+                const meta = [up ? ('Uploaded: ' + up) : '', exp ? ('Expiry: ' + exp) : '', (d.source || '') ? String(d.source) : ''].filter(Boolean).join(' • ');
+                const right = href ? `<a class="text-xs font-bold text-primary hover:text-primary-dark transition" target="_blank" rel="noopener" href="${escapeHtml(href)}">Open</a>` : `<span class="text-[10px] font-bold text-slate-400">Missing file</span>`;
+                return `
+                    <div class="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                                <div class="text-sm font-bold text-slate-800">${escapeHtml(label || 'Document')}</div>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badge}">${verified ? 'Verified' : 'Unverified'}</span>
+                            </div>
+                            <div class="mt-1 text-[11px] text-slate-500 font-semibold truncate">${escapeHtml(meta || '')}</div>
+                        </div>
+                        <div class="shrink-0">${right}</div>
+                    </div>
+                `;
+            }).join('');
+
+            body.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Plate</div>
+                        <div class="mt-1 text-lg font-bold text-slate-900">${escapeHtml(plateNo || '-')}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Type</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(type || '-')}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Record / Status</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([recordStatus, status].filter(Boolean).join(' • ') || '-')}</div>
+                    </div>
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Make / Model / Year</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([make, model, year].filter(Boolean).join(' • ') || '-')}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Engine / Chassis</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([engine, chassis].filter(Boolean).join(' • ') || '-')}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Registered Owner</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(owner || '-')}</div>
+                    </div>
+                    <div class="p-4 rounded-xl border border-slate-200 bg-white md:col-span-2">
+                        <div class="text-xs font-bold text-slate-700">Compliance</div>
+                        <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">Inspection</div>
+                                <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([insp || 'N/A', inspAt ? inspAt.slice(0, 10) : ''].filter(Boolean).join(' • ') || 'N/A')}</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">Registration</div>
+                                <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([regSt, orcrNo ? ('ORCR: ' + orcrNo) : '', orcrDate ? ('Date: ' + orcrDate) : ''].filter(Boolean).join(' • ') || 'N/A')}</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 md:col-span-2">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">OR / CR</div>
+                                <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([orNo ? ('OR: ' + orNo) : '', crNo ? ('CR: ' + crNo) : '', crDate ? ('CR Date: ' + crDate) : ''].filter(Boolean).join(' • ') || 'N/A')}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-white">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs font-bold text-slate-700">Uploads</div>
+                            <div class="mt-1 text-xs text-slate-500 font-semibold">View documents uploaded for this vehicle.</div>
+                        </div>
+                    </div>
+                    <div class="mt-3 space-y-2">
+                        ${docRows || '<div class="p-4 text-center text-slate-400 italic text-sm">No uploads found.</div>'}
+                    </div>
+                </div>
+            `;
         }
 
         async function loadApplications() {
@@ -1522,6 +1846,7 @@ $typesList = vehicle_types();
                     </tr>
                 `;
             }).join('');
+            applyTableFilter('appsTable');
         }
 
         function closeFranchiseViewModal() {
@@ -1536,7 +1861,7 @@ $typesList = vehicle_types();
             modal.classList.remove('hidden');
             body.innerHTML = '<div class="p-6 text-center text-slate-400 italic">Loading…</div>';
 
-            const data = await apiGet('puv_get_franchise_application&application_id=' + encodeURIComponent(String(applicationId || '')));
+            const data = await apiGetWithParams('puv_get_franchise_application', { application_id: String(applicationId || '') });
             if (!data || !data.ok || !data.data) {
                 body.innerHTML = '<div class="p-6 text-center text-slate-500 text-sm font-semibold">Failed to load application.</div>';
                 return;
@@ -1705,6 +2030,7 @@ $typesList = vehicle_types();
             const data = await apiGet('get_violations');
             if (!data || !data.ok || !data.data.length) {
                 tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">No violations found.</td></tr>';
+                applyTableFilter('violationsTable');
                 return;
             }
             tbody.innerHTML = data.data.map(r => `
@@ -1717,6 +2043,7 @@ $typesList = vehicle_types();
                     <td class="p-4"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${r.status !== 'Paid' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">${escapeHtml(r.status || '')}</span></td>
                 </tr>
              `).join('');
+            applyTableFilter('violationsTable');
         }
 
         async function loadFees() {
@@ -1726,6 +2053,7 @@ $typesList = vehicle_types();
             const data = await apiGet('get_fees');
             if (!data || !data.ok || !data.data.length) {
                 tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">No fees assessed.</td></tr>';
+                applyTableFilter('feesTable');
                 return;
             }
             window.openPayModal = function (id) {
@@ -1746,6 +2074,7 @@ $typesList = vehicle_types();
                     </td>
                 </tr>
              `).join('');
+            applyTableFilter('feesTable');
         }
 
         async function loadInspections() {
@@ -1755,6 +2084,7 @@ $typesList = vehicle_types();
             const data = await apiGet('get_fleet_status');
             if (!data || !data.ok || !Array.isArray(data.data) || !data.data.length) {
                 tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No vehicles found.</td></tr>';
+                applyTableFilter('inspectionsTable');
                 return;
             }
             tbody.innerHTML = data.data.map(v => {
@@ -1772,6 +2102,7 @@ $typesList = vehicle_types();
                     </tr>
                 `;
             }).join('');
+            applyTableFilter('inspectionsTable');
         }
 
         async function loadDownloads() {
@@ -2547,7 +2878,7 @@ $typesList = vehicle_types();
                 const sidebarName = document.getElementById('sidebarName');
                 const sidebarSub = document.getElementById('sidebarSub');
                 if (sidebarName) sidebarName.textContent = data.data.name || 'Operator';
-                if (sidebarSub) sidebarSub.textContent = data.data.plate_number ? ('Active: ' + data.data.plate_number) : 'View Profile';
+                if (sidebarSub) sidebarSub.textContent = data.data.operator_type ? String(data.data.operator_type) : 'View Profile';
 
                 // Populate View Mode
                 document.getElementById('viewName').innerText = data.data.name || '-';
@@ -2793,18 +3124,20 @@ $typesList = vehicle_types();
         }
 
         function toggleAppFields() {
-            const type = document.getElementById('appTypeSelect').value;
+            const typeEl = document.getElementById('appTypeSelect');
+            if (!typeEl) return;
+            const type = typeEl.value;
             const routeField = document.getElementById('routeField');
             const dateField = document.getElementById('dateField');
 
-            routeField.classList.add('hidden');
-            dateField.classList.add('hidden');
+            if (routeField) routeField.classList.add('hidden');
+            if (dateField) dateField.classList.add('hidden');
 
             if (type === 'Franchise Endorsement') {
-                routeField.classList.remove('hidden');
+                if (routeField) routeField.classList.remove('hidden');
                 loadRoutes(); // Ensure routes are loaded
             } else if (type === 'Vehicle Inspection') {
-                dateField.classList.remove('hidden');
+                if (dateField) dateField.classList.remove('hidden');
             }
         }
 
@@ -2835,6 +3168,7 @@ $typesList = vehicle_types();
             await fetchProfile();
             await loadVerificationStatus(false, false);
             loadStats();
+            loadPortalRequests();
             loadApplications();
         })();
     </script>

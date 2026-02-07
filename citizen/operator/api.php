@@ -645,10 +645,60 @@ if ($action === 'get_fleet_status') {
   $in = implode(',', array_fill(0, count($plates), '?'));
   $types = str_repeat('s', count($plates));
 
-  $sql = "SELECT plate_number, status, record_status, operator_id, current_operator_id, inspection_status, inspection_passed_at
-          FROM vehicles
-          WHERE plate_number IN ($in)
-          ORDER BY plate_number ASC";
+  $hasRegs = op_table_exists($db, 'vehicle_registrations');
+  $hasFranchiseId = op_has_col($db, 'vehicles', 'franchise_id');
+  $hasCurrentOperatorId = op_has_col($db, 'vehicles', 'current_operator_id');
+
+  $vdExists = op_table_exists($db, 'vehicle_documents');
+  $vdTypeCol = $vdExists
+    ? (op_has_col($db, 'vehicle_documents', 'doc_type') ? 'doc_type' : (op_has_col($db, 'vehicle_documents', 'document_type') ? 'document_type' : (op_has_col($db, 'vehicle_documents', 'type') ? 'type' : 'doc_type')))
+    : 'doc_type';
+  $vdVerifiedCol = $vdExists
+    ? (op_has_col($db, 'vehicle_documents', 'is_verified') ? 'is_verified' : (op_has_col($db, 'vehicle_documents', 'verified') ? 'verified' : (op_has_col($db, 'vehicle_documents', 'isApproved') ? 'isApproved' : 'is_verified')))
+    : 'is_verified';
+  $vdHasVehicleId = $vdExists ? op_has_col($db, 'vehicle_documents', 'vehicle_id') : false;
+  $vdHasPlate = $vdExists ? op_has_col($db, 'vehicle_documents', 'plate_number') : false;
+
+  $orcrCond = $vdExists ? "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr')" : "0=1";
+  $orCond = $vdExists ? "LOWER(vd.`{$vdTypeCol}`)='or'" : "0=1";
+  $crCond = $vdExists ? "LOWER(vd.`{$vdTypeCol}`)='cr'" : "0=1";
+  $verCond = $vdExists ? "COALESCE(vd.`{$vdVerifiedCol}`,0)=1" : "0=1";
+
+  $joinVd = $vdExists
+    ? ($vdHasVehicleId && $vdHasPlate
+      ? "(vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))"
+      : ($vdHasVehicleId ? "vd.vehicle_id=v.id" : ($vdHasPlate ? "vd.plate_number=v.plate_number" : "0=1")))
+    : "0=1";
+
+  $hasOrcrSql = "0 AS has_orcr";
+  if ($vdExists) {
+    $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE {$joinVd} AND ({$orcrCond} OR (({$orCond} OR {$crCond}) AND {$verCond}))) AS has_orcr";
+  }
+
+  $opJoinKey = $hasCurrentOperatorId
+    ? "COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)"
+    : "COALESCE(NULLIF(v.operator_id,0), 0)";
+
+  $sql = "SELECT v.id AS vehicle_id,
+                 v.plate_number,
+                 v.vehicle_type,
+                 v.status,
+                 v.record_status,
+                 v.operator_id,
+                 " . ($hasCurrentOperatorId ? "v.current_operator_id," : "NULL AS current_operator_id,") . "
+                 v.inspection_status,
+                 v.inspection_passed_at,
+                 v.created_at,
+                 " . ($hasRegs ? "vr.registration_status, vr.orcr_no, vr.orcr_date," : "NULL AS registration_status, NULL AS orcr_no, NULL AS orcr_date,") . "
+                 " . ($hasFranchiseId ? "fa.status AS franchise_app_status," : "NULL AS franchise_app_status,") . "
+                 COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), '') AS operator_display,
+                 {$hasOrcrSql}
+          FROM vehicles v
+          LEFT JOIN operators o ON o.id={$opJoinKey}
+          " . ($hasRegs ? "LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id" : "") . "
+          " . ($hasFranchiseId ? "LEFT JOIN franchise_applications fa ON fa.franchise_ref_number=v.franchise_id" : "") . "
+          WHERE v.plate_number IN ($in)
+          ORDER BY v.plate_number ASC";
   $stmt = $db->prepare($sql);
   if (!$stmt)
     op_send(false, ['error' => 'Query failed'], 500);
@@ -658,19 +708,162 @@ if ($action === 'get_fleet_status') {
   $rows = [];
   if ($res) {
     while ($row = $res->fetch_assoc()) {
+      $rs = (string)($row['record_status'] ?? '');
+      if ($rs === '') {
+        $opId = (int)($row['operator_id'] ?? 0);
+        $rs = $opId > 0 ? 'Linked' : 'Encoded';
+      }
+      $insp = (string)($row['inspection_status'] ?? '');
+      $frAppSt = (string)($row['franchise_app_status'] ?? '');
+      $regSt = (string)($row['registration_status'] ?? '');
+      $orcrNo = trim((string)($row['orcr_no'] ?? ''));
+      $orcrDate = trim((string)($row['orcr_date'] ?? ''));
+      $frOk = in_array($frAppSt, ['Approved', 'LTFRB-Approved'], true);
+      $inspOk = $insp === 'Passed';
+      $regOk = in_array($regSt, ['Registered', 'Recorded'], true) && $orcrNo !== '' && $orcrDate !== '';
+      $st = 'Declared/linked';
+      if ($rs === 'Archived') {
+        $st = 'Archived';
+      } elseif ($frOk && $inspOk && $regOk) {
+        $st = 'Active';
+      } elseif ($inspOk && $regOk) {
+        $st = 'Registered';
+      } elseif ($inspOk) {
+        $st = 'Inspected';
+      } elseif ($rs === 'Linked') {
+        $st = 'Pending Inspection';
+      }
+
       $rows[] = [
-        'plate_number' => $row['plate_number'],
-        'status' => $row['status'] ?? 'Active',
-        'record_status' => $row['record_status'] ?? null,
+        'vehicle_id' => isset($row['vehicle_id']) ? (int)$row['vehicle_id'] : null,
+        'plate_number' => (string)($row['plate_number'] ?? ''),
+        'vehicle_type' => (string)($row['vehicle_type'] ?? ''),
+        'computed_status' => $st,
+        'status' => (string)($row['status'] ?? ''),
+        'record_status' => $rs,
         'operator_id' => isset($row['operator_id']) ? (int)$row['operator_id'] : null,
         'current_operator_id' => isset($row['current_operator_id']) ? (int)$row['current_operator_id'] : null,
-        'inspection_status' => $row['inspection_status'] ?? null,
+        'operator_display' => (string)($row['operator_display'] ?? ''),
+        'has_orcr' => ((int)($row['has_orcr'] ?? 0)) > 0,
+        'created_at' => (string)($row['created_at'] ?? ''),
+        'inspection_status' => $insp !== '' ? $insp : null,
         'inspection_last_date' => $row['inspection_passed_at'] ? substr((string) $row['inspection_passed_at'], 0, 10) : null,
+        'registration_status' => (string)($row['registration_status'] ?? ''),
+        'orcr_no' => (string)($row['orcr_no'] ?? ''),
+        'orcr_date' => (string)($row['orcr_date'] ?? ''),
+        'franchise_app_status' => (string)($row['franchise_app_status'] ?? ''),
       ];
     }
   }
   $stmt->close();
   op_send(true, ['data' => $rows]);
+}
+
+if ($action === 'puv_get_vehicle_details') {
+  op_require_approved($db, $userId);
+  $plate = strtoupper(trim((string)($_GET['plate'] ?? '')));
+  $plate = preg_replace('/[^A-Z0-9\-]/', '', $plate);
+  if ($plate === '') op_send(false, ['error' => 'invalid_plate'], 400);
+
+  $plates = op_user_plates($db, $userId);
+  if (!$plates || !in_array($plate, $plates, true)) op_send(false, ['error' => 'not_allowed'], 403);
+
+  $hasRegs = op_table_exists($db, 'vehicle_registrations');
+  $hasFranchiseId = op_has_col($db, 'vehicles', 'franchise_id');
+  $hasCurrentOperatorId = op_has_col($db, 'vehicles', 'current_operator_id');
+  $opJoinKey = $hasCurrentOperatorId
+    ? "COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)"
+    : "COALESCE(NULLIF(v.operator_id,0), 0)";
+
+  $sql = "SELECT v.*,
+                 COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), '') AS operator_display,
+                 " . ($hasRegs ? "vr.registration_status, vr.orcr_no, vr.orcr_date," : "NULL AS registration_status, NULL AS orcr_no, NULL AS orcr_date,") . "
+                 " . ($hasFranchiseId ? "fa.status AS franchise_app_status" : "NULL AS franchise_app_status") . "
+          FROM vehicles v
+          LEFT JOIN operators o ON o.id={$opJoinKey}
+          " . ($hasRegs ? "LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id" : "") . "
+          " . ($hasFranchiseId ? "LEFT JOIN franchise_applications fa ON fa.franchise_ref_number=v.franchise_id" : "") . "
+          WHERE v.plate_number=?
+          LIMIT 1";
+  $stmt = $db->prepare($sql);
+  if (!$stmt) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmt->bind_param('s', $plate);
+  $stmt->execute();
+  $veh = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+  if (!$veh) op_send(false, ['error' => 'not_found'], 404);
+
+  $vehicleId = (int)($veh['id'] ?? ($veh['vehicle_id'] ?? 0));
+  if ($vehicleId <= 0 && isset($veh['vehicle_id'])) $vehicleId = (int)$veh['vehicle_id'];
+
+  $docs = [];
+  if (op_table_exists($db, 'vehicle_documents') && $vehicleId > 0) {
+    $vdTypeCol = op_has_col($db, 'vehicle_documents', 'doc_type') ? 'doc_type'
+      : (op_has_col($db, 'vehicle_documents', 'document_type') ? 'document_type'
+      : (op_has_col($db, 'vehicle_documents', 'type') ? 'type' : 'doc_type'));
+    $vdVerifiedCol = op_has_col($db, 'vehicle_documents', 'is_verified') ? 'is_verified'
+      : (op_has_col($db, 'vehicle_documents', 'verified') ? 'verified'
+      : (op_has_col($db, 'vehicle_documents', 'isApproved') ? 'isApproved' : 'is_verified'));
+    $vdIdCol = op_has_col($db, 'vehicle_documents', 'doc_id') ? 'doc_id' : (op_has_col($db, 'vehicle_documents', 'id') ? 'id' : 'doc_id');
+    $vdUpCol = op_has_col($db, 'vehicle_documents', 'uploaded_at') ? 'uploaded_at' : 'uploaded_at';
+
+    $stmtD = $db->prepare("SELECT {$vdIdCol} AS id, {$vdTypeCol} AS doc_type, file_path, {$vdUpCol} AS uploaded_at, COALESCE({$vdVerifiedCol},0) AS is_verified
+                           FROM vehicle_documents
+                           WHERE vehicle_id=?
+                           ORDER BY {$vdUpCol} DESC, {$vdIdCol} DESC
+                           LIMIT 50");
+    if ($stmtD) {
+      $stmtD->bind_param('i', $vehicleId);
+      $stmtD->execute();
+      $resD = $stmtD->get_result();
+      while ($resD && ($r = $resD->fetch_assoc())) {
+        $docs[] = [
+          'source' => 'vehicle_documents',
+          'id' => (int)($r['id'] ?? 0),
+          'doc_type' => (string)($r['doc_type'] ?? ''),
+          'file_path' => (string)($r['file_path'] ?? ''),
+          'uploaded_at' => (string)($r['uploaded_at'] ?? ''),
+          'is_verified' => ((int)($r['is_verified'] ?? 0)) === 1,
+          'expiry_date' => null,
+        ];
+      }
+      $stmtD->close();
+    }
+  }
+
+  if (op_table_exists($db, 'documents')) {
+    $hasExpiry = op_has_col($db, 'documents', 'expiry_date');
+    $selExpiry = $hasExpiry ? ", expiry_date" : ", NULL AS expiry_date";
+    $stmtL = $db->prepare("SELECT id, type, file_path, uploaded_at, COALESCE(verified,0) AS verified{$selExpiry}
+                           FROM documents
+                           WHERE plate_number=?
+                           ORDER BY uploaded_at DESC, id DESC
+                           LIMIT 50");
+    if ($stmtL) {
+      $stmtL->bind_param('s', $plate);
+      $stmtL->execute();
+      $resL = $stmtL->get_result();
+      while ($resL && ($r = $resL->fetch_assoc())) {
+        $docs[] = [
+          'source' => 'documents',
+          'id' => (int)($r['id'] ?? 0),
+          'doc_type' => (string)($r['type'] ?? ''),
+          'file_path' => (string)($r['file_path'] ?? ''),
+          'uploaded_at' => (string)($r['uploaded_at'] ?? ''),
+          'is_verified' => ((int)($r['verified'] ?? 0)) === 1,
+          'expiry_date' => (string)($r['expiry_date'] ?? ''),
+        ];
+      }
+      $stmtL->close();
+    }
+  }
+
+  op_send(true, [
+    'data' => [
+      'vehicle' => $veh,
+      'documents' => $docs,
+    ]
+  ]);
 }
 
 if ($action === 'get_applications') {
@@ -919,12 +1112,14 @@ if ($action === 'submit_application') {
   if ($type === '')
     op_send(false, ['error' => 'Application type required'], 400);
 
-  $plate = $activePlate;
+  $plate = strtoupper(trim((string)($_POST['plate_number'] ?? '')));
+  $plate = preg_replace('/[^A-Z0-9\-]/', '', $plate);
+  if ($plate === '') $plate = $activePlate;
   if ($plate === '')
-    op_send(false, ['error' => 'No active plate in session'], 400);
+    op_send(false, ['error' => 'Vehicle is required'], 400);
   $plates = op_user_plates($db, $userId);
   if (!in_array($plate, $plates, true))
-    op_send(false, ['error' => 'Active plate is not assigned to this account'], 403);
+    op_send(false, ['error' => 'Vehicle is not assigned to this account'], 403);
 
   // Append extra info to notes
   if ($type === 'Franchise Endorsement' && $routeId > 0) {
@@ -1457,20 +1652,20 @@ if ($action === 'puv_request_vehicle_link') {
 
 if ($action === 'puv_get_owned_vehicles') {
   op_require_approved($db, $userId);
-  $u = op_get_user_row($db, $userId);
-  if (!$u) op_send(false, ['error' => 'Unable to load operator account.'], 400);
-  $operatorId = (int)($u['puv_operator_id'] ?? 0);
-  if ($operatorId <= 0) $operatorId = op_get_puv_operator_id($db, $userId);
-  if ($operatorId <= 0) op_send(true, ['data' => []]);
+  $plates = op_user_plates($db, $userId);
+  if (!$plates) op_send(true, ['data' => []]);
 
   $rows = [];
+  $in = implode(',', array_fill(0, count($plates), '?'));
+  $types = str_repeat('s', count($plates));
   $stmt = $db->prepare("SELECT id AS vehicle_id, UPPER(plate_number) AS plate_number
                         FROM vehicles
-                        WHERE COALESCE(NULLIF(current_operator_id,0), NULLIF(operator_id,0), 0)=?
+                        WHERE plate_number IN ($in)
                           AND COALESCE(NULLIF(plate_number,''),'') <> ''
+                          AND COALESCE(record_status,'') <> 'Archived'
                         ORDER BY plate_number ASC");
   if ($stmt) {
-    $stmt->bind_param('i', $operatorId);
+    $stmt->bind_param($types, ...$plates);
     $stmt->execute();
     $res = $stmt->get_result();
     while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
