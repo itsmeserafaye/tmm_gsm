@@ -45,8 +45,6 @@ $typesList = vehicle_types();
             }
         }
     </script>
-    <!-- Tesseract.js for OCR -->
-    <script src="js/tesseract.min.js"></script>
     <script src="<?php echo htmlspecialchars($baseUrl); ?>/tmm_form_enhancements.js" defer></script>
 
     <style>
@@ -394,121 +392,54 @@ $typesList = vehicle_types();
                 <!-- APPLICATIONS -->
                 <section id="applications" class="hidden space-y-8">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-900">New Application</h2>
-                        <p class="text-slate-500 text-sm">Submit documents for franchises, inspections, or terminal
-                            enrollment.</p>
+                        <h2 class="text-2xl font-bold text-slate-900">Franchise Applications</h2>
+                        <p class="text-slate-500 text-sm">Submit a franchise application and monitor endorsement and LTFRB approval requirements.</p>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
                         <div class="p-1 bg-gradient-to-r from-primary to-secondary"></div>
                         <div class="p-6 md:p-8">
-                            <form id="appForm" class="space-y-6" onsubmit="submitApp(event)">
-
+                            <form id="franchiseApplicationForm" class="space-y-6" onsubmit="submitFranchiseApplication(event)" enctype="multipart/form-data" novalidate>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="space-y-2">
-                                        <label class="block text-sm font-semibold text-slate-700">Application
-                                            Type</label>
+                                        <label class="block text-sm font-semibold text-slate-700">Requested Vehicle Count</label>
+                                        <input type="number" name="vehicle_count" min="1" max="500" value="1" required
+                                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
+                                        <div class="mt-2 text-[11px] text-slate-500">Requested units can be adjusted during LTFRB approval.</div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-semibold text-slate-700">Requested Route</label>
                                         <div class="relative">
-                                            <select id="appTypeSelect" name="type" onchange="toggleAppFields()"
-                                                class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none"
-                                                required>
-                                                <option value="">Select Type...</option>
-                                                <option value="Franchise Endorsement">Franchise Endorsement</option>
-                                                <option value="Vehicle Inspection">Vehicle Inspection Request</option>
-                                                <option value="Terminal Enrollment">Terminal Enrollment</option>
+                                            <select name="route_id" id="franchiseRouteSelect" required
+                                                class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none text-sm font-semibold">
+                                                <option value="">Loading routes…</option>
                                             </select>
                                             <div class="absolute right-3 top-3.5 pointer-events-none text-slate-400">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                                 </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Dynamic Fields -->
-                                    <div id="routeField" class="hidden space-y-2">
-                                        <label class="block text-sm font-semibold text-slate-700">Select Route</label>
-                                        <div class="relative">
-                                            <select name="route_id" id="routeSelect"
-                                                class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none">
-                                                <option value="">Loading routes...</option>
-                                            </select>
-                                            <div class="absolute right-3 top-3.5 pointer-events-none text-slate-400">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="dateField" class="hidden space-y-2">
-                                        <label class="block text-sm font-semibold text-slate-700">Preferred Inspection Date</label>
-                                        <input type="datetime-local" name="schedule_date"
-                                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition">
-                                    </div>
-                                </div>
-
-                                <!-- AI Document Check -->
-                                <div class="bg-blue-50/50 rounded-xl border border-blue-100 p-6">
-                                    <div class="flex items-start gap-4">
-                                        <div class="p-3 bg-blue-100 text-blue-600 rounded-lg shrink-0">
-                                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                                </path>
-                                            </svg>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h4 class="text-sm font-bold text-blue-900">AI Document Pre-Check</h4>
-                                            <p class="text-xs text-blue-700 mt-1 mb-4">Upload your OR/CR or relevant
-                                                permits. Our AI will verify readability instantly.</p>
-
-                                            <div class="relative group">
-                                                <input name="document" type="file"
-                                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                                    accept="image/*,application/pdf" onchange="checkDocument(this)">
-                                                <div
-                                                    class="border-2 border-dashed border-blue-200 rounded-xl p-6 text-center bg-white group-hover:border-blue-400 transition">
-                                                    <p class="text-sm font-medium text-slate-600" id="docStatus">Click
-                                                        or drag file here to upload</p>
-                                                    <p class="text-xs text-slate-400 mt-1">Supports JPG, PNG, PDF</p>
-                                                </div>
-                                            </div>
-
-                                            <div id="aiAnalysisResult" class="mt-4 hidden animate-fade-in">
-                                                <div class="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
-                                                    <div class="flex justify-between items-center mb-2">
-                                                        <span
-                                                            class="text-xs font-bold uppercase tracking-wider text-slate-400">Analysis
-                                                            Result</span>
-                                                        <span id="aiStatusBadge"
-                                                            class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">PENDING</span>
-                                                    </div>
-                                                    <p id="aiTextPreview"
-                                                        class="text-sm text-slate-600 font-mono bg-slate-50 p-3 rounded-lg border border-slate-100 line-clamp-3">
-                                                        Scanning...</p>
-                                                    <p class="mt-2 text-xs font-bold" id="aiStatusMsg"></p>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="space-y-2">
-                                    <label class="block text-sm font-semibold text-slate-700">Additional Notes</label>
-                                    <textarea name="notes" rows="4"
-                                        class="w-full p-4 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition"
-                                        placeholder="Any specific details about your request..."></textarea>
+                                    <label class="block text-sm font-semibold text-slate-700">Representative Name (optional)</label>
+                                    <input type="text" name="representative_name" maxlength="150"
+                                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
+                                        placeholder="Authorized representative">
                                 </div>
 
-                                <div class="flex justify-end pt-4">
-                                    <button type="submit"
-                                        class="bg-gradient-to-r from-primary to-primary-dark text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-orange-500/30 transform hover:-translate-y-0.5 transition-all duration-200">Submit
-                                        Application</button>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div class="text-xs font-bold text-slate-500 uppercase">Declared Fleet (optional)</div>
+                                    <div class="mt-2 text-xs text-slate-500">If you already generated Declared Fleet in this portal, you can skip upload.</div>
+                                    <input type="file" name="declared_fleet_doc" accept=".pdf,.xlsx,.xls,.csv"
+                                        class="mt-3 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
+                                </div>
+
+                                <div class="flex justify-end pt-2">
+                                    <button type="submit" id="btnSubmitFranchise"
+                                        class="bg-gradient-to-r from-primary to-primary-dark text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-orange-500/30 transform hover:-translate-y-0.5 transition-all duration-200">Submit Franchise Application</button>
                                 </div>
                             </form>
                         </div>
@@ -518,8 +449,8 @@ $typesList = vehicle_types();
                         <div class="p-6 md:p-8">
                             <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-900">Recent Submissions</h3>
-                                    <p class="text-xs text-slate-500">Your last 20 applications and their status.</p>
+                                    <h3 class="text-lg font-bold text-slate-900">Franchise Applications & Endorsement</h3>
+                                    <p class="text-xs text-slate-500">View your status and what is required for LTFRB approval.</p>
                                 </div>
                                 <button type="button" onclick="loadApplications()"
                                     class="text-sm font-bold text-primary hover:text-primary-dark transition">Refresh</button>
@@ -529,18 +460,30 @@ $typesList = vehicle_types();
                                     <thead class="bg-slate-50 border-b border-slate-200">
                                         <tr>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Date</th>
+                                                Submitted</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Plate</th>
+                                                Reference</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Type</th>
+                                                Route</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Units</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Representative</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Declared Fleet</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                                 Status</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Endorsement</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                                Requirements</th>
+                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+                                                Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="appsTable" class="divide-y divide-slate-100">
                                         <tr>
-                                            <td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...
+                                            <td colspan="10" class="p-6 text-center text-slate-400 italic">Loading...
                                             </td>
                                         </tr>
                                     </tbody>
@@ -587,14 +530,6 @@ $typesList = vehicle_types();
                                         d="M7 16l-4-4m0 0l4-4m-4 4h18M17 8l4 4m0 0l-4 4m4-4H3"></path>
                                 </svg>
                                 Create Transfer Request
-                            </button>
-                            <button onclick="showFranchiseApplicationModal()"
-                                class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12l2 2 4-4M7 12a5 5 0 1110 0 5 5 0 01-10 0z"></path>
-                                </svg>
-                                Submit Franchise Application
                             </button>
                         </div>
                     </div>
@@ -1195,54 +1130,24 @@ $typesList = vehicle_types();
         </div>
     </div>
 
-    <div id="franchiseApplicationModal"
+    <div id="franchiseViewModal"
         class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
-        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 animate-fade-in max-h-[85vh] overflow-y-auto">
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div>
-                    <h3 class="text-lg font-bold text-slate-800">Submit Franchise Application</h3>
-                    <p class="text-xs text-slate-500 mt-1">Submit your requested route and vehicle count. LTFRB-approved units/routes may differ after review.</p>
+                    <h3 class="text-lg font-bold text-slate-800">Franchise Application</h3>
+                    <p class="text-xs text-slate-500 mt-1">View endorsement status and LTFRB approval requirements.</p>
                 </div>
-                <button type="button" onclick="closeFranchiseApplicationModal()" class="text-slate-400 hover:text-slate-600">
+                <button type="button" onclick="closeFranchiseViewModal()" class="text-slate-400 hover:text-slate-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <form id="franchiseApplicationForm" onsubmit="submitFranchiseApplication(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Requested Vehicle Count</label>
-                        <input type="number" name="vehicle_count" min="1" max="500" value="1" required
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Requested Route</label>
-                        <select name="route_id" id="franchiseRouteSelect" required
-                            class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
-                            <option value="">Loading…</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Representative Name (optional)</label>
-                    <input type="text" name="representative_name" maxlength="150"
-                        class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                        placeholder="Authorized representative">
-                </div>
-                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="text-xs font-bold text-slate-500 uppercase">Declared Fleet (optional)</div>
-                    <div class="mt-2 text-xs text-slate-500">If you already generated Declared Fleet in this portal, you can skip upload.</div>
-                    <input type="file" name="declared_fleet_doc" accept=".pdf,.xlsx,.xls,.csv"
-                        class="mt-3 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
-                </div>
-                <div class="flex items-center justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeFranchiseApplicationModal()"
-                        class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition">Cancel</button>
-                    <button type="submit" id="btnSubmitFranchise"
-                        class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-black transition">Submit</button>
-                </div>
-            </form>
+
+            <div id="franchiseViewBody" class="space-y-4">
+                <div class="p-6 text-center text-slate-400 italic">Loading…</div>
+            </div>
         </div>
     </div>
 
@@ -1559,30 +1464,238 @@ $typesList = vehicle_types();
         async function loadApplications() {
             const tbody = document.getElementById('appsTable');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
-            const data = await apiGet('get_applications');
+            tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
+            const data = await apiGet('puv_list_franchise_applications');
             if (!data || !data.ok) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">Failed to load applications.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">Failed to load applications.</td></tr>';
                 return;
             }
             const rows = Array.isArray(data.data) ? data.data : [];
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400 italic">No applications yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">No applications yet.</td></tr>';
                 return;
             }
             tbody.innerHTML = rows.map(r => {
-                const status = (r.status || 'Pending').toString();
-                const badge = status === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
-                const d = (r.created_at || '').toString().slice(0, 10);
+                const status = (r.status || 'Submitted').toString();
+                const statusBadge = (status === 'PA Issued' || status === 'CPC Issued')
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : (status === 'LGU-Endorsed' || status === 'Endorsed' || status === 'LTFRB-Approved' || status === 'Approved')
+                        ? 'bg-blue-100 text-blue-700'
+                        : (status === 'Rejected')
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-amber-100 text-amber-700';
+
+                const submitted = (r.submitted_at || '').toString().slice(0, 10);
+                const ref = (r.reference || '').toString();
+                const routeCode = (r.route_code || '').toString();
+                const od = [r.origin, r.destination].filter(Boolean).join(' → ');
+                const routeLabel = (routeCode ? routeCode : '') + (od ? (' • ' + od) : '');
+                const requestedUnits = Number(r.vehicle_count || 0);
+                const approvedUnits = Number(r.approved_vehicle_count || 0);
+                const unitsLabel = approvedUnits > 0 && approvedUnits !== requestedUnits ? `${requestedUnits} (LTFRB: ${approvedUnits})` : `${requestedUnits}`;
+                const rep = (r.representative_name || '').toString();
+                const hasFleet = Number(r.declared_fleet_count || 0) > 0;
+                const fleetBadge = hasFleet ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
+
+                const req = r.requirements || {};
+                const blockers = Array.isArray(req.endorsement_blockers) ? req.endorsement_blockers : [];
+                const ltfrb = Array.isArray(req.ltfrb) ? req.ltfrb : [];
+                let reqText = 'Complete';
+                if (blockers.length) reqText = String(blockers[0] || 'Needs endorsement requirements');
+                else if (ltfrb.length) reqText = String(ltfrb[0] || 'Needs LTFRB requirements');
+
                 return `
                     <tr class="hover:bg-slate-50 transition">
-                        <td class="p-4 text-xs text-slate-500">${escapeHtml(d || '-')}</td>
-                        <td class="p-4 font-bold text-slate-700">${escapeHtml(r.plate_number || '')}</td>
-                        <td class="p-4 text-sm text-slate-600">${escapeHtml(r.type || '')}</td>
-                        <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badge}">${escapeHtml(status)}</span></td>
+                        <td class="p-4 text-xs text-slate-500">${escapeHtml(submitted || '-')}</td>
+                        <td class="p-4 font-bold text-slate-800">${escapeHtml(ref || '-')}</td>
+                        <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml(routeLabel || '-')}</td>
+                        <td class="p-4 text-sm text-slate-800 font-bold">${escapeHtml(unitsLabel)}</td>
+                        <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml(rep || '-')}</td>
+                        <td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${fleetBadge}">${hasFleet ? 'Attached' : 'Not attached'}</span></td>
+                        <td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${statusBadge}">${escapeHtml(status)}</span></td>
+                        <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml((r.endorsement_status || '-').toString())}</td>
+                        <td class="p-4 text-xs text-slate-600">${escapeHtml(reqText)}</td>
+                        <td class="p-4 text-right">
+                            <button type="button" onclick="openFranchiseViewModal(${Number(r.application_id || 0)})"
+                                class="text-xs font-bold text-primary hover:text-primary-dark transition">View</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function closeFranchiseViewModal() {
+            const modal = document.getElementById('franchiseViewModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function openFranchiseViewModal(applicationId) {
+            const modal = document.getElementById('franchiseViewModal');
+            const body = document.getElementById('franchiseViewBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            body.innerHTML = '<div class="p-6 text-center text-slate-400 italic">Loading…</div>';
+
+            const data = await apiGet('puv_get_franchise_application&application_id=' + encodeURIComponent(String(applicationId || '')));
+            if (!data || !data.ok || !data.data) {
+                body.innerHTML = '<div class="p-6 text-center text-slate-500 text-sm font-semibold">Failed to load application.</div>';
+                return;
+            }
+
+            const app = data.data.application || {};
+            const docs = Array.isArray(data.data.documents) ? data.data.documents : [];
+            const req = data.data.requirements || {};
+
+            const status = (app.status || 'Submitted').toString();
+            const statusBadge = (status === 'PA Issued' || status === 'CPC Issued')
+                ? 'bg-emerald-100 text-emerald-700'
+                : (status === 'LGU-Endorsed' || status === 'Endorsed' || status === 'LTFRB-Approved' || status === 'Approved')
+                    ? 'bg-blue-100 text-blue-700'
+                    : (status === 'Rejected')
+                        ? 'bg-rose-100 text-rose-700'
+                        : 'bg-amber-100 text-amber-700';
+
+            const ref = (app.franchise_ref_number || '').toString();
+            const submitted = (app.submitted_at || '').toString().slice(0, 19).replace('T', ' ');
+            const units = Number(app.vehicle_count || 0);
+            const rep = (app.representative_name || '').toString();
+            const routeCode = (app.route_code || '').toString();
+            const od = [app.origin, app.destination].filter(Boolean).join(' → ');
+            const routeLabel = (routeCode ? routeCode : '') + (od ? (' • ' + od) : '');
+
+            const endorseStatus = (app.endorsement_status || '').toString();
+            const conditions = (app.conditions || '').toString();
+            const permitNo = (app.permit_number || '').toString();
+            const issuedDate = (app.issued_date || '').toString();
+
+            const ltfrbRef = (app.ltfrb_ref_no || app.franchise_ref_number || '').toString();
+            const authType = (app.authority_type || '').toString();
+            const issueDate = (app.issue_date || '').toString();
+            const expiryDate = (app.expiry_date || '').toString();
+
+            const fleetDocs = docs.filter(d => (d && (d.type || '')).toString().toLowerCase() === 'declared fleet' && (d.file_path || '').toString() !== '');
+            const fleetHref = fleetDocs[0] ? ('../../admin/uploads/' + (fleetDocs[0].file_path || '').toString()) : '';
+
+            const endorseBlockers = Array.isArray(req.endorsement_blockers) ? req.endorsement_blockers : [];
+            const ltfrbReq = Array.isArray(req.ltfrb_requirements) ? req.ltfrb_requirements : [];
+            const vm = req.vehicle_metrics || {};
+
+            const list = (arr) => arr && arr.length ? ('<ul class="list-disc pl-5 space-y-1">' + arr.map(x => `<li>${escapeHtml(String(x || ''))}</li>`).join('') + '</ul>') : '<div class="text-xs text-slate-500">None</div>';
+
+            const needUnits = Number(req.need_units || 0);
+            const totalLinked = Number(vm.total_linked || 0);
+            const orcrHave = Number(vm.orcr_have || 0);
+            const readyHave = Number(vm.ready_have || 0);
+            const missOrcr = Array.isArray(vm.missing_orcr_plates) ? vm.missing_orcr_plates : [];
+            const missInsp = Array.isArray(vm.missing_ready_inspection) ? vm.missing_ready_inspection : [];
+            const missDocs = Array.isArray(vm.missing_ready_docs) ? vm.missing_ready_docs : [];
+
+            body.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Reference</div>
+                        <div class="mt-1 text-sm font-bold text-slate-900">${escapeHtml(ref || '-')}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Submitted</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(submitted || '-')}</div>
+                    </div>
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Status</div>
+                        <div class="mt-1"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${statusBadge}">${escapeHtml(status)}</span></div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Units Requested</div>
+                        <div class="mt-1 text-sm font-bold text-slate-900">${escapeHtml(String(units || 0))}</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Representative</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(rep || '-')}</div>
+                    </div>
+                    <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 md:col-span-2">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Route</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(routeLabel || '-')}</div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-white">
+                    <div class="text-xs font-bold text-slate-700">Endorsement</div>
+                    <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Endorsement Status</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(endorseStatus || '-')}</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Permit / Issued Date</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([permitNo, issuedDate].filter(Boolean).join(' • ') || '-')}</div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Conditions</div>
+                        <div class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(conditions || '-')}</div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">What blocks endorsement</div>
+                        <div class="mt-2 text-sm text-slate-700">${list(endorseBlockers)}</div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-white">
+                    <div class="text-xs font-bold text-slate-700">LTFRB Approval Readiness</div>
+                    <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">LTFRB Reference</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(ltfrbRef || '-')}</div>
+                            <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Authority</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([authType, issueDate, expiryDate].filter(Boolean).join(' • ') || '-')}</div>
+                        </div>
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Vehicle Requirements</div>
+                            <div class="mt-2 text-sm text-slate-700 space-y-2">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-xs font-semibold text-slate-600">Units needed</div>
+                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(needUnits || 0))}</div>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-xs font-semibold text-slate-600">Linked vehicles</div>
+                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(totalLinked || 0))}</div>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-xs font-semibold text-slate-600">Verified OR/CR</div>
+                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(orcrHave || 0))}</div>
+                                </div>
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-xs font-semibold text-slate-600">Inspection+Insurance ready</div>
+                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(readyHave || 0))}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">What is needed for LTFRB approval</div>
+                        <div class="mt-2 text-sm text-slate-700">${list(ltfrbReq)}</div>
+                    </div>
+
+                    ${(missOrcr.length || missInsp.length || missDocs.length) ? `
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing OR/CR</div>
+                                <div class="mt-2 text-xs text-slate-700">${list(missOrcr)}</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing Inspection</div>
+                                <div class="mt-2 text-xs text-slate-700">${list(missInsp)}</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing Insurance/Registration</div>
+                                <div class="mt-2 text-xs text-slate-700">${list(missDocs)}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-white">
+                    <div class="text-xs font-bold text-slate-700">Declared Fleet</div>
+                    <div class="mt-2">
+                        ${fleetHref ? `<a class="text-sm font-bold text-primary hover:text-primary-dark transition" target="_blank" rel="noopener" href="${escapeHtml(fleetHref)}">View Declared Fleet</a>` : `<div class="text-sm text-slate-600 font-semibold">No declared fleet document attached to this application.</div>`}
+                    </div>
+                </div>
+            `;
         }
 
         async function loadViolations() {
@@ -2509,63 +2622,6 @@ $typesList = vehicle_types();
             }
         }
 
-        // --- Application Submission & AI Check ---
-        async function checkDocument(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                document.getElementById('docStatus').innerText = file.name;
-
-                // Show AI Analysis UI
-                const resultBox = document.getElementById('aiAnalysisResult');
-                const previewText = document.getElementById('aiTextPreview');
-                const statusBadge = document.getElementById('aiStatusBadge');
-                const statusMsg = document.getElementById('aiStatusMsg');
-
-                resultBox.classList.remove('hidden');
-                previewText.innerText = 'Scanning document...';
-                statusBadge.innerText = 'SCANNING';
-                statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 animate-pulse';
-                statusMsg.innerText = '';
-
-                try {
-                    if (file.type === 'application/pdf') {
-                        previewText.innerText = 'PDF uploaded. OCR preview is skipped in-browser.';
-                        statusBadge.innerText = 'UPLOADED';
-                        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
-                        statusMsg.className = 'mt-2 text-xs font-bold text-slate-600';
-                        statusMsg.innerText = 'PDF will be submitted as an attachment.';
-                        return;
-                    }
-                    const worker = await Tesseract.createWorker('eng');
-                    const ret = await worker.recognize(file);
-                    const text = ret.data.text.trim();
-
-                    const cleanText = text.replace(/[^a-zA-Z0-9]/g, '');
-                    const isReadable = text.length > 50 && cleanText.length > 20;
-
-                    if (isReadable) {
-                        previewText.innerText = text.substring(0, 150) + '...';
-                        statusBadge.innerText = 'VERIFIED';
-                        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-600';
-                        statusMsg.className = 'mt-2 text-xs font-bold text-green-600';
-                        statusMsg.innerText = '✓ Document appears readable.';
-                    } else {
-                        previewText.innerText = text.length > 0 ? text.substring(0, 100) + '...' : '[No text detected]';
-                        statusBadge.innerText = 'UNCLEAR';
-                        statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600';
-                        statusMsg.className = 'mt-2 text-xs font-bold text-red-600';
-                        statusMsg.innerText = '⚠ Warning: Document text is unclear or too short.';
-                    }
-                    await worker.terminate();
-                } catch (err) {
-                    console.error(err);
-                    previewText.innerText = 'Error scanning document.';
-                    statusBadge.innerText = 'ERROR';
-                    statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600';
-                }
-            }
-        }
-
         async function submitApp(e) {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -2576,8 +2632,6 @@ $typesList = vehicle_types();
                 if (data.ok) {
                     toast('Application submitted! Reference: ' + data.ref, 'success');
                     e.target.reset();
-                    document.getElementById('aiAnalysisResult').classList.add('hidden');
-                    document.getElementById('docStatus').innerText = 'Click or drag file here to upload';
                     loadStats();
                     loadApplications();
                 } else {
