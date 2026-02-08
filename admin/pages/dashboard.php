@@ -532,69 +532,70 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
       </div>
       </div>
-
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
-              <i data-lucide="bus" class="w-5 h-5"></i>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
+        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg w-full min-w-0">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="p-1.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                <i data-lucide="bus" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Route Supply Snapshot</h3>
+                <div class="text-xs text-slate-500">Authorized units vs. Demand</div>
+              </div>
             </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">Route Supply Snapshot</h3>
-              <div class="text-xs text-slate-500">Authorized units vs. Demand</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <select id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
-              <option value="">Auto (Best Terminal)</option>
-            </select>
-          </div>
-        </div>
-
-        <?php if (has_permission('reports.export')): ?>
-          <?php tmm_render_export_toolbar([
-            [
-              'href' => '#',
-              'label' => 'CSV',
-              'icon' => 'download',
-              'attrs' => ['id' => 'routeSupplyExportCsv']
-            ],
-            [
-              'href' => '#',
-              'label' => 'Excel',
-              'icon' => 'file-spreadsheet',
-              'attrs' => ['id' => 'routeSupplyExportExcel']
-            ]
-          ]); ?>
-        <?php endif; ?>
-
-        <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
-          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead class="bg-slate-50 dark:bg-slate-700">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Route</th>
-                <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized Units</th>
-              </tr>
-            </thead>
-            <tbody id="routeSupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
-          </table>
-        </div>
-        <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
-      </div>
-
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
-              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
+            <div class="flex items-center gap-2 shrink-0">
+              <select id="routeSupplyTitle" class="text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-600">
+                <option value="">Auto (Best Terminal)</option>
+              </select>
             </div>
           </div>
-          <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Next 6 Hours</span>
+
+          <?php if (has_permission('reports.export')): ?>
+            <?php tmm_render_export_toolbar([
+              [
+                'href' => '#',
+                'label' => 'CSV',
+                'icon' => 'download',
+                'attrs' => ['id' => 'routeSupplyExportCsv']
+              ],
+              [
+                'href' => '#',
+                'label' => 'Excel',
+                'icon' => 'file-spreadsheet',
+                'attrs' => ['id' => 'routeSupplyExportExcel']
+              ]
+            ]); ?>
+          <?php endif; ?>
+
+          <div class="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead class="bg-slate-50 dark:bg-slate-700">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Route</th>
+                  <th class="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Authorized Units</th>
+                </tr>
+              </thead>
+              <tbody id="routeSupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800"></tbody>
+            </table>
+          </div>
+          <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
         </div>
-        <div id="forecastSpikes" class="space-y-3"></div>
+
+        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg w-full min-w-0">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
+              </div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600 shrink-0">Next 6 Hours</span>
+          </div>
+          <div id="forecastSpikes" class="space-y-3"></div>
+        </div>
       </div>
 
       </div>
