@@ -440,13 +440,13 @@ button:active {
 
 /* Primary button gradient */
 .btn-primary {
-    background: var(--gradient-secondary);
+    background: var(--gradient-accent);
     border: none;
     color: white;
 }
 
 .btn-primary:hover {
-    box-shadow: 0 20px 40px -10px rgba(74, 144, 226, 0.4);
+    box-shadow: 0 20px 40px -10px rgba(76, 175, 80, 0.45);
 }
 
 /* Social button effects */

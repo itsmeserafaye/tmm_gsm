@@ -192,10 +192,14 @@ function td_hash_user_agent(): string
 function td_is_trusted(mysqli $db, string $userType, int $userId, string $deviceHash, int $extendDays = 10): bool
 {
   td_ensure_schema($db);
-  $stmt = $db->prepare("SELECT expires_at, user_agent_hash FROM trusted_devices WHERE user_type=? AND user_id=? AND device_hash=? AND expires_at>NOW() LIMIT 1");
+  $uaHash = td_hash_user_agent();
+  $stmt = $db->prepare("SELECT expires_at, user_agent_hash FROM trusted_devices
+                        WHERE user_type=? AND user_id=? AND expires_at>NOW()
+                          AND (device_hash=? OR user_agent_hash=?)
+                        LIMIT 1");
   if (!$stmt)
     return false;
-  $stmt->bind_param('sis', $userType, $userId, $deviceHash);
+  $stmt->bind_param('siss', $userType, $userId, $deviceHash, $uaHash);
   $stmt->execute();
   $row = $stmt->get_result()->fetch_assoc();
   $stmt->close();
@@ -203,9 +207,15 @@ function td_is_trusted(mysqli $db, string $userType, int $userId, string $device
     return false;
   
   // Extend expiration and update last_used_at when device is trusted
-  $stmtU = $db->prepare("UPDATE trusted_devices SET expires_at=DATE_ADD(NOW(), INTERVAL ? DAY), last_used_at=NOW() WHERE user_type=? AND user_id=? AND device_hash=? LIMIT 1");
+  $stmtU = $db->prepare("UPDATE trusted_devices
+                         SET expires_at=DATE_ADD(NOW(), INTERVAL ? DAY),
+                             last_used_at=NOW(),
+                             device_hash=?,
+                             user_agent_hash=?
+                         WHERE user_type=? AND user_id=? AND (device_hash=? OR user_agent_hash=?)
+                         LIMIT 1");
   if ($stmtU) {
-    $stmtU->bind_param('isis', $extendDays, $userType, $userId, $deviceHash);
+    $stmtU->bind_param('isssisss', $extendDays, $deviceHash, $uaHash, $userType, $userId, $deviceHash, $uaHash);
     $stmtU->execute();
     $stmtU->close();
   }
@@ -574,11 +584,10 @@ $perms = rbac_get_user_permissions($db, $userId);
 $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
-$mustOtp = gsm_require_mfa($db);
+$mustOtp = true;
 if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
 $trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
 $trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
-  if ($trustDays > 0) $mustOtp = true;
 if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
 
 if (!$mustOtp) {
