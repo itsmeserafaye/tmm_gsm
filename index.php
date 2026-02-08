@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -173,7 +173,7 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="text-xl font-bold text-slate-900">Staff Portal</div>
                             <div class="mt-2 text-sm text-slate-600">Administration and management access for authorized personnel.</div>
                             <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=staff"
-                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #5ba3f5, #2e7bc4);">
+                                class="mt-6 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #66bb6a, #43a047);">
                                 Access System <i class="fas fa-arrow-right text-xs"></i>
                             </a>
                         </div>
@@ -195,11 +195,11 @@ if (!empty($_SESSION['user_id'])) {
                             <div class="mt-2 text-sm text-slate-600">PUV operator services and fleet management tools.</div>
                             <div class="mt-6 flex items-center justify-center gap-3">
                                 <a href="<?php echo htmlspecialchars($baseUrl); ?>/gsm_login/index.php?mode=operator"
-                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #ff9800, #f57c00);">
+                                    class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-300" style="background: linear-gradient(to right, #66bb6a, #43a047);">
                                     Login <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button type="button" id="btnOperatorRegisterOpen"
-                                    class="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 px-4 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-300" style="border-color: #ff9800; color: #f57c00;">Register</button>
+                                    class="inline-flex items-center gap-2 border-2 border-green-600 text-green-700 px-4 py-2.5 rounded-xl font-semibold hover:bg-green-50 transition-all duration-300" style="border-color: #43a047; color: #2e7d32;">Register</button>
                             </div>
                         </div>
                     </div>
