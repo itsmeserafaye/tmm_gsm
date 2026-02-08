@@ -932,7 +932,7 @@ if ($action === 'get_routes') {
   if (op_table_exists($db, 'routes')) {
     $res = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS route_code, route_name
                        FROM routes
-                       WHERE LOWER(COALESCE(status,''))='active'
+                       WHERE COALESCE(TRIM(status),'')='' OR LOWER(TRIM(COALESCE(status,'')))='active'
                        ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
                        LIMIT 800");
     if ($res) while ($r = $res->fetch_assoc()) $rows[] = $r;
@@ -1880,7 +1880,7 @@ if ($action === 'puv_list_routes') {
 
       if (op_table_exists($db, 'routes')) {
           $source = 'routes';
-          $res = $db->query("SELECT * FROM routes WHERE LOWER(COALESCE(status,''))='active' LIMIT 800");
+          $res = $db->query("SELECT * FROM routes WHERE COALESCE(TRIM(status),'')='' OR LOWER(TRIM(COALESCE(status,'')))='active' LIMIT 800");
       } else if (op_table_exists($db, 'lptrp_routes')) {
           $source = 'lptrp_routes';
           $res = $db->query("SELECT * FROM lptrp_routes LIMIT 800");
@@ -1918,7 +1918,7 @@ if ($action === 'puv_list_routes') {
       op_send(true, ['data' => [], 'error' => 'Backend error']);
   }
   
-  op_send(true, ['data' => $rows]);
+  op_send(true, ['data' => $rows, 'meta' => ['source' => $source, 'count' => count($rows)]]);
 }
 
 if ($action === 'puv_list_franchise_applications') {

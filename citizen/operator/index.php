@@ -3237,13 +3237,15 @@ $typesList = vehicle_types();
             sel.innerHTML = `<option value="">Loading…</option>`;
             const data = await apiGet('puv_list_routes');
             if (!data || !data.ok) {
-                sel.innerHTML = `<option value="">Failed to load routes</option>`;
+                const msg = (data && (data.error || data.message)) ? (data.error || data.message) : 'Failed to load routes';
+                sel.innerHTML = `<option value="">${escapeHtml(msg)}</option>`;
                 franchiseRoutesLoaded = false;
                 return;
             }
             const rows = Array.isArray(data.data) ? data.data : [];
             if (!rows.length) {
-                sel.innerHTML = `<option value="">No active routes</option>`;
+                const src = data && data.meta && data.meta.source ? String(data.meta.source) : '';
+                sel.innerHTML = `<option value="">No routes found${src ? (' (' + escapeHtml(src) + ')') : ''}</option>`;
                 franchiseRoutesLoaded = false;
                 return;
             }
