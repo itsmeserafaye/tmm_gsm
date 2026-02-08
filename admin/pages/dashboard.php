@@ -364,7 +364,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-    <div class="lg:col-span-8 space-y-10 min-w-0">
+    <div class="lg:col-span-12 space-y-10 min-w-0">
       
       <div class="space-y-5">
         <div class="flex items-center gap-3">
@@ -412,7 +412,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
 
-        <div class="relative w-full h-[350px] bg-transparent">
+        <div class="relative w-full h-[420px] bg-transparent max-w-6xl mx-auto">
           <div id="forecastChart" class="w-full h-full"></div>
         </div>
         <div id="forecastChartLegend"
@@ -454,33 +454,30 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
-            <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-2">
-                  <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
-                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
-                </div>
-                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+          <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
               </div>
-              <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
             </div>
-
-            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-2">
-                  <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
-                </div>
-                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
-              </div>
-              <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
-            </div>
+            <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
           </div>
 
-          <div class="space-y-6">
-            <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
+          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
+            </div>
+            <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+          </div>
+
+          <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <i data-lucide="arrow-up-right" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
@@ -505,31 +502,28 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             </div>
           </div>
 
-            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
-                </div>
-                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
+          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
               </div>
-              <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full text-sm">
-                  <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                    <tr class="text-left text-slate-500 dark:text-slate-400">
-                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
-                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
-                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
-                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
-                    </tr>
-                  </thead>
-                  <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-                    <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-                  </tbody>
-                </table>
-              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
             </div>
-          </div>
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                  <tr class="text-left text-slate-500 dark:text-slate-400">
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                  </tr>
+                </thead>
+                <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -588,113 +582,22 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
 
-      </div>
-
-    <div class="lg:col-span-4 space-y-6 min-w-0">
-
-      <div class="space-y-6 lg:sticky lg:top-6 self-start">
-        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
-          <div class="flex items-center justify-between mb-5">
+      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
             <div>
-              <h2 class="text-base font-bold text-slate-900 dark:text-white">Data Inputs</h2>
-              <div class="text-xs text-slate-500">Record demand observations (trend-based forecasting)</div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
             </div>
-            <a href="?page=module5/submodule3"
-              class="p-2 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-              title="Go to Parking Data">
-              <i data-lucide="database" class="w-4 h-4"></i>
-            </a>
           </div>
-
-          <form id="demand-log-form" class="space-y-4">
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500 uppercase">Area Type</label>
-              <div class="relative">
-                <select id="demand-area-type" name="area_type"
-                  class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none">
-                  <option value="terminal">Terminal</option>
-                  <option value="route">Route</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <label class="text-xs font-semibold text-slate-500 uppercase">Location</label>
-              <div class="relative">
-                <select id="demand-area-ref" name="area_ref"
-                  class="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"></select>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1">
-                <label class="text-xs font-semibold text-slate-500 uppercase">Hour</label>
-                <input id="demand-observed-at" name="observed_at" type="datetime-local"
-                  class="w-full px-2 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none">
-              </div>
-              <div class="space-y-1">
-                <label class="text-xs font-semibold text-slate-500 uppercase">Count</label>
-                <input id="demand-count" name="demand_count" type="number" min="0"
-                  class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="0">
-              </div>
-            </div>
-
-            <button type="submit"
-              class="w-full py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-              <i data-lucide="save" class="w-4 h-4"></i>
-              Save Observation
-            </button>
-            <div id="demand-log-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
-          </form>
-
-          <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <div class="flex items-center gap-2 mb-4">
-              <i data-lucide="sliders" class="w-4 h-4 text-violet-500"></i>
-              <h3 class="text-sm font-bold text-slate-900 dark:text-white">Adjustment Factors</h3>
-            </div>
-            <form id="forecast-weights-form" class="space-y-3">
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-[11px] font-bold text-slate-500 uppercase">Weather</label>
-                <input id="wWeather" name="ai_weather_weight" type="number" step="0.01" min="-0.50" max="0.50"
-                  class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-              </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-[11px] font-bold text-slate-500 uppercase">Events</label>
-                <input id="wEvent" name="ai_event_weight" type="number" step="0.01" min="-0.50" max="0.50"
-                  class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-              </div>
-              <div class="grid grid-cols-3 gap-2 items-center">
-                <label class="text-[11px] font-bold text-slate-500 uppercase">Traffic</label>
-                <input id="wTraffic" name="ai_traffic_weight" type="number" step="0.01" min="0.00" max="2.00"
-                  class="col-span-2 w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md text-sm font-semibold focus:ring-1 focus:ring-violet-500 focus:border-violet-500 outline-none">
-              </div>
-              <button type="submit"
-                class="w-full py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold shadow-sm transition-all flex items-center justify-center gap-2 text-sm">
-                <i data-lucide="save" class="w-4 h-4"></i>
-                Save Weights
-              </button>
-              <div id="forecast-weights-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
-            </form>
-          </div>
+          <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Next 6 Hours</span>
         </div>
-
-        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-rose-50/30 dark:from-slate-800 dark:to-rose-900/10 border-2 border-rose-100 dark:border-rose-900/30 shadow-lg mb-6">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-3">
-              <div class="p-1.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
-                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
-              </div>
-              <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">High-demand Alerts</h3>
-              </div>
-            </div>
-            <span class="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">Next 6 Hours</span>
-          </div>
-          <div id="forecastSpikes" class="space-y-3"></div>
-        </div>
+        <div id="forecastSpikes" class="space-y-3"></div>
       </div>
-     </div>
+
+      </div>
     </div>
     <!-- End Grid -->
     

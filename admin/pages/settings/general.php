@@ -175,36 +175,94 @@ function get_setting($key, $default = '') {
             </div>
         </div>
 
-        <!-- AI Forecast Tuning -->
-        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-            <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
-                <div class="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
-                    <i data-lucide="sliders" class="w-5 h-5 text-violet-600 dark:text-violet-400"></i>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+                    <div class="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
+                        <i data-lucide="sliders" class="w-5 h-5 text-violet-600 dark:text-violet-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-black text-slate-800 dark:text-white">AI Forecast Tuning</h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Weather • Events • Traffic impact weights</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="text-lg font-black text-slate-800 dark:text-white">AI Forecast Tuning</h2>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Weather • Events • Traffic impact weights</p>
+
+                <div class="p-8 grid grid-cols-1 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Weather Weight</label>
+                        <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_weather_weight" value="<?php echo htmlspecialchars(get_setting('ai_weather_weight', '0.12')); ?>"
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">Positive increases demand during bad weather; negative decreases it.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Events Weight</label>
+                        <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_event_weight" value="<?php echo htmlspecialchars(get_setting('ai_event_weight', '0.10')); ?>"
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">Applies to holidays and RSS events within the forecast window.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Traffic Weight</label>
+                        <input type="number" step="0.01" min="0.00" max="2.00" name="ai_traffic_weight" value="<?php echo htmlspecialchars(get_setting('ai_traffic_weight', '1.00')); ?>"
+                            class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
+                        <p class="mt-2 text-xs text-slate-400 font-medium">Scales traffic congestion impact from TomTom (0 disables).</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Weather Weight</label>
-                    <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_weather_weight" value="<?php echo htmlspecialchars(get_setting('ai_weather_weight', '0.12')); ?>"
-                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
-                    <p class="mt-2 text-xs text-slate-400 font-medium">Positive increases demand during bad weather; negative decreases it.</p>
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                            <i data-lucide="database" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-black text-slate-800 dark:text-white">Data Inputs</h2>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Record demand observations</p>
+                        </div>
+                    </div>
+                    <a href="?page=module5/submodule3"
+                        class="p-2 rounded-md bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                        title="Go to Parking Data">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                    </a>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Events Weight</label>
-                    <input type="number" step="0.01" min="-0.50" max="0.50" name="ai_event_weight" value="<?php echo htmlspecialchars(get_setting('ai_event_weight', '0.10')); ?>"
-                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
-                    <p class="mt-2 text-xs text-slate-400 font-medium">Applies to holidays and RSS events within the forecast window.</p>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Traffic Weight</label>
-                    <input type="number" step="0.01" min="0.00" max="2.00" name="ai_traffic_weight" value="<?php echo htmlspecialchars(get_setting('ai_traffic_weight', '1.00')); ?>"
-                        class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-violet-500 transition-all">
-                    <p class="mt-2 text-xs text-slate-400 font-medium">Scales traffic congestion impact from TomTom (0 disables).</p>
+
+                <div class="p-8 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Area Type</label>
+                            <select id="demand-area-type"
+                                class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+                                <option value="terminal">Terminal</option>
+                                <option value="route">Route</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Location</label>
+                            <select id="demand-area-ref"
+                                class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all"></select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Hour</label>
+                            <input id="demand-observed-at" type="datetime-local"
+                                class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Count</label>
+                            <input id="demand-count" type="number" min="0" placeholder="0"
+                                class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 transition-all">
+                        </div>
+                    </div>
+
+                    <button id="demand-log-save" type="button"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-md shadow-sm transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Save Observation
+                    </button>
+                    <div id="demand-log-result" class="text-center text-xs font-bold min-h-[1.5em]"></div>
                 </div>
             </div>
         </div>
@@ -282,5 +340,111 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000);
         }
     });
+
+    const demandType = document.getElementById('demand-area-type');
+    const demandRef = document.getElementById('demand-area-ref');
+    const demandAt = document.getElementById('demand-observed-at');
+    const demandCount = document.getElementById('demand-count');
+    const demandSave = document.getElementById('demand-log-save');
+    const demandResult = document.getElementById('demand-log-result');
+
+    let demandAreas = { terminal: [], route: [] };
+
+    const setDemandResult = (text, kind) => {
+        if (!demandResult) return;
+        demandResult.textContent = String(text || '');
+        if (kind === 'ok') demandResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-emerald-600';
+        else if (kind === 'warn') demandResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-amber-600';
+        else if (kind === 'err') demandResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-rose-600';
+        else demandResult.className = 'text-center text-xs font-bold min-h-[1.5em] text-slate-500';
+    };
+
+    const populateDemandAreas = (type) => {
+        if (!demandRef) return;
+        const list = (demandAreas && demandAreas[type]) ? demandAreas[type] : [];
+        demandRef.innerHTML = '';
+        list.forEach((a) => {
+            if (!a) return;
+            const opt = document.createElement('option');
+            opt.value = String(a.ref || '');
+            opt.textContent = String(a.label || a.name || a.ref || '');
+            demandRef.appendChild(opt);
+        });
+    };
+
+    const initDemandDateTime = () => {
+        if (!demandAt) return;
+        const d = new Date();
+        d.setMinutes(0, 0, 0);
+        const pad = (n) => String(n).padStart(2, '0');
+        demandAt.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':00';
+    };
+
+    const loadDemandAreaLists = async () => {
+        if (!demandRef) return;
+        setDemandResult('Loading locations...', 'info');
+        try {
+            const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_forecast.php?area_type=terminal&hours=24&include_traffic=0', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            if (!data || !data.ok || !data.area_lists) {
+                setDemandResult('Failed to load locations.', 'err');
+                return;
+            }
+            demandAreas = data.area_lists;
+            populateDemandAreas(demandType ? demandType.value : 'terminal');
+            setDemandResult('', 'info');
+        } catch (e) {
+            setDemandResult('Failed to load locations.', 'err');
+        }
+    };
+
+    if (demandType) {
+        demandType.addEventListener('change', () => {
+            populateDemandAreas(demandType.value);
+        });
+    }
+
+    if (demandSave) {
+        demandSave.addEventListener('click', async () => {
+            const type = demandType ? String(demandType.value || 'terminal') : 'terminal';
+            const ref = demandRef ? String(demandRef.value || '') : '';
+            const at = demandAt ? String(demandAt.value || '') : '';
+            const count = demandCount ? String(demandCount.value || '') : '';
+            if (!ref) { setDemandResult('Select a location.', 'warn'); return; }
+            if (!at) { setDemandResult('Select an hour.', 'warn'); return; }
+            if (count.trim() === '') { setDemandResult('Enter a count.', 'warn'); return; }
+
+            demandSave.disabled = true;
+            setDemandResult('Saving...', 'info');
+            try {
+                const fd = new FormData();
+                fd.append('area_type', type);
+                fd.append('area_ref', ref);
+                fd.append('observed_at', at);
+                fd.append('demand_count', count);
+                const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/demand_observation_upsert.php', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: fd
+                });
+                const data = await res.json();
+                if (data && data.ok) {
+                    setDemandResult('OBSERVATION SAVED!', 'ok');
+                    setTimeout(() => setDemandResult('', 'info'), 2500);
+                } else {
+                    setDemandResult((data && (data.error || data.message)) ? (data.error || data.message) : 'FAILED TO SAVE', 'err');
+                }
+            } catch (e) {
+                setDemandResult('NETWORK ERROR', 'err');
+            } finally {
+                demandSave.disabled = false;
+            }
+        });
+    }
+
+    initDemandDateTime();
+    loadDemandAreaLists();
 });
 </script>
