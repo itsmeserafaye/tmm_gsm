@@ -539,9 +539,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       </div>
       </div>
 
-      </div>
-
-    <div class="lg:col-span-4 space-y-6 min-w-0">
       <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
@@ -590,6 +587,10 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
         <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
+
+      </div>
+
+    <div class="lg:col-span-4 space-y-6 min-w-0">
 
       <div class="space-y-6 lg:sticky lg:top-6 self-start">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
