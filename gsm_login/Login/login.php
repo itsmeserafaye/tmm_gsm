@@ -215,7 +215,7 @@ function td_is_trusted(mysqli $db, string $userType, int $userId, string $device
                          WHERE user_type=? AND user_id=? AND (device_hash=? OR user_agent_hash=?)
                          LIMIT 1");
   if ($stmtU) {
-    $stmtU->bind_param('isssisss', $extendDays, $deviceHash, $uaHash, $userType, $userId, $deviceHash, $uaHash);
+    $stmtU->bind_param('isssiss', $extendDays, $deviceHash, $uaHash, $userType, $userId, $deviceHash, $uaHash);
     $stmtU->execute();
     $stmtU->close();
   }
