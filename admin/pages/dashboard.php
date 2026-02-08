@@ -363,10 +363,10 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-    <div class="md:col-span-3 space-y-12">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div class="lg:col-span-8 space-y-10 min-w-0">
       
-      <div class="space-y-6">
+      <div class="space-y-5">
         <div class="flex items-center gap-3">
           <div class="p-2 rounded-lg bg-blue-600 shadow-lg shadow-blue-500/20">
             <i data-lucide="trending-up" class="w-5 h-5 text-white"></i>
@@ -425,7 +425,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       </div>
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-5">
         <div class="flex items-center gap-3">
           <div class="p-2 rounded-lg bg-violet-600 shadow-lg shadow-violet-500/20">
             <i data-lucide="zap" class="w-5 h-5 text-white"></i>
@@ -435,7 +435,8 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             <p class="text-sm text-slate-500 dark:text-slate-400">Actionable insights and supply optimization</p>
           </div>
         </div>
-        <!-- Analytics Insights Section -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div class="xl:col-span-8 min-w-0">
       <div class="p-6 rounded-xl bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-900/50 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-4">
@@ -533,7 +534,9 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
       </div>
+          </div>
 
+          <div class="xl:col-span-4 min-w-0">
       <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-3">
@@ -582,9 +585,13 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         </div>
         <div id="routeSupplyTotal" class="mt-3 text-right text-xs font-bold text-slate-500 uppercase"></div>
       </div>
+          </div>
+        </div>
+      </div>
 
-      <!-- Right Column -->
-    <div class="space-y-6 min-w-0">
+      </div>
+
+    <div class="lg:col-span-4 space-y-6 min-w-0 lg:sticky lg:top-6 self-start">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-800 dark:to-emerald-900/10 border-2 border-emerald-100 dark:border-emerald-900/30 shadow-lg mb-6">
           <div class="flex items-center justify-between mb-5">
             <div>
