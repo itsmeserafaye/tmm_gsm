@@ -302,13 +302,22 @@ foreach ($spikes as $s) {
 // --- Dynamic AI Insights Generation ---
 
 function generate_over_demand_insights(array $alerts, string $areaType): array {
-  $insights = [];
+  $summary = [];
+  $immediate = [];
+  $sameDay = [];
+  $policy = [];
   
   if (empty($alerts)) {
     return [
+      'LGU PLAYBOOK — OVER-DEMAND',
+      'IMMEDIATE (0–2H)',
       'Demand levels are within normal operating limits.',
       'Maintain standard dispatch intervals.',
-      'Monitor real-time arrivals for unexpected surges.'
+      'Monitor real-time arrivals for unexpected surges.',
+      'SAME-DAY (2–12H)',
+      'Keep standard staffing and adjust only when queues form.',
+      'POLICY / NEXT-DAY',
+      'Continue collecting observations to improve forecast quality.'
     ];
   }
 
@@ -343,29 +352,35 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
 
     // Severity-based recommendations
     if ($sev === 'critical') {
-      $insights[] = "CRITICAL: **{$loc}** peak at {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
-      $insights[] = "LGU Action Plan: deploy standby PUVs within the same route/terminal assignment and temporarily shorten dispatch headways (10–15 min). Activate queue marshals, enforce loading discipline, and open contingency bays/overflow lanes to prevent road obstruction.";
-      $insights[] = "If shortage persists: coordinate with operator associations for an emergency dispatch advisory, authorize controlled temporary dispatch extensions (time-bound), and prioritize service for essential trips (schools/medical) until demand normalizes.";
+      $summary[] = "CRITICAL: **{$loc}** peak at {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
+      $immediate[] = "**{$loc}**: deploy route/terminal-compliant standby units and temporarily shorten dispatch headways (10–15 min). Activate queue marshals, enforce loading discipline, and open contingency bays/overflow lanes to prevent road obstruction.";
+      $sameDay[] = "**{$loc}**: start a dispatch log (departures, headways, queue length). If dwell time grows, re-assign marshals and adjust bay allocation to match dominant destinations.";
+      $policy[] = "**{$loc}**: if shortage persists, coordinate with operator associations for an emergency dispatch advisory, issue time-bound controlled dispatch extensions (if allowed), and prioritize essential trips (schools/medical) until demand normalizes.";
     } elseif ($sev === 'high') {
-      $insights[] = "High demand: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
-      $insights[] = "LGU Action Plan: pre-position standby units and shorten headways (5–10 min). Monitor queue length and loading time every 15 minutes; if dwell time grows, re-assign marshals and adjust bay allocation to match the dominant destinations.";
-      $insights[] = "Operational control: enforce route compliance (no illegal short-turns), keep a dispatch log, and issue SMS/notice updates to drivers/operators to synchronize departures.";
+      $summary[] = "High demand: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
+      $immediate[] = "**{$loc}**: pre-position standby units and shorten headways (5–10 min). Monitor queue length and loading time every 15 minutes.";
+      $sameDay[] = "**{$loc}**: enforce route compliance (no illegal short-turns), keep a dispatch log, and issue operator notices to synchronize departures.";
+      $policy[] = "**{$loc}**: review recurring peak windows and adjust staffing/bay allocation schedules for the next operating day.";
     } else {
       if ($areaType === 'terminal') {
-        $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
-        $insights[] = "LGU Action Plan: adjust bay staffing, set a target dispatch interval, and keep a small standby buffer. Use marshals to keep passengers in organized lanes and prevent double-parking at the terminal entrance.";
+        $summary[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
+        $immediate[] = "**{$loc}**: adjust bay staffing, set a target dispatch interval, and keep a small standby buffer.";
+        $sameDay[] = "**{$loc}**: organize passenger lanes and prevent double-parking at the terminal entrance using marshals/enforcers.";
+        $policy[] = "**{$loc}**: refine dispatch rules and marshal deployment plan for recurring surge hours.";
       } else {
-        $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
-        $insights[] = "LGU Action Plan: tighten dispatch cadence within the route, monitor boarding hotspots, and coordinate with nearby terminals/stops for orderly loading. If queues build at a specific stop, deploy enforcers for lane discipline and safe boarding.";
+        $summary[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
+        $immediate[] = "**{$loc}**: tighten dispatch cadence within the route and monitor boarding hotspots.";
+        $sameDay[] = "**{$loc}**: coordinate with nearby terminals/stops for orderly loading; if queues build at a specific stop, deploy enforcers for lane discipline and safe boarding.";
+        $policy[] = "**{$loc}**: evaluate stop-level bottlenecks and update staging/enforcement plan for the next day.";
       }
     }
 
     // Load-based recommendations
     if ($alert['load_status'] === 'potential_over_demand' && $alert['supply_units']) {
       if (is_int($add) && $add > 0) {
-        $insights[] = "Supply gap: **{$loc}** likely needs ~{$add} additional unit(s) at {$time} to match baseline loading conditions. Rebalance by holding back low-demand areas and temporarily reallocating dispatch priority to this location.";
+        $immediate[] = "Supply gap: **{$loc}** likely needs ~{$add} additional unit(s) at {$time}. Rebalance by holding back low-demand areas and temporarily reallocating dispatch priority to this location.";
       } else {
-        $insights[] = "Supply gap risk: **{$loc}** may overload with current authorized units. Escalate when queue length exceeds the safe holding area; deploy additional marshals, issue a dispatch advisory, and prevent illegal loading outside designated bays.";
+        $immediate[] = "Supply gap risk: **{$loc}** may overload with current authorized units. Escalate when queue length exceeds the safe holding area; deploy additional marshals, issue a dispatch advisory, and prevent illegal loading outside designated bays.";
       }
     }
 
@@ -395,7 +410,7 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
         }
       }
       if (!empty($parts)) {
-        $insights[] = "Traffic Impact: " . implode(' | ', $parts) . ".";
+        $summary[] = "Traffic Impact: " . implode(' | ', $parts) . ".";
       }
     }
   }
@@ -403,16 +418,28 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
   // General rain advice if any alert has rain
   foreach ($alerts as $a) {
     if (($a['weather']['precip_prob'] ?? 0) > 60) {
-      $insights[] = "Rain Alert: wet conditions likely. Expect slower turnaround times and higher dwell time—keep standby units ready and adjust dispatch intervals proactively.";
+      $immediate[] = "Rain Alert: wet conditions likely. Expect slower turnaround times and higher dwell time—keep standby units ready and adjust dispatch intervals proactively.";
       break; 
     }
   }
 
-  return array_unique($insights);
+  $out = [];
+  $out[] = 'LGU PLAYBOOK — OVER-DEMAND';
+  foreach (array_unique($summary) as $s) $out[] = $s;
+  $out[] = 'IMMEDIATE (0–2H)';
+  foreach (array_unique($immediate) as $s) $out[] = $s;
+  $out[] = 'SAME-DAY (2–12H)';
+  foreach (array_unique($sameDay) as $s) $out[] = $s;
+  $out[] = 'POLICY / NEXT-DAY';
+  foreach (array_unique($policy) as $s) $out[] = $s;
+  return $out;
 }
 
 function generate_under_demand_insights(array $forecastData, array $alerts, string $areaType, array $supplyByTerminalName, array $supplyByRouteId): array {
-  $insights = [];
+  $summary = [];
+  $immediate = [];
+  $sameDay = [];
+  $policy = [];
   $overloadedAreas = array_column($alerts, 'area_label');
   
   // Find areas with low predicted peaks compared to baseline or capacity
@@ -457,8 +484,10 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
       $su = (int)($o['supply'] ?? 0);
       $pk = (int)($o['peak'] ?? 0);
       $extra = max(0, $su - max(1, $pk));
-      $insights[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}. If oversupply persists, hold ~{$extra} unit(s) off-road, reduce active bays, and enforce dispatch spacing to prevent terminal congestion.";
-      $insights[] = "LGU Actions for oversupply: rotate drivers for rest/maintenance, reassign units to nearby shortage areas (route-compliant), schedule inspections during off-peak, and enforce no-parking/no-illegal-loading policies to keep traffic flowing.";
+      $summary[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}.";
+      $immediate[] = "**{$nm}**: hold ~{$extra} unit(s) off-road, reduce active bays, and enforce dispatch spacing to prevent terminal congestion.";
+      $sameDay[] = "**{$nm}**: rotate drivers for rest/maintenance, schedule inspections during off-peak, and prevent self-dispatch clustering near loading zones.";
+      $policy[] = "**{$nm}**: publish a time-window dispatch schedule and tighten enforcement of no-parking/no-illegal-loading policies to keep traffic flowing.";
     }
   }
 
@@ -467,15 +496,26 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
     $names = array_map(function($x){ return (string)($x['name'] ?? ''); }, $lowDemandAreas);
     $list = implode(', ', array_filter($names));
     $scopeWord = $areaType === 'terminal' ? 'terminals' : 'routes';
-    $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways, reduce staging, and avoid stacking units that cause roadway friction near loading zones.";
-    $insights[] = "Rebalancing: prioritize dispatch for higher-demand areas first. If permitted, rotate units from low-activity {$scopeWord} to shortage hotspots while keeping assignments compliant and logged.";
-    $insights[] = "Governance: use low-activity windows for inspection, compliance checks, driver rotation, and terminal housekeeping; publish an adjusted dispatch schedule to operators to prevent self-dispatch clustering.";
+    $summary[] = "Low Activity: **{$list}** showing minimal demand.";
+    $immediate[] = "Extend headways, reduce staging, and avoid stacking units that cause roadway friction near loading zones.";
+    $sameDay[] = "Rebalance dispatch toward higher-demand areas first; rotate units only within allowed assignments and keep logs for accountability.";
+    $policy[] = "Use low-activity windows for inspection/compliance, driver rotation, and terminal housekeeping; publish an adjusted dispatch schedule to operators to prevent clustering.";
   } else {
-    $insights[] = "No significant under-utilization detected across the network.";
-    $insights[] = "Standard rotation applies; continue monitoring for pockets of oversupply that may still create congestion.";
+    $summary[] = "No significant under-utilization detected across the network.";
+    $sameDay[] = "Standard rotation applies; continue monitoring for pockets of oversupply that may still create congestion.";
+    $policy[] = "Continue collecting observations to improve forecast quality and reduce false positives.";
   }
 
-  return $insights;
+  $out = [];
+  $out[] = 'LGU PLAYBOOK — UNDER-DEMAND / OVERSUPPLY';
+  foreach (array_unique($summary) as $s) $out[] = $s;
+  $out[] = 'IMMEDIATE (0–2H)';
+  foreach (array_unique($immediate) as $s) $out[] = $s;
+  $out[] = 'SAME-DAY (2–12H)';
+  foreach (array_unique($sameDay) as $s) $out[] = $s;
+  $out[] = 'POLICY / NEXT-DAY';
+  foreach (array_unique($policy) as $s) $out[] = $s;
+  return $out;
 }
 
 $readiness = [
