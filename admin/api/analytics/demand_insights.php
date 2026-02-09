@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../../../includes/cors.php';
+tmm_apply_dev_cors();
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/external_data.php';
 $db = db();

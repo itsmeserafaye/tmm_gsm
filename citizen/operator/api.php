@@ -2,6 +2,8 @@
 if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) {
   @session_start();
 }
+require_once __DIR__ . '/../../includes/cors.php';
+tmm_apply_dev_cors();
 require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../includes/operator_portal.php';
 require_once __DIR__ . '/../../admin/includes/security.php';
