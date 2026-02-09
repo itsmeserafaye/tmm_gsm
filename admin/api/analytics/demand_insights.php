@@ -344,26 +344,28 @@ function generate_over_demand_insights(array $alerts, string $areaType): array {
     // Severity-based recommendations
     if ($sev === 'critical') {
       $insights[] = "CRITICAL: **{$loc}** peak at {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
-      $insights[] = "Action: shorten headways by 10–15 minutes, stage route-compliant reserves, and increase bay/queue marshals to prevent spillover.";
+      $insights[] = "LGU Action Plan: deploy standby PUVs within the same route/terminal assignment and temporarily shorten dispatch headways (10–15 min). Activate queue marshals, enforce loading discipline, and open contingency bays/overflow lanes to prevent road obstruction.";
+      $insights[] = "If shortage persists: coordinate with operator associations for an emergency dispatch advisory, authorize controlled temporary dispatch extensions (time-bound), and prioritize service for essential trips (schools/medical) until demand normalizes.";
     } elseif ($sev === 'high') {
       $insights[] = "High demand: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}{$evtTxt}{$wxTxt}";
-      $insights[] = "Action: shorten headways by 5–10 minutes and pre-position standby units within the same route assignment.";
+      $insights[] = "LGU Action Plan: pre-position standby units and shorten headways (5–10 min). Monitor queue length and loading time every 15 minutes; if dwell time grows, re-assign marshals and adjust bay allocation to match the dominant destinations.";
+      $insights[] = "Operational control: enforce route compliance (no illegal short-turns), keep a dispatch log, and issue SMS/notice updates to drivers/operators to synchronize departures.";
     } else {
       if ($areaType === 'terminal') {
         $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
-        $insights[] = "Action: adjust bay staffing and loading flow; monitor queue length every 15 minutes.";
+        $insights[] = "LGU Action Plan: adjust bay staffing, set a target dispatch interval, and keep a small standby buffer. Use marshals to keep passengers in organized lanes and prevent double-parking at the terminal entrance.";
       } else {
         $insights[] = "Moderate surge: **{$loc}** around {$time}. Predicted {$pred} vs baseline {$base}" . ($deltaPct !== null ? " ({$deltaPct}%)" : "") . ".{$supplyTxt}.{$driversTxt}";
-        $insights[] = "Action: tighten dispatch cadence within the route and monitor boarding hotspots.";
+        $insights[] = "LGU Action Plan: tighten dispatch cadence within the route, monitor boarding hotspots, and coordinate with nearby terminals/stops for orderly loading. If queues build at a specific stop, deploy enforcers for lane discipline and safe boarding.";
       }
     }
 
     // Load-based recommendations
     if ($alert['load_status'] === 'potential_over_demand' && $alert['supply_units']) {
       if (is_int($add) && $add > 0) {
-        $insights[] = "Supply gap: **{$loc}** likely needs ~{$add} additional unit(s) at {$time} to match baseline loading conditions.";
+        $insights[] = "Supply gap: **{$loc}** likely needs ~{$add} additional unit(s) at {$time} to match baseline loading conditions. Rebalance by holding back low-demand areas and temporarily reallocating dispatch priority to this location.";
       } else {
-        $insights[] = "Supply gap risk: **{$loc}** may overload with current authorized units; monitor and escalate if queues build up.";
+        $insights[] = "Supply gap risk: **{$loc}** may overload with current authorized units. Escalate when queue length exceeds the safe holding area; deploy additional marshals, issue a dispatch advisory, and prevent illegal loading outside designated bays.";
       }
     }
 
@@ -454,7 +456,9 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
       $nm = (string)($o['name'] ?? 'Unknown');
       $su = (int)($o['supply'] ?? 0);
       $pk = (int)($o['peak'] ?? 0);
-      $insights[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}. Hold/rotate units, reduce loading bays, and avoid queue congestion.";
+      $extra = max(0, $su - max(1, $pk));
+      $insights[] = "Oversupply: **{$nm}** has {$su} PUVs but forecast peak demand is {$pk}. If oversupply persists, hold ~{$extra} unit(s) off-road, reduce active bays, and enforce dispatch spacing to prevent terminal congestion.";
+      $insights[] = "LGU Actions for oversupply: rotate drivers for rest/maintenance, reassign units to nearby shortage areas (route-compliant), schedule inspections during off-peak, and enforce no-parking/no-illegal-loading policies to keep traffic flowing.";
     }
   }
 
@@ -463,12 +467,12 @@ function generate_under_demand_insights(array $forecastData, array $alerts, stri
     $names = array_map(function($x){ return (string)($x['name'] ?? ''); }, $lowDemandAreas);
     $list = implode(', ', array_filter($names));
     $scopeWord = $areaType === 'terminal' ? 'terminals' : 'routes';
-    $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways and reduce staging to keep operations smooth.";
-    $insights[] = "Optimization: prioritize dispatch within the same assigned routes where demand is higher; decongest low-activity {$scopeWord}.";
-    $insights[] = "Maintenance Opportunity: schedule inspections/repairs during low-activity windows at {$list}.";
+    $insights[] = "Low Activity: **{$list}** showing minimal demand. Extend headways, reduce staging, and avoid stacking units that cause roadway friction near loading zones.";
+    $insights[] = "Rebalancing: prioritize dispatch for higher-demand areas first. If permitted, rotate units from low-activity {$scopeWord} to shortage hotspots while keeping assignments compliant and logged.";
+    $insights[] = "Governance: use low-activity windows for inspection, compliance checks, driver rotation, and terminal housekeeping; publish an adjusted dispatch schedule to operators to prevent self-dispatch clustering.";
   } else {
     $insights[] = "No significant under-utilization detected across the network.";
-    $insights[] = "Standard rotation applies for all routes.";
+    $insights[] = "Standard rotation applies; continue monitoring for pockets of oversupply that may still create congestion.";
   }
 
   return $insights;

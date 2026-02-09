@@ -308,6 +308,13 @@ function get_setting($key, $default = '') {
                     <div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
                         <div><span class="font-black">Terminal:</span> <span id="aiProvAccTerminal">—</span></div>
                         <div><span class="font-black">Route:</span> <span id="aiProvAccRoute">—</span></div>
+                        <div class="pt-3 mt-3 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                            <div class="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">Auto‑Tune</div>
+                            <div class="text-sm"><span class="font-black">Status:</span> <span id="aiTuneStatus">—</span></div>
+                            <div class="text-sm"><span class="font-black">Last run:</span> <span id="aiTuneWhen">—</span></div>
+                            <div class="text-sm"><span class="font-black">Improvement:</span> <span id="aiTuneImprove">—</span></div>
+                            <div class="text-xs text-slate-400 font-bold">Rollback: <span id="aiTuneRollback">—</span></div>
+                        </div>
                         <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Accuracy is a 7-day backtest; more real observations improves it.</div>
                     </div>
                 </div>
@@ -573,6 +580,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const loadAiTuningReport = async () => {
+        const sEl = document.getElementById('aiTuneStatus');
+        const wEl = document.getElementById('aiTuneWhen');
+        const iEl = document.getElementById('aiTuneImprove');
+        const rEl = document.getElementById('aiTuneRollback');
+        try {
+            const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/ai_tuning_report.php?limit=1', { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            const latest = data && data.ok ? data.latest : null;
+            if (!latest) {
+                if (sEl) sEl.textContent = 'No runs yet';
+                if (wEl) wEl.textContent = '—';
+                if (iEl) iEl.textContent = '—';
+                if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
+                return;
+            }
+            const status = String(latest.status || 'unknown');
+            const started = latest.started_at ? String(latest.started_at) : '—';
+            const metrics = latest.metrics || {};
+            const imp = (metrics && typeof metrics.improvement_pct === 'number') ? (metrics.improvement_pct.toFixed(2) + '%') : '—';
+            if (sEl) sEl.textContent = status;
+            if (wEl) wEl.textContent = started;
+            if (iEl) iEl.textContent = imp;
+            if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=' + String(latest.id || 'RUN_ID');
+        } catch (e) {
+            if (sEl) sEl.textContent = 'Unavailable';
+            if (wEl) wEl.textContent = '—';
+            if (iEl) iEl.textContent = '—';
+            if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
+        }
+    };
+
     loadAiProvenance();
+    loadAiTuningReport();
 });
 </script>
