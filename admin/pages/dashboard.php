@@ -671,10 +671,14 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       var lastModel = null;
       var forecastChartInstance = null;
       var routeSupplyManualTerminal = '';
-      var apiRoot = (window.TMM_ROOT_URL || '');
-      if (!apiRoot) {
-        var p = String(window.location.pathname || '');
-        apiRoot = (p.toLowerCase().indexOf('/tmm/') !== -1 || /\/tmm$/i.test(p)) ? 'http://localhost/tmm' : 'http://localhost';
+      var apiRootPath = (window.TMM_ROOT_URL || '');
+      var apiRoot = '';
+      if (!apiRootPath && (String(window.location.port || '') === '5500' || String(window.location.port || '') === '5501')) {
+        apiRoot = 'http://localhost/tmm';
+      } else if (/^https?:\/\//i.test(apiRootPath)) {
+        apiRoot = apiRootPath;
+      } else {
+        apiRoot = String(window.location.origin || '') + apiRootPath;
       }
       if (apiRoot.endsWith('/')) apiRoot = apiRoot.slice(0, -1);
 
