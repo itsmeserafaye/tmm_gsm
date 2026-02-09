@@ -267,6 +267,53 @@ function get_setting($key, $default = '') {
             </div>
         </div>
 
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
+                <div class="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+                    <i data-lucide="database" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-black text-slate-800 dark:text-white">AI Data Sources & Accuracy</h2>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Provenance • Quality • Real-world basis</p>
+                </div>
+            </div>
+            <div class="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-black text-slate-800 dark:text-slate-100">Internal Data</div>
+                        <span id="aiProvInternalPill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">LOADING</span>
+                    </div>
+                    <div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                        <div><span class="font-black">Source:</span> <span id="aiProvDataSource">—</span></div>
+                        <div><span class="font-black">Observations:</span> <span id="aiProvObsCount">—</span></div>
+                        <div><span class="font-black">Range:</span> <span id="aiProvObsRange">—</span></div>
+                    </div>
+                </div>
+                <div class="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-black text-slate-800 dark:text-slate-100">External Signals</div>
+                        <span id="aiProvExternalPill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">LOADING</span>
+                    </div>
+                    <div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                        <div><span class="font-black">Weather:</span> <span id="aiProvWeather">—</span></div>
+                        <div><span class="font-black">Events:</span> <span id="aiProvEvents">—</span></div>
+                        <div><span class="font-black">Traffic:</span> <span id="aiProvTraffic">—</span></div>
+                    </div>
+                </div>
+                <div class="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-black text-slate-800 dark:text-slate-100">Forecast Health</div>
+                        <span id="aiProvHealthPill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">LOADING</span>
+                    </div>
+                    <div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                        <div><span class="font-black">Terminal:</span> <span id="aiProvAccTerminal">—</span></div>
+                        <div><span class="font-black">Route:</span> <span id="aiProvAccRoute">—</span></div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Accuracy is a 7-day backtest; more real observations improves it.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Action Bar -->
         <div class="sticky bottom-4 z-50">
             <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
@@ -446,5 +493,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initDemandDateTime();
     loadDemandAreaLists();
+
+    const setPill = (id, text, kind) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full border ' + (
+            kind === 'ok' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' :
+            kind === 'warn' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800' :
+            kind === 'err' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-800' :
+            'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'
+        );
+    };
+
+    const fmtAcc = (acc, pts, src) => {
+        const a = (typeof acc === 'number' && !Number.isNaN(acc)) ? (acc.toFixed(1) + '%') : '—';
+        const p = (typeof pts === 'number' && !Number.isNaN(pts)) ? (pts + ' points') : '—';
+        const s = src ? String(src) : '—';
+        return a + ' • ' + p + ' • ' + s;
+    };
+
+    const loadAiProvenance = async () => {
+        try {
+            const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/analytics/ai_provenance.php', { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error('unavailable');
+
+            const obs = (data.internal_sources && data.internal_sources.observations) ? data.internal_sources.observations : null;
+            const health = data.forecast_health || {};
+            const ext = data.external_sources || {};
+
+            const dsEl = document.getElementById('aiProvDataSource');
+            const ocEl = document.getElementById('aiProvObsCount');
+            const orEl = document.getElementById('aiProvObsRange');
+            if (obs && obs.table_exists) {
+                const maxDt = obs.max_observed_at || '';
+                const minDt = obs.min_observed_at || '';
+                if (dsEl) dsEl.textContent = (obs.total > 0) ? 'puv_demand_observations (real observations)' : 'puv_demand_observations (no rows yet)';
+                if (ocEl) ocEl.textContent = String(obs.total || 0) + ' rows • ' + String(obs.distinct_areas || 0) + ' areas';
+                if (orEl) orEl.textContent = (minDt && maxDt) ? (minDt + ' → ' + maxDt) : '—';
+                setPill('aiProvInternalPill', (obs.total > 0 ? 'OBSERVED' : 'EMPTY'), (obs.total > 0 ? 'ok' : 'warn'));
+            } else {
+                if (dsEl) dsEl.textContent = 'fallback operational tables (proxy)';
+                if (ocEl) ocEl.textContent = '—';
+                if (orEl) orEl.textContent = '—';
+                setPill('aiProvInternalPill', 'PROXY', 'warn');
+            }
+
+            const wEl = document.getElementById('aiProvWeather');
+            const eEl = document.getElementById('aiProvEvents');
+            const tEl = document.getElementById('aiProvTraffic');
+            if (wEl) {
+                const loc = (ext.weather && ext.weather.location) ? ext.weather.location : null;
+                wEl.textContent = (loc && loc.label) ? ('Open‑Meteo • ' + String(loc.label)) : 'Open‑Meteo';
+            }
+            if (eEl) {
+                const c = (ext.events && ext.events.country) ? String(ext.events.country) : '—';
+                const rss = (ext.events && ext.events.rss_url_configured) ? ' + RSS' : '';
+                eEl.textContent = 'Nager.Date (' + c + ')' + rss;
+            }
+            if (tEl) {
+                const ok = !!(ext.traffic && ext.traffic.api_key_configured);
+                tEl.textContent = ok ? 'TomTom (configured)' : 'TomTom (not configured)';
+            }
+            setPill('aiProvExternalPill', 'READY', 'ok');
+
+            const atEl = document.getElementById('aiProvAccTerminal');
+            const arEl = document.getElementById('aiProvAccRoute');
+            if (atEl) atEl.textContent = health.terminal ? fmtAcc(health.terminal.accuracy, health.terminal.data_points, health.terminal.data_source) : '—';
+            if (arEl) arEl.textContent = health.route ? fmtAcc(health.route.accuracy, health.route.data_points, health.route.data_source) : '—';
+
+            const tOk = health.terminal ? !!health.terminal.accuracy_ok : false;
+            const rOk = health.route ? !!health.route.accuracy_ok : false;
+            setPill('aiProvHealthPill', (tOk || rOk) ? 'OK' : 'LOW DATA', (tOk || rOk) ? 'ok' : 'warn');
+        } catch (e) {
+            setPill('aiProvInternalPill', 'UNAVAILABLE', 'err');
+            setPill('aiProvExternalPill', 'UNAVAILABLE', 'err');
+            setPill('aiProvHealthPill', 'UNAVAILABLE', 'err');
+        }
+    };
+
+    loadAiProvenance();
 });
 </script>
