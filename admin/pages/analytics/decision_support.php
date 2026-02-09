@@ -263,7 +263,15 @@ if ($rootUrl === '/') $rootUrl = '';
       const over = Array.isArray(pb.over_demand) ? pb.over_demand : [];
       const under = Array.isArray(pb.under_demand) ? pb.under_demand : [];
       const fmt = (t) => esc(t || '').replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>').replace(/\n/g, '<br>');
-      const isHeader = (t) => /^(LGU PLAYBOOK\s+—\s+|IMMEDIATE\s*\(|SAME-?DAY\s*\(|POLICY\s*\/\s*NEXT-?DAY)/i.test(String(t || '').trim());
+      const isHeader = (t) => {
+        const s = String(t || '').trim().toUpperCase();
+        return s.indexOf('LGU PLAYBOOK') === 0 ||
+               s.indexOf('IMMEDIATE') === 0 ||
+               s.indexOf('SAME-DAY') === 0 ||
+               s.indexOf('SAME DAY') === 0 ||
+               s.indexOf('POLICY / NEXT-DAY') === 0 ||
+               s.indexOf('POLICY/NEXT-DAY') === 0;
+      };
       const renderPlaybook = (el, arr) => {
         if (!el) return;
         if (!arr || !arr.length) { el.innerHTML = '<li class="text-slate-500 italic">No suggestions.</li>'; return; }

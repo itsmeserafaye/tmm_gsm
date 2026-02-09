@@ -1254,9 +1254,18 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         };
         
         var formatInsight = function (t) {
-          var s = escapeHtml(t || '');
-          s = s.replace(/^(LGU PLAYBOOK\s+—\s+.+)$/i, '<span class="font-black text-slate-900 dark:text-white">$1</span>');
-          s = s.replace(/^(IMMEDIATE\s*\\(.*\\)|SAME-?DAY\s*\\(.*\\)|POLICY\\s*\\/\\s*NEXT-?DAY)$/i, '<span class="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">$1</span>');
+          var raw = String(t || '');
+          var trimmed = raw.trim();
+          var upper = trimmed.toUpperCase();
+          var s = escapeHtml(raw);
+
+          if (upper.indexOf('LGU PLAYBOOK') === 0) {
+            return '<span class="font-black text-slate-900 dark:text-white">' + escapeHtml(trimmed) + '</span>';
+          }
+          if (upper.indexOf('IMMEDIATE') === 0 || upper.indexOf('SAME-DAY') === 0 || upper.indexOf('SAME DAY') === 0 || upper.indexOf('POLICY / NEXT-DAY') === 0 || upper.indexOf('POLICY/NEXT-DAY') === 0) {
+            return '<span class="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">' + escapeHtml(trimmed) + '</span>';
+          }
+
           s = s.replace(/^(Maintenance Opportunity|Low Activity|Optimization|High Demand):/i, '<span class="font-bold text-slate-800 dark:text-white">$1:</span>');
           s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded mx-0.5">$1</strong>');
           s = s.replace(/\n/g, '<br>');
@@ -1264,8 +1273,14 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         };
 
         var isSectionHeader = function (t) {
-          var s = String(t || '').trim();
-          return /^(LGU PLAYBOOK\s+—\s+|IMMEDIATE\s*\\(|SAME-?DAY\s*\\(|POLICY\\s*\\/\\s*NEXT-?DAY)/i.test(s);
+          var trimmed = String(t || '').trim();
+          var upper = trimmed.toUpperCase();
+          return upper.indexOf('LGU PLAYBOOK') === 0 ||
+                 upper.indexOf('IMMEDIATE') === 0 ||
+                 upper.indexOf('SAME-DAY') === 0 ||
+                 upper.indexOf('SAME DAY') === 0 ||
+                 upper.indexOf('POLICY / NEXT-DAY') === 0 ||
+                 upper.indexOf('POLICY/NEXT-DAY') === 0;
         };
 
         var extractLongAreaList = function (raw) {
