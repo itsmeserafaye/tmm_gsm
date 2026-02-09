@@ -440,13 +440,23 @@ button:active {
 
 /* Primary button gradient */
 .btn-primary {
-    background: var(--gradient-accent);
+    background: var(--accent) !important;
+    background-image: none !important;
     border: none;
     color: white;
 }
 
 .btn-primary:hover {
+    background: #15803d !important;
     box-shadow: 0 20px 40px -10px rgba(76, 175, 80, 0.45);
+}
+
+.btn-primary:disabled,
+.btn-primary[disabled] {
+    background: var(--accent) !important;
+    background-image: none !important;
+    opacity: 0.9;
+    cursor: not-allowed;
 }
 
 /* Social button effects */

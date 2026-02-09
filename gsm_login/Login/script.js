@@ -161,19 +161,6 @@ function initializePage() {
     // Add smooth scrolling
     addSmoothScrolling();
 
-    try {
-        const portalMode = getPortalMode();
-        const remembered = localStorage.getItem('gsm_remember_' + portalMode) === '1';
-        const email = localStorage.getItem('gsm_email_' + portalMode) || '';
-        const pwd = localStorage.getItem('gsm_password_' + portalMode) || '';
-        const rememberEl = document.getElementById('rememberMe');
-        const emailEl = document.getElementById('email');
-        const pwdEl = document.getElementById('password');
-        if (rememberEl) rememberEl.checked = remembered;
-        if (remembered && emailEl && email) emailEl.value = email;
-        if (remembered && pwdEl && pwd) pwdEl.value = pwd;
-    } catch (e) {}
-
     gsmInitRecaptcha();
 }
 
@@ -195,36 +182,10 @@ function setupEventListeners() {
     const openForgotBtn = document.getElementById('openForgotPassword');
     if (openForgotBtn) openForgotBtn.classList.toggle('hidden', portalMode === 'staff');
 
-    const rememberEl = document.getElementById('rememberMe');
     const emailEl = document.getElementById('email');
     const pwdEl = document.getElementById('password');
-    if (emailEl && pwdEl) {
-        emailEl.addEventListener('blur', () => {
-            try {
-                const remember = !!(rememberEl && rememberEl.checked);
-                if (!remember) return;
-                if (String(pwdEl.value || '').trim() !== '') return;
-                const savedPwd = localStorage.getItem('gsm_password_' + portalMode) || '';
-                if (savedPwd) pwdEl.value = savedPwd;
-            } catch (e) {}
-        });
-    }
-    if (loginForm) {
-        loginForm.addEventListener('submit', () => {
-            try {
-                const remember = !!(rememberEl && rememberEl.checked);
-                if (remember) {
-                    localStorage.setItem('gsm_remember_' + portalMode, '1');
-                    localStorage.setItem('gsm_email_' + portalMode, String((document.getElementById('email') && document.getElementById('email').value) || '').trim());
-                    localStorage.setItem('gsm_password_' + portalMode, String((document.getElementById('password') && document.getElementById('password').value) || ''));
-                } else {
-                    localStorage.removeItem('gsm_remember_' + portalMode);
-                    localStorage.removeItem('gsm_email_' + portalMode);
-                    localStorage.removeItem('gsm_password_' + portalMode);
-                }
-            } catch (e) {}
-        });
-    }
+    if (emailEl) emailEl.autocomplete = 'username';
+    if (pwdEl) pwdEl.autocomplete = 'current-password';
 
     const opRegModal = document.getElementById('operatorRegisterModal');
     const opRegOpen = document.getElementById('btnOperatorRegisterOpen');
@@ -816,15 +777,9 @@ function handleLoginSubmit(event) {
     setLoginAlert('', 'error');
 
     const deviceId = getOrCreateDeviceId();
-    const trustEl = document.getElementById('trustDevice10Days');
-    let savedTrust = false;
-    try { savedTrust = (localStorage.getItem('gsm_trust_device') || '') === '1'; } catch (e) {}
-    const trustDevice = trustEl ? !!trustEl.checked : savedTrust;
     const payload = operatorMode
         ? { action: 'operator_login', email, password, plate_number: plate, device_id: deviceId }
         : { action: 'login', email, password, device_id: deviceId };
-    payload.trust_device = trustDevice ? 1 : 0;
-    try { localStorage.setItem('gsm_trust_device', trustDevice ? '1' : '0'); } catch (e) {}
 
     if (gsmRecaptchaSiteKey) {
         if (!captchaResponse) {
@@ -876,14 +831,6 @@ function handleLoginSubmit(event) {
             if (submitButton) resetLoadingState(submitButton);
         });
 }
-
-document.addEventListener('DOMContentLoaded', function () {
-    try {
-        const trustEl = document.getElementById('trustDevice10Days');
-        const saved = localStorage.getItem('gsm_trust_device') || '';
-        if (trustEl && saved === '1') trustEl.checked = true;
-    } catch (e) {}
-});
 
 function handleSocialLogin(event) {
     const button = event.target.closest('button');

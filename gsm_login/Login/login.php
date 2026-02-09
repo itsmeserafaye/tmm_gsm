@@ -387,9 +387,7 @@ if ($action === 'login_otp_verify') {
     $perms = rbac_get_user_permissions($db, $userId);
     $primaryRole = rbac_primary_role($roles);
 
-    $trustDays = (int)($pending['trust_days'] ?? 10);
-    gsm_set_cookie('gsm_trust_device', $trustDays > 0 ? '1' : '0', 31536000);
-    if ($trustDays > 0) td_trust($db, 'rbac', $userId, $deviceHash, $trustDays);
+    $trustDays = 0;
 
     session_regenerate_id(true);
     unset($_SESSION['pending_login']);
@@ -414,7 +412,7 @@ if ($action === 'login_otp_verify') {
 
     gsm_send(true, 'Login successful', [
       'redirect' => $redirect,
-      'otp_trust_days' => $trustDays > 0 ? $trustDays : 0,
+      'otp_trust_days' => 0,
     ]);
   }
 
@@ -585,10 +583,7 @@ $primaryRole = rbac_primary_role($roles);
 
 $deviceHash = td_hash_device($deviceId);
 $mustOtp = true;
-if ($trustChoice !== null) gsm_set_cookie('gsm_trust_device', $trustChoice ? '1' : '0', 31536000);
-$trustDaysSetting = gsm_setting_int($db, 'mfa_trust_days', 10, 0, 30);
-$trustDays = gsm_effective_trust_days($trustDaysSetting, $trustChoice);
-if ($trustChoice === false) td_forget($db, 'rbac', $userId, $deviceHash);
+$trustDays = 0;
 
 if (!$mustOtp) {
   session_regenerate_id(true);
@@ -679,6 +674,6 @@ if (!($sent['ok'] ?? false)) {
 gsm_send(true, 'OTP required', [
   'otp_required' => true,
   'expires_in' => (int) (($sent['data']['expires_in'] ?? 120)),
-  'otp_trust_days' => $trustDays,
+  'otp_trust_days' => 0,
 ]);
 ?>
