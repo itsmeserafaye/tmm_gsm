@@ -176,7 +176,7 @@ function get_setting($key, $default = '') {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div id="data-inputs-card" class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex items-center gap-3">
                     <div class="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-xl">
                         <i data-lucide="sliders" class="w-5 h-5 text-violet-600 dark:text-violet-400"></i>
@@ -274,7 +274,7 @@ function get_setting($key, $default = '') {
                 </div>
                 <div>
                     <h2 class="text-lg font-black text-slate-800 dark:text-white">AI Data Sources & Accuracy</h2>
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Provenance • Quality • Real-world basis</p>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">What the forecast is based on</p>
                 </div>
             </div>
             <div class="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -284,9 +284,9 @@ function get_setting($key, $default = '') {
                         <span id="aiProvInternalPill" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">LOADING</span>
                     </div>
                     <div class="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 font-medium">
-                        <div><span class="font-black">Source:</span> <span id="aiProvDataSource">—</span></div>
-                        <div><span class="font-black">Observations:</span> <span id="aiProvObsCount">—</span></div>
-                        <div><span class="font-black">Range:</span> <span id="aiProvObsRange">—</span></div>
+                        <div><span class="font-black">Basis:</span> <span id="aiProvDataSource">—</span></div>
+                        <div><span class="font-black">Records:</span> <span id="aiProvObsCount">—</span></div>
+                        <div><span class="font-black">Coverage:</span> <span id="aiProvObsRange">—</span></div>
                     </div>
                 </div>
                 <div class="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30">
@@ -315,7 +315,34 @@ function get_setting($key, $default = '') {
                             <div class="text-sm"><span class="font-black">Improvement:</span> <span id="aiTuneImprove">—</span></div>
                             <div class="text-xs text-slate-400 font-bold">Rollback: <span id="aiTuneRollback">—</span></div>
                         </div>
-                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Accuracy is a 7-day backtest; more real observations improves it.</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-2">Accuracy uses the last 7 days of history.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-8 pb-8">
+                <div class="rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/60 dark:bg-blue-900/10 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                            <i data-lucide="help-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-black text-slate-900 dark:text-white">How to read this</div>
+                            <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                                <div><span class="font-black">Real Data</span> means the forecast is driven by the counts you log in Data Inputs.</div>
+                                <div class="mt-1"><span class="font-black">Estimated</span> means the system is using activity tables as a proxy until enough observations exist.</div>
+                                <div class="mt-1">If the health shows <span class="font-black">Low Data</span>, log a few days of hourly observations to stabilize accuracy.</div>
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-3">
+                                <button type="button" id="btn-scroll-data-inputs" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-sm transition-colors">
+                                    <i data-lucide="clipboard-pen" class="w-4 h-4"></i>
+                                    Log observations now
+                                </button>
+                                <a href="?page=analytics/decision_support" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-black text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                    <i data-lucide="line-chart" class="w-4 h-4 text-indigo-500"></i>
+                                    View decision support
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -501,6 +528,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initDemandDateTime();
     loadDemandAreaLists();
 
+    const btnScrollDataInputs = document.getElementById('btn-scroll-data-inputs');
+    if (btnScrollDataInputs) {
+        btnScrollDataInputs.addEventListener('click', () => {
+            const target = document.getElementById('data-inputs-card');
+            if (!target) return;
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
     const setPill = (id, text, kind) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -515,9 +551,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fmtAcc = (acc, pts, src) => {
         const a = (typeof acc === 'number' && !Number.isNaN(acc)) ? (acc.toFixed(1) + '%') : '—';
-        const p = (typeof pts === 'number' && !Number.isNaN(pts)) ? (pts + ' points') : '—';
+        const p = (typeof pts === 'number' && !Number.isNaN(pts)) ? String(pts) : '—';
         const s = src ? String(src) : '—';
-        return a + ' • ' + p + ' • ' + s;
+        const basis = s === 'observations' ? 'Real data' : (s === 'fallback' ? 'Estimated' : s);
+        return 'Accuracy: ' + a + ' • Data points: ' + p + ' • Basis: ' + basis;
     };
 
     const loadAiProvenance = async () => {
@@ -536,15 +573,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (obs && obs.table_exists) {
                 const maxDt = obs.max_observed_at || '';
                 const minDt = obs.min_observed_at || '';
-                if (dsEl) dsEl.textContent = (obs.total > 0) ? 'puv_demand_observations (real observations)' : 'puv_demand_observations (no rows yet)';
-                if (ocEl) ocEl.textContent = String(obs.total || 0) + ' rows • ' + String(obs.distinct_areas || 0) + ' areas';
+                if (dsEl) dsEl.textContent = (obs.total > 0) ? 'Real observations (Data Inputs)' : 'No observations yet (Data Inputs empty)';
+                if (ocEl) ocEl.textContent = String(obs.total || 0) + ' entries across ' + String(obs.distinct_areas || 0) + ' locations';
                 if (orEl) orEl.textContent = (minDt && maxDt) ? (minDt + ' → ' + maxDt) : '—';
-                setPill('aiProvInternalPill', (obs.total > 0 ? 'OBSERVED' : 'EMPTY'), (obs.total > 0 ? 'ok' : 'warn'));
+                setPill('aiProvInternalPill', (obs.total > 0 ? 'REAL DATA' : 'NEEDS DATA'), (obs.total > 0 ? 'ok' : 'warn'));
             } else {
-                if (dsEl) dsEl.textContent = 'fallback operational tables (proxy)';
+                if (dsEl) dsEl.textContent = 'Estimated (proxy activity tables)';
                 if (ocEl) ocEl.textContent = '—';
                 if (orEl) orEl.textContent = '—';
-                setPill('aiProvInternalPill', 'PROXY', 'warn');
+                setPill('aiProvInternalPill', 'ESTIMATED', 'warn');
             }
 
             const wEl = document.getElementById('aiProvWeather');
@@ -561,9 +598,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (tEl) {
                 const ok = !!(ext.traffic && ext.traffic.api_key_configured);
-                tEl.textContent = ok ? 'TomTom (configured)' : 'TomTom (not configured)';
+                tEl.textContent = ok ? 'TomTom enabled' : 'TomTom not configured';
             }
-            setPill('aiProvExternalPill', 'READY', 'ok');
+            setPill('aiProvExternalPill', 'CONNECTED', 'ok');
 
             const atEl = document.getElementById('aiProvAccTerminal');
             const arEl = document.getElementById('aiProvAccRoute');
@@ -572,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const tOk = health.terminal ? !!health.terminal.accuracy_ok : false;
             const rOk = health.route ? !!health.route.accuracy_ok : false;
-            setPill('aiProvHealthPill', (tOk || rOk) ? 'OK' : 'LOW DATA', (tOk || rOk) ? 'ok' : 'warn');
+            setPill('aiProvHealthPill', (tOk || rOk) ? 'GOOD' : 'LOW DATA', (tOk || rOk) ? 'ok' : 'warn');
         } catch (e) {
             setPill('aiProvInternalPill', 'UNAVAILABLE', 'err');
             setPill('aiProvExternalPill', 'UNAVAILABLE', 'err');
@@ -590,25 +627,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const latest = data && data.ok ? data.latest : null;
             if (!latest) {
-                if (sEl) sEl.textContent = 'No runs yet';
+                if (sEl) sEl.textContent = 'Not scheduled';
                 if (wEl) wEl.textContent = '—';
                 if (iEl) iEl.textContent = '—';
-                if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
+                if (rEl) rEl.textContent = 'Advanced: php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
                 return;
             }
             const status = String(latest.status || 'unknown');
             const started = latest.started_at ? String(latest.started_at) : '—';
             const metrics = latest.metrics || {};
             const imp = (metrics && typeof metrics.improvement_pct === 'number') ? (metrics.improvement_pct.toFixed(2) + '%') : '—';
-            if (sEl) sEl.textContent = status;
+            if (sEl) sEl.textContent = status.replace(/_/g, ' ');
             if (wEl) wEl.textContent = started;
             if (iEl) iEl.textContent = imp;
-            if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=' + String(latest.id || 'RUN_ID');
+            if (rEl) rEl.textContent = 'Advanced: php admin/tools/auto_tune_ai_weights.php --rollback=' + String(latest.id || 'RUN_ID');
         } catch (e) {
             if (sEl) sEl.textContent = 'Unavailable';
             if (wEl) wEl.textContent = '—';
             if (iEl) iEl.textContent = '—';
-            if (rEl) rEl.textContent = 'php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
+            if (rEl) rEl.textContent = 'Advanced: php admin/tools/auto_tune_ai_weights.php --rollback=RUN_ID';
         }
     };
 

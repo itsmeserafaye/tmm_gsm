@@ -217,11 +217,8 @@ if ($rootUrl === '/') $rootUrl = '';
         const m = data.model || {};
         const wx = data.weather && data.weather.current ? data.weather.current : null;
         const wxTxt = wx && (wx.temperature !== undefined) ? (` • Weather now: ${wx.temperature}°C`) : '';
-        const wTxt = (m.ai_weather_weight !== undefined) ? `Weather w=${m.ai_weather_weight}` : '';
-        const eTxt = (m.ai_event_weight !== undefined) ? `Events w=${m.ai_event_weight}` : '';
-        const tTxt = (m.ai_traffic_weight !== undefined) ? `Traffic w=${m.ai_traffic_weight}` : '';
-        const weights = [wTxt,eTxt,tTxt].filter(Boolean).join(' • ');
-        routeMeta.textContent = `Data source: ${data.data_source || 'unknown'} • Accuracy: ${Math.round(Number(data.accuracy || 0))}% (points: ${Number(data.data_points || 0)})${wxTxt}${weights ? (' • ' + weights) : ''}`;
+        const basis = (data.data_source === 'observations') ? 'Real observations' : 'Estimated (proxy activity)';
+        routeMeta.textContent = `Based on: ${basis} • Accuracy (last 7 days): ${Math.round(Number(data.accuracy || 0))}% • Data points: ${Number(data.data_points || 0)}${wxTxt}`;
       }
       if (!spikes.length) {
         routeSpikes.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">No significant spikes detected.</td></tr>';
@@ -257,19 +254,28 @@ if ($rootUrl === '/') $rootUrl = '';
       if (terminalMeta) {
         const ctx = data.context || {};
         const m = ctx.model || {};
-        const wTxt = (m.ai_weather_weight !== undefined) ? `Weather w=${m.ai_weather_weight}` : '';
-        const eTxt = (m.ai_event_weight !== undefined) ? `Events w=${m.ai_event_weight}` : '';
-        const tTxt = (m.ai_traffic_weight !== undefined) ? `Traffic w=${m.ai_traffic_weight}` : '';
-        const weights = [wTxt,eTxt,tTxt].filter(Boolean).join(' • ');
-        terminalMeta.textContent = `Readiness: ${rd.ok ? 'OK' : 'Needs data'} • Accuracy: ${Math.round(Number(rd.accuracy || 0))}% (points: ${Number(rd.data_points || 0)})${weights ? (' • ' + weights) : ''}`;
+        const basis = (rd.data_source === 'observations') ? 'Real observations' : 'Estimated (proxy activity)';
+        const readiness = rd.ok ? 'Good' : 'Low data';
+        terminalMeta.textContent = `Forecast health: ${readiness} • Based on: ${basis} • Accuracy (last 7 days): ${Math.round(Number(rd.accuracy || 0))}% • Data points: ${Number(rd.data_points || 0)}`;
       }
 
       const pb = data.playbook || {};
       const over = Array.isArray(pb.over_demand) ? pb.over_demand : [];
       const under = Array.isArray(pb.under_demand) ? pb.under_demand : [];
       const fmt = (t) => esc(t || '').replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-900 dark:text-white">$1</strong>').replace(/\n/g, '<br>');
-      if (playbookOver) playbookOver.innerHTML = over.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${fmt(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
-      if (playbookUnder) playbookUnder.innerHTML = under.map((x) => `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${fmt(x)}</li>`).join('') || '<li class="text-slate-500 italic">No suggestions.</li>';
+      const isHeader = (t) => /^(LGU PLAYBOOK\s+—\s+|IMMEDIATE\s*\(|SAME-?DAY\s*\(|POLICY\s*\/\s*NEXT-?DAY)/i.test(String(t || '').trim());
+      const renderPlaybook = (el, arr) => {
+        if (!el) return;
+        if (!arr || !arr.length) { el.innerHTML = '<li class="text-slate-500 italic">No suggestions.</li>'; return; }
+        el.innerHTML = arr.map((x) => {
+          if (isHeader(x)) {
+            return `<li class="list-none pt-2"><div class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">${fmt(x)}</div></li>`;
+          }
+          return `<li class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">${fmt(x)}</li>`;
+        }).join('');
+      };
+      renderPlaybook(playbookOver, over);
+      renderPlaybook(playbookUnder, under);
 
       if (!alerts.length) {
         terminalAlerts.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No significant alerts detected.</td></tr>';

@@ -1255,10 +1255,17 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         
         var formatInsight = function (t) {
           var s = escapeHtml(t || '');
+          s = s.replace(/^(LGU PLAYBOOK\s+—\s+.+)$/i, '<span class="font-black text-slate-900 dark:text-white">$1</span>');
+          s = s.replace(/^(IMMEDIATE\s*\\(.*\\)|SAME-?DAY\s*\\(.*\\)|POLICY\\s*\\/\\s*NEXT-?DAY)$/i, '<span class="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs">$1</span>');
           s = s.replace(/^(Maintenance Opportunity|Low Activity|Optimization|High Demand):/i, '<span class="font-bold text-slate-800 dark:text-white">$1:</span>');
           s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded mx-0.5">$1</strong>');
           s = s.replace(/\n/g, '<br>');
           return s;
+        };
+
+        var isSectionHeader = function (t) {
+          var s = String(t || '').trim();
+          return /^(LGU PLAYBOOK\s+—\s+|IMMEDIATE\s*\\(|SAME-?DAY\s*\\(|POLICY\\s*\\/\\s*NEXT-?DAY)/i.test(s);
         };
 
         var extractLongAreaList = function (raw) {
@@ -1328,14 +1335,26 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           containerClass = 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10';
         }
 
+        var visibleActionCount = 0;
+        var hiddenActionCount = 0;
         items.forEach(function (t, i) {
+          if (isSectionHeader(t)) {
+            var headerLi = document.createElement('li');
+            headerLi.className = 'list-none pt-2';
+            headerLi.innerHTML = '<div class="px-1 py-1">' + formatInsight(t) + '</div>';
+            listEl.appendChild(headerLi);
+            return;
+          }
+
           var li = document.createElement('li');
           li.className = 'flex gap-3 items-start text-sm text-slate-600 dark:text-slate-300 p-4 rounded-xl border transition-all hover:shadow-sm ' + containerClass;
           
-          if (i >= 7) {
+          if (visibleActionCount >= 7) {
             li.style.display = 'none';
             li.dataset.hidden = 'true';
+            hiddenActionCount++;
           }
+          visibleActionCount++;
           
           var currentIconName = iconName;
           var currentIconColor = iconColor;
@@ -1401,12 +1420,12 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           listEl.appendChild(li);
         });
 
-        if (items.length > 7) {
+        if (hiddenActionCount > 0) {
           var btnContainer = document.createElement('li');
           btnContainer.className = 'list-none pt-2';
           var btn = document.createElement('button');
           btn.className = 'w-full text-center py-2.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 dashed';
-          btn.textContent = 'Show ' + (items.length - 7) + ' more insights';
+          btn.textContent = 'Show ' + hiddenActionCount + ' more actions';
           btn.onclick = function() {
             btnContainer.remove();
             Array.from(listEl.children).forEach(function(child) {
