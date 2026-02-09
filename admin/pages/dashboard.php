@@ -1164,6 +1164,11 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
 
       function loadTrafficNow(areaType, areaRef) {
         if (!trafficNowValue || !trafficNowHint) return;
+        if (window.__tmmTrafficAuthFailed) {
+          trafficNowValue.textContent = '—';
+          trafficNowHint.textContent = 'Sign in again to load traffic';
+          return;
+        }
         trafficNowValue.textContent = '...';
         trafficNowHint.textContent = '';
         var url = (window.TMM_ROOT_URL || '') + '/admin/api/analytics/traffic.php';
@@ -1172,9 +1177,32 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         } else {
           url += '?area_type=city';
         }
+        try {
+          var apiOrigin = new URL(url, window.location.href).origin;
+          if (apiOrigin !== window.location.origin) {
+            trafficNowValue.textContent = '—';
+            trafficNowHint.textContent = 'Open this page via ' + apiOrigin + ' to load live traffic';
+            return;
+          }
+        } catch (e) { }
         fetch(url, { headers: { 'Accept': 'application/json' } })
-          .then(function (r) { return r.json(); })
-          .then(function (data) { setTrafficNowUI(data); })
+          .then(function (r) {
+            if (r.status === 401 || r.status === 403) {
+              window.__tmmTrafficAuthFailed = true;
+              return { ok: false, error: 'unauthorized' };
+            }
+            var ct = (r.headers && r.headers.get) ? (r.headers.get('content-type') || '') : '';
+            if (ct.indexOf('application/json') === -1) return { ok: false, error: 'non_json' };
+            return r.json();
+          })
+          .then(function (data) {
+            if (data && data.error === 'unauthorized') {
+              trafficNowValue.textContent = '—';
+              trafficNowHint.textContent = 'Sign in again to load traffic';
+              return;
+            }
+            setTrafficNowUI(data);
+          })
           .catch(function () {
             trafficNowValue.textContent = '—';
             trafficNowHint.textContent = '';
