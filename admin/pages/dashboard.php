@@ -412,7 +412,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           </div>
         </div>
 
-        <div class="relative w-full h-[420px] bg-transparent max-w-6xl mx-auto">
+        <div class="relative w-full h-[420px] bg-transparent">
           <div id="forecastChart" class="w-full h-full"></div>
         </div>
         <div id="forecastChartLegend"
@@ -435,103 +435,100 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             <p class="text-sm text-slate-500 dark:text-slate-400">Actionable insights and supply optimization</p>
           </div>
         </div>
-        <div class="grid grid-cols-1 gap-6">
-          <div class="min-w-0">
-      <div class="p-6 rounded-xl bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-900/50 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-4">
-            <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
-              <i data-lucide="sparkles" class="w-6 h-6"></i>
+
+        <div class="p-6 rounded-xl bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-800 dark:to-slate-900/50 border-2 border-blue-100 dark:border-blue-900/30 shadow-lg">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-4">
+              <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
+                <i data-lucide="sparkles" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Predictive Analytics Insights</h2>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="flex w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span class="text-sm text-slate-500 font-medium">Live Operational Signals</span>
+                  <span id="insightsModePill" class="ml-2 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">TERMINALS</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Predictive Analytics Insights</h2>
-              <div class="flex items-center gap-2 mt-1">
-                <span class="flex w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="text-sm text-slate-500 font-medium">Live Operational Signals</span>
-                <span id="insightsModePill" class="ml-2 text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">TERMINALS</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+            <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
+              </div>
+              <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+            </div>
+
+            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
+              </div>
+              <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
+            </div>
+
+            <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm min-w-0">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="arrow-up-right" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Shortage</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">ADD UNITS</span>
+              </div>
+              <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                    <tr class="text-left text-slate-500 dark:text-slate-400">
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                    </tr>
+                  </thead>
+                  <tbody id="miniShortageBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm min-w-0">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                  <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
+                </div>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
+              </div>
+              <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                    <tr class="text-left text-slate-500 dark:text-slate-400">
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
+                      <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
+                    </tr>
+                  </thead>
+                  <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
-          <div class="p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-gradient-to-br from-blue-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <i data-lucide="trending-up" class="w-5 h-5 text-blue-600 dark:text-blue-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsOverScope">Terminal</span> High-demand Signals</h3>
-              </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">UPCOMING</span>
-            </div>
-            <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
-          </div>
-
-          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center gap-2">
-                <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
-              </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
-            </div>
-            <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
-          </div>
-
-          <div class="p-5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <i data-lucide="arrow-up-right" class="w-5 h-5 text-rose-600 dark:text-rose-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Shortage</h3>
-              </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">ADD UNITS</span>
-            </div>
-            <div class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                  <tr class="text-left text-slate-500 dark:text-slate-400">
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
-                  </tr>
-                </thead>
-                <tbody id="miniShortageBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-white/70 dark:bg-slate-800/40 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <i data-lucide="arrow-down-right" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
-                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Top Oversupply</h3>
-              </div>
-              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">REDUCE</span>
-            </div>
-            <div class="mt-4 overflow-x-auto">
-              <table class="min-w-full text-sm">
-                <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                  <tr class="text-left text-slate-500 dark:text-slate-400">
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Area</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Peak</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Supply</th>
-                    <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Suggested</th>
-                  </tr>
-                </thead>
-                <tbody id="miniOversupplyBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-                  <tr><td colspan="4" class="py-8 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
       </div>
-          </div>
-        </div>
-      </div>
-      </div>
+
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
         <div class="p-6 rounded-xl bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-800 dark:to-indigo-900/10 border-2 border-indigo-100 dark:border-indigo-900/30 shadow-lg w-full min-w-0">
           <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
