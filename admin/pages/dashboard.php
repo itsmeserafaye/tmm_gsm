@@ -683,6 +683,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       if (apiRoot.endsWith('/')) apiRoot = apiRoot.slice(0, -1);
 
       function formatCurrencyPhp(v) {
+        if (v === null || v === undefined) return 'N/A';
         var n = Number(v || 0);
         if (Number.isNaN(n)) n = 0;
         return '₱' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -736,13 +737,14 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             var label = (s.label !== undefined) ? String(s.label) : '';
             var val = s.value;
             var txt = '';
-            if (s.format === 'currency') txt = formatCurrencyPhp(val);
-            else txt = String(val !== undefined && val !== null ? val : '—');
+            if (val === null || val === undefined) txt = 'N/A';
+            else if (s.format === 'currency') txt = formatCurrencyPhp(val);
+            else txt = String(val);
             var row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-3 text-sm';
             row.innerHTML =
               '<div class="text-slate-600 dark:text-slate-300 font-medium">' + label + '</div>' +
-              '<div class="text-slate-900 dark:text-white font-black">' + txt + '</div>';
+              '<div class="' + (txt === 'N/A' ? 'text-amber-700 dark:text-amber-300 font-black' : 'text-slate-900 dark:text-white font-black') + '">' + txt + '</div>';
             body.appendChild(row);
           });
 

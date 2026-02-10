@@ -6,6 +6,20 @@ header('Content-Type: application/json');
 require_login();
 
 $db = db();
+$debug = ((int)($_GET['debug'] ?? 0)) === 1 && function_exists('has_permission') && has_permission('settings.manage');
+$diagnostics = [
+  'db' => null,
+  'picked' => [],
+  'errors' => [],
+];
+
+try {
+  $rDb = $db->query("SELECT DATABASE() AS dbname");
+  if ($rDb && ($rowDb = $rDb->fetch_assoc())) {
+    $diagnostics['db'] = (string)($rowDb['dbname'] ?? '');
+  }
+} catch (Throwable $e) {
+}
 
 function ms_table_exists(mysqli $db, string $name): bool {
   $stmt = $db->prepare("SHOW TABLES LIKE ?");
@@ -17,18 +31,40 @@ function ms_table_exists(mysqli $db, string $name): bool {
   return (bool)$row;
 }
 
-function ms_count(mysqli $db, string $sql): int {
-  $res = $db->query($sql);
-  if (!$res) return 0;
-  $row = $res->fetch_assoc();
-  return (int)($row['c'] ?? 0);
+function ms_pick_table(mysqli $db, array $candidates): ?string {
+  foreach ($candidates as $t) {
+    $t = trim((string)$t);
+    if ($t === '') continue;
+    if (ms_table_exists($db, $t)) return $t;
+  }
+  return null;
 }
 
-function ms_sum(mysqli $db, string $sql): float {
+function ms_column_exists(mysqli $db, string $table, string $col): bool {
+  $stmt = $db->prepare("SHOW COLUMNS FROM {$table} LIKE ?");
+  if (!$stmt) return false;
+  $stmt->bind_param('s', $col);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_row();
+  $stmt->close();
+  return (bool)$row;
+}
+
+function ms_pick_column(mysqli $db, string $table, array $candidates): ?string {
+  foreach ($candidates as $c) {
+    $c = trim((string)$c);
+    if ($c === '') continue;
+    if (ms_column_exists($db, $table, $c)) return $c;
+  }
+  return null;
+}
+
+function ms_scalar(mysqli $db, string $sql, string $field): array {
   $res = $db->query($sql);
-  if (!$res) return 0.0;
+  if (!$res) return ['value' => null, 'error' => (string)($db->error ?? 'query_failed')];
   $row = $res->fetch_assoc();
-  return (float)($row['s'] ?? 0);
+  if (!$row) return ['value' => null, 'error' => 'no_row'];
+  return ['value' => $row[$field] ?? null, 'error' => null];
 }
 
 function ms_status_counts(mysqli $db, string $table, string $statusCol = 'status'): array {
@@ -46,19 +82,41 @@ function ms_status_counts(mysqli $db, string $table, string $statusCol = 'status
 $modules = [];
 
 try {
-  $vehiclesTotal = ms_table_exists($db, 'vehicles') ? ms_count($db, "SELECT COUNT(*) AS c FROM vehicles") : 0;
-  $operatorsTotal = ms_table_exists($db, 'operators') ? ms_count($db, "SELECT COUNT(*) AS c FROM operators") : 0;
-  $routesActive = ms_table_exists($db, 'routes') ? ms_count($db, "SELECT COUNT(*) AS c FROM routes WHERE status IS NULL OR status='Active'") : 0;
-  $pendingVehicleSub = ms_table_exists($db, 'vehicle_submissions') ? ms_count($db, "SELECT COUNT(*) AS c FROM vehicle_submissions WHERE status='Pending'") : null;
-  $pendingOperatorSub = ms_table_exists($db, 'operator_submissions') ? ms_count($db, "SELECT COUNT(*) AS c FROM operator_submissions WHERE status='Pending'") : null;
+  $tVehicles = ms_pick_table($db, ['vehicles', 'vehicle']);
+  $tOperators = ms_pick_table($db, ['operators', 'operator']);
+  $tRoutes = ms_pick_table($db, ['routes', 'route']);
+  $tVehicleSub = ms_pick_table($db, ['vehicle_submissions']);
+  $tOperatorSub = ms_pick_table($db, ['operator_submissions']);
+  if ($debug) {
+    $diagnostics['picked']['vehicles_table'] = $tVehicles;
+    $diagnostics['picked']['operators_table'] = $tOperators;
+    $diagnostics['picked']['routes_table'] = $tRoutes;
+  }
+
+  $vehiclesTotalR = $tVehicles ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tVehicles}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $operatorsTotalR = $tOperators ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tOperators}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $routesActiveR = $tRoutes ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tRoutes} WHERE status IS NULL OR status='Active'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $pendingVehicleSubR = $tVehicleSub ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tVehicleSub} WHERE status='Pending'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $pendingOperatorSubR = $tOperatorSub ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tOperatorSub} WHERE status='Pending'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  if ($debug) {
+    foreach ([
+      'vehicles_total' => $vehiclesTotalR,
+      'operators_total' => $operatorsTotalR,
+      'routes_active' => $routesActiveR,
+      'pending_vehicle_submissions' => $pendingVehicleSubR,
+      'pending_operator_submissions' => $pendingOperatorSubR,
+    ] as $k => $r) {
+      if (($r['error'] ?? null) !== null) $diagnostics['errors'][$k] = (string)$r['error'];
+    }
+  }
 
   $m1Stats = [
-    ['label' => 'Vehicles', 'value' => $vehiclesTotal],
-    ['label' => 'Operators', 'value' => $operatorsTotal],
-    ['label' => 'Active routes', 'value' => $routesActive],
+    ['label' => 'Vehicles', 'value' => $vehiclesTotalR['value'] !== null ? (int)$vehiclesTotalR['value'] : null],
+    ['label' => 'Operators', 'value' => $operatorsTotalR['value'] !== null ? (int)$operatorsTotalR['value'] : null],
+    ['label' => 'Active routes', 'value' => $routesActiveR['value'] !== null ? (int)$routesActiveR['value'] : null],
   ];
-  if ($pendingVehicleSub !== null) $m1Stats[] = ['label' => 'Pending vehicle submissions', 'value' => $pendingVehicleSub];
-  if ($pendingOperatorSub !== null) $m1Stats[] = ['label' => 'Pending operator submissions', 'value' => $pendingOperatorSub];
+  if ($tVehicleSub) $m1Stats[] = ['label' => 'Pending vehicle submissions', 'value' => $pendingVehicleSubR['value'] !== null ? (int)$pendingVehicleSubR['value'] : null];
+  if ($tOperatorSub) $m1Stats[] = ['label' => 'Pending operator submissions', 'value' => $pendingOperatorSubR['value'] !== null ? (int)$pendingOperatorSubR['value'] : null];
 
   $modules[] = [
     'id' => 'module1',
@@ -68,11 +126,12 @@ try {
     'stats' => $m1Stats,
   ];
 
-  $faExists = ms_table_exists($db, 'franchise_applications');
-  $faTotal = $faExists ? ms_count($db, "SELECT COUNT(*) AS c FROM franchise_applications") : 0;
-  $faPending = $faExists ? ms_count($db, "SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending'") : 0;
-  $faEndorsed = $faExists ? ms_count($db, "SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Endorsed'") : 0;
-  $faApproved = $faExists ? ms_count($db, "SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Approved'") : 0;
+  $tFranchise = ms_pick_table($db, ['franchise_applications', 'franchises', 'franchise_application']);
+  if ($debug) $diagnostics['picked']['franchise_table'] = $tFranchise;
+  $faTotalR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faPendingR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Pending'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faEndorsedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Endorsed'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faApprovedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Approved'", 'c') : ['value' => null, 'error' => 'missing_table'];
 
   $modules[] = [
     'id' => 'module2',
@@ -80,16 +139,26 @@ try {
     'icon' => 'file-badge',
     'link' => '?page=module2/submodule1',
     'stats' => [
-      ['label' => 'Applications', 'value' => $faTotal],
-      ['label' => 'Pending', 'value' => $faPending],
-      ['label' => 'Endorsed', 'value' => $faEndorsed],
-      ['label' => 'Approved', 'value' => $faApproved],
+      ['label' => 'Applications', 'value' => $faTotalR['value'] !== null ? (int)$faTotalR['value'] : null],
+      ['label' => 'Pending', 'value' => $faPendingR['value'] !== null ? (int)$faPendingR['value'] : null],
+      ['label' => 'Endorsed', 'value' => $faEndorsedR['value'] !== null ? (int)$faEndorsedR['value'] : null],
+      ['label' => 'Approved', 'value' => $faApprovedR['value'] !== null ? (int)$faApprovedR['value'] : null],
     ],
   ];
 
-  $ticketsToday = ms_table_exists($db, 'tickets') ? ms_count($db, "SELECT COUNT(*) AS c FROM tickets WHERE DATE(date_issued)=CURDATE()") : 0;
-  $ticketsOpen = ms_table_exists($db, 'tickets') ? ms_count($db, "SELECT COUNT(*) AS c FROM tickets WHERE status IN ('Pending','Validated','Escalated')") : 0;
-  $ticketRevenueToday = ms_table_exists($db, 'ticket_payments') ? ms_sum($db, "SELECT SUM(amount_paid) AS s FROM ticket_payments WHERE DATE(paid_at)=CURDATE()") : 0.0;
+  $tTickets = ms_pick_table($db, ['tickets', 'violations']);
+  $tTicketPayments = ms_pick_table($db, ['ticket_payments']);
+  $ticketsDateCol = $tTickets ? ms_pick_column($db, $tTickets, ['date_issued', 'created_at', 'issued_at', 'date_created']) : null;
+  $tpPaidAtCol = $tTicketPayments ? ms_pick_column($db, $tTicketPayments, ['paid_at', 'created_at']) : null;
+  if ($debug) {
+    $diagnostics['picked']['tickets_table'] = $tTickets;
+    $diagnostics['picked']['tickets_date_col'] = $ticketsDateCol;
+    $diagnostics['picked']['ticket_payments_table'] = $tTicketPayments;
+    $diagnostics['picked']['ticket_payments_paid_col'] = $tpPaidAtCol;
+  }
+  $ticketsTodayR = ($tTickets && $ticketsDateCol) ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTickets} WHERE DATE({$ticketsDateCol})=CURDATE()", 'c') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $ticketsOpenR = $tTickets ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTickets} WHERE status IN ('Pending','Validated','Escalated')", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $ticketRevenueTodayR = ($tTicketPayments && $tpPaidAtCol) ? ms_scalar($db, "SELECT SUM(amount_paid) AS s FROM {$tTicketPayments} WHERE DATE({$tpPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
 
   $modules[] = [
     'id' => 'module3',
@@ -97,19 +166,24 @@ try {
     'icon' => 'alert-octagon',
     'link' => '?page=module3/submodule1',
     'stats' => [
-      ['label' => 'Tickets today', 'value' => $ticketsToday],
-      ['label' => 'Open / unpaid', 'value' => $ticketsOpen],
-      ['label' => 'Collections today', 'value' => $ticketRevenueToday, 'format' => 'currency'],
+      ['label' => 'Tickets today', 'value' => $ticketsTodayR['value'] !== null ? (int)$ticketsTodayR['value'] : null],
+      ['label' => 'Open / unpaid', 'value' => $ticketsOpenR['value'] !== null ? (int)$ticketsOpenR['value'] : null],
+      ['label' => 'Collections today', 'value' => $ticketRevenueTodayR['value'] !== null ? (float)$ticketRevenueTodayR['value'] : null, 'format' => 'currency'],
     ],
   ];
 
-  $inspExists = ms_table_exists($db, 'inspection_schedules');
-  $inspTotal = $inspExists ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_schedules") : 0;
-  $inspScheduled = $inspExists ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Scheduled'") : 0;
-  $inspPendingVerify = $inspExists ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Pending Verification'") : 0;
-  $inspPendingAssign = $inspExists ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Pending Assignment'") : 0;
-  $inspCompleted = $inspExists ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_schedules WHERE status='Completed'") : 0;
-  $certIssued = ms_table_exists($db, 'inspection_certificates') ? ms_count($db, "SELECT COUNT(*) AS c FROM inspection_certificates") : 0;
+  $tInsp = ms_pick_table($db, ['inspection_schedules', 'inspections', 'inspection_schedule']);
+  $tCert = ms_pick_table($db, ['inspection_certificates']);
+  if ($debug) {
+    $diagnostics['picked']['inspection_schedules_table'] = $tInsp;
+    $diagnostics['picked']['inspection_certificates_table'] = $tCert;
+  }
+  $inspTotalR = $tInsp ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tInsp}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $inspScheduledR = $tInsp ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tInsp} WHERE status='Scheduled'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $inspPendingVerifyR = $tInsp ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tInsp} WHERE status='Pending Verification'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $inspPendingAssignR = $tInsp ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tInsp} WHERE status='Pending Assignment'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $inspCompletedR = $tInsp ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tInsp} WHERE status='Completed'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $certIssuedR = $tCert ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tCert}", 'c') : ['value' => null, 'error' => 'missing_table'];
 
   $modules[] = [
     'id' => 'module4',
@@ -117,31 +191,45 @@ try {
     'icon' => 'clipboard-check',
     'link' => '?page=module4/submodule1',
     'stats' => [
-      ['label' => 'Schedules', 'value' => $inspTotal],
-      ['label' => 'Scheduled', 'value' => $inspScheduled],
-      ['label' => 'Pending verification', 'value' => $inspPendingVerify],
-      ['label' => 'Pending assignment', 'value' => $inspPendingAssign],
-      ['label' => 'Completed', 'value' => $inspCompleted],
-      ['label' => 'Certificates issued', 'value' => $certIssued],
+      ['label' => 'Schedules', 'value' => $inspTotalR['value'] !== null ? (int)$inspTotalR['value'] : null],
+      ['label' => 'Scheduled', 'value' => $inspScheduledR['value'] !== null ? (int)$inspScheduledR['value'] : null],
+      ['label' => 'Pending verification', 'value' => $inspPendingVerifyR['value'] !== null ? (int)$inspPendingVerifyR['value'] : null],
+      ['label' => 'Pending assignment', 'value' => $inspPendingAssignR['value'] !== null ? (int)$inspPendingAssignR['value'] : null],
+      ['label' => 'Completed', 'value' => $inspCompletedR['value'] !== null ? (int)$inspCompletedR['value'] : null],
+      ['label' => 'Certificates issued', 'value' => $certIssuedR['value'] !== null ? (int)$certIssuedR['value'] : null],
     ],
   ];
 
-  $terminals = ms_table_exists($db, 'terminals') ? ms_count($db, "SELECT COUNT(*) AS c FROM terminals") : 0;
-  $areas = ms_table_exists($db, 'parking_areas') ? ms_count($db, "SELECT COUNT(*) AS c FROM parking_areas") : 0;
-  $slotsTotal = ms_table_exists($db, 'parking_slots') ? ms_count($db, "SELECT COUNT(*) AS c FROM parking_slots") : null;
-  $slotsOccupied = ms_table_exists($db, 'parking_slots') ? ms_count($db, "SELECT COUNT(*) AS c FROM parking_slots WHERE status='Occupied'") : null;
-  $slotRevenueToday = ms_table_exists($db, 'parking_payments') ? ms_sum($db, "SELECT SUM(amount) AS s FROM parking_payments WHERE DATE(paid_at)=CURDATE()") : 0.0;
-  $parkingTxRevenueToday = ms_table_exists($db, 'parking_transactions') ? ms_sum($db, "SELECT SUM(amount) AS s FROM parking_transactions WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND DATE(COALESCE(paid_at, created_at))=CURDATE()") : 0.0;
-  $parkingRevenueToday = $slotRevenueToday + $parkingTxRevenueToday;
+  $tTerminals = ms_pick_table($db, ['terminals', 'terminal']);
+  $tParkingAreas = ms_pick_table($db, ['parking_areas', 'parking_area']);
+  $tSlots = ms_pick_table($db, ['parking_slots', 'slots']);
+  $tParkingPayments = ms_pick_table($db, ['parking_payments']);
+  $tParkingTx = ms_pick_table($db, ['parking_transactions']);
+  $ppPaidAtCol = $tParkingPayments ? ms_pick_column($db, $tParkingPayments, ['paid_at', 'created_at']) : null;
+  $ptPaidAtCol = $tParkingTx ? ms_pick_column($db, $tParkingTx, ['paid_at', 'created_at']) : null;
+  if ($debug) {
+    $diagnostics['picked']['terminals_table'] = $tTerminals;
+    $diagnostics['picked']['parking_areas_table'] = $tParkingAreas;
+    $diagnostics['picked']['parking_slots_table'] = $tSlots;
+    $diagnostics['picked']['parking_payments_table'] = $tParkingPayments;
+    $diagnostics['picked']['parking_transactions_table'] = $tParkingTx;
+  }
+  $terminalsR = $tTerminals ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTerminals}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $areasR = $tParkingAreas ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tParkingAreas}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $slotsTotalR = $tSlots ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tSlots}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $slotsOccupiedR = $tSlots ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tSlots} WHERE status='Occupied'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $slotRevenueTodayR = ($tParkingPayments && $ppPaidAtCol) ? ms_scalar($db, "SELECT SUM(amount) AS s FROM {$tParkingPayments} WHERE DATE({$ppPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $parkingTxRevenueTodayR = $tParkingTx ? ms_scalar($db, "SELECT SUM(amount) AS s FROM {$tParkingTx} WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND DATE(COALESCE({$ptPaidAtCol}, created_at))=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $parkingRevenueToday = ($slotRevenueTodayR['value'] !== null ? (float)$slotRevenueTodayR['value'] : 0.0) + ($parkingTxRevenueTodayR['value'] !== null ? (float)$parkingTxRevenueTodayR['value'] : 0.0);
 
   $m5Stats = [
-    ['label' => 'Terminals', 'value' => $terminals],
-    ['label' => 'Parking areas', 'value' => $areas],
-    ['label' => 'Parking collections today', 'value' => $parkingRevenueToday, 'format' => 'currency'],
+    ['label' => 'Terminals', 'value' => $terminalsR['value'] !== null ? (int)$terminalsR['value'] : null],
+    ['label' => 'Parking areas', 'value' => $areasR['value'] !== null ? (int)$areasR['value'] : null],
+    ['label' => 'Parking collections today', 'value' => ($slotRevenueTodayR['value'] === null && $parkingTxRevenueTodayR['value'] === null) ? null : $parkingRevenueToday, 'format' => 'currency'],
   ];
-  if ($slotsTotal !== null && $slotsOccupied !== null) {
-    $m5Stats[] = ['label' => 'Slots', 'value' => $slotsTotal];
-    $m5Stats[] = ['label' => 'Occupied', 'value' => $slotsOccupied];
+  if ($tSlots) {
+    $m5Stats[] = ['label' => 'Slots', 'value' => $slotsTotalR['value'] !== null ? (int)$slotsTotalR['value'] : null];
+    $m5Stats[] = ['label' => 'Occupied', 'value' => $slotsOccupiedR['value'] !== null ? (int)$slotsOccupiedR['value'] : null];
   }
 
   $modules[] = [
@@ -152,14 +240,17 @@ try {
     'stats' => $m5Stats,
   ];
 
-  $commuters = ms_table_exists($db, 'commuters') ? ms_count($db, "SELECT COUNT(*) AS c FROM commuters") : null;
-  $portalOperators = ms_table_exists($db, 'operator_portal_users') ? ms_count($db, "SELECT COUNT(*) AS c FROM operator_portal_users") : null;
-  $complaints = ms_table_exists($db, 'complaints') ? ms_count($db, "SELECT COUNT(*) AS c FROM complaints") : null;
+  $tCommuters = ms_pick_table($db, ['commuters']);
+  $tPortalOps = ms_pick_table($db, ['operator_portal_users']);
+  $tComplaints = ms_pick_table($db, ['complaints']);
+  $commutersR = $tCommuters ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tCommuters}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $portalOperatorsR = $tPortalOps ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tPortalOps}", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $complaintsR = $tComplaints ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tComplaints}", 'c') : ['value' => null, 'error' => 'missing_table'];
 
   $mUserStats = [];
-  if ($commuters !== null) $mUserStats[] = ['label' => 'Commuters', 'value' => $commuters];
-  if ($portalOperators !== null) $mUserStats[] = ['label' => 'Operator portal users', 'value' => $portalOperators];
-  if ($complaints !== null) $mUserStats[] = ['label' => 'Complaints', 'value' => $complaints];
+  if ($tCommuters) $mUserStats[] = ['label' => 'Commuters', 'value' => $commutersR['value'] !== null ? (int)$commutersR['value'] : null];
+  if ($tPortalOps) $mUserStats[] = ['label' => 'Operator portal users', 'value' => $portalOperatorsR['value'] !== null ? (int)$portalOperatorsR['value'] : null];
+  if ($tComplaints) $mUserStats[] = ['label' => 'Complaints', 'value' => $complaintsR['value'] !== null ? (int)$complaintsR['value'] : null];
 
   if (!empty($mUserStats)) {
     $modules[] = [
@@ -180,5 +271,5 @@ echo json_encode([
   'ok' => true,
   'generated_at' => date('c'),
   'modules' => $modules,
+  'diagnostics' => $debug ? $diagnostics : null,
 ]);
-
