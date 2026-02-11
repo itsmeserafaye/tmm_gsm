@@ -184,11 +184,13 @@ try {
   ];
 
   $tFranchise = ms_pick_table($db, ['franchise_applications', 'franchises', 'franchise_application']);
+  if (!$tFranchise) $tFranchise = ms_pick_table_by_columns($db, ['status', 'route_id'], ['franchise', 'application']);
+  if (!$tFranchise) $tFranchise = ms_pick_table_by_columns($db, ['status', 'application_id'], ['franchise', 'application']);
   if ($debug) $diagnostics['picked']['franchise_table'] = $tFranchise;
   $faTotalR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise}", 'c') : ['value' => null, 'error' => 'missing_table'];
-  $faPendingR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Pending'", 'c') : ['value' => null, 'error' => 'missing_table'];
-  $faEndorsedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Endorsed'", 'c') : ['value' => null, 'error' => 'missing_table'];
-  $faApprovedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status='Approved'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faPendingR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status LIKE 'Pending%'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faEndorsedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status IN ('Endorsed','LGU-Endorsed')", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $faApprovedR = $tFranchise ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tFranchise} WHERE status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued') OR status LIKE '%Approved%'", 'c') : ['value' => null, 'error' => 'missing_table'];
 
   $modules[] = [
     'id' => 'module2',
@@ -204,9 +206,14 @@ try {
   ];
 
   $tTickets = ms_pick_table($db, ['tickets', 'violations']);
+  if (!$tTickets) $tTickets = ms_pick_table_by_columns($db, ['status', 'date_issued'], ['ticket', 'violation']);
+  if (!$tTickets) $tTickets = ms_pick_table_by_columns($db, ['status', 'plate_number'], ['ticket', 'violation']);
+  if (!$tTickets) $tTickets = ms_pick_table_by_columns($db, ['status', 'location'], ['ticket', 'violation']);
   $tTicketPayments = ms_pick_table($db, ['ticket_payments']);
-  $ticketsDateCol = $tTickets ? ms_pick_column($db, $tTickets, ['date_issued', 'created_at', 'issued_at', 'date_created']) : null;
-  $tpPaidAtCol = $tTicketPayments ? ms_pick_column($db, $tTicketPayments, ['paid_at', 'created_at']) : null;
+  if (!$tTicketPayments) $tTicketPayments = ms_pick_table_by_columns($db, ['paid_at'], ['ticket', 'payment', 'fine']);
+  $ticketsDateCol = $tTickets ? ms_pick_column($db, $tTickets, ['date_issued', 'issued_date', 'violation_date', 'date', 'created_at', 'issued_at', 'date_created']) : null;
+  $tpPaidAtCol = $tTicketPayments ? ms_pick_column($db, $tTicketPayments, ['paid_at', 'payment_date', 'created_at']) : null;
+  $tpAmountCol = $tTicketPayments ? ms_pick_column($db, $tTicketPayments, ['amount_paid', 'amount', 'paid_amount', 'total_amount']) : null;
   if ($debug) {
     $diagnostics['picked']['tickets_table'] = $tTickets;
     $diagnostics['picked']['tickets_date_col'] = $ticketsDateCol;
@@ -214,8 +221,8 @@ try {
     $diagnostics['picked']['ticket_payments_paid_col'] = $tpPaidAtCol;
   }
   $ticketsTodayR = ($tTickets && $ticketsDateCol) ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTickets} WHERE DATE({$ticketsDateCol})=CURDATE()", 'c') : ['value' => null, 'error' => 'missing_table_or_column'];
-  $ticketsOpenR = $tTickets ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTickets} WHERE status IN ('Pending','Validated','Escalated')", 'c') : ['value' => null, 'error' => 'missing_table'];
-  $ticketRevenueTodayR = ($tTicketPayments && $tpPaidAtCol) ? ms_scalar($db, "SELECT SUM(amount_paid) AS s FROM {$tTicketPayments} WHERE DATE({$tpPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $ticketsOpenR = $tTickets ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tTickets} WHERE status IN ('Pending','Validated','Escalated') OR status LIKE 'Pending%'", 'c') : ['value' => null, 'error' => 'missing_table'];
+  $ticketRevenueTodayR = ($tTicketPayments && $tpPaidAtCol && $tpAmountCol) ? ms_scalar($db, "SELECT SUM({$tpAmountCol}) AS s FROM {$tTicketPayments} WHERE DATE({$tpPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
 
   $modules[] = [
     'id' => 'module3',
@@ -230,7 +237,12 @@ try {
   ];
 
   $tInsp = ms_pick_table($db, ['inspection_schedules', 'inspections', 'inspection_schedule']);
+  if (!$tInsp) $tInsp = ms_pick_table_by_columns($db, ['status', 'scheduled_at'], ['inspection', 'schedule']);
+  if (!$tInsp) $tInsp = ms_pick_table_by_columns($db, ['status', 'inspection_type'], ['inspection', 'schedule']);
+  if (!$tInsp) $tInsp = ms_pick_table_by_columns($db, ['status', 'plate_number'], ['inspection', 'schedule']);
   $tCert = ms_pick_table($db, ['inspection_certificates']);
+  if (!$tCert) $tCert = ms_pick_table_by_columns($db, ['schedule_id', 'certificate_number'], ['inspection', 'certificate']);
+  if (!$tCert) $tCert = ms_pick_table_by_columns($db, ['schedule_id'], ['inspection', 'certificate']);
   if ($debug) {
     $diagnostics['picked']['inspection_schedules_table'] = $tInsp;
     $diagnostics['picked']['inspection_certificates_table'] = $tCert;
@@ -258,12 +270,21 @@ try {
   ];
 
   $tTerminals = ms_pick_table($db, ['terminals', 'terminal']);
+  if (!$tTerminals) $tTerminals = ms_pick_table_by_columns($db, ['name', 'city'], ['terminal']);
+  if (!$tTerminals) $tTerminals = ms_pick_table_by_columns($db, ['name', 'address'], ['terminal']);
   $tParkingAreas = ms_pick_table($db, ['parking_areas', 'parking_area']);
+  if (!$tParkingAreas) $tParkingAreas = ms_pick_table_by_columns($db, ['terminal_id', 'name'], ['parking', 'area']);
+  if (!$tParkingAreas) $tParkingAreas = ms_pick_table_by_columns($db, ['terminal_id'], ['parking', 'area']);
   $tSlots = ms_pick_table($db, ['parking_slots', 'slots']);
+  if (!$tSlots) $tSlots = ms_pick_table_by_columns($db, ['status'], ['parking', 'slot']);
   $tParkingPayments = ms_pick_table($db, ['parking_payments']);
+  if (!$tParkingPayments) $tParkingPayments = ms_pick_table_by_columns($db, ['amount'], ['parking', 'payment']);
   $tParkingTx = ms_pick_table($db, ['parking_transactions']);
+  if (!$tParkingTx) $tParkingTx = ms_pick_table_by_columns($db, ['amount'], ['parking', 'transaction']);
   $ppPaidAtCol = $tParkingPayments ? ms_pick_column($db, $tParkingPayments, ['paid_at', 'created_at']) : null;
   $ptPaidAtCol = $tParkingTx ? ms_pick_column($db, $tParkingTx, ['paid_at', 'created_at']) : null;
+  $ppAmountCol = $tParkingPayments ? ms_pick_column($db, $tParkingPayments, ['amount', 'amount_paid', 'total_amount']) : null;
+  $ptAmountCol = $tParkingTx ? ms_pick_column($db, $tParkingTx, ['amount', 'amount_paid', 'total_amount']) : null;
   if ($debug) {
     $diagnostics['picked']['terminals_table'] = $tTerminals;
     $diagnostics['picked']['parking_areas_table'] = $tParkingAreas;
@@ -275,8 +296,8 @@ try {
   $areasR = $tParkingAreas ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tParkingAreas}", 'c') : ['value' => null, 'error' => 'missing_table'];
   $slotsTotalR = $tSlots ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tSlots}", 'c') : ['value' => null, 'error' => 'missing_table'];
   $slotsOccupiedR = $tSlots ? ms_scalar($db, "SELECT COUNT(*) AS c FROM {$tSlots} WHERE status='Occupied'", 'c') : ['value' => null, 'error' => 'missing_table'];
-  $slotRevenueTodayR = ($tParkingPayments && $ppPaidAtCol) ? ms_scalar($db, "SELECT SUM(amount) AS s FROM {$tParkingPayments} WHERE DATE({$ppPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
-  $parkingTxRevenueTodayR = $tParkingTx ? ms_scalar($db, "SELECT SUM(amount) AS s FROM {$tParkingTx} WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND DATE(COALESCE({$ptPaidAtCol}, created_at))=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $slotRevenueTodayR = ($tParkingPayments && $ppPaidAtCol && $ppAmountCol) ? ms_scalar($db, "SELECT SUM({$ppAmountCol}) AS s FROM {$tParkingPayments} WHERE DATE({$ppPaidAtCol})=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
+  $parkingTxRevenueTodayR = ($tParkingTx && $ptAmountCol) ? ms_scalar($db, "SELECT SUM({$ptAmountCol}) AS s FROM {$tParkingTx} WHERE UPPER(COALESCE(status,'Paid'))='PAID' AND DATE(COALESCE({$ptPaidAtCol}, created_at))=CURDATE()", 's') : ['value' => null, 'error' => 'missing_table_or_column'];
   $parkingRevenueToday = ($slotRevenueTodayR['value'] !== null ? (float)$slotRevenueTodayR['value'] : 0.0) + ($parkingTxRevenueTodayR['value'] !== null ? (float)$parkingTxRevenueTodayR['value'] : 0.0);
 
   $m5Stats = [
