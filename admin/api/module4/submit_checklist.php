@@ -124,8 +124,75 @@ if ($overall === '') {
     $overall = 'Pending';
   }
 }
+
+$requiredCodes = [
+  'RW_LIGHTS',
+  'RW_HORN',
+  'RW_BRAKES',
+  'RW_STEER',
+  'RW_TIRES',
+  'RW_WIPERS',
+  'RW_MIRRORS',
+  'RW_LEAKS',
+  'PS_DOORS',
+  'SE_EXT',
+  'SE_EWD',
+  'DOC_CR',
+  'DOC_OR',
+  'DOC_CMVI',
+  'DOC_CTPL',
+];
+
+$normalized = [];
+foreach ($items as $code => $status) {
+  $c = strtoupper(trim((string)$code));
+  if ($c === '') continue;
+  $v = normalize_item_status($status);
+  if ($v === '') $v = 'NA';
+  $normalized[$c] = $v;
+}
+
+$missingRequired = [];
+foreach ($requiredCodes as $rc) {
+  if (!isset($normalized[$rc]) || $normalized[$rc] === 'NA') {
+    $missingRequired[] = $rc;
+  }
+}
+if ($missingRequired) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'required_items_missing', 'required' => $missingRequired]);
+  exit;
+}
+
+if ($overall === 'Passed') {
+  foreach ($requiredCodes as $rc) {
+    if (($normalized[$rc] ?? 'NA') !== 'Pass') {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'passed_requires_required_pass', 'item_code' => $rc]);
+      exit;
+    }
+  }
+  foreach ($normalized as $c => $v) {
+    if ($v === 'Fail') {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'passed_has_fail', 'item_code' => $c]);
+      exit;
+    }
+  }
+} elseif ($overall === 'Failed') {
+  $anyFail = false;
+  foreach ($normalized as $v) {
+    if ($v === 'Fail') { $anyFail = true; break; }
+  }
+  if (!$anyFail) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'failed_requires_fail_item']);
+    exit;
+  }
+}
 $db->begin_transaction();
 try {
+  $existingRes = $db->prepare("SELECT result_id FROM inspection_results WHERE schedule_id=? ORDER BY submitted_at DESC LIMIT 1");
   $existingRes = $db->prepare("SELECT result_id FROM inspection_results WHERE schedule_id=? ORDER BY submitted_at DESC LIMIT 1");
   $resultId = 0;
   if ($existingRes) {

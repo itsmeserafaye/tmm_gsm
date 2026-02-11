@@ -125,6 +125,16 @@ $operatorName = $vehicle ? (string)($vehicle['operator_name'] ?? '') : '';
 $routeId = $vehicle ? (string)($vehicle['route_id'] ?? '') : '';
 $certRef = $vehicle ? (string)($vehicle['inspection_cert_ref'] ?? '') : '';
 
+$catFor = function (string $code): string {
+  $c = strtoupper(trim($code));
+  if (strpos($c, 'RW_') === 0) return 'Roadworthiness (Visual Check)';
+  if (strpos($c, 'PS_') === 0) return 'Passenger Safety';
+  if (strpos($c, 'SE_') === 0) return 'Safety Equipment (LGU Check)';
+  if (strpos($c, 'LGU_') === 0) return 'Operational Compliance (LGU)';
+  if (strpos($c, 'DOC_') === 0) return 'Document Presentation (For Verification Only)';
+  return 'Other / Legacy Items';
+};
+
 if ($format !== 'pdf') {
   header('Content-Type: text/html; charset=utf-8');
   $title = 'Inspection Checklist & Result - SCH-' . (int)$scheduleId;
@@ -178,16 +188,29 @@ if ($format !== 'pdf') {
     <?php if (!$checklist): ?>
       <div class="muted">No checklist data.</div>
     <?php else: ?>
+      <div class="muted">LGU checklist record for local operational monitoring. This does not replace LTO/CMVI testing or LTFRB franchise evaluation.</div>
       <table>
         <thead>
           <tr><th>Item</th><th>Status</th></tr>
         </thead>
         <tbody>
-          <?php foreach ($checklist as $c): ?>
-            <tr>
-              <td><?php echo htmlspecialchars(((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''))); ?></td>
-              <td><?php echo htmlspecialchars((string)($c['status'] ?? '')); ?></td>
-            </tr>
+          <?php
+            $grouped = [];
+            foreach ($checklist as $c) {
+              $code = (string)($c['item_code'] ?? '');
+              $cat = $catFor($code);
+              if (!isset($grouped[$cat])) $grouped[$cat] = [];
+              $grouped[$cat][] = $c;
+            }
+          ?>
+          <?php foreach ($grouped as $cat => $rows): ?>
+            <tr><th colspan="2" style="background:#f8fafc"><?php echo htmlspecialchars($cat); ?></th></tr>
+            <?php foreach ($rows as $c): ?>
+              <tr>
+                <td><?php echo htmlspecialchars(((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''))); ?></td>
+                <td><?php echo htmlspecialchars((string)($c['status'] ?? '')); ?></td>
+              </tr>
+            <?php endforeach; ?>
           <?php endforeach; ?>
         </tbody>
       </table>
@@ -231,11 +254,25 @@ if ($certRef !== '') $lines[] = 'Certificate Ref: ' . $certRef;
 $lines[] = str_repeat('-', 94);
 $lines[] = 'CHECKLIST';
 $lines[] = str_repeat('-', 94);
+$lines[] = 'LGU note: This checklist is for local operational monitoring; it does not replace LTO/CMVI testing or LTFRB evaluation.';
+$lines[] = 'Rule: Overall PASSED requires all required LGU items to be PASS (not N/A).';
+$lines[] = '';
 if ($checklist) {
+  $grouped = [];
   foreach ($checklist as $c) {
-    $lbl = ((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''));
-    $st = (string)($c['status'] ?? '');
-    $lines[] = sprintf("%-70s %s", substr($lbl, 0, 70), substr($st, 0, 20));
+    $code = (string)($c['item_code'] ?? '');
+    $cat = $catFor($code);
+    if (!isset($grouped[$cat])) $grouped[$cat] = [];
+    $grouped[$cat][] = $c;
+  }
+  foreach ($grouped as $cat => $rows) {
+    $lines[] = strtoupper($cat);
+    foreach ($rows as $c) {
+      $lbl = ((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''));
+      $st = (string)($c['status'] ?? '');
+      $lines[] = sprintf("%-70s %s", substr($lbl, 0, 70), substr($st, 0, 20));
+    }
+    $lines[] = '';
   }
 } else {
   $lines[] = 'No checklist data.';

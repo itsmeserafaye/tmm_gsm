@@ -22,7 +22,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Conduct Inspection</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Fill the checklist, submit pass/fail result, and upload inspection photos.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">LGU operational safety checklist for monitoring and local enforcement support. This does not replace LTO registration, CMVI/PMVIC testing, or LTFRB franchise evaluation.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module4/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -68,7 +68,46 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <?php
-            $items = [];
+            $catalog = [
+              'Roadworthiness (Visual Check)' => [
+                'RW_LIGHTS' => 'Head/Tail Lights, Signals, Brake Lights',
+                'RW_HORN' => 'Horn / Audible Warning',
+                'RW_BRAKES' => 'Brakes (Pedal Feel, Response, Leaks)',
+                'RW_STEER' => 'Steering (Play, Alignment Feel)',
+                'RW_SUSP' => 'Suspension (Noise, Stability)',
+                'RW_TIRES' => 'Tires (Tread, Condition, Pressure)',
+                'RW_WIPERS' => 'Wipers / Windshield Condition',
+                'RW_MIRRORS' => 'Mirrors (Left/Right/Rear)',
+                'RW_LEAKS' => 'Fluid Leaks (Oil/Coolant/Fuel)',
+              ],
+              'Passenger Safety' => [
+                'PS_SEATS' => 'Seats Secure / No Sharp Edges',
+                'PS_HANDHOLD' => 'Handholds / Grab Bars (if applicable)',
+                'PS_DOORS' => 'Doors & Locks Working',
+                'PS_WINDOWS' => 'Windows / Ventilation OK',
+                'PS_SEATBELT' => 'Seatbelts Present (if applicable)',
+              ],
+              'Safety Equipment (LGU Check)' => [
+                'SE_EXT' => 'Fire Extinguisher Present & Serviceable',
+                'SE_EWD' => 'Early Warning Device / Warning Triangles',
+                'SE_FIRSTAID' => 'First Aid Kit Present',
+                'SE_REFLECT' => 'Reflectors / Visibility Markings',
+              ],
+              'Operational Compliance (LGU)' => [
+                'LGU_SIGN' => 'Route/Line Signage Displayed',
+                'LGU_BODYNO' => 'Body Number / Unit Markings Visible',
+                'LGU_CAP' => 'Capacity Label / No Excess Seats',
+                'LGU_CLEAN' => 'Cleanliness / Passenger Area Condition',
+              ],
+              'Document Presentation (For Verification Only)' => [
+                'DOC_CR' => 'CR/OR-CR Presented (Ownership Proof)',
+                'DOC_OR' => 'OR Presented (Registration Payment Proof)',
+                'DOC_CMVI' => 'CMVI/PMVIC Certificate Presented (Roadworthiness Test)',
+                'DOC_CTPL' => 'CTPL Insurance Presented (Valid Coverage)',
+              ],
+            ];
+
+            $legacy = [];
             $resItems = $db->query("SELECT item_code, item_label
                                     FROM inspection_checklist_items
                                     WHERE COALESCE(item_code,'')<>'' AND COALESCE(item_label,'')<>''
@@ -79,18 +118,22 @@ if ($rootUrl === '/') $rootUrl = '';
               while ($r = $resItems->fetch_assoc()) {
                 $code = strtoupper(trim((string)($r['item_code'] ?? '')));
                 $label = trim((string)($r['item_label'] ?? ''));
-                if ($code !== '' && $label !== '') $items[$code] = $label;
+                if ($code !== '' && $label !== '') $legacy[$code] = $label;
               }
             }
-            if (!$items) {
-              $items = [
-                'LIGHTS' => 'Lights & Horn',
-                'BRAKES' => 'Brakes',
-                'EMISSION' => 'Emission & Smoke Test',
-                'TIRES' => 'Tires & Wipers',
-                'INTERIOR' => 'Interior Safety',
-                'DOCS' => 'Documents & Plate',
-              ];
+
+            $flat = [];
+            foreach ($catalog as $cat => $items) {
+              foreach ($items as $code => $label) {
+                $flat[$code] = $label;
+              }
+            }
+            $legacyExtra = [];
+            foreach ($legacy as $code => $label) {
+              if (!isset($flat[$code])) $legacyExtra[$code] = $label;
+            }
+            if ($legacyExtra) {
+              $catalog['Other / Legacy Items'] = $legacyExtra;
             }
 
             $existing = [];
@@ -119,17 +162,24 @@ if ($rootUrl === '/') $rootUrl = '';
               }
             }
           ?>
-          <?php foreach ($items as $code => $label): ?>
-            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-              <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($label); ?></div>
-              <div class="mt-2">
-                <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
-                <select name="items[<?php echo htmlspecialchars($code); ?>]" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <?php $sel = $existing[$code] ?? 'NA'; ?>
-                  <option value="Pass" <?php echo $sel === 'PASS' ? 'selected' : ''; ?>>Pass</option>
-                  <option value="Fail" <?php echo $sel === 'FAIL' ? 'selected' : ''; ?>>Fail</option>
-                  <option value="NA" <?php echo $sel === 'NA' ? 'selected' : ''; ?>>N/A</option>
-                </select>
+          <?php foreach ($catalog as $catLabel => $items): ?>
+            <div class="md:col-span-2">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2"><?php echo htmlspecialchars($catLabel); ?></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <?php foreach ($items as $code => $label): ?>
+                  <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                    <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($label); ?></div>
+                    <div class="mt-2">
+                      <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
+                      <select name="items[<?php echo htmlspecialchars($code); ?>]" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                        <?php $sel = $existing[$code] ?? 'NA'; ?>
+                        <option value="Pass" <?php echo $sel === 'PASS' ? 'selected' : ''; ?>>Pass</option>
+                        <option value="Fail" <?php echo $sel === 'FAIL' ? 'selected' : ''; ?>>Fail</option>
+                        <option value="NA" <?php echo $sel === 'NA' ? 'selected' : ''; ?>>N/A</option>
+                      </select>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
               </div>
             </div>
           <?php endforeach; ?>
@@ -219,8 +269,47 @@ if ($rootUrl === '/') $rootUrl = '';
           const fd = new FormData(form);
           const scheduleId = (fd.get('schedule_id') || '').toString();
           const overall = (fd.get('overall_status') || '').toString();
+          const required = new Set([
+            'RW_LIGHTS',
+            'RW_HORN',
+            'RW_BRAKES',
+            'RW_STEER',
+            'RW_TIRES',
+            'RW_WIPERS',
+            'RW_MIRRORS',
+            'RW_LEAKS',
+            'PS_DOORS',
+            'SE_EXT',
+            'SE_EWD',
+            'DOC_CR',
+            'DOC_OR',
+            'DOC_CMVI',
+            'DOC_CTPL'
+          ]);
+          const requiredMissing = [];
+          const requiredNotPass = [];
+          Array.from(form.querySelectorAll('select[name^="items["]')).forEach((s) => {
+            const name = String(s.getAttribute('name') || '');
+            const m = name.match(/^items\[(.+)\]$/);
+            if (!m) return;
+            const code = String(m[1] || '');
+            if (!required.has(code)) return;
+            const v = String(s.value || '');
+            if (v === 'NA' || v === '') requiredMissing.push(code);
+            else if (v !== 'Pass') requiredNotPass.push(code);
+          });
           const anyFail = Array.from(form.querySelectorAll('select[name^="items["]')).some((s) => (s.value || '') === 'Fail');
           const allPassOrNA = Array.from(form.querySelectorAll('select[name^="items["]')).every((s) => (s.value || '') !== 'Fail');
+          if (requiredMissing.length) {
+            showToast('Required checklist items cannot be N/A. Please complete: ' + requiredMissing.join(', '), 'error');
+            btn.disabled = false; btn.textContent = 'Submit Result';
+            return;
+          }
+          if (overall === 'Passed' && requiredNotPass.length) {
+            showToast('Overall result is Passed but required items are not Pass: ' + requiredNotPass.join(', '), 'error');
+            btn.disabled = false; btn.textContent = 'Submit Result';
+            return;
+          }
           if (overall === 'Passed' && anyFail) { showToast('Overall result is Passed but one or more checklist items are Fail.', 'error'); btn.disabled = false; btn.textContent = 'Submit Result'; return; }
           if (overall === 'Failed' && allPassOrNA) { showToast('Overall result is Failed but checklist items have no Fail.', 'error'); btn.disabled = false; btn.textContent = 'Submit Result'; return; }
 
