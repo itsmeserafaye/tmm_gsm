@@ -36,6 +36,18 @@
       b.setAttribute('aria-hidden', 'true');
       b.tabIndex = -1;
     }
+
+    var maybe = form.querySelectorAll('button:not([data-tmm-keep-submit="1"])');
+    for (var j = 0; j < maybe.length; j++) {
+      var x = maybe[j];
+      if (!x) continue;
+      var label = (x.textContent || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
+      if (label === 'apply' || label === 'search' || label === 'filter' || label === 'apply filters' || label === 'search now' || label === 'filter now') {
+        x.classList.add('hidden');
+        x.setAttribute('aria-hidden', 'true');
+        x.tabIndex = -1;
+      }
+    }
   }
 
   function trySubmit(form) {
@@ -94,4 +106,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-

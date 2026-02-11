@@ -488,7 +488,12 @@ if ($rootUrl === '/') $rootUrl = '';
         try {
           const res = await fetch(rootUrl + '/admin/api/module4/schedule_inspection.php', { method: 'POST', body: post });
           const data = await res.json();
-          if (!data || !data.ok || !data.schedule_id) throw new Error((data && data.error) ? data.error : 'save_failed');
+          if (!data || !data.ok || !data.schedule_id) {
+            if (data && data.error === 'duplicate_schedule' && data.schedule_id) {
+              throw new Error('Duplicate schedule detected. Open SCH-' + String(data.schedule_id) + ' instead.');
+            }
+            throw new Error((data && data.error) ? data.error : 'save_failed');
+          }
           if (data.updated) {
             showToast('Inspection rescheduled.');
             setTimeout(() => { window.location.href = '?page=module4/submodule3'; }, 500);

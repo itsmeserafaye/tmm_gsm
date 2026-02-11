@@ -11,9 +11,40 @@
     return true;
   }
 
+  function hasNearbySearch(table) {
+    var p = table && table.parentElement ? table.parentElement : null;
+    for (var depth = 0; depth < 4 && p; depth++) {
+      var inputs = p.querySelectorAll ? p.querySelectorAll('input') : [];
+      for (var i = 0; i < inputs.length; i++) {
+        var el = inputs[i];
+        if (!el || el.disabled) continue;
+        if (table.contains(el)) continue;
+        var type = (el.getAttribute('type') || '').toLowerCase();
+        if (type === 'hidden' || type === 'file' || type === 'password') continue;
+        var ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        var id = (el.getAttribute('id') || '').toLowerCase();
+        var name = (el.getAttribute('name') || '').toLowerCase();
+        if (type === 'search') return true;
+        if (ph.indexOf('search') !== -1) return true;
+        if (id.indexOf('search') !== -1) return true;
+        if (name === 'q' || name.indexOf('search') !== -1) return true;
+      }
+      var forms = p.querySelectorAll ? p.querySelectorAll('form') : [];
+      for (var j = 0; j < forms.length; j++) {
+        var f = forms[j];
+        if (!f || table.contains(f)) continue;
+        var method = (f.getAttribute('method') || 'GET').toUpperCase();
+        if (method === 'GET') return true;
+      }
+      p = p.parentElement;
+    }
+    return false;
+  }
+
   function ensureBar(table) {
     if (table.getAttribute('data-tmm-filterbar') === '1') return null;
     table.setAttribute('data-tmm-filterbar', '1');
+    if (hasNearbySearch(table)) return null;
     var wrap = table.parentElement;
     if (!wrap) return null;
     var bar = document.createElement('div');
@@ -65,4 +96,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 })();
-

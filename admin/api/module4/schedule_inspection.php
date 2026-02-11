@@ -221,7 +221,37 @@ $ensureEnumValue = function (string $table, string $col, string $value) use ($db
 $ensureEnumValue('inspection_schedules', 'status', 'Overdue');
 $ensureEnumValue('inspection_schedules', 'status', 'Overdue / No-Show');
 
+$activeDupStatusesSql = "status NOT IN ('Cancelled','Completed')";
+$dupSql = '';
+$dupTypes = '';
+$dupParams = [];
+if ($inspectionType === 'Annual') {
+  $dupSql = "SELECT schedule_id FROM inspection_schedules
+             WHERE vehicle_id=? AND inspection_type=? AND DATE(COALESCE(schedule_date, scheduled_at))=DATE(?) AND $activeDupStatusesSql";
+  $dupTypes = 'iss';
+  $dupParams = [$vehIdDb, $inspectionType, $scheduledAt];
+} else {
+  $dupSql = "SELECT schedule_id FROM inspection_schedules
+             WHERE vehicle_id=? AND inspection_type=? AND COALESCE(schedule_date, scheduled_at)=? AND $activeDupStatusesSql";
+  $dupTypes = 'iss';
+  $dupParams = [$vehIdDb, $inspectionType, $scheduledAt];
+}
+
 if ($scheduleId > 0) {
+  $stmtDup = $db->prepare($dupSql . " AND schedule_id<>? LIMIT 1");
+  if ($stmtDup) {
+    $t = $dupTypes . 'i';
+    $p = array_merge($dupParams, [$scheduleId]);
+    $stmtDup->bind_param($t, ...$p);
+    $stmtDup->execute();
+    $dup = $stmtDup->get_result()->fetch_assoc();
+    $stmtDup->close();
+    if ($dup && (int)($dup['schedule_id'] ?? 0) > 0) {
+      http_response_code(409);
+      echo json_encode(['ok' => false, 'error' => 'duplicate_schedule', 'schedule_id' => (int)($dup['schedule_id'] ?? 0)]);
+      exit;
+    }
+  }
   $stmtS = $db->prepare("SELECT status FROM inspection_schedules WHERE schedule_id=? LIMIT 1");
   if (!$stmtS) {
     http_response_code(500);
@@ -263,6 +293,19 @@ if ($scheduleId > 0) {
   }
   echo json_encode(['ok' => true, 'schedule_id' => $scheduleId, 'updated' => true]);
   exit;
+}
+
+$stmtDup = $db->prepare($dupSql . " LIMIT 1");
+if ($stmtDup) {
+  $stmtDup->bind_param($dupTypes, ...$dupParams);
+  $stmtDup->execute();
+  $dup = $stmtDup->get_result()->fetch_assoc();
+  $stmtDup->close();
+  if ($dup && (int)($dup['schedule_id'] ?? 0) > 0) {
+    http_response_code(409);
+    echo json_encode(['ok' => false, 'error' => 'duplicate_schedule', 'schedule_id' => (int)($dup['schedule_id'] ?? 0)]);
+    exit;
+  }
 }
 
 $stmt = $db->prepare("INSERT INTO inspection_schedules ({$colSql}) VALUES ({$placeholders})");
