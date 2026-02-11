@@ -28,6 +28,10 @@
   background-color: rgb(15 23 42 / 0.8) !important;
 }
 
+.tmm-sidebar-open-mobile .tmm-sticky-actionbar {
+  display: none !important;
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;

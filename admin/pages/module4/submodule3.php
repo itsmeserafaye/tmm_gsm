@@ -148,12 +148,12 @@ if ($rootUrl === '/') $rootUrl = '';
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight"><?php echo $scheduleId > 0 ? 'Reschedule Inspection' : 'Schedule Inspection'; ?></h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with recorded OR/CR can be scheduled. Reinspection is used after corrections from a failed result.</p>
     </div>
-    <div class="flex items-center gap-3">
-      <a href="?page=module4/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+      <a href="?page=module4/submodule4" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
         <i data-lucide="clipboard-check" class="w-4 h-4"></i>
         Conduct Inspection
       </a>
-      <a href="?page=module4/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=module4/submodule1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="list" class="w-4 h-4"></i>
         Back to List
       </a>
@@ -169,11 +169,11 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="text-sm font-black text-slate-900 dark:text-white">Overdue / No-Show (Needs Action)</div>
           <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Reschedule or cancel overdue schedules so they don’t stay stuck.</div>
         </div>
-        <form method="GET" class="flex items-center gap-2">
+        <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <input type="hidden" name="page" value="module4/submodule3">
-          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
-          <button class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Search</button>
-          <a href="?page=module4/submodule3" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm">Reset</a>
+          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
+          <button class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Search</button>
+          <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
         </form>
       </div>
       <div class="overflow-x-auto">
@@ -207,7 +207,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
                   <td class="py-3 px-4 hidden lg:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($rem !== '' ? $rem : '-'); ?></td>
                   <td class="py-3 px-4 text-right">
-                    <div class="flex items-center justify-end gap-2">
+                    <div class="flex flex-wrap items-center justify-end gap-2">
                       <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
                       <?php if (has_permission('module4.inspections.manage')): ?>
                         <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Cancel</button>

@@ -232,13 +232,13 @@ function get_setting($key, $default = '') {
             </div>
         </div>
 
-        <div class="sticky bottom-4 z-50">
-            <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
+        <div class="tmm-sticky-actionbar sticky bottom-4 z-20">
+            <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-white/10">
                 <div class="flex items-center gap-3">
                     <i data-lucide="shield-alert" class="w-5 h-5 text-rose-400"></i>
                     <span class="text-sm font-medium">Strict security rules applied instantly.</span>
                 </div>
-                <button type="submit" id="btn-save-security" class="bg-rose-500 hover:bg-rose-400 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-rose-500/30 transition-all flex items-center gap-2">
+                <button type="submit" id="btn-save-security" class="w-full sm:w-auto bg-rose-500 hover:bg-rose-400 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-rose-500/30 transition-all flex items-center justify-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     Save Policies
                 </button>

@@ -349,13 +349,13 @@ function get_setting($key, $default = '') {
         </div>
 
         <!-- Action Bar -->
-        <div class="sticky bottom-4 z-50">
-            <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10">
+        <div class="tmm-sticky-actionbar sticky bottom-4 z-20">
+            <div class="bg-slate-900/90 dark:bg-slate-800/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border border-white/10">
                 <div class="flex items-center gap-3">
                     <i data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
                     <span class="text-sm font-medium">Changes take effect immediately.</span>
                 </div>
-                <button type="submit" id="btn-save-general" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-md shadow-sm transition-all flex items-center gap-2">
+                <button type="submit" id="btn-save-general" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-md shadow-sm transition-all flex items-center justify-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     Save Changes
                 </button>

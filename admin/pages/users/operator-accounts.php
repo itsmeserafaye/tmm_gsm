@@ -12,13 +12,13 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-7xl px-4 py-8 space-y-8">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+            <h1 class="text-3xl font-black text-slate-800 dark:text-white flex flex-wrap items-center gap-3 leading-tight">
                 <div class="p-3 bg-violet-500/10 rounded-2xl">
                     <i data-lucide="id-card" class="w-8 h-8 text-violet-500"></i>
                 </div>
                 Operator Portal Accounts
             </h1>
-            <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage operator portal logins (status, reset password, delete).</p>
+            <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-0 sm:ml-14">Manage operator portal logins (status, reset password, delete).</p>
         </div>
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
             <button type="button" onclick="syncOperatorPlates()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">

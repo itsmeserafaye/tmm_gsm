@@ -265,6 +265,11 @@ if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
       try { if (window.tailwind) { /* ensure repaint */ } } catch (e) { }
       setTimeout(function () { location.reload(); }, 0);
     }
+    function setSidebarOpenMobile(flag) {
+      try {
+        document.body.classList.toggle('tmm-sidebar-open-mobile', !!flag);
+      } catch (e) { }
+    }
     function initSidebar() {
       var sidebar = document.getElementById('sidebar');
       var overlay = document.getElementById('sidebar-overlay');
@@ -274,11 +279,13 @@ if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
         var open = localStorage.getItem('sidebarOpenMobile') === 'true';
         sidebar.classList.toggle('-translate-x-full', !open);
         overlay.classList.toggle('hidden', !open);
+        setSidebarOpenMobile(open);
         labels.forEach(el => el.classList.remove('hidden'));
         chevrons.forEach(el => el.classList.remove('hidden'));
       } else {
         var collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
         overlay.classList.add('hidden');
+        setSidebarOpenMobile(false);
         if (collapsed) {
           sidebar.classList.add('w-16');
           labels.forEach(el => el.classList.add('hidden'));
@@ -298,9 +305,11 @@ if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
       var chevrons = document.querySelectorAll('.sidebar-chevron');
       if (isMobile()) {
         var open = !overlay.classList.contains('hidden');
+        var nextOpen = !open;
         overlay.classList.toggle('hidden', open);
         sidebar.classList.toggle('-translate-x-full', open);
-        localStorage.setItem('sidebarOpenMobile', String(!open));
+        setSidebarOpenMobile(nextOpen);
+        localStorage.setItem('sidebarOpenMobile', String(nextOpen));
       } else {
         var collapsed = sidebar.classList.contains('w-16');
         if (collapsed) {
@@ -345,6 +354,7 @@ if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
         var sidebar = document.getElementById('sidebar');
         overlay.classList.add('hidden');
         sidebar.classList.add('-translate-x-full');
+        setSidebarOpenMobile(false);
         localStorage.setItem('sidebarOpenMobile', 'false');
       });
     }
