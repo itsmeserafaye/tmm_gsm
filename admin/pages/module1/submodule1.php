@@ -16,7 +16,8 @@ $type = trim((string)($_GET['operator_type'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $highlightId = (int)($_GET['highlight_operator_id'] ?? 0);
 
-$sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, address, contact_no, email, workflow_status, created_at
+$sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name, address, contact_no, email, workflow_status, created_at,
+               COALESCE(portal_user_id, 0) AS portal_user_id, COALESCE(submitted_by_name,'') AS submitted_by_name, submitted_at
         FROM operators";
 $conds = [];
 $params = [];
@@ -215,11 +216,11 @@ if ($rootUrl === '/') $rootUrl = '';
         <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
           <tr class="text-left text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Operator</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Type</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Address</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Contact</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Source</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Encoded By</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Encoded At</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Contact</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Status</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Created</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
         </thead>
@@ -247,25 +248,37 @@ if ($rootUrl === '/') $rootUrl = '';
                 $displayContact .= $emailLine;
                 $displayContact = trim($displayContact) !== '' ? $displayContact : '-';
               ?>
+              <?php
+                $portalUserId = (int)($row['portal_user_id'] ?? 0);
+                $submittedBy = trim((string)($row['submitted_by_name'] ?? ''));
+                $submittedAt = trim((string)($row['submitted_at'] ?? ''));
+                $sourceLabel = $portalUserId > 0 ? 'Operator Portal' : ($submittedBy !== '' ? 'Walk-in' : 'Unknown');
+                $whereLabel = $portalUserId > 0 ? 'Operator Portal' : ($submittedBy !== '' ? 'Admin Dashboard' : '-');
+                $whenLabel = $submittedAt !== '' ? $submittedAt : (string)($row['created_at'] ?? '');
+              ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
                 <td class="py-4 px-6">
                   <div class="font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($row['display_name'] ?? '')); ?></div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: <?php echo (int)$rid; ?></div>
                 </td>
-                <td class="py-4 px-4 hidden md:table-cell">
-                  <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/10"><?php echo htmlspecialchars((string)($row['operator_type'] ?? '')); ?></span>
+                <td class="py-4 px-4">
+                  <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $sourceLabel === 'Operator Portal' ? 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20' : ($sourceLabel === 'Walk-in' ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'); ?>">
+                    <?php echo htmlspecialchars($sourceLabel); ?>
+                  </span>
+                  <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">Type: <?php echo htmlspecialchars((string)($row['operator_type'] ?? '')); ?></div>
                 </td>
-                <td class="py-4 px-4 hidden lg:table-cell text-slate-600 dark:text-slate-300 font-medium">
-                  <?php echo htmlspecialchars((string)($row['address'] ?? '')); ?>
+                <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
+                  <?php echo htmlspecialchars($submittedBy !== '' ? $submittedBy : '-'); ?>
                 </td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">
+                <td class="py-4 px-4">
+                  <div class="text-sm font-bold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($whereLabel); ?></div>
+                  <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold"><?php echo htmlspecialchars($whenLabel !== '' ? $whenLabel : '-'); ?></div>
+                </td>
+                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium hidden md:table-cell">
                   <?php echo htmlspecialchars($displayContact); ?>
                 </td>
                 <td class="py-4 px-4">
                   <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
-                </td>
-                <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">
-                  <?php echo htmlspecialchars(date('M d, Y', strtotime((string)($row['created_at'] ?? 'now')))); ?>
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">

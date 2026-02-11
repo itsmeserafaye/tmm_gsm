@@ -24,7 +24,10 @@ if ($operatorId <= 0) {
     exit;
 }
 
-$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, workflow_status, created_at FROM operators WHERE id=? LIMIT 1");
+$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, workflow_status, created_at,
+                             COALESCE(portal_user_id,0) AS portal_user_id, COALESCE(submitted_by_name,'') AS submitted_by_name, submitted_at,
+                             COALESCE(approved_by_name,'') AS approved_by_name, approved_at
+                      FROM operators WHERE id=? LIMIT 1");
 if (!$stmt) {
     echo '<div class="text-sm text-slate-600">Database error.</div>';
     exit;
@@ -59,6 +62,15 @@ if ($displayContact !== '' && $emailLine !== '') {
 }
 $displayContact .= $emailLine;
 $displayContact = trim($displayContact) !== '' ? $displayContact : '-';
+
+$portalUserId = (int)($op['portal_user_id'] ?? 0);
+$submittedBy = trim((string)($op['submitted_by_name'] ?? ''));
+$submittedAt = trim((string)($op['submitted_at'] ?? ''));
+$approvedBy = trim((string)($op['approved_by_name'] ?? ''));
+$approvedAt = trim((string)($op['approved_at'] ?? ''));
+$sourceLabel = $portalUserId > 0 ? 'Operator Portal' : ($submittedBy !== '' ? 'Walk-in' : 'Unknown');
+$whereLabel = $portalUserId > 0 ? 'Operator Portal' : ($submittedBy !== '' ? 'Admin Dashboard' : '-');
+$whenLabel = $submittedAt !== '' ? $submittedAt : (string)($op['created_at'] ?? '');
 
 $docs = [];
 $stmtD = $db->prepare("SELECT doc_id, doc_type, file_path, uploaded_at, doc_status, remarks FROM operator_documents WHERE operator_id=? ORDER BY uploaded_at DESC");
@@ -109,6 +121,39 @@ if ($stmtV) {
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Created</div>
             <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string) ($op['created_at'] ?? '')); ?></div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Record Source</div>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $sourceLabel === 'Operator Portal' ? 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20' : ($sourceLabel === 'Walk-in' ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'); ?>"><?php echo htmlspecialchars($sourceLabel); ?></span>
+                <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/10"><?php echo htmlspecialchars($whereLabel); ?></span>
+            </div>
+            <div class="mt-3 grid grid-cols-1 gap-2 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Encoded By</div>
+                    <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($submittedBy !== '' ? $submittedBy : '-'); ?></div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Encoded Time</div>
+                    <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($whenLabel !== '' ? $whenLabel : '-'); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Approval</div>
+            <div class="grid grid-cols-1 gap-2 text-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved By</div>
+                    <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($approvedBy !== '' ? $approvedBy : '-'); ?></div>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved At</div>
+                    <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($approvedAt !== '' ? $approvedAt : '-'); ?></div>
+                </div>
+            </div>
         </div>
     </div>
 

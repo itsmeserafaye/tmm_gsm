@@ -131,6 +131,16 @@ $respTablesVer = 1;
 $respTablesPath = __DIR__ . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'responsive_tables.js';
 $respTablesTs = @filemtime($respTablesPath);
 if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
+
+$autoFilterFormsVer = 1;
+$autoFilterFormsPath = __DIR__ . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'auto_filter_forms.js';
+$autoFilterFormsTs = @filemtime($autoFilterFormsPath);
+if ($autoFilterFormsTs !== false) $autoFilterFormsVer = (int)$autoFilterFormsTs;
+
+$tableFilterVer = 1;
+$tableFilterPath = __DIR__ . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'table_filter.js';
+$tableFilterTs = @filemtime($tableFilterPath);
+if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
 ?>
 <!doctype html>
 <html lang="en">
@@ -196,6 +206,8 @@ if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
     window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
   </script>
   <script src="includes/responsive_tables.js?v=<?php echo (string)$respTablesVer; ?>" defer></script>
+  <script src="includes/table_filter.js?v=<?php echo (string)$tableFilterVer; ?>" defer></script>
+  <script src="includes/auto_filter_forms.js?v=<?php echo (string)$autoFilterFormsVer; ?>" defer></script>
   <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string)$formJsVer; ?>" defer></script>
 </head>
 

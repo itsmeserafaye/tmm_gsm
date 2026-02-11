@@ -115,6 +115,25 @@ $inspectors = [];
 $resI = $db->query("SELECT officer_id, COALESCE(NULLIF(name,''), NULLIF(full_name,'')) AS name, badge_no FROM officers WHERE active_status=1 ORDER BY COALESCE(NULLIF(name,''), NULLIF(full_name,'')) ASC LIMIT 500");
 if ($resI) while ($r = $resI->fetch_assoc()) $inspectors[] = $r;
 
+$listStatus = trim((string)($_GET['list_status'] ?? ''));
+$scheduleRows = [];
+$sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt,
+                COALESCE(NULLIF(s.inspector_label,''), COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''))) AS inspector_name
+         FROM inspection_schedules s
+         LEFT JOIN officers o ON o.officer_id=s.inspector_id
+         WHERE 1=1";
+if ($q !== '') {
+  $qv = $db->real_escape_string($q);
+  $sqlL .= " AND s.plate_number LIKE '%$qv%'";
+}
+if ($listStatus !== '') {
+  $sv = $db->real_escape_string($listStatus);
+  $sqlL .= " AND s.status='$sv'";
+}
+$sqlL .= " ORDER BY COALESCE(s.schedule_date, s.scheduled_at) DESC, s.schedule_id DESC LIMIT 500";
+$resL = $db->query($sqlL);
+if ($resL) while ($r = $resL->fetch_assoc()) $scheduleRows[] = $r;
+
 $overdueRows = [];
 $sqlOCols = [
   "s.schedule_id",
@@ -166,13 +185,19 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 space-y-4">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="text-sm font-black text-slate-900 dark:text-white">Overdue / No-Show (Needs Action)</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Reschedule or cancel overdue schedules so they don’t stay stuck.</div>
+          <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
         </div>
         <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <input type="hidden" name="page" value="module4/submodule3">
           <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
-          <button class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Search</button>
+          <select name="list_status" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <?php $ls = trim((string)($_GET['list_status'] ?? '')); ?>
+            <option value="" <?php echo $ls === '' ? 'selected' : ''; ?>>All Status</option>
+            <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
+              <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
+            <?php endforeach; ?>
+          </select>
           <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
         </form>
       </div>
@@ -184,19 +209,36 @@ if ($rootUrl === '/') $rootUrl = '';
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Date/Time</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Remarks</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Inspector</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Status</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-            <?php if ($overdueRows): ?>
-              <?php foreach ($overdueRows as $r): ?>
+            <?php if (!empty($scheduleRows)): ?>
+              <?php foreach ($scheduleRows as $r): ?>
                 <?php
                   $sid = (int)($r['schedule_id'] ?? 0);
                   $plate = (string)($r['plate_number'] ?? '');
                   $dt = (string)($r['sched_dt'] ?? '');
                   $loc = (string)($r['location'] ?? '');
-                  $rem = $schHasRemarks ? (string)($r['status_remarks'] ?? '') : '';
+                  $insp = (string)($r['inspector_name'] ?? '');
+                  $st = (string)($r['status'] ?? '');
+                  $isOverdue = in_array($st, ['Overdue / No-Show','Overdue'], true);
+                  $isReady = false;
+                  if ($dt !== '') {
+                    $ts = strtotime($dt);
+                    if ($ts) {
+                      $isReady = $ts <= time();
+                    }
+                  }
+                  $stBadge = $isOverdue
+                    ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
+                    : (in_array($st, ['Scheduled','Rescheduled'], true)
+                      ? 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20'
+                      : (in_array($st, ['Completed'], true)
+                        ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+                        : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'));
                 ?>
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                   <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
@@ -205,22 +247,90 @@ if ($rootUrl === '/') $rootUrl = '';
                     <?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?>
                   </td>
                   <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
-                  <td class="py-3 px-4 hidden lg:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($rem !== '' ? $rem : '-'); ?></td>
+                  <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insp !== '' ? $insp : '-'); ?></td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $stBadge; ?>"><?php echo htmlspecialchars($st !== '' ? $st : '-'); ?></span>
+                  </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex flex-wrap items-center justify-end gap-2">
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
-                      <?php if (has_permission('module4.inspections.manage')): ?>
-                        <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Cancel</button>
+                      <?php if ($isOverdue): ?>
+                        <button type="button" data-open-overdue="1" data-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Needs Action</button>
                       <?php endif; ?>
+                      <?php if ($isReady && in_array($st, ['Scheduled','Rescheduled'], true)): ?>
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">Conduct</a>
+                      <?php endif; ?>
+                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
                     </div>
                   </td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No overdue schedules found.</td></tr>
+              <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No schedules found.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalOverdue" class="fixed inset-0 z-[220] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-lg font-black text-slate-900 dark:text-white">Overdue / No-Show (Needs Action)</div>
+          <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">These schedules require reschedule or cancellation.</div>
+        </div>
+        <button type="button" data-modal-close class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+              <tr class="text-left text-slate-500 dark:text-slate-400">
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Schedule</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Date/Time</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Remarks</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+              <?php if (!empty($overdueRows)): ?>
+                <?php foreach ($overdueRows as $r): ?>
+                  <?php
+                    $sid = (int)($r['schedule_id'] ?? 0);
+                    $plate = (string)($r['plate_number'] ?? '');
+                    $dt = (string)($r['sched_dt'] ?? '');
+                    $loc = (string)($r['location'] ?? '');
+                    $rem = $schHasRemarks ? (string)($r['status_remarks'] ?? '') : '';
+                  ?>
+                  <tr data-overdue-row="<?php echo $sid; ?>" class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
+                    <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($plate); ?></td>
+                    <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold">
+                      <?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?>
+                    </td>
+                    <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
+                    <td class="py-3 px-4 hidden lg:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($rem !== '' ? $rem : '-'); ?></td>
+                    <td class="py-3 px-4 text-right">
+                      <div class="flex flex-wrap items-center justify-end gap-2">
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
+                        <?php if (has_permission('module4.inspections.manage')): ?>
+                          <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Cancel</button>
+                        <?php endif; ?>
+                      </div>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No overdue schedules found.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -415,5 +525,45 @@ if ($rootUrl === '/') $rootUrl = '';
         }
       });
     });
+
+    const modal = document.getElementById('modalOverdue');
+    function openOverdueModal(focusSid) {
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      try { document.body.style.overflow = 'hidden'; } catch (e) { }
+      const sid = String(focusSid || '').trim();
+      if (sid) {
+        const row = modal.querySelector('[data-overdue-row="' + sid.replace(/"/g, '') + '"]');
+        if (row && typeof row.scrollIntoView === 'function') {
+          row.scrollIntoView({ block: 'center' });
+        }
+      }
+    }
+    function closeOverdueModal() {
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      try { document.body.style.overflow = ''; } catch (e) { }
+    }
+    document.querySelectorAll('[data-open-overdue="1"]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const sid = String(b.getAttribute('data-sid') || '').trim();
+        openOverdueModal(sid);
+      });
+    });
+    if (modal) {
+      modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeOverdueModal));
+      modal.addEventListener('click', (e) => {
+        if (e && e.target === modal) closeOverdueModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape' && !modal.classList.contains('hidden')) closeOverdueModal();
+      });
+    }
+    const overdueCount = <?php echo json_encode(count($overdueRows)); ?>;
+    if (overdueCount > 0) {
+      setTimeout(() => { openOverdueModal(''); }, 50);
+    }
   })();
 </script>

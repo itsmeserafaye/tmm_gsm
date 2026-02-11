@@ -6,10 +6,30 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+$q = trim((string)($_GET['q'] ?? ''));
+$resultFilter = trim((string)($_GET['result'] ?? ''));
 
 $schedules = [];
 $resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at FROM inspection_schedules WHERE status IN ('Scheduled','Rescheduled','Completed') ORDER BY COALESCE(schedule_date, scheduled_at) DESC LIMIT 500");
 if ($resS) while ($r = $resS->fetch_assoc()) $schedules[] = $r;
+
+$conductedRows = [];
+$sqlC = "SELECT i.inspection_id, i.schedule_id, i.vehicle_id, i.result, i.remarks, i.inspected_at,
+                s.plate_number, s.status AS schedule_status, s.location, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt
+         FROM inspections i
+         JOIN inspection_schedules s ON s.schedule_id=i.schedule_id
+         WHERE 1=1";
+if ($q !== '') {
+  $qv = $db->real_escape_string($q);
+  $sqlC .= " AND (s.plate_number LIKE '%$qv%' OR s.location LIKE '%$qv%')";
+}
+if ($resultFilter !== '' && in_array($resultFilter, ['Passed','Failed'], true)) {
+  $rv = $db->real_escape_string($resultFilter);
+  $sqlC .= " AND i.result='$rv'";
+}
+$sqlC .= " ORDER BY i.inspected_at DESC, i.inspection_id DESC LIMIT 500";
+$resC = $db->query($sqlC);
+if ($resC) while ($r = $resC->fetch_assoc()) $conductedRows[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -24,12 +44,16 @@ if ($rootUrl === '/') $rootUrl = '';
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Conduct Inspection</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">LGU operational safety checklist for monitoring and local enforcement support. This does not replace LTO registration, CMVI/PMVIC testing, or LTFRB franchise evaluation.</p>
     </div>
-    <div class="flex items-center gap-3">
-      <a href="?page=module4/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+      <button type="button" id="btnOpenConduct" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+        <i data-lucide="check-square" class="w-4 h-4"></i>
+        Conduct Checklist
+      </button>
+      <a href="?page=module4/submodule3" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="calendar-plus" class="w-4 h-4"></i>
         Schedule Inspection
       </a>
-      <a href="?page=module4/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=module4/submodule1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="list" class="w-4 h-4"></i>
         Vehicle Registration List
       </a>
@@ -39,7 +63,86 @@ if ($rootUrl === '/') $rootUrl = '';
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-6 space-y-6">
+    <div class="p-6 space-y-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-sm font-black text-slate-900 dark:text-white">Conducted Inspections</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Inspection outcomes recorded from the checklist.</div>
+        </div>
+        <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <input type="hidden" name="page" value="module4/submodule4">
+          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate/location...">
+          <select name="result" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $resultFilter === '' ? 'selected' : ''; ?>>All Results</option>
+            <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
+            <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
+          </select>
+          <a href="?page=module4/submodule4" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
+        </form>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+            <tr class="text-left text-slate-500 dark:text-slate-400">
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Inspection</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Scheduled</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Result</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Inspected At</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            <?php if (!empty($conductedRows)): ?>
+              <?php foreach ($conductedRows as $r): ?>
+                <?php
+                  $sid = (int)($r['schedule_id'] ?? 0);
+                  $pid = (string)($r['plate_number'] ?? '');
+                  $dt = (string)($r['sched_dt'] ?? '');
+                  $loc = (string)($r['location'] ?? '');
+                  $res = (string)($r['result'] ?? '');
+                  $insAt = (string)($r['inspected_at'] ?? '');
+                  $badge = $res === 'Passed'
+                    ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+                    : 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
+                ?>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
+                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($pid); ?></td>
+                  <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?></td>
+                  <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
+                  <td class="py-3 px-4">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($res !== '' ? $res : '-'); ?></span>
+                  </td>
+                  <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-'); ?></td>
+                  <td class="py-3 px-4 text-right">
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">New Result</a>
+                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">View</a>
+                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">PDF</a>
+                    </div>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No inspections recorded yet.</td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalConduct" class="fixed inset-0 z-[220] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+      <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div class="text-lg font-black text-slate-900 dark:text-white">Conduct Inspection Checklist</div>
+        <button type="button" id="btnCloseConduct" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
       <form id="formConduct" class="space-y-6" enctype="multipart/form-data" novalidate>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -202,6 +305,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <button id="btnSubmit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit Result</button>
         </div>
       </form>
+      </div>
     </div>
   </div>
 </div>
@@ -214,6 +318,38 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnViewReport = document.getElementById('btnViewReport');
     const btnDownloadReport = document.getElementById('btnDownloadReport');
     const scheduleSelect = form ? form.querySelector('select[name="schedule_id"]') : null;
+    const modal = document.getElementById('modalConduct');
+    const btnOpen = document.getElementById('btnOpenConduct');
+    const btnClose = document.getElementById('btnCloseConduct');
+    const initialScheduleId = <?php echo json_encode($scheduleId); ?>;
+
+    function openModal() {
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      try { document.body.style.overflow = 'hidden'; } catch (e) { }
+    }
+
+    function closeModal() {
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      try { document.body.style.overflow = ''; } catch (e) { }
+    }
+
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e && e.target === modal) closeModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+      });
+    }
+    if (initialScheduleId && Number(initialScheduleId) > 0) {
+      setTimeout(openModal, 50);
+    }
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
