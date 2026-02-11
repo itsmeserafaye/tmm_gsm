@@ -159,7 +159,7 @@ $typesList = vehicle_types();
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Link Operator
       </a>
-      <div class="inline-flex items-center gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+      <div class="w-full flex items-start gap-2 rounded-md bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
         <i data-lucide="info" class="w-4 h-4"></i>
         Vehicle encoding is submitted via Operator Portal. Use Assisted Encoding for walk-ins.
       </div>
@@ -213,14 +213,14 @@ $typesList = vehicle_types();
         <div class="text-lg font-bold text-slate-900 dark:text-white">Vehicle Encoding Submissions</div>
         <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Submitted by operators via Operator Portal. Approve or reject to finalize the official vehicle record.</div>
       </div>
-      <div class="flex gap-2">
-        <select id="vehSubStatus" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <select id="vehSubStatus" class="w-full sm:w-auto rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
           <option value="Submitted">Submitted</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
         </select>
-        <input id="vehSubQ" class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate/type…">
-        <button id="btnReloadVehSubs" class="rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+        <input id="vehSubQ" class="w-full sm:w-56 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate/type…">
+        <button id="btnReloadVehSubs" class="w-full sm:w-auto rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
       </div>
     </div>
 
@@ -305,14 +305,14 @@ $typesList = vehicle_types();
             class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
         <button
-          class="inline-flex items-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
         <a href="?page=puv-database/vehicle-encoding"
-          class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
       </div>
