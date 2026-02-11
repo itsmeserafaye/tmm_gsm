@@ -19,9 +19,11 @@ $orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
 $orNumber = substr($orNumber, 0, 12);
 $orDate = trim((string)($_POST['or_date'] ?? ''));
 $orExpiry = trim((string)($_POST['or_expiry_date'] ?? ''));
+$insuranceExpiry = trim((string)($_POST['insurance_expiry_date'] ?? ''));
 $regYear = trim((string)($_POST['registration_year'] ?? ''));
 
 $hasOrFile = isset($_FILES['or_file']) && is_array($_FILES['or_file']) && (int)($_FILES['or_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+$hasInsuranceFile = isset($_FILES['insurance_file']) && is_array($_FILES['insurance_file']) && (int)($_FILES['insurance_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
 
 if ($vehicleId <= 0) {
   http_response_code(400);
@@ -39,6 +41,11 @@ if ($orExpiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $orExpiry)) {
   echo json_encode(['ok' => false, 'error' => 'invalid_or_expiry_date']);
   exit;
 }
+if ($insuranceExpiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $insuranceExpiry)) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'invalid_insurance_expiry_date']);
+  exit;
+}
 if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'invalid_or_number']);
@@ -52,6 +59,11 @@ if ($regYear !== '' && !preg_match('/^\d{4}$/', $regYear)) {
 if ($hasOrFile && $orExpiry === '') {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'or_expiry_required']);
+  exit;
+}
+if ($hasInsuranceFile && $insuranceExpiry === '') {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'insurance_expiry_required']);
   exit;
 }
 
@@ -155,6 +167,86 @@ $computeRegStatus = function () use ($orExpiry, $orNumber, $orDate, $hasOrFile):
 
 $registrationStatus = $computeRegStatus();
 
+$getDocState = function () use ($db, $vehicleId, $plate, $registrationStatus, $hasCol): array {
+  $today = date('Y-m-d');
+  $out = [
+    'cr_present' => false,
+    'or_present' => $registrationStatus === 'Registered',
+    'or_valid' => $registrationStatus === 'Registered',
+    'insurance_present' => false,
+    'insurance_valid' => false,
+  ];
+
+  $docsHasExpiry = $hasCol('documents', 'expiry_date');
+  $expSel = $docsHasExpiry ? 'expiry_date' : 'NULL';
+  $stmt = $db->prepare("SELECT LOWER(type) AS t, {$expSel} AS expiry_date FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or','insurance')");
+  if ($stmt) {
+    $stmt->bind_param('s', $plate);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+      $t = (string)($row['t'] ?? '');
+      $exp = (string)($row['expiry_date'] ?? '');
+      if ($t === 'cr') {
+        $out['cr_present'] = true;
+      } elseif ($t === 'or') {
+        $out['or_present'] = true;
+        if ($exp === '' || $exp >= $today) $out['or_valid'] = true;
+      } elseif ($t === 'insurance') {
+        $out['insurance_present'] = true;
+        if ($exp === '' || $exp >= $today) $out['insurance_valid'] = true;
+      }
+    }
+    $stmt->close();
+  }
+
+  $vd = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
+  if ($vd && $vd->fetch_row()) {
+    $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
+    $cols = [];
+    while ($colsRes && ($r = $colsRes->fetch_assoc())) {
+      $cols[strtolower((string)($r['Field'] ?? ''))] = true;
+    }
+    $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
+    $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
+    $expCol = isset($cols['expiry_date']) ? 'expiry_date' : (isset($cols['expiration_date']) ? 'expiration_date' : null);
+    if ($idCol && $typeCol) {
+      $idIsInt = $idCol === 'vehicle_id';
+      $sql = "SELECT {$typeCol} AS t" . ($expCol ? ", {$expCol} AS exp" : ", NULL AS exp") .
+             " FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol}) IN ('CR','OR','INSURANCE')";
+      $stmt2 = $db->prepare($sql);
+      if ($stmt2) {
+        if ($idIsInt) $stmt2->bind_param('i', $vehicleId);
+        else $stmt2->bind_param('s', $plate);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        while ($row = $res2->fetch_assoc()) {
+          $t = strtoupper(trim((string)($row['t'] ?? '')));
+          $exp = (string)($row['exp'] ?? '');
+          if ($t === 'CR') {
+            $out['cr_present'] = true;
+          } elseif ($t === 'OR') {
+            $out['or_present'] = true;
+            if ($exp === '' || $exp >= $today) $out['or_valid'] = true;
+          } elseif ($t === 'INSURANCE') {
+            $out['insurance_present'] = true;
+            if ($exp === '' || $exp >= $today) $out['insurance_valid'] = true;
+          }
+        }
+        $stmt2->close();
+      }
+    }
+  }
+
+  if ($out['insurance_present'] && !$out['insurance_valid']) {
+    $out['insurance_valid'] = false;
+  }
+  if ($out['insurance_present'] === false) {
+    $out['insurance_valid'] = false;
+  }
+  return $out;
+};
+
 $db->begin_transaction();
 try {
   $ensureRegCols();
@@ -194,6 +286,25 @@ try {
     $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, 'or', ?, ?)");
     if (!$stmtD) throw new Exception('db_prepare_failed');
     $stmtD->bind_param('sss', $plate, $filename, $orExpiry);
+    if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
+    $stmtD->close();
+  }
+
+  if ($hasInsuranceFile) {
+    $uploadsDir = __DIR__ . '/../../uploads';
+    if (!is_dir($uploadsDir)) { @mkdir($uploadsDir, 0777, true); }
+    $name = (string)($_FILES['insurance_file']['name'] ?? '');
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) throw new Exception('invalid_insurance_file_type');
+    $filename = $plate . '_insurance_' . time() . '.' . $ext;
+    $dest = $uploadsDir . '/' . $filename;
+    if (!move_uploaded_file((string)$_FILES['insurance_file']['tmp_name'], $dest)) throw new Exception('insurance_upload_move_failed');
+    $safe = tmm_scan_file_for_viruses($dest);
+    if (!$safe) { if (is_file($dest)) @unlink($dest); throw new Exception('file_failed_security_scan'); }
+
+    $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, 'insurance', ?, ?)");
+    if (!$stmtD) throw new Exception('db_prepare_failed');
+    $stmtD->bind_param('sss', $plate, $filename, $insuranceExpiry);
     if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
     $stmtD->close();
   }
@@ -240,8 +351,12 @@ try {
       }
     }
     $next = null;
-    if ($frOk && $insp === 'Passed' && $regOk) $next = 'Active';
-    else if ($insp === 'Passed' && $regOk) $next = 'Registered';
+    $docs = $getDocState();
+    $orOk = $docs['or_present'] && $docs['or_valid'];
+    $insOk = $docs['insurance_present'] && $docs['insurance_valid'];
+    $crOk = $docs['cr_present'];
+    if ($frOk && $insp === 'Passed' && $regOk && $crOk && $orOk && $insOk) $next = 'Active';
+    else if ($insp === 'Passed' && $regOk && $crOk && $orOk && $insOk) $next = 'Registered';
     if ($next !== null) {
       $stmtU = $db->prepare("UPDATE vehicles SET status=? WHERE id=?");
       if ($stmtU) {
@@ -253,7 +368,13 @@ try {
   }
 
   $db->commit();
-  echo json_encode(['ok' => true, 'message' => 'Vehicle registration saved', 'vehicle_id' => $vehicleId, 'registration_status' => $registrationStatus]);
+  $docs = $getDocState();
+  $req = [
+    'cr' => $docs['cr_present'],
+    'or' => $docs['or_present'] && $docs['or_valid'],
+    'insurance' => $docs['insurance_present'] && $docs['insurance_valid'],
+  ];
+  echo json_encode(['ok' => true, 'message' => 'Vehicle registration saved', 'vehicle_id' => $vehicleId, 'registration_status' => $registrationStatus, 'requirements' => $req]);
 } catch (Throwable $e) {
   $db->rollback();
   http_response_code(400);

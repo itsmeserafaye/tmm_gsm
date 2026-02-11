@@ -212,6 +212,7 @@ if ($itemStmt) {
     }
 
     if ($vehInspection === 'Passed') {
+      $today = date('Y-m-d');
       $frOk = false;
       if ($franchiseId !== '') {
         $stmtF = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? LIMIT 1");
@@ -225,6 +226,7 @@ if ($itemStmt) {
         }
       }
       $regOk = false;
+      $docsOk = ['cr' => false, 'insurance' => false];
       if ($vehicleId > 0) {
         $stmtR = $db->prepare("SELECT registration_status, orcr_no, orcr_date FROM vehicle_registrations WHERE vehicle_id=? LIMIT 1");
         if ($stmtR) {
@@ -236,8 +238,61 @@ if ($itemStmt) {
           $regOk = ($rr && in_array($rs, ['Registered','Recorded'], true) && trim((string)($rr['orcr_no'] ?? '')) !== '' && !empty($rr['orcr_date']));
         }
       }
-      if ($frOk && $regOk) $vehOperationalStatus = 'Active';
-      else if ($regOk) $vehOperationalStatus = 'Registered';
+      $docHasExpiry = false;
+      $chkExp = $db->query("SHOW TABLES LIKE 'documents'");
+      if ($chkExp && $chkExp->fetch_row()) {
+        $c1 = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
+        $docHasExpiry = (bool)($c1 && $c1->num_rows > 0);
+        $expSel = $docHasExpiry ? 'expiry_date' : 'NULL';
+        $stmtD = $db->prepare("SELECT LOWER(type) AS t, {$expSel} AS exp FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','insurance')");
+        if ($stmtD) {
+          $stmtD->bind_param('s', $vehPlate);
+          $stmtD->execute();
+          $resD = $stmtD->get_result();
+          while ($row = $resD->fetch_assoc()) {
+            $t = (string)($row['t'] ?? '');
+            $exp = (string)($row['exp'] ?? '');
+            if ($t === 'cr') {
+              $docsOk['cr'] = true;
+            } elseif ($t === 'insurance') {
+              if ($exp === '' || $exp >= $today) $docsOk['insurance'] = true;
+            }
+          }
+          $stmtD->close();
+        }
+      }
+
+      $vd = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
+      if ($vd && $vd->fetch_row() && !$docsOk['insurance']) {
+        $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
+        $cols = [];
+        while ($colsRes && ($r = $colsRes->fetch_assoc())) {
+          $cols[strtolower((string)($r['Field'] ?? ''))] = true;
+        }
+        $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
+        $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
+        $expCol = isset($cols['expiry_date']) ? 'expiry_date' : (isset($cols['expiration_date']) ? 'expiration_date' : null);
+        if ($idCol && $typeCol) {
+          $idIsInt = $idCol === 'vehicle_id';
+          $sql = "SELECT {$typeCol} AS t" . ($expCol ? ", {$expCol} AS exp" : ", NULL AS exp") .
+                 " FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol})='INSURANCE'";
+          $stmtVD = $db->prepare($sql);
+          if ($stmtVD) {
+            if ($idIsInt) $stmtVD->bind_param('i', $vehicleId);
+            else $stmtVD->bind_param('s', $vehPlate);
+            $stmtVD->execute();
+            $resVD = $stmtVD->get_result();
+            while ($row = $resVD->fetch_assoc()) {
+              $exp = (string)($row['exp'] ?? '');
+              if ($exp === '' || $exp >= $today) $docsOk['insurance'] = true;
+            }
+            $stmtVD->close();
+          }
+        }
+      }
+
+      if ($frOk && $regOk && $docsOk['cr'] && $docsOk['insurance']) $vehOperationalStatus = 'Active';
+      else if ($regOk && $docsOk['cr'] && $docsOk['insurance']) $vehOperationalStatus = 'Registered';
       else $vehOperationalStatus = 'Inspected';
     } else {
       $vehOperationalStatus = 'Pending Inspection';
@@ -298,7 +353,7 @@ if ($itemStmt) {
   }
 
   $db->commit();
-  echo json_encode(['ok' => true, 'overall_status' => $overall, 'result_id' => $resultId]);
+  echo json_encode(['ok' => true, 'overall_status' => $overall, 'result_id' => $resultId, 'vehicle_requirements' => $docsOk ?? null]);
 } catch (Throwable $e) {
   $db->rollback();
   http_response_code(500);

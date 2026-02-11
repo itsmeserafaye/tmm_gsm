@@ -234,21 +234,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
     </div>
   </div>
 
-  <div class="mb-10">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="p-2 rounded-lg bg-violet-600 shadow-lg shadow-violet-500/20">
-        <i data-lucide="layout-grid" class="w-5 h-5 text-white"></i>
-      </div>
-      <div class="min-w-0">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Module Summaries</h2>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Quick overview across all modules</p>
-      </div>
-      <div class="ml-auto text-xs font-bold text-slate-400" id="moduleSummaryHint"></div>
-    </div>
-
-    <div id="moduleSummaryGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
-  </div>
-
   <!-- Live Monitoring Section -->
   <div class="mb-10">
     <div class="flex items-center gap-3 mb-6">
@@ -645,8 +630,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
       var eventsHint = document.getElementById('eventsHint');
       var trafficNowValue = document.getElementById('trafficNowValue');
       var trafficNowHint = document.getElementById('trafficNowHint');
-      var moduleSummaryGrid = document.getElementById('moduleSummaryGrid');
-      var moduleSummaryHint = document.getElementById('moduleSummaryHint');
       var insightsOver = document.getElementById('insightsOver');
       var insightsUnder = document.getElementById('insightsUnder');
       var miniShortageBody = document.getElementById('miniShortageBody');
@@ -681,109 +664,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
         apiRoot = String(window.location.origin || '') + apiRootPath;
       }
       if (apiRoot.endsWith('/')) apiRoot = apiRoot.slice(0, -1);
-
-      function formatCurrencyPhp(v) {
-        if (v === null || v === undefined) return 'N/A';
-        var n = Number(v || 0);
-        if (Number.isNaN(n)) n = 0;
-        return '₱' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
-
-      function renderModuleSummaries(modules) {
-        if (!moduleSummaryGrid) return;
-        moduleSummaryGrid.innerHTML = '';
-        if (!modules || !modules.length) {
-          moduleSummaryGrid.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400 italic">No module summaries available.</div>';
-          return;
-        }
-
-        modules.forEach(function (m) {
-          var card = document.createElement('a');
-          card.href = (m && m.link) ? String(m.link) : '#';
-          card.className = 'group block bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1';
-
-          var icon = (m && m.icon) ? String(m.icon) : 'layers';
-          var title = (m && m.label) ? String(m.label) : 'Module';
-          var stats = (m && Array.isArray(m.stats)) ? m.stats : [];
-
-          var header = document.createElement('div');
-          header.className = 'flex items-start justify-between gap-4';
-
-          var left = document.createElement('div');
-          left.className = 'min-w-0';
-          var h = document.createElement('div');
-          h.className = 'flex items-center gap-3';
-          h.innerHTML =
-            '<div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">' +
-            '<i data-lucide="' + icon + '" class="w-5 h-5"></i>' +
-            '</div>' +
-            '<div class="min-w-0">' +
-              '<div class="text-sm font-black text-slate-900 dark:text-white truncate">' + title + '</div>' +
-              '<div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Summary</div>' +
-            '</div>';
-          left.appendChild(h);
-
-          var right = document.createElement('div');
-          right.className = 'shrink-0 text-xs font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1';
-          right.innerHTML = 'Open <i data-lucide="arrow-right" class="w-4 h-4"></i>';
-
-          header.appendChild(left);
-          header.appendChild(right);
-
-          var body = document.createElement('div');
-          body.className = 'mt-4 space-y-2';
-          stats.slice(0, 6).forEach(function (s) {
-            if (!s) return;
-            var label = (s.label !== undefined) ? String(s.label) : '';
-            var val = s.value;
-            var txt = '';
-            if (val === null || val === undefined) txt = 'N/A';
-            else if (s.format === 'currency') txt = formatCurrencyPhp(val);
-            else txt = String(val);
-            var row = document.createElement('div');
-            row.className = 'flex items-center justify-between gap-3 text-sm';
-            row.innerHTML =
-              '<div class="text-slate-600 dark:text-slate-300 font-medium">' + label + '</div>' +
-              '<div class="' + (txt === 'N/A' ? 'text-amber-700 dark:text-amber-300 font-black' : 'text-slate-900 dark:text-white font-black') + '">' + txt + '</div>';
-            body.appendChild(row);
-          });
-
-          card.appendChild(header);
-          card.appendChild(body);
-          moduleSummaryGrid.appendChild(card);
-        });
-
-        if (window.lucide) window.lucide.createIcons();
-      }
-
-      function loadModuleSummaries() {
-        if (!moduleSummaryGrid) return;
-        moduleSummaryGrid.innerHTML =
-          '<div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm animate-pulse">' +
-            '<div class="h-4 w-40 bg-slate-200 dark:bg-slate-700 rounded"></div>' +
-            '<div class="mt-4 space-y-3">' +
-              '<div class="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded"></div>' +
-              '<div class="h-3 w-5/6 bg-slate-200 dark:bg-slate-700 rounded"></div>' +
-              '<div class="h-3 w-4/6 bg-slate-200 dark:bg-slate-700 rounded"></div>' +
-            '</div>' +
-          '</div>';
-        if (moduleSummaryHint) moduleSummaryHint.textContent = 'Loading...';
-
-        var url = apiRoot + '/admin/api/dashboard/module_summaries.php';
-        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'include' })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data || !data.ok) throw new Error('failed');
-            if (moduleSummaryHint) moduleSummaryHint.textContent = data.generated_at ? ('Updated ' + String(data.generated_at)) : '';
-            renderModuleSummaries(data.modules);
-          })
-          .catch(function () {
-            if (moduleSummaryHint) moduleSummaryHint.textContent = '';
-            if (moduleSummaryGrid) {
-              moduleSummaryGrid.innerHTML = '<div class="text-sm text-rose-600 font-bold">Failed to load module summaries.</div>';
-            }
-          });
-      }
 
       function setActive(type) {
         currentType = type;
@@ -1894,8 +1774,6 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
             });
         });
       }
-
-      loadModuleSummaries();
 
       if (routeSupplyTitle && routeSupplyTitle.tagName === 'SELECT') {
         routeSupplyTitle.addEventListener('change', function () {

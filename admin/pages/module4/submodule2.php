@@ -18,7 +18,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Register Vehicle</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Vehicle must already exist in PUV DB and must be linked to an operator.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">To operate as a PUV: CR (ownership) + CMVI passed inspection + active franchise + OR + CTPL insurance.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module4/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -96,7 +96,7 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div id="regWrap" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 2: Registration (OR)</div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 2: LTO Registration (OR) + CTPL Insurance</div>
           <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
@@ -115,15 +115,24 @@ if ($rootUrl === '/') $rootUrl = '';
               <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR (required for activation)</label>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR</label>
               <input name="or_file" id="orFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
-              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">OR missing → Registered but INACTIVE. OR expired → Registration EXPIRED.</div>
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">OR missing/expired → cannot activate for PUV operations.</div>
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Expiry Date (CTPL)</label>
+              <input name="insurance_expiry_date" id="insExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="sm:col-span-1">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (CTPL)</label>
+              <input name="insurance_file" id="insFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Insurance missing/expired → cannot activate for PUV operations.</div>
             </div>
           </div>
           <div class="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black text-slate-500 dark:text-slate-400">System-controlled Status</div>
             <div id="regStatusHint" class="mt-1 text-sm font-black text-slate-900 dark:text-white">Pending</div>
-            <div id="opStatusHint" class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400"></div>
+            <div id="opStatusHint" class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Activation requires: CR + CMVI Passed + Active Franchise + OR + CTPL Insurance.</div>
           </div>
         </div>
 
@@ -163,6 +172,8 @@ if ($rootUrl === '/') $rootUrl = '';
     const orExpiry = document.getElementById('orExpiry');
     const regYear = document.getElementById('regYear');
     const orFile = document.getElementById('orFile');
+    const insExpiry = document.getElementById('insExpiry');
+    const insFile = document.getElementById('insFile');
     const regStatusHint = document.getElementById('regStatusHint');
     const opStatusHint = document.getElementById('opStatusHint');
 
@@ -217,6 +228,8 @@ if ($rootUrl === '/') $rootUrl = '';
     if (orDate) orDate.addEventListener('change', updateStatusHint);
     if (orExpiry) orExpiry.addEventListener('change', updateStatusHint);
     if (orFile) orFile.addEventListener('change', updateStatusHint);
+    if (insExpiry) insExpiry.addEventListener('change', updateStatusHint);
+    if (insFile) insFile.addEventListener('change', updateStatusHint);
     if (regYear) regYear.addEventListener('input', () => { regYear.value = String(regYear.value || '').replace(/\D+/g,'').slice(0,4); });
 
     async function loadVehicleInfo(vehicleId) {
