@@ -95,15 +95,15 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
         <div class="text-base font-black text-slate-900 dark:text-white">Recent Violations</div>
         <div class="text-sm text-slate-500 dark:text-slate-400">Monitor and update workflow status.</div>
       </div>
-      <div class="flex gap-2">
-        <select id="filterWorkflow" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <select id="filterWorkflow" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           <option value="">All</option>
           <option value="Pending">Pending</option>
           <option value="Verified">Verified</option>
           <option value="Closed">Closed</option>
         </select>
-        <input id="filterQ" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/type/location…">
-        <button id="btnReload" class="px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
+        <input id="filterQ" class="w-full sm:w-72 px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/type/location…">
+        <button id="btnReload" class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
       </div>
     </div>
     <div class="overflow-x-auto">

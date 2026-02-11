@@ -21,8 +21,8 @@ if ($rootUrl === '/') $rootUrl = '';
             </h1>
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage system users and their role assignments.</p>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="openUserModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <button onclick="openUserModal()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="plus" class="w-5 h-5"></i>
                 New Account
             </button>

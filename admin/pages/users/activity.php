@@ -183,12 +183,12 @@ if ($stmtA) {
         <div class="text-xs font-bold text-slate-500">
           Page <?php echo $page; ?> of <?php echo $totalPages; ?>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <?php if ($page > 1): ?>
-            <a href="?page=users/activity&q=<?php echo urlencode($q); ?>&p=<?php echo $page - 1; ?>" class="px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all">Previous</a>
+            <a href="?page=users/activity&q=<?php echo urlencode($q); ?>&p=<?php echo $page - 1; ?>" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold transition-all text-center">Previous</a>
           <?php endif; ?>
           <?php if ($page < $totalPages): ?>
-            <a href="?page=users/activity&q=<?php echo urlencode($q); ?>&p=<?php echo $page + 1; ?>" class="px-3 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all">Next</a>
+            <a href="?page=users/activity&q=<?php echo urlencode($q); ?>&p=<?php echo $page + 1; ?>" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all text-center">Next</a>
           <?php endif; ?>
         </div>
       </div>

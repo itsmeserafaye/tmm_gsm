@@ -104,16 +104,16 @@ if ($rootUrl === '/') $rootUrl = '';
         <button class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Load</button>
       </form>
 
-      <div class="flex items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
         <a href="?page=parking/slots-payments&<?php echo http_build_query(['terminal_id'=>$terminalId,'tab'=>'slots']); ?>"
-          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $tab === 'slots' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          class="w-full sm:w-auto px-4 py-2.5 rounded-md text-sm font-semibold border text-center <?php echo $tab === 'slots' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
           Slots
         </a>
         <a href="?page=parking/slots-payments&<?php echo http_build_query(['terminal_id'=>$terminalId,'tab'=>'payments']); ?>"
-          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $tab === 'payments' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          class="w-full sm:w-auto px-4 py-2.5 rounded-md text-sm font-semibold border text-center <?php echo $tab === 'payments' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
           Payments
         </a>
-        <div class="flex-1 text-right text-xs text-slate-500 dark:text-slate-400 font-semibold">
+        <div class="flex-1 sm:text-right text-xs text-slate-500 dark:text-slate-400 font-semibold">
           <?php echo htmlspecialchars($terminalName !== '' ? $terminalName : ''); ?>
         </div>
       </div>
@@ -214,7 +214,7 @@ if ($rootUrl === '/') $rootUrl = '';
           return `
             <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 mb-2">
               <div class="font-black text-slate-800 dark:text-white">${(s.slot_no || '').toString()}</div>
-              <div class="flex items-center gap-2">
+              <div class="flex flex-wrap items-center justify-end gap-2">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-black ${badge}">${st}</span>
                 ${actions}
               </div>

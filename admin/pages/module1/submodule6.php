@@ -111,9 +111,9 @@ if ($params) {
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Routes & LPTRP</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Define authorized routes, set capacity limits, and use route availability as the basis for franchise endorsement.</p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
       <?php if ($canManage): ?>
-        <button type="button" id="btnAddRoute" class="inline-flex items-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+        <button type="button" id="btnAddRoute" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="plus" class="w-4 h-4"></i>
           Add Route
         </button>
@@ -164,12 +164,12 @@ if ($params) {
           <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=puv-database/routes-lptrp" class="inline-flex items-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <a href="?page=puv-database/routes-lptrp" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
       </div>

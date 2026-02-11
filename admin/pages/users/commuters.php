@@ -20,8 +20,8 @@ if ($rootUrl === '/') $rootUrl = '';
             </h1>
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage public commuter accounts (status, reset password, delete).</p>
         </div>
-        <div class="flex items-center gap-2">
-            <button type="button" onclick="loadCommuterAccounts(true)" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <button type="button" onclick="loadCommuterAccounts(true)" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 Refresh
             </button>

@@ -74,9 +74,9 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Linked Violation (optional)</label>
-            <div class="flex gap-2">
+            <div class="flex flex-col sm:flex-row gap-2">
               <input id="linkedViolationId" name="linked_violation_id" inputmode="numeric" pattern="^[0-9]{0,10}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Violation ID">
-              <button type="button" id="btnFindViolation" class="px-4 py-2.5 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Find</button>
+              <button type="button" id="btnFindViolation" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Find</button>
             </div>
             <div id="violationPickPanel" class="mt-2 hidden rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
               <div class="p-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
@@ -108,15 +108,15 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
         <div class="text-base font-black text-slate-900 dark:text-white">STS Tickets</div>
         <div class="text-sm text-slate-500 dark:text-slate-400">Track payment and closure status.</div>
       </div>
-      <div class="flex gap-2">
-        <select id="filterStatus" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <select id="filterStatus" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           <option value="">All</option>
           <option value="Pending Payment">Pending Payment</option>
           <option value="Paid">Paid</option>
           <option value="Closed">Closed</option>
         </select>
-        <input id="filterQ" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ticket/plate…">
-        <button id="btnReload" class="px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
+        <input id="filterQ" class="w-full sm:w-72 px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ticket/plate…">
+        <button id="btnReload" class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
       </div>
     </div>
     <div class="overflow-x-auto">

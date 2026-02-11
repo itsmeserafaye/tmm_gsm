@@ -416,7 +416,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="text-sm font-black text-slate-900 dark:text-white">Routes & Fares</div>
             <div id="terminalRoutesModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
             <button type="button" id="btnEditTerminalRoutes" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">Edit</button>
             <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
               <i data-lucide="x" class="w-4 h-4"></i>
@@ -440,10 +440,10 @@ if ($rootUrl === '/') $rootUrl = '';
           </table>
         </div>
         <div id="terminalRoutesEdit" class="hidden p-4 overflow-y-auto flex-1 space-y-3">
-          <div class="flex items-center gap-2">
-            <input id="terminalRoutesEditSearch" class="flex-1 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search route...">
-            <button type="button" id="btnTerminalRoutesSelectAll" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">All</button>
-            <button type="button" id="btnTerminalRoutesClearAll" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">None</button>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <input id="terminalRoutesEditSearch" class="w-full sm:flex-1 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search route...">
+            <button type="button" id="btnTerminalRoutesSelectAll" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">All</button>
+            <button type="button" id="btnTerminalRoutesClearAll" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">None</button>
           </div>
           <div id="terminalRoutesEditList" class="space-y-2"></div>
         </div>

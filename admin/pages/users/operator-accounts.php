@@ -20,12 +20,12 @@ if ($rootUrl === '/') $rootUrl = '';
             </h1>
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-14">Manage operator portal logins (status, reset password, delete).</p>
         </div>
-        <div class="flex items-center gap-2">
-            <button type="button" onclick="syncOperatorPlates()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <button type="button" onclick="syncOperatorPlates()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
                 Sync Plates
             </button>
-            <button type="button" onclick="loadOperatorAccounts(true)" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+            <button type="button" onclick="loadOperatorAccounts(true)" class="w-full sm:w-auto bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                 Refresh
             </button>
