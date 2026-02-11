@@ -231,8 +231,8 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
       </main>
     </div>
   </div>
-  <div id="tmm-session-toast" class="hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-[420px] z-[100] animate-slide-in">
-    <div class="pointer-events-auto px-5 py-5 rounded-2xl shadow-2xl border-2 border-amber-200 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100 hover-lift">
+  <div id="tmm-session-toast" class="hidden fixed inset-0 z-[420] bg-black/60 backdrop-blur-sm p-4 items-center justify-center">
+    <div class="w-full max-w-md pointer-events-auto px-5 py-5 rounded-2xl shadow-2xl border-2 border-amber-200 dark:border-amber-700 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-900 dark:to-slate-800 text-slate-900 dark:text-slate-100">
       <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3">
           <div class="mt-0.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
@@ -247,8 +247,8 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
-      <div class="mt-4 flex items-center justify-end gap-2">
-        <button type="button" id="tmm-session-stay" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200">Stay Logged In</button>
+      <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+        <button type="button" id="tmm-session-stay" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold shadow-lg transition-all duration-200">Stay Logged In</button>
       </div>
     </div>
   </div>
@@ -375,6 +375,24 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
       initSidebar();
       setupExpandableNav();
       if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+      (function () {
+        try {
+          var candidates = document.querySelectorAll('div');
+          for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (!el || !el.classList) continue;
+            if (!el.classList.contains('border-b')) continue;
+            if (!el.classList.contains('pb-6')) continue;
+            if (!el.classList.contains('md:justify-between')) continue;
+            var kids = [];
+            for (var k = 0; k < el.children.length; k++) {
+              if (el.children[k] && el.children[k].tagName === 'DIV') kids.push(el.children[k]);
+            }
+            if (kids.length < 2) continue;
+            kids[kids.length - 1].classList.add('tmm-top-actions');
+          }
+        } catch (e) { }
+      })();
 
       (function () {
         var timeoutSec = <?php echo json_encode((int)tmm_session_timeout_seconds()); ?>;
@@ -395,6 +413,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         function hideToast() {
           if (!toast) return;
           toast.classList.add('hidden');
+          toast.classList.remove('flex');
           showing = false;
         }
 
@@ -402,11 +421,15 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           if (!toast || !toastMsg) return;
           showing = true;
           toast.classList.remove('hidden');
+          toast.classList.add('flex');
           toastMsg.textContent = 'Logging out in ' + String(secLeft) + ' seconds due to inactivity.';
           try { if (window.lucide && window.lucide.createIcons) window.lucide.createIcons(); } catch (e) {}
         }
 
-        function resetActivity() {
+        function resetActivity(ev) {
+          try {
+            if (ev && ev.isTrusted === false) return;
+          } catch (e) { }
           lastActivityMs = Date.now();
           if (showing) hideToast();
         }
@@ -442,6 +465,11 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         });
         if (btnStay) btnStay.addEventListener('click', function () { ping(); });
         if (btnClose) btnClose.addEventListener('click', function () { hideToast(); });
+        if (toast) {
+          toast.addEventListener('click', function (e) {
+            if (e && e.target === toast) hideToast();
+          });
+        }
 
         tickId = window.setInterval(tick, 1000);
       })();

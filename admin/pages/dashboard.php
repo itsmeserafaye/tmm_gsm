@@ -465,13 +465,13 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
               <ul id="insightsOver" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
             </div>
 
-            <div class="p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
+            <div class="p-5 rounded-2xl border border-violet-100 dark:border-violet-900/30 bg-gradient-to-br from-violet-50 to-white dark:from-slate-800 dark:to-slate-800/50 shadow-sm hover:shadow-md transition-shadow">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-2">
-                  <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 dark:text-emerald-400"></i>
+                  <i data-lucide="check-circle-2" class="w-5 h-5 text-violet-600 dark:text-violet-400"></i>
                   <h3 class="text-base font-bold text-slate-800 dark:text-slate-100"><span id="insightsUnderScope">Terminal</span> Operational Recommendations</h3>
                 </div>
-                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">ACTIONABLE</span>
+                <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border border-violet-200 dark:border-violet-800">ACTIONABLE</span>
               </div>
               <ul id="insightsUnder" class="text-sm font-medium text-slate-600 dark:text-slate-300 space-y-3 leading-relaxed"></ul>
             </div>
@@ -1375,9 +1375,9 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           iconName = 'alert-circle';
           containerClass = 'border-rose-100 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-900/10';
         } else if (type === 'under') {
-          iconColor = 'text-emerald-500';
+          iconColor = 'text-violet-500';
           iconName = 'check-circle-2';
-          containerClass = 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10';
+          containerClass = 'border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-900/10';
         }
 
         var visibleActionCount = 0;

@@ -166,7 +166,7 @@ function get_setting($key, $default = '') {
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Session Timeout (Minutes)</label>
-                        <input type="number" name="session_timeout" min="5" max="1440" value="<?php echo htmlspecialchars(get_setting('session_timeout', '30')); ?>" 
+                        <input type="number" name="session_timeout" min="1" max="1440" value="<?php echo htmlspecialchars(get_setting('session_timeout', '30')); ?>" 
                             class="block w-full rounded-md border-0 bg-slate-50 dark:bg-slate-900/50 py-3 px-4 text-sm font-bold text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 transition-all">
                         <p class="mt-2 text-xs text-slate-400 font-medium">Auto-logout after inactivity.</p>
                     </div>

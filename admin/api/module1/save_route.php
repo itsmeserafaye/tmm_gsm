@@ -85,11 +85,54 @@ try {
     if ($fareMin === null && $fare !== null) $fareMin = $fare;
     if ($fareMax === null && $fare !== null) $fareMax = $fare;
 
-    $maxLimit = $authorizedUnits !== null && $authorizedUnits > 0 ? $authorizedUnits : null;
-    if ($maxLimit === null) $maxLimit = 50;
+    $suggestAuthorized = function ($vehicleType, $distanceKm, $fare, $fareMin, $fareMax, $routeCode): int {
+        $vt = is_string($vehicleType) ? trim($vehicleType) : '';
+        $km = is_numeric($distanceKm) ? (float)$distanceKm : 0.0;
+        $fareRef = 0.0;
+        if (is_numeric($fare)) $fareRef = (float)$fare;
+        else if (is_numeric($fareMin)) $fareRef = (float)$fareMin;
+        else if (is_numeric($fareMax)) $fareRef = (float)$fareMax;
+        $code = is_string($routeCode) ? strtoupper($routeCode) : '';
+
+        $n = 50;
+        if ($vt === 'Bus') {
+            if (strpos($code, 'CAROUSEL') !== false) $n = 200;
+            else if ($km >= 150) $n = 25;
+            else if ($km >= 80) $n = 35;
+            else if ($km > 0) $n = 55;
+            else if ($fareRef >= 700) $n = 25;
+            else if ($fareRef >= 300) $n = 35;
+            else $n = 45;
+        } else if ($vt === 'UV') {
+            if ($km >= 25) $n = 80;
+            else if ($km > 0) $n = 110;
+            else if ($fareRef >= 50) $n = 90;
+            else $n = 120;
+        } else if ($vt === 'Jeepney') {
+            if ($km >= 18) $n = 90;
+            else if ($km > 0) $n = 120;
+            else if ($fareRef >= 25) $n = 100;
+            else $n = 140;
+        } else if ($vt === 'Tricycle') {
+            if ($km >= 6) $n = 180;
+            else if ($km > 0) $n = 220;
+            else if ($fareRef >= 30) $n = 220;
+            else $n = 260;
+        }
+        if ($n < 5) $n = 5;
+        if ($n > 500) $n = 500;
+        return (int)$n;
+    };
+
+    if ($authorizedUnits === null || $authorizedUnits <= 0) {
+        $authorizedUnits = $suggestAuthorized($vehicleType, $distanceKm, $fare, $fareMin, $fareMax, $routeCode);
+    }
+
+    $maxLimit = $authorizedUnits;
+    if ($maxLimit <= 0) $maxLimit = 50;
 
     $distanceBind = $distanceKm;
-    $authorizedBind = $authorizedUnits !== null ? $authorizedUnits : 0;
+    $authorizedBind = (int)$authorizedUnits;
     $viaBind = $via !== '' ? $via : null;
     $fareBind = $fare;
     $fareMinBind = $fareMin;

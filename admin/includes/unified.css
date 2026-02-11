@@ -32,6 +32,30 @@
   display: none !important;
 }
 
+.tmm-top-actions a,
+.tmm-top-actions button {
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  will-change: transform;
+}
+
+.tmm-top-actions a:hover,
+.tmm-top-actions button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgb(15 23 42 / 0.12), 0 4px 6px -4px rgb(15 23 42 / 0.12);
+}
+
+.tmm-top-actions a:active,
+.tmm-top-actions button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 6px -4px rgb(15 23 42 / 0.18);
+}
+
+.tmm-top-actions a:focus-visible,
+.tmm-top-actions button:focus-visible {
+  outline: 2px solid rgb(59 130 246 / 0.9);
+  outline-offset: 2px;
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;

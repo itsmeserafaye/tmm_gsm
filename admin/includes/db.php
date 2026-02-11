@@ -516,6 +516,30 @@ function db()
   $conn->query("UPDATE routes SET status=CASE WHEN status IN ('Active','Inactive') THEN status ELSE 'Active' END");
   $conn->query("UPDATE routes SET fare_min=COALESCE(fare_min, fare) WHERE fare_min IS NULL AND fare IS NOT NULL");
   $conn->query("UPDATE routes SET fare_max=COALESCE(fare_max, fare) WHERE fare_max IS NULL AND fare IS NOT NULL");
+  $conn->query("UPDATE routes
+                SET authorized_units = CASE
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND (route_code LIKE '%CAROUSEL%' OR route_id LIKE '%CAROUSEL%') THEN 200
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND COALESCE(distance_km,0) >= 150 THEN 25
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND COALESCE(distance_km,0) >= 80 THEN 35
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND COALESCE(distance_km,0) > 0 THEN 55
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND COALESCE(fare, COALESCE(fare_min, fare_max), 0) >= 700 THEN 25
+                  WHEN COALESCE(vehicle_type,'')='Bus' AND COALESCE(fare, COALESCE(fare_min, fare_max), 0) >= 300 THEN 35
+                  WHEN COALESCE(vehicle_type,'')='Bus' THEN 45
+                  WHEN COALESCE(vehicle_type,'')='UV' AND COALESCE(distance_km,0) >= 25 THEN 80
+                  WHEN COALESCE(vehicle_type,'')='UV' AND COALESCE(distance_km,0) > 0 THEN 110
+                  WHEN COALESCE(vehicle_type,'')='UV' AND COALESCE(fare, COALESCE(fare_min, fare_max), 0) >= 50 THEN 90
+                  WHEN COALESCE(vehicle_type,'')='UV' THEN 120
+                  WHEN COALESCE(vehicle_type,'')='Jeepney' AND COALESCE(distance_km,0) >= 18 THEN 90
+                  WHEN COALESCE(vehicle_type,'')='Jeepney' AND COALESCE(distance_km,0) > 0 THEN 120
+                  WHEN COALESCE(vehicle_type,'')='Jeepney' AND COALESCE(fare, COALESCE(fare_min, fare_max), 0) >= 25 THEN 100
+                  WHEN COALESCE(vehicle_type,'')='Jeepney' THEN 140
+                  WHEN COALESCE(vehicle_type,'')='Tricycle' AND COALESCE(distance_km,0) >= 6 THEN 180
+                  WHEN COALESCE(vehicle_type,'')='Tricycle' AND COALESCE(distance_km,0) > 0 THEN 220
+                  WHEN COALESCE(vehicle_type,'')='Tricycle' AND COALESCE(fare, COALESCE(fare_min, fare_max), 0) >= 30 THEN 220
+                  WHEN COALESCE(vehicle_type,'')='Tricycle' THEN 260
+                  ELSE COALESCE(NULLIF(max_vehicle_limit,0), 50)
+                END
+                WHERE authorized_units IS NULL OR authorized_units<=0");
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
     $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, structure, fare_min, fare_max, fare, status) VALUES
