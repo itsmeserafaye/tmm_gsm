@@ -56,6 +56,53 @@
   outline-offset: 2px;
 }
 
+input[type="file"]:not([data-tmm-no-file-ui="1"]) {
+  display: block;
+  width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(100 116 139);
+}
+
+.dark input[type="file"]:not([data-tmm-no-file-ui="1"]) {
+  color: rgb(148 163 184);
+}
+
+input[type="file"]:not([data-tmm-no-file-ui="1"])::file-selector-button {
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  background: rgb(241 245 249);
+  color: rgb(51 65 85);
+  cursor: pointer;
+}
+
+input[type="file"][required]:not([data-tmm-no-file-ui="1"])::file-selector-button {
+  background: rgb(239 246 255);
+  color: rgb(29 78 216);
+}
+
+input[type="file"]:not([data-tmm-no-file-ui="1"]):hover::file-selector-button {
+  background: rgb(226 232 240);
+}
+
+input[type="file"][required]:not([data-tmm-no-file-ui="1"]):hover::file-selector-button {
+  background: rgb(219 234 254);
+}
+
+.dark input[type="file"]:not([data-tmm-no-file-ui="1"])::file-selector-button {
+  background: rgb(51 65 85);
+  color: rgb(241 245 249);
+}
+
+.dark input[type="file"]:not([data-tmm-no-file-ui="1"]):hover::file-selector-button {
+  background: rgb(71 85 105);
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;
