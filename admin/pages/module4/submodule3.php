@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 $prefillVehicleId = (int)($_GET['vehicle_id'] ?? 0);
+$reinspectOf = (int)($_GET['reinspect_of'] ?? 0);
 
 $vehicles = [];
 $resV = $db->query("SELECT v.id, v.plate_number
@@ -30,6 +31,23 @@ if ($prefillVehicleId > 0) {
     $prefillVehicleText = (string)$prefillVehicleId;
   }
 }
+$reinspectPrefillVehicleId = 0;
+$reinspectPrefillText = '';
+if ($reinspectOf > 0) {
+  $stmtRS = $db->prepare("SELECT s.vehicle_id, s.plate_number FROM inspection_schedules s WHERE s.schedule_id=? LIMIT 1");
+  if ($stmtRS) {
+    $stmtRS->bind_param('i', $reinspectOf);
+    $stmtRS->execute();
+    $rs = $stmtRS->get_result()->fetch_assoc();
+    $stmtRS->close();
+    if ($rs) {
+      $reinspectPrefillVehicleId = (int)($rs['vehicle_id'] ?? 0);
+      $p = (string)($rs['plate_number'] ?? '');
+      if ($reinspectPrefillVehicleId > 0 && $p !== '') $reinspectPrefillText = (string)$reinspectPrefillVehicleId . ' - ' . $p;
+      else if ($p !== '') $reinspectPrefillText = $p;
+    }
+  }
+}
 
 $inspectors = [];
 $resI = $db->query("SELECT officer_id, COALESCE(NULLIF(name,''), NULLIF(full_name,'')) AS name, badge_no FROM officers WHERE active_status=1 ORDER BY COALESCE(NULLIF(name,''), NULLIF(full_name,'')) ASC LIMIT 500");
@@ -46,7 +64,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Schedule Inspection</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with recorded OR/CR can be scheduled.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with recorded OR/CR can be scheduled. Reinspection is used after corrections from a failed result.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module4/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
@@ -67,7 +85,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formSchedule" class="space-y-5" novalidate>
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" value="<?php echo $prefillVehicleText !== '' ? htmlspecialchars($prefillVehicleText) : ''; ?>" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate or select from list">
+          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" value="<?php echo htmlspecialchars(($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : ''))); ?>" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate or select from list">
           <datalist id="vehiclePickList">
             <?php foreach ($vehicles as $v): ?>
               <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>
@@ -77,12 +95,28 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspection Type</label>
+            <select id="inspectionType" name="inspection_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <option value="Annual" <?php echo $reinspectOf > 0 ? '' : 'selected'; ?>>Annual</option>
+              <option value="Reinspection" <?php echo $reinspectOf > 0 ? 'selected' : ''; ?>>Reinspection</option>
+              <option value="Compliance">Compliance</option>
+              <option value="Special">Special</option>
+            </select>
+            <?php if ($reinspectOf > 0): ?>
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Reinspection of SCH-<?php echo (int)$reinspectOf; ?>.</div>
+            <?php endif; ?>
+          </div>
+          <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspector</label>
             <input type="text" disabled class="w-full px-4 py-2.5 rounded-md bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Assigned by inspection office">
           </div>
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Schedule Date/Time</label>
             <input id="scheduleDate" name="schedule_date" type="datetime-local" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+          <div id="correctionWrap" class="<?php echo $reinspectOf > 0 ? '' : 'hidden'; ?>">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Correction Due Date</label>
+            <input id="correctionDue" name="correction_due_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           </div>
         </div>
 
@@ -105,6 +139,9 @@ if ($rootUrl === '/') $rootUrl = '';
     const form = document.getElementById('formSchedule');
     const btn = document.getElementById('btnSchedule');
     const scheduleDate = document.getElementById('scheduleDate');
+    const inspectionType = document.getElementById('inspectionType');
+    const correctionWrap = document.getElementById('correctionWrap');
+    const correctionDue = document.getElementById('correctionDue');
 
     if (scheduleDate && !scheduleDate.value) {
       const d = new Date();
@@ -113,6 +150,21 @@ if ($rootUrl === '/') $rootUrl = '';
       const pad = (n) => String(n).padStart(2, '0');
       scheduleDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
+
+    if (correctionDue && !correctionDue.value) {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      correctionDue.value = d.toISOString().slice(0, 10);
+    }
+
+    function syncCorrection() {
+      const t = (inspectionType && inspectionType.value) ? String(inspectionType.value) : '';
+      if (!correctionWrap) return;
+      if (t === 'Reinspection') correctionWrap.classList.remove('hidden');
+      else correctionWrap.classList.add('hidden');
+    }
+    if (inspectionType) inspectionType.addEventListener('change', syncCorrection);
+    syncCorrection();
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -151,6 +203,14 @@ if ($rootUrl === '/') $rootUrl = '';
         }
         post.append('schedule_date', (fd.get('schedule_date') || '').toString());
         post.append('location', (fd.get('location') || '').toString());
+        post.append('inspection_type', (fd.get('inspection_type') || 'Annual').toString());
+        <?php if ($reinspectOf > 0): ?>
+          post.append('reinspect_of_schedule_id', '<?php echo (int)$reinspectOf; ?>');
+        <?php endif; ?>
+        if ((fd.get('inspection_type') || '').toString() === 'Reinspection') {
+          const cd = (fd.get('correction_due_date') || '').toString();
+          if (cd) post.append('correction_due_date', cd);
+        }
         post.append('cr_verified', '1');
         post.append('or_verified', '1');
         btn.disabled = true;

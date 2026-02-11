@@ -27,11 +27,28 @@ $schedule_id = (int)($_POST['schedule_id'] ?? 0);
 $approved_by = isset($_POST['approved_by']) ? (int)$_POST['approved_by'] : 0;
 $approved_name = trim($_POST['approved_name'] ?? '');
 if ($schedule_id <= 0 || ($approved_by <= 0 && $approved_name === '')) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'missing_fields']); exit; }
-$sch = $db->prepare("SELECT status FROM inspection_schedules WHERE schedule_id=?");
+$hasCol = function (string $table, string $col) use ($db): bool {
+    $t = $db->real_escape_string($table);
+    $c = $db->real_escape_string($col);
+    $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+    return $r && $r->num_rows > 0;
+};
+$ensureCol = function (string $table, string $col, string $ddl) use ($db, $hasCol): void {
+    if (!$hasCol($table, $col)) {
+        @$db->query("ALTER TABLE `$table` ADD COLUMN " . $ddl);
+    }
+};
+$ensureCol('inspection_certificates', 'valid_until', "valid_until DATE NULL");
+$ensureCol('inspection_certificates', 'valid_months', "valid_months INT NULL");
+
+$sch = $db->prepare("SELECT status, inspection_type FROM inspection_schedules WHERE schedule_id=?");
 $sch->bind_param('i', $schedule_id);
 $sch->execute();
 $srow = $sch->get_result()->fetch_assoc();
 if (!$srow || ($srow['status'] ?? '') !== 'Completed') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'schedule_not_completed']); exit; }
+$inspectionType = (string)($srow['inspection_type'] ?? 'Annual');
+$validMonths = ($inspectionType === 'Annual') ? 12 : 6;
+$validUntil = date('Y-m-d', strtotime('+' . $validMonths . ' months'));
 $approverId = 0;
 if ($approved_by > 0) {
     $ap = $db->prepare("SELECT officer_id, active_status FROM officers WHERE officer_id=?");
@@ -64,6 +81,16 @@ $existing->bind_param('i', $schedule_id);
 $existing->execute();
 $ex = $existing->get_result()->fetch_assoc();
 if ($ex) {
+    $validInfo = null;
+    if ($hasCol('inspection_certificates', 'valid_until') || $hasCol('inspection_certificates', 'valid_months')) {
+        $stmtV = $db->prepare("SELECT valid_until, valid_months FROM inspection_certificates WHERE cert_id=? LIMIT 1");
+        if ($stmtV) {
+            $stmtV->bind_param('i', $ex['cert_id']);
+            $stmtV->execute();
+            $validInfo = $stmtV->get_result()->fetch_assoc();
+            $stmtV->close();
+        }
+    }
     $plateStmt = $db->prepare("SELECT plate_number FROM inspection_schedules WHERE schedule_id=?");
     $plateStmt->bind_param('i', $schedule_id);
     $plateStmt->execute();
@@ -91,7 +118,9 @@ if ($ex) {
         'certificate_number' => $ex['certificate_number'],
         'cert_id' => $ex['cert_id'],
         'qr_payload' => $qrPayload,
-        'qr_url' => $qrUrl
+        'qr_url' => $qrUrl,
+        'valid_until' => $validInfo ? (string)($validInfo['valid_until'] ?? '') : '',
+        'valid_months' => $validInfo ? (int)($validInfo['valid_months'] ?? 0) : 0
     ]);
     exit;
 }
@@ -102,8 +131,26 @@ $res = $rs->get_result()->fetch_assoc();
 if (!$res || ($res['overall_status'] ?? '') !== 'Passed') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'inspection_not_passed']); exit; }
 $year = date('Y');
 $tmp_num = 'CERT-' . $year . '-TMP';
-$ins = $db->prepare("INSERT INTO inspection_certificates(certificate_number, schedule_id, approved_by) VALUES(?,?,?)");
-$ins->bind_param('sii', $tmp_num, $schedule_id, $approverId);
+$insSql = "INSERT INTO inspection_certificates(certificate_number, schedule_id, approved_by";
+$insVals = "VALUES(?,?,?";
+$insTypes = 'sii';
+$insParams = [$tmp_num, $schedule_id, $approverId];
+if ($hasCol('inspection_certificates', 'valid_until')) {
+    $insSql .= ", valid_until";
+    $insVals .= ", ?";
+    $insTypes .= "s";
+    $insParams[] = $validUntil;
+}
+if ($hasCol('inspection_certificates', 'valid_months')) {
+    $insSql .= ", valid_months";
+    $insVals .= ", ?";
+    $insTypes .= "i";
+    $insParams[] = $validMonths;
+}
+$insSql .= ") " . $insVals . ")";
+$ins = $db->prepare($insSql);
+if (!$ins) { echo json_encode(['ok'=>false,'error'=>'insert_failed']); exit; }
+$ins->bind_param($insTypes, ...$insParams);
 $ok = $ins->execute();
 if (!$ok) { echo json_encode(['ok'=>false,'error'=>'insert_failed']); exit; }
 $cid = $db->insert_id;
@@ -139,6 +186,8 @@ echo json_encode([
     'certificate_number' => $cert_no,
     'cert_id' => $cid,
     'qr_payload' => $qrPayload,
-    'qr_url' => $qrUrl
+    'qr_url' => $qrUrl,
+    'valid_until' => $validUntil,
+    'valid_months' => $validMonths
 ]);
 ?> 

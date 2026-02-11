@@ -124,6 +124,19 @@ $vehiclePlate = $vehicle ? (string)($vehicle['plate_number'] ?? $plate) : $plate
 $operatorName = $vehicle ? (string)($vehicle['operator_name'] ?? '') : '';
 $routeId = $vehicle ? (string)($vehicle['route_id'] ?? '') : '';
 $certRef = $vehicle ? (string)($vehicle['inspection_cert_ref'] ?? '') : '';
+$certInfo = null;
+if ($certRef !== '') {
+  $hasValidUntil = false;
+  $chk = $db->query("SHOW COLUMNS FROM inspection_certificates LIKE 'valid_until'");
+  if ($chk && $chk->num_rows > 0) $hasValidUntil = true;
+  $stmtC2 = $db->prepare("SELECT certificate_number" . ($hasValidUntil ? ", valid_until" : "") . " FROM inspection_certificates WHERE schedule_id=? LIMIT 1");
+  if ($stmtC2) {
+    $stmtC2->bind_param('i', $scheduleId);
+    $stmtC2->execute();
+    $certInfo = $stmtC2->get_result()->fetch_assoc();
+    $stmtC2->close();
+  }
+}
 
 $catFor = function (string $code): string {
   $c = strtoupper(trim($code));
@@ -178,6 +191,9 @@ if ($format !== 'pdf') {
         <div><b>Overall Result</b>: <span class="badge"><?php echo htmlspecialchars($overall !== '' ? $overall : '-'); ?></span></div>
         <div><b>Submitted At</b>: <?php echo htmlspecialchars($submittedAt !== '' ? $submittedAt : '-'); ?></div>
         <div><b>Certificate Ref</b>: <?php echo htmlspecialchars($certRef !== '' ? $certRef : '-'); ?></div>
+        <?php if ($certInfo && !empty($certInfo['valid_until'])): ?>
+          <div><b>Valid Until</b>: <?php echo htmlspecialchars((string)$certInfo['valid_until']); ?></div>
+        <?php endif; ?>
         <?php if ($reg): ?>
           <div><b>OR/CR</b>: <?php echo htmlspecialchars((string)($reg['orcr_no'] ?? '-') ); ?> <span class="muted">• <?php echo htmlspecialchars((string)($reg['orcr_date'] ?? '-') ); ?></span></div>
         <?php endif; ?>
@@ -189,6 +205,9 @@ if ($format !== 'pdf') {
       <div class="muted">No checklist data.</div>
     <?php else: ?>
       <div class="muted">LGU checklist record for local operational monitoring. This does not replace LTO/CMVI testing or LTFRB franchise evaluation.</div>
+      <?php if (strtolower($overall) === 'failed'): ?>
+        <div style="margin-top:8px"><a href="<?php echo htmlspecialchars($rootUrl . '/admin/index.php?page=module4/submodule3&reinspect_of=' . (int)$scheduleId); ?>">Reschedule Reinspection</a></div>
+      <?php endif; ?>
       <table>
         <thead>
           <tr><th>Item</th><th>Status</th></tr>
@@ -251,11 +270,13 @@ $lines[] = 'Schedule: ' . ($scheduleLabel !== '' ? $scheduleLabel : '-') . ' •
 $lines[] = 'Location: ' . ((string)($schedule['location'] ?? '-'));
 $lines[] = 'Overall Result: ' . ($overall !== '' ? $overall : '-') . ' • Submitted: ' . ($submittedAt !== '' ? $submittedAt : '-');
 if ($certRef !== '') $lines[] = 'Certificate Ref: ' . $certRef;
+if ($certInfo && !empty($certInfo['valid_until'])) $lines[] = 'Valid Until: ' . (string)$certInfo['valid_until'];
 $lines[] = str_repeat('-', 94);
 $lines[] = 'CHECKLIST';
 $lines[] = str_repeat('-', 94);
 $lines[] = 'LGU note: This checklist is for local operational monitoring; it does not replace LTO/CMVI testing or LTFRB evaluation.';
 $lines[] = 'Rule: Overall PASSED requires all required LGU items to be PASS (not N/A).';
+$lines[] = 'If FAILED: Proceed to correction period, then reschedule as REINSPECTION.';
 $lines[] = '';
 if ($checklist) {
   $grouped = [];

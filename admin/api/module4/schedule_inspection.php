@@ -27,11 +27,20 @@ $contactPerson = trim($_POST['contact_person'] ?? '');
 $contactNumber = trim($_POST['contact_number'] ?? '');
 $crVerified = !empty($_POST['cr_verified']) ? 1 : 0;
 $orVerified = !empty($_POST['or_verified']) ? 1 : 0;
+$reinspectOf = isset($_POST['reinspect_of_schedule_id']) ? (int)$_POST['reinspect_of_schedule_id'] : 0;
+$correctionDue = trim((string)($_POST['correction_due_date'] ?? ''));
 if (($vehicleId <= 0 && $plate === '') || $scheduledAt === '' || $location === '') {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_fields']);
   exit;
 }
+$toMysqlDate = function (string $s): string {
+  $v = trim($s);
+  if ($v === '') return '';
+  if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) return '';
+  return $v;
+};
+$correctionDue = $toMysqlDate($correctionDue);
 $toMysqlDatetime = function (string $s): string {
   $v = trim($s);
   $v = str_replace('T', ' ', $v);
@@ -125,15 +134,75 @@ if (!$hasVerifiedDocs) {
 } else {
   $status = 'Scheduled';
 }
-$stmt = $db->prepare("INSERT INTO inspection_schedules (plate_number, vehicle_id, scheduled_at, schedule_date, location, inspection_type, requested_by, contact_person, contact_number, inspector_id, inspector_label, status, cr_verified, or_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && $r->num_rows > 0;
+};
+$ensureCol = function (string $col, string $ddl) use ($db, $hasCol): void {
+  if (!$hasCol('inspection_schedules', $col)) {
+    @$db->query("ALTER TABLE inspection_schedules ADD COLUMN " . $ddl);
+  }
+};
+$ensureCol('correction_due_date', "correction_due_date DATE NULL");
+$ensureCol('reinspect_of_schedule_id', "reinspect_of_schedule_id INT NULL");
+
+$cols = [
+  'plate_number',
+  'vehicle_id',
+  'scheduled_at',
+  'schedule_date',
+  'location',
+  'inspection_type',
+  'requested_by',
+  'contact_person',
+  'contact_number',
+  'inspector_id',
+  'inspector_label',
+  'status',
+  'cr_verified',
+  'or_verified',
+];
+$vals = [
+  $plateDb,
+  $vehIdDb,
+  $scheduledAt,
+  $scheduleDate,
+  $location,
+  $inspectionType,
+  $requestedBy,
+  $contactPerson,
+  $contactNumber,
+  $inspectorIdDb,
+  $inspectorLabel,
+  $status,
+  $crVerified,
+  $orVerified,
+];
+$typesStr = 'sisssssssissii';
+
+if ($reinspectOf > 0 && $hasCol('inspection_schedules', 'reinspect_of_schedule_id')) {
+  $cols[] = 'reinspect_of_schedule_id';
+  $vals[] = $reinspectOf;
+  $typesStr .= 'i';
+}
+if ($correctionDue !== '' && $hasCol('inspection_schedules', 'correction_due_date')) {
+  $cols[] = 'correction_due_date';
+  $vals[] = $correctionDue;
+  $typesStr .= 's';
+}
+
+$placeholders = implode(', ', array_fill(0, count($cols), '?'));
+$colSql = implode(', ', $cols);
+$stmt = $db->prepare("INSERT INTO inspection_schedules ({$colSql}) VALUES ({$placeholders})");
 if (!$stmt) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
-$inspectorIdDb = $inspectorId > 0 ? $inspectorId : null;
-$vehIdDb = $vehicleId > 0 ? $vehicleId : null;
-$stmt->bind_param('sisssssssissii', $plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType, $requestedBy, $contactPerson, $contactNumber, $inspectorIdDb, $inspectorLabel, $status, $crVerified, $orVerified);
+$stmt->bind_param($typesStr, ...$vals);
 $ok = $stmt->execute();
 if (!$ok) {
   http_response_code(500);

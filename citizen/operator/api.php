@@ -2881,18 +2881,56 @@ if ($action === 'get_downloads') {
       $stmtV->bind_param($types, ...$plates);
       $stmtV->execute();
       $resV = $stmtV->get_result();
+      $rows = [];
       while ($resV && ($r = $resV->fetch_assoc())) {
         $st = (string)($r['inspection_status'] ?? '');
         if ($st !== 'Passed') continue;
         $ref = trim((string)($r['inspection_cert_ref'] ?? ''));
         if ($ref === '') continue;
+        $rows[] = $r;
+      }
+      $stmtV->close();
+
+      $validMap = [];
+      if ($rows) {
+        $colChk = $db->query("SHOW COLUMNS FROM inspection_certificates LIKE 'valid_until'");
+        $hasValidUntil = (bool)($colChk && $colChk->num_rows > 0);
+        if ($hasValidUntil) {
+          $refs = [];
+          foreach ($rows as $r) {
+            $ref = trim((string)($r['inspection_cert_ref'] ?? ''));
+            if ($ref !== '') $refs[] = $ref;
+          }
+          $refs = array_values(array_unique($refs));
+          if ($refs) {
+            $in2 = implode(',', array_fill(0, count($refs), '?'));
+            $types2 = str_repeat('s', count($refs));
+            $stmtC = $db->prepare("SELECT certificate_number, valid_until FROM inspection_certificates WHERE certificate_number IN ($in2)");
+            if ($stmtC) {
+              $stmtC->bind_param($types2, ...$refs);
+              $stmtC->execute();
+              $resC = $stmtC->get_result();
+              while ($resC && ($c = $resC->fetch_assoc())) {
+                $cn = trim((string)($c['certificate_number'] ?? ''));
+                if ($cn !== '') $validMap[$cn] = (string)($c['valid_until'] ?? '');
+              }
+              $stmtC->close();
+            }
+          }
+        }
+      }
+
+      foreach ($rows as $r) {
+        $ref = trim((string)($r['inspection_cert_ref'] ?? ''));
+        $meta = (string)($r['plate_number'] ?? '') . ' • ' . substr((string)($r['inspection_passed_at'] ?? ''), 0, 10);
+        $vu = isset($validMap[$ref]) ? trim((string)$validMap[$ref]) : '';
+        if ($vu !== '') $meta .= ' • Valid until ' . $vu;
         $items[] = [
           'title' => 'Inspection Certificate',
-          'meta' => (string)($r['plate_number'] ?? '') . ' • ' . substr((string)($r['inspection_passed_at'] ?? ''), 0, 10),
+          'meta' => $meta,
           'value' => $ref,
         ];
       }
-      $stmtV->close();
     }
   }
 
