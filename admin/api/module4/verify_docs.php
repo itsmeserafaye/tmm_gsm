@@ -49,8 +49,9 @@ $stmtS->close();
 $currentStatus = (string)($rowS['status'] ?? '');
 $inspectorId = (int)($rowS['inspector_id'] ?? 0);
 
+$isOverdue = ($currentStatus === 'Overdue' || $currentStatus === 'Overdue / No-Show');
 $finalStatus = $currentStatus;
-if ($currentStatus !== 'Completed' && $currentStatus !== 'Cancelled') {
+if ($currentStatus !== 'Completed' && $currentStatus !== 'Cancelled' && !$isOverdue) {
     if ($cr === 1 && $or === 1) {
         if ($inspectorId > 0) {
             $finalStatus = ($currentStatus === 'Rescheduled') ? 'Rescheduled' : 'Scheduled';
