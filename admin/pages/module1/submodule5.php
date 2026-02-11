@@ -36,12 +36,12 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Ownership Transfer</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Record transfer requests for operational tracking. Legal ownership remains under LTO.</p>
     </div>
-    <div class="flex items-center gap-3">
-      <a href="?page=puv-database/vehicle-encoding" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+      <a href="?page=puv-database/vehicle-encoding" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="bus" class="w-4 h-4"></i>
         Vehicle Encoding
       </a>
-      <a href="?page=puv-database/link-vehicle-to-operator" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=puv-database/link-vehicle-to-operator" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="link-2" class="w-4 h-4"></i>
         Vehicle–Operator Linking
       </a>
@@ -162,15 +162,15 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
           <div class="text-sm font-black text-slate-900 dark:text-white">Transfer Requests</div>
           <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Review, approve, or reject requests.</div>
         </div>
-        <div class="flex items-center gap-2">
-          <input id="qInput" class="w-44 sm:w-56 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/operator">
-          <select id="statusFilter" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <input id="qInput" class="w-full sm:w-56 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/operator">
+          <select id="statusFilter" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             <option value="">All</option>
             <option value="Pending">Pending</option>
             <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
           </select>
-          <button type="button" id="btnReload" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Reload</button>
+          <button type="button" id="btnReload" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Reload</button>
         </div>
       </div>
       <div class="p-5">
