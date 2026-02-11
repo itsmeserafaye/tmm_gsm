@@ -121,6 +121,16 @@ $formJsVer = 1;
 $formJsPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'tmm_form_enhancements.js';
 $ts = @filemtime($formJsPath);
 if ($ts !== false) $formJsVer = (int)$ts;
+
+$unifiedCssVer = 1;
+$unifiedCssPath = __DIR__ . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'unified.css';
+$unifiedCssTs = @filemtime($unifiedCssPath);
+if ($unifiedCssTs !== false) $unifiedCssVer = (int)$unifiedCssTs;
+
+$respTablesVer = 1;
+$respTablesPath = __DIR__ . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'responsive_tables.js';
+$respTablesTs = @filemtime($respTablesPath);
+if ($respTablesTs !== false) $respTablesVer = (int)$respTablesTs;
 ?>
 <!doctype html>
 <html lang="en">
@@ -152,7 +162,7 @@ if ($ts !== false) $formJsVer = (int)$ts;
     } catch (e) { }
   </script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="includes/unified.css">
+  <link rel="stylesheet" href="includes/unified.css?v=<?php echo (string)$unifiedCssVer; ?>">
   <style>
     @keyframes slideInRight {
       from { opacity: 0; transform: translateX(20px); }
@@ -185,6 +195,7 @@ if ($ts !== false) $formJsVer = (int)$ts;
     window.TMM_ROOT_URL = <?php echo json_encode($rootUrl, JSON_UNESCAPED_SLASHES); ?>;
     window.TMM_ADMIN_BASE_URL = <?php echo json_encode($baseUrl, JSON_UNESCAPED_SLASHES); ?>;
   </script>
+  <script src="includes/responsive_tables.js?v=<?php echo (string)$respTablesVer; ?>" defer></script>
   <script src="<?php echo htmlspecialchars($rootUrl); ?>/tmm_form_enhancements.js?v=<?php echo (string)$formJsVer; ?>" defer></script>
 </head>
 

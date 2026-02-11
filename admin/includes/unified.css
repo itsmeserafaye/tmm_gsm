@@ -27,3 +27,67 @@
 .dark .bg-white\/80 {
   background-color: rgb(15 23 42 / 0.8) !important;
 }
+
+@media (max-width: 639px) {
+  table.tmm-stack-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.75rem;
+  }
+
+  table.tmm-stack-table thead {
+    display: none;
+  }
+
+  table.tmm-stack-table tbody,
+  table.tmm-stack-table tr,
+  table.tmm-stack-table td {
+    display: block;
+    width: 100%;
+  }
+
+  table.tmm-stack-table tbody tr {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--tmm-radius);
+    box-shadow: var(--tmm-shadow);
+    overflow: hidden;
+  }
+
+  .dark table.tmm-stack-table tbody tr {
+    background: rgb(30 41 59);
+    border-color: #334155;
+  }
+
+  table.tmm-stack-table tbody tr + tr {
+    margin-top: 0.75rem;
+  }
+
+  table.tmm-stack-table tbody td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .dark table.tmm-stack-table tbody td {
+    border-top-color: #334155;
+  }
+
+  table.tmm-stack-table tbody td:first-child {
+    border-top: 0;
+  }
+
+  table.tmm-stack-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+  }
+
+  .dark table.tmm-stack-table tbody td::before {
+    color: #94a3b8;
+  }
+}
