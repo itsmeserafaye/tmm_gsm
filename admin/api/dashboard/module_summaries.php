@@ -31,6 +31,13 @@ function ms_table_exists(mysqli $db, string $name): bool {
   return (bool)$row;
 }
 
+function ms_table_has_rows(mysqli $db, string $table): bool {
+  $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+  if ($table === '') return false;
+  $res = $db->query("SELECT 1 FROM {$table} LIMIT 1");
+  return (bool)($res && $res->fetch_row());
+}
+
 function ms_pick_table(mysqli $db, array $candidates): ?string {
   foreach ($candidates as $t) {
     $t = trim((string)$t);
@@ -38,6 +45,52 @@ function ms_pick_table(mysqli $db, array $candidates): ?string {
     if (ms_table_exists($db, $t)) return $t;
   }
   return null;
+}
+
+function ms_tables_with_column(mysqli $db, string $column): array {
+  $column = trim($column);
+  if ($column === '') return [];
+  $stmt = $db->prepare("SELECT TABLE_NAME AS t
+                        FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA=DATABASE() AND COLUMN_NAME=?
+                        GROUP BY TABLE_NAME");
+  if (!$stmt) return [];
+  $stmt->bind_param('s', $column);
+  $stmt->execute();
+  $res = $stmt->get_result();
+  $out = [];
+  while ($res && ($r = $res->fetch_assoc())) {
+    $t = (string)($r['t'] ?? '');
+    if ($t !== '') $out[] = $t;
+  }
+  $stmt->close();
+  return $out;
+}
+
+function ms_pick_table_by_columns(mysqli $db, array $requiredCols, array $preferNameTokens = []): ?string {
+  $candidates = null;
+  foreach ($requiredCols as $col) {
+    $list = ms_tables_with_column($db, (string)$col);
+    if ($candidates === null) $candidates = $list;
+    else $candidates = array_values(array_intersect($candidates, $list));
+    if ($candidates === []) break;
+  }
+  if (!$candidates) return null;
+
+  $scored = [];
+  foreach ($candidates as $t) {
+    $name = strtolower((string)$t);
+    $score = 0;
+    foreach ($preferNameTokens as $tok) {
+      $tok = strtolower((string)$tok);
+      if ($tok !== '' && strpos($name, $tok) !== false) $score += 10;
+    }
+    if ($name === 'vehicles' || $name === 'operators' || $name === 'routes' || $name === 'tickets') $score += 25;
+    if (ms_table_has_rows($db, $t)) $score += 50;
+    $scored[] = ['t' => $t, 'score' => $score];
+  }
+  usort($scored, function ($a, $b) { return ($b['score'] ?? 0) <=> ($a['score'] ?? 0); });
+  return isset($scored[0]['t']) ? (string)$scored[0]['t'] : null;
 }
 
 function ms_column_exists(mysqli $db, string $table, string $col): bool {
@@ -83,8 +136,12 @@ $modules = [];
 
 try {
   $tVehicles = ms_pick_table($db, ['vehicles', 'vehicle']);
+  if (!$tVehicles) $tVehicles = ms_pick_table_by_columns($db, ['plate_number'], ['vehicle', 'puv']);
   $tOperators = ms_pick_table($db, ['operators', 'operator']);
+  if (!$tOperators) $tOperators = ms_pick_table_by_columns($db, ['verification_status'], ['operator']);
+  if (!$tOperators) $tOperators = ms_pick_table_by_columns($db, ['operator_type'], ['operator']);
   $tRoutes = ms_pick_table($db, ['routes', 'route']);
+  if (!$tRoutes) $tRoutes = ms_pick_table_by_columns($db, ['route_id'], ['route']);
   $tVehicleSub = ms_pick_table($db, ['vehicle_submissions']);
   $tOperatorSub = ms_pick_table($db, ['operator_submissions']);
   if ($debug) {
