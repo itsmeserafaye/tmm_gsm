@@ -190,7 +190,7 @@ try {
     if ($opNameResolved === '' && $operatorName !== '') $opNameResolved = $operatorName;
 
     $recordStatus = ($operatorExists && $operatorId > 0) ? 'Linked' : 'Encoded';
-    $vehicleStatus = $recordStatus === 'Linked' ? 'Pending Inspection' : 'Declared/linked';
+    $vehicleStatus = $recordStatus === 'Linked' ? 'Pending Inspection' : 'Declared';
     if ($registeredOwner === '' && $opNameResolved !== '') $registeredOwner = $opNameResolved;
 
     $route = '';

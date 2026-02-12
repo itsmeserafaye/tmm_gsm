@@ -68,7 +68,7 @@ function db()
     route_id VARCHAR(64) DEFAULT NULL,
     color VARCHAR(64) DEFAULT NULL,
     record_status ENUM('Encoded','Linked','Archived') NOT NULL DEFAULT 'Encoded',
-    status VARCHAR(32) DEFAULT 'Declared/linked',
+    status VARCHAR(32) DEFAULT 'Declared',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
@@ -171,7 +171,8 @@ function db()
     WHEN operator_id IS NOT NULL AND operator_id>0 THEN 'Linked'
     ELSE 'Encoded' END");
   $conn->query("UPDATE vehicles SET current_operator_id=operator_id WHERE (current_operator_id IS NULL OR current_operator_id=0) AND operator_id IS NOT NULL AND operator_id>0");
-  $conn->query("UPDATE vehicles SET status='Declared/linked' WHERE status IN ('Linked','Unlinked','Inactive','Blocked') OR status IS NULL OR status=''");
+  $conn->query("UPDATE vehicles SET status='Declared' WHERE status='Declared/linked'");
+  $conn->query("UPDATE vehicles SET status='Declared' WHERE status IS NULL OR status=''");
   $conn->query("CREATE TABLE IF NOT EXISTS documents (
     id INT AUTO_INCREMENT PRIMARY KEY,
     plate_number VARCHAR(32),
@@ -463,6 +464,45 @@ function db()
     INDEX (slot_id),
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
     FOREIGN KEY (slot_id) REFERENCES parking_slots(slot_id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS terminal_queue (
+    queue_id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    vehicle_id INT DEFAULT NULL,
+    plate_number VARCHAR(32) NOT NULL,
+    priority ENUM('Normal','Priority') NOT NULL DEFAULT 'Normal',
+    status ENUM('Queued','Served','Cancelled') NOT NULL DEFAULT 'Queued',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    served_at DATETIME DEFAULT NULL,
+    notes VARCHAR(255) DEFAULT NULL,
+    INDEX idx_terminal_status_created (terminal_id, status, created_at),
+    INDEX idx_terminal_priority_created (terminal_id, priority, created_at),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS parking_slot_events (
+    event_id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    slot_id INT NOT NULL,
+    vehicle_id INT DEFAULT NULL,
+    plate_number VARCHAR(32) DEFAULT NULL,
+    payment_id INT DEFAULT NULL,
+    amount DECIMAL(10,2) DEFAULT NULL,
+    or_no VARCHAR(64) DEFAULT NULL,
+    time_in DATETIME NOT NULL,
+    time_out DATETIME DEFAULT NULL,
+    occupied_by_user_id INT DEFAULT NULL,
+    occupied_by_name VARCHAR(150) DEFAULT NULL,
+    released_by_user_id INT DEFAULT NULL,
+    released_by_name VARCHAR(150) DEFAULT NULL,
+    INDEX idx_terminal_timein (terminal_id, time_in),
+    INDEX idx_slot_open (slot_id, time_out),
+    INDEX idx_vehicle (vehicle_id),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE,
+    FOREIGN KEY (slot_id) REFERENCES parking_slots(slot_id) ON DELETE CASCADE,
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
+    FOREIGN KEY (payment_id) REFERENCES parking_payments(payment_id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
   $conn->query("CREATE TABLE IF NOT EXISTS routes (
     id INT AUTO_INCREMENT PRIMARY KEY,

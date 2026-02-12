@@ -107,15 +107,15 @@ try {
     $color = trim((string)($r['color'] ?? ''));
     $routeId = trim((string)($r['route_id'] ?? ''));
     $recordStatus = trim((string)($r['record_status'] ?? 'Encoded'));
-    $status = trim((string)($r['status'] ?? 'Declared/linked'));
-    if ($status === '') $status = 'Declared/linked';
+    $status = trim((string)($r['status'] ?? 'Declared'));
+    if ($status === '') $status = 'Declared';
     if ($recordStatus === '') $recordStatus = 'Encoded';
     if ($operatorId <= 0) {
       $recordStatus = 'Encoded';
-      if ($status === 'Pending Inspection') $status = 'Declared/linked';
+      if ($status === 'Pending Inspection') $status = 'Declared';
     } else {
       if ($recordStatus !== 'Archived') $recordStatus = 'Linked';
-      if ($status === 'Declared/linked') $status = 'Pending Inspection';
+      if ($status === 'Declared') $status = 'Pending Inspection';
     }
 
     $stmt->bind_param(

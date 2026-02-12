@@ -7,7 +7,7 @@ $db = db();
 
 $terminalId = (int)($_GET['terminal_id'] ?? 0);
 $tab = trim((string)($_GET['tab'] ?? 'slots'));
-if (!in_array($tab, ['slots','payments'], true)) $tab = 'slots';
+if (!in_array($tab, ['slots','payments','queue','history'], true)) $tab = 'slots';
 $canSlots = has_permission('module5.manage_terminal');
 $canPay = has_permission('module5.parking_fees');
 
@@ -107,6 +107,14 @@ if ($rootUrl === '/') $rootUrl = '';
         <a href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>$terminalId,'tab'=>'payments']); ?>"
           class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $tab === 'payments' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
           Payments
+        </a>
+        <a href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>$terminalId,'tab'=>'queue']); ?>"
+          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $tab === 'queue' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          Queue
+        </a>
+        <a href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>$terminalId,'tab'=>'history']); ?>"
+          class="px-4 py-2.5 rounded-md text-sm font-semibold border <?php echo $tab === 'history' ? 'bg-blue-700 text-white border-blue-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'; ?>">
+          History
         </a>
         <div class="flex-1 text-right text-xs text-slate-500 dark:text-slate-400 font-semibold">
           <?php echo htmlspecialchars($terminalName !== '' ? $terminalName : ''); ?>
@@ -229,6 +237,98 @@ if ($rootUrl === '/') $rootUrl = '';
     <?php endif; ?>
   </div>
 
+  <div id="panelQueue" class="<?php echo $tab === 'queue' ? '' : 'hidden'; ?>">
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-6 space-y-5">
+        <form id="formQueueAdd" class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end" novalidate>
+          <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
+            <input name="plate_number" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" autocapitalize="characters" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="ABC-1234">
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Priority</label>
+            <select name="priority" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <option value="Normal" selected>Normal</option>
+              <option value="Priority">Priority</option>
+            </select>
+          </div>
+          <div class="text-right">
+            <button id="btnQueueAdd" class="w-full px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Enqueue</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+        <div class="font-black text-slate-900 dark:text-white">Queue (FIFO)</div>
+        <button type="button" id="btnQueueRefresh" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Refresh</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <tr class="text-left text-slate-500 dark:text-slate-400">
+              <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Plate</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Priority</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Queued</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="queueBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+            <tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="panelHistory" class="<?php echo $tab === 'history' ? '' : 'hidden'; ?>">
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+            <input id="histQ" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Plate / OR / Slot">
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From</label>
+            <input id="histFrom" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To</label>
+            <input id="histTo" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+        <div class="font-black text-slate-900 dark:text-white">Slot History</div>
+        <button type="button" id="btnHistRefresh" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Refresh</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+            <tr class="text-left text-slate-500 dark:text-slate-400">
+              <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Time In</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Time Out</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Slot</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">OR</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Fee</th>
+              <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">By</th>
+            </tr>
+          </thead>
+          <tbody id="histBody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+            <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -252,6 +352,15 @@ if ($rootUrl === '/') $rootUrl = '';
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
     let assignedVehicles = [];
+    const queueBody = document.getElementById('queueBody');
+    const formQueueAdd = document.getElementById('formQueueAdd');
+    const btnQueueAdd = document.getElementById('btnQueueAdd');
+    const btnQueueRefresh = document.getElementById('btnQueueRefresh');
+    const histBody = document.getElementById('histBody');
+    const histQ = document.getElementById('histQ');
+    const histFrom = document.getElementById('histFrom');
+    const histTo = document.getElementById('histTo');
+    const btnHistRefresh = document.getElementById('btnHistRefresh');
 
     if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
     if (orInput) {
@@ -271,6 +380,152 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       btnPay.classList.add('hidden');
       btnPayTreasury.classList.remove('hidden');
+    }
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    async function loadQueue() {
+      if (!queueBody) return;
+      queueBody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/queue_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json();
+        if (!data || !data.ok || !Array.isArray(data.data)) throw new Error('load_failed');
+        const rows = data.data;
+        if (rows.length === 0) {
+          queueBody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Queue is empty.</td></tr>`;
+          return;
+        }
+        queueBody.innerHTML = rows.map((r) => {
+          const qid = Number(r.queue_id) || 0;
+          const plate = esc(r.plate_number || '');
+          const pr = String(r.priority || 'Normal');
+          const prBadge = pr === 'Priority'
+            ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-300'
+            : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300';
+          const queuedAt = esc((r.created_at || '').toString().replace('T',' ').slice(0, 16));
+          const payLink = `?page=module5/submodule4&terminal_id=${encodeURIComponent(String(terminalId))}&tab=payments&plate_prefill=${encodeURIComponent(String(r.plate_number || ''))}`;
+          return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <td class="py-4 px-6 font-black text-slate-900 dark:text-white">${plate}</td>
+              <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${prBadge}">${esc(pr)}</span></td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${queuedAt}</td>
+              <td class="py-4 px-4 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <a class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold" href="${payLink}">Use in Payment</a>
+                  <button type="button" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-xs font-bold" data-queue-serve="${qid}">Served</button>
+                  <button type="button" class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold" data-queue-cancel="${qid}">Remove</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        queueBody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-rose-600 font-semibold">Failed to load queue.</td></tr>`;
+      }
+    }
+    if (activeTab === 'queue') {
+      loadQueue().catch(() => {});
+    }
+    async function loadHistory() {
+      if (!histBody) return;
+      histBody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      try {
+        const qs = new URLSearchParams();
+        qs.set('terminal_id', String(terminalId));
+        if (histQ && histQ.value.trim() !== '') qs.set('q', histQ.value.trim());
+        if (histFrom && histFrom.value) qs.set('from', histFrom.value);
+        if (histTo && histTo.value) qs.set('to', histTo.value);
+        qs.set('limit', '150');
+        const res = await fetch(rootUrl + '/admin/api/module5/slot_history.php?' + qs.toString());
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok || !Array.isArray(data.data)) throw new Error('load_failed');
+        const rows = data.data;
+        if (!rows.length) {
+          histBody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No history yet.</td></tr>`;
+          return;
+        }
+        histBody.innerHTML = rows.map((r) => {
+          const tin = fmtDate(r.time_in);
+          const tout = r.time_out ? fmtDate(r.time_out) : '<span class="text-amber-700 dark:text-amber-300 font-bold">Occupied</span>';
+          const plate = esc(r.plate_number || '-');
+          const slot = esc(r.slot_no || '-');
+          const orNo = esc(r.or_no || '-');
+          const amt = (r.amount === null || r.amount === undefined) ? '-' : ('₱' + Number(r.amount || 0).toFixed(2));
+          const by = [r.occupied_by || '', r.released_by || ''].filter(Boolean).join(' → ');
+          return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <td class="py-4 px-6 text-slate-700 dark:text-slate-200 font-semibold">${esc(tin)}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${tout}</td>
+              <td class="py-4 px-4 font-black text-slate-900 dark:text-white">${plate}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${slot}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${orNo}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">${esc(amt)}</td>
+              <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold">${esc(by || '-')}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        histBody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-rose-600 font-semibold">Failed to load history.</td></tr>`;
+      }
+    }
+    if (activeTab === 'history') {
+      loadHistory().catch(() => {});
+      if (btnHistRefresh) btnHistRefresh.addEventListener('click', () => loadHistory().catch(() => {}));
+      if (histQ) histQ.addEventListener('input', () => loadHistory().catch(() => {}));
+      if (histFrom) histFrom.addEventListener('change', () => loadHistory().catch(() => {}));
+      if (histTo) histTo.addEventListener('change', () => loadHistory().catch(() => {}));
+    }
+
+    async function queueUpdate(queueId, action) {
+      const fd = new FormData();
+      fd.append('queue_id', String(queueId));
+      fd.append('action', action);
+      const res = await fetch(rootUrl + '/admin/api/module5/queue_update.php', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'queue_update_failed');
+      return data;
+    }
+
+    if (formQueueAdd && btnQueueAdd) {
+      formQueueAdd.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!formQueueAdd.checkValidity()) { formQueueAdd.reportValidity(); return; }
+        btnQueueAdd.disabled = true;
+        btnQueueAdd.textContent = 'Adding...';
+        try {
+          const fd = new FormData(formQueueAdd);
+          const res = await fetch(rootUrl + '/admin/api/module5/queue_enqueue.php', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'enqueue_failed');
+          showToast(data.dedup ? 'Already queued.' : 'Added to queue.');
+          formQueueAdd.reset();
+          loadQueue();
+        } catch (err) {
+          showToast(err.message || 'Failed', 'error');
+        } finally {
+          btnQueueAdd.disabled = false;
+          btnQueueAdd.textContent = 'Enqueue';
+        }
+      });
+    }
+
+    if (btnQueueRefresh) btnQueueRefresh.addEventListener('click', loadQueue);
+    if (queueBody) {
+      queueBody.addEventListener('click', async (e) => {
+        const btnServe = e.target.closest('[data-queue-serve]');
+        const btnCancel = e.target.closest('[data-queue-cancel]');
+        if (!btnServe && !btnCancel) return;
+        const id = Number((btnServe || btnCancel).getAttribute(btnServe ? 'data-queue-serve' : 'data-queue-cancel') || 0);
+        if (!id) return;
+        try {
+          await queueUpdate(id, btnServe ? 'serve' : 'cancel');
+          showToast(btnServe ? 'Marked as served.' : 'Removed from queue.');
+          loadQueue();
+        } catch (err) {
+          showToast(err.message || 'Failed', 'error');
+        }
+      });
     }
 
     function getTreasuryPendingParkingTx() {
@@ -374,17 +629,20 @@ if ($rootUrl === '/') $rootUrl = '';
       body.innerHTML = rows.map(r => {
         const badge = r.status === 'Occupied' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
         const isOccupied = (r.status || '') === 'Occupied';
-        const actions = isOccupied
-          ? `
-              <button data-view-slot="${r.slot_id}" class="btnViewSlot px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">View</button>
-              ${canSlots ? `<button data-release-slot="${r.slot_id}" class="btnReleaseSlot px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white">Release</button>` : ''}
-            `
+        const releaseBtn = isOccupied
+          ? (canSlots
+            ? `<button data-release-slot="${r.slot_id}" class="btnReleaseSlot px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white">Release</button>`
+            : `<button type="button" class="px-3 py-2 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed" disabled title="No permission to release slots">Release</button>`)
           : '';
+        const actions = `
+          <button data-view-slot="${r.slot_id}" class="btnViewSlot px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">View</button>
+          ${releaseBtn}
+        `;
         return `
           <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
             <td class="py-4 px-6 font-black text-slate-900 dark:text-white">${(r.slot_no || '')}</td>
             <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${r.status}</span></td>
-            <td class="py-4 px-4 text-right flex items-center justify-end gap-2">${actions}</td>
+            <td class="py-4 px-4 text-right"><div class="flex items-center justify-end gap-2">${actions}</div></td>
           </tr>
         `;
       }).join('');
@@ -516,6 +774,15 @@ if ($rootUrl === '/') $rootUrl = '';
         plateSelect.innerHTML = '<option value=\"\">Select plate</option>' + assignedVehicles
           .map(v => `<option value="${v.plate}">${v.label}</option>`)
           .join('');
+        const params = new URLSearchParams(window.location.search || '');
+        const pre = (params.get('plate_prefill') || '').toString().toUpperCase().trim();
+        if (pre !== '') {
+          const opt = Array.from(plateSelect.options).find(o => (o.value || '').toString().toUpperCase() === pre);
+          if (opt) {
+            plateSelect.value = opt.value;
+            try { plateSelect.dispatchEvent(new Event('change')); } catch (_) {}
+          }
+        }
       } catch (_) {}
     }
 

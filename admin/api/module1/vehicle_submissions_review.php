@@ -99,7 +99,7 @@ try {
                                          record_status=CASE WHEN ? > 0 THEN 'Linked' ELSE record_status END,
                                          submitted_by_portal_user_id=?, submitted_by_name=?, submitted_at=?,
                                          approved_by_user_id=?, approved_by_name=?, approved_at=?,
-                                         status=COALESCE(NULLIF(status,''),'Declared/linked')
+                                         status=COALESCE(NULLIF(status,''),'Declared')
                            WHERE id=?");
     if (!$stmtV) throw new Exception('db_prepare_failed');
     $stmtV->bind_param(
@@ -120,7 +120,7 @@ try {
        or_number, cr_number, cr_issue_date, registered_owner,
        submitted_by_portal_user_id, submitted_by_name, submitted_at, approved_by_user_id, approved_by_name, approved_at, created_at)
       VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Declared/linked', 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Declared', 'Pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
     if (!$stmtIns) throw new Exception('db_prepare_failed');
     $opName = $submittedByName !== '' ? $submittedByName : 'Operator';
     $stmtIns->bind_param(

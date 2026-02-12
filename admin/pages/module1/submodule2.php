@@ -329,7 +329,7 @@ $typesList = vehicle_types();
           <select name="status"
             class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Unlinked','Linked','Declared/linked','Pending Inspection','Inspected','Registered','Active'] as $s): ?>
+            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
@@ -385,7 +385,7 @@ $typesList = vehicle_types();
               $frOk = in_array($frAppSt, ['Approved','LTFRB-Approved'], true);
               $inspOk = $insp === 'Passed';
               $regOk = in_array($regSt, ['Registered','Recorded'], true) && $orcrNo !== '' && $orcrDate !== '';
-              $st = 'Declared/linked';
+              $st = 'Declared';
               if ($rs === 'Archived') {
                 $st = 'Archived';
               } elseif ($frOk && $inspOk && $regOk) {
@@ -408,7 +408,7 @@ $typesList = vehicle_types();
                 'Registered' => 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20',
                 'Inspected' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                 'Pending Inspection' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                'Declared/linked' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300',
+                'Declared' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300',
                 'Archived' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                 default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
               };

@@ -59,6 +59,7 @@ $sidebarItems = [
     'subItems' => [
       ['id' => 'submodule1', 'label' => 'Terminal List', 'path' => '/module5/submodule1', 'anyPermissions' => ['module5.manage_terminal','module5.read']],
       ['id' => 'submodule2', 'label' => 'Assign Vehicle', 'path' => '/module5/submodule2', 'anyPermissions' => ['module5.assign_vehicle']],
+      ['id' => 'submodule5', 'label' => 'Operations Dashboard', 'path' => '/module5/submodule5', 'page' => 'module5/submodule5', 'anyPermissions' => ['module5.manage_terminal','module5.read','module5.parking_fees']],
       ['id' => 'submodule4', 'label' => 'Terminal Slots & Payments', 'path' => '/module5/submodule4', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
       ['id' => 'parking-list', 'label' => 'Parking List', 'path' => '/parking/list', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],
       ['id' => 'parking-slots-payments', 'label' => 'Parking Slots & Payments', 'path' => '/parking/slots-payments', 'anyPermissions' => ['module5.manage_terminal','module5.parking_fees']],

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/util.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -130,6 +131,19 @@ try {
   $affected = (int)$stmtU->affected_rows;
   $stmtU->close();
   if ($affected !== 1) throw new Exception('slot_not_free');
+
+  $actorUserId = (int)($_SESSION['user_id'] ?? 0);
+  $actorName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+  if ($actorName === '') $actorName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+  if ($actorName === '') $actorName = 'Admin';
+  $timeIn = $paidAt !== null ? $paidAt : date('Y-m-d H:i:s');
+  $stmtE = $db->prepare("INSERT INTO parking_slot_events (terminal_id, slot_id, vehicle_id, plate_number, payment_id, amount, or_no, time_in, occupied_by_user_id, occupied_by_name)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  if ($stmtE) {
+    $stmtE->bind_param('iiisidssis', $slotTerminalId, $slotId, $vehicleId, $plate, $paymentId, $amount, $orNo, $timeIn, $actorUserId, $actorName);
+    $stmtE->execute();
+    $stmtE->close();
+  }
 
   $db->commit();
   echo json_encode(['ok' => true, 'payment_id' => $paymentId, 'slot_id' => $slotId]);

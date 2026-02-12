@@ -74,7 +74,7 @@ $stmt = $db->prepare("UPDATE vehicles
                            operator_name=?,
                            record_status='Linked',
                            status=CASE
-                             WHEN status IS NULL OR status='' OR status IN ('Declared/linked','Pending Inspection') THEN 'Pending Inspection'
+                             WHEN status IS NULL OR status='' OR status IN ('Declared','Pending Inspection') THEN 'Pending Inspection'
                              ELSE status END
                        WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
