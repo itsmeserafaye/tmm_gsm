@@ -715,6 +715,29 @@ $typesList = vehicle_types();
     function initVehicleViewBindings(plate) {
       const root = body;
 
+      const btnEnableEdit = root.querySelector('#btnVehEnableEdit');
+      const editWrap = root.querySelector('#vehEditWrap');
+      const editLocked = root.querySelector('#vehEditLocked');
+      if (btnEnableEdit && editWrap) {
+        const setEditing = (enabled) => {
+          editWrap.classList.toggle('hidden', !enabled);
+          if (editLocked) editLocked.classList.toggle('hidden', enabled);
+          btnEnableEdit.innerHTML = enabled
+            ? '<i data-lucide="lock" class="w-4 h-4"></i> Disable Editing'
+            : '<i data-lucide="pencil" class="w-4 h-4"></i> Enable Editing';
+          editWrap.querySelectorAll('input,select,textarea,button').forEach((el) => {
+            const tag = (el.tagName || '').toLowerCase();
+            const type = (tag === 'input') ? (el.getAttribute('type') || '').toLowerCase() : '';
+            if (type === 'hidden') return;
+            if (tag === 'button' && el.getAttribute('type') === 'button') return;
+            el.disabled = !enabled;
+          });
+          if (window.lucide) window.lucide.createIcons();
+        };
+        setEditing(false);
+        btnEnableEdit.addEventListener('click', () => setEditing(editWrap.classList.contains('hidden')));
+      }
+
       const engineInput = root.querySelector('input[name="engine_no"]');
       if (engineInput) {
         const validate = () => {
@@ -1035,28 +1058,40 @@ $typesList = vehicle_types();
         openModal(`
           <form id="formUploadVehDocs" class="space-y-5" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="vehicle_id" value="${vehicleId}">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR (PDF/JPG/PNG)</label>
-                <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="or">
-                <div class="file-indicator mt-2 hidden" data-indicator="or"></div>
+            <div class="space-y-4">
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Official Receipt (OR)</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR (PDF/JPG/PNG)</label>
+                    <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="or">
+                    <div class="file-indicator mt-2 hidden" data-indicator="or"></div>
+                  </div>
+                  <div class="sm:col-span-2 hidden" id="orExpiryWrap">
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
+                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required when uploading an OR.</div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CR (PDF/JPG/PNG)</label>
+
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Certificate of Registration (CR)</div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload CR (PDF/JPG/PNG)</label>
                 <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="cr">
                 <div class="file-indicator mt-2 hidden" data-indicator="cr"></div>
               </div>
-              <div class="sm:col-span-2">
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date (required if OR uploaded)</label>
-                <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              </div>
-              <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance</label>
+
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Insurance</div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (PDF/JPG/PNG)</label>
                 <input name="insurance" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="insurance">
                 <div class="file-indicator mt-2 hidden" data-indicator="insurance"></div>
               </div>
-              <div class="sm:col-span-2">
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Others</label>
+
+              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Other Attachments</div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Other Document (PDF/JPG/PNG)</label>
                 <input name="others" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="others">
                 <div class="file-indicator mt-2 hidden" data-indicator="others"></div>
               </div>
@@ -1120,6 +1155,23 @@ $typesList = vehicle_types();
             }
           });
         });
+
+        const orInput = body.querySelector('input[name="or"]');
+        const orExpiryWrap = body.querySelector('#orExpiryWrap');
+        const orExpiryInput = body.querySelector('input[name="or_expiry_date"]');
+        const syncOrExpiry = () => {
+          const hasOr = !!(orInput && orInput.files && orInput.files.length > 0);
+          if (orExpiryWrap) orExpiryWrap.classList.toggle('hidden', !hasOr);
+          if (orExpiryInput) {
+            if (hasOr) orExpiryInput.setAttribute('required', 'required');
+            else {
+              orExpiryInput.removeAttribute('required');
+              orExpiryInput.value = '';
+            }
+          }
+        };
+        if (orInput) orInput.addEventListener('change', syncOrExpiry);
+        syncOrExpiry();
 
 
         async function loadDocs() {

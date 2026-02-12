@@ -235,8 +235,8 @@ if ($rootUrl === '/') $rootUrl = '';
                   ?>
                   <?php if ($currentCat !== $cat): ?>
                     <?php $currentCat = $cat; ?>
-                    <tr data-group="1" class="bg-slate-100/80 dark:bg-slate-900/50 border-t-2 border-slate-300 dark:border-slate-600">
-                      <td colspan="6" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                    <tr data-group="1" class="bg-blue-100/90 dark:bg-blue-900/25 border-t-2 border-blue-300 dark:border-blue-700">
+                      <td colspan="6" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-blue-900 dark:text-blue-100">
                         <span class="inline-flex items-center gap-2">
                           <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                           <?php echo htmlspecialchars($currentCat); ?>

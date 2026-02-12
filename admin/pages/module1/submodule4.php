@@ -104,10 +104,13 @@ if ($operatorIds) {
 }
 
 $allPlates = [];
-$resP = $db->query("SELECT UPPER(plate_number) AS plate_number, COALESCE(NULLIF(status,''),'') AS status
-                    FROM vehicles
-                    WHERE COALESCE(plate_number,'')<>'' AND (operator_id IS NULL OR operator_id=0) AND (record_status IS NULL OR record_status='' OR record_status='Encoded')
-                    ORDER BY created_at DESC LIMIT 1000");
+$resP = $db->query("SELECT UPPER(v.plate_number) AS plate_number, COALESCE(NULLIF(v.status,''),'') AS status
+                    FROM vehicles v
+                    LEFT JOIN operators o ON o.id=v.operator_id
+                    WHERE COALESCE(v.plate_number,'')<>''
+                      AND NOT (COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL)
+                      AND COALESCE(v.record_status,'')<>'Archived'
+                    ORDER BY v.created_at DESC LIMIT 1000");
 if ($resP) {
   while ($r = $resP->fetch_assoc()) {
     $p = strtoupper(trim((string)($r['plate_number'] ?? '')));

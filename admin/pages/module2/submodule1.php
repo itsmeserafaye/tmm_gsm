@@ -185,14 +185,6 @@ if ($rootUrl === '/') $rootUrl = '';
         </a>
       </div>
     </form>
-    <div class="mt-4 flex flex-wrap items-center gap-2">
-      <?php foreach (['Submitted','LGU-Endorsed','PA Issued','CPC Issued','Rejected','Expired','Revoked'] as $chip): ?>
-        <a href="?<?php echo http_build_query(['page'=>'module2/submodule1','q'=>$q,'status'=>$chip]); ?>"
-          class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
-          <?php echo htmlspecialchars($chip); ?>
-        </a>
-      <?php endforeach; ?>
-    </div>
   </div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">

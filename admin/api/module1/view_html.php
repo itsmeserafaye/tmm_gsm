@@ -177,11 +177,21 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
             <!-- Management Card -->
             <div class="<?php echo $cardClass; ?>">
                 <div class="<?php echo $cardHeaderClass; ?>">
-                    <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <i data-lucide="settings-2" class="w-4 h-4 text-slate-500"></i> Management
-                    </h3>
+                    <div class="flex items-center justify-between gap-3">
+                        <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="settings-2" class="w-4 h-4 text-slate-500"></i> Management
+                        </h3>
+                        <button type="button" id="btnVehEnableEdit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                            Enable Editing
+                        </button>
+                    </div>
                 </div>
                 <div class="<?php echo $cardBodyClass; ?> space-y-6">
+                    <div id="vehEditLocked" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        Editing is disabled. Click “Enable Editing” to update this record.
+                    </div>
+                    <div id="vehEditWrap" class="hidden space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Status Form -->
                         <form id="formStatus" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php">
@@ -316,6 +326,7 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp">Link Operator</button>
                             </div>
                         </form>
+                    </div>
                     </div>
                 </div>
             </div>
