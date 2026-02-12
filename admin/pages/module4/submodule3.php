@@ -260,6 +260,9 @@ if ($rootUrl === '/') $rootUrl = '';
                         <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">Conduct</a>
                       <?php endif; ?>
                       <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
+                      <?php if (has_permission('module4.inspections.manage')): ?>
+                        <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars($st, ENT_QUOTES); ?>" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-semibold text-xs">Delete</button>
+                      <?php endif; ?>
                     </div>
                   </td>
                 </tr>
@@ -320,6 +323,7 @@ if ($rootUrl === '/') $rootUrl = '';
                         <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
                         <?php if (has_permission('module4.inspections.manage')): ?>
                           <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Cancel</button>
+                          <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars((string)($r['status'] ?? ''), ENT_QUOTES); ?>" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-semibold text-xs">Delete</button>
                         <?php endif; ?>
                       </div>
                     </td>
@@ -444,6 +448,109 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
+    function closeOverlay(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('opacity-0');
+      el.style.transition = 'opacity 150ms';
+      setTimeout(() => { try { el.remove(); } catch (e) {} }, 170);
+    }
+
+    function showPromptOverlay(opts) {
+      const id = 'tmmPromptOverlay';
+      const existing = document.getElementById(id);
+      if (existing) existing.remove();
+      const title = esc(opts && opts.title ? opts.title : '');
+      const label = esc(opts && opts.label ? opts.label : '');
+      const placeholder = esc(opts && opts.placeholder ? opts.placeholder : '');
+      const confirmText = esc(opts && opts.confirmText ? opts.confirmText : 'Confirm');
+      const defaultValue = esc(opts && typeof opts.defaultValue === 'string' ? opts.defaultValue : '');
+
+      const html = `
+        <div id="${id}" class="fixed inset-0 z-[240] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="p-5">
+              <div class="text-base font-black text-slate-900 dark:text-white">${title}</div>
+              <div class="mt-3">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">${label}</div>
+                <textarea id="tmmPromptInput" rows="3" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="${placeholder}">${defaultValue}</textarea>
+              </div>
+              <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" data-tmm-prompt-cancel class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm">Cancel</button>
+                <button type="button" data-tmm-prompt-ok class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">${confirmText}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
+
+      const overlay = document.getElementById(id);
+      const input = document.getElementById('tmmPromptInput');
+      const ok = overlay ? overlay.querySelector('[data-tmm-prompt-ok]') : null;
+      const cancel = overlay ? overlay.querySelector('[data-tmm-prompt-cancel]') : null;
+
+      requestAnimationFrame(() => { if (input) input.focus(); });
+
+      const done = (val) => {
+        closeOverlay(id);
+        if (opts && typeof opts.onConfirm === 'function') opts.onConfirm(val);
+      };
+
+      if (ok) ok.addEventListener('click', () => done((input ? input.value : '').toString().trim()));
+      if (cancel) cancel.addEventListener('click', () => closeOverlay(id));
+      if (overlay) overlay.addEventListener('click', (e) => { if (e && e.target === overlay) closeOverlay(id); });
+      document.addEventListener('keydown', function onKey(e) {
+        const o = document.getElementById(id);
+        if (!o) { document.removeEventListener('keydown', onKey); return; }
+        if (e && e.key === 'Escape') closeOverlay(id);
+      });
+    }
+
+    function showConfirmOverlay(opts) {
+      const id = 'tmmConfirmOverlay';
+      const existing = document.getElementById(id);
+      if (existing) existing.remove();
+      const title = esc(opts && opts.title ? opts.title : '');
+      const message = esc(opts && opts.message ? opts.message : '');
+      const confirmText = esc(opts && opts.confirmText ? opts.confirmText : 'Confirm');
+      const confirmClass = (opts && opts.confirmClass) ? String(opts.confirmClass) : 'bg-rose-600 hover:bg-rose-700 text-white';
+
+      const html = `
+        <div id="${id}" class="fixed inset-0 z-[240] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="p-5">
+              <div class="text-base font-black text-slate-900 dark:text-white">${title}</div>
+              <div class="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">${message}</div>
+              <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" data-tmm-confirm-cancel class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm">Cancel</button>
+                <button type="button" data-tmm-confirm-ok class="px-4 py-2.5 rounded-md font-semibold text-sm ${confirmClass}">${confirmText}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
+
+      const overlay = document.getElementById(id);
+      const ok = overlay ? overlay.querySelector('[data-tmm-confirm-ok]') : null;
+      const cancel = overlay ? overlay.querySelector('[data-tmm-confirm-cancel]') : null;
+
+      if (ok) ok.addEventListener('click', () => {
+        closeOverlay(id);
+        if (opts && typeof opts.onConfirm === 'function') opts.onConfirm();
+      });
+      if (cancel) cancel.addEventListener('click', () => closeOverlay(id));
+      if (overlay) overlay.addEventListener('click', (e) => { if (e && e.target === overlay) closeOverlay(id); });
+      document.addEventListener('keydown', function onKey(e) {
+        const o = document.getElementById(id);
+        if (!o) { document.removeEventListener('keydown', onKey); return; }
+        if (e && e.key === 'Escape') closeOverlay(id);
+      });
+    }
+
     function parseId(s) {
       const m = (s || '').toString().trim().match(/^(\d+)\s*-/);
       if (m) return Number(m[1] || 0);
@@ -513,21 +620,65 @@ if ($rootUrl === '/') $rootUrl = '';
       b.addEventListener('click', async () => {
         const sid = String(b.getAttribute('data-cancel-sid') || '').trim();
         if (!sid) return;
-        const remarks = window.prompt('Cancellation remarks (optional):', 'No-show / missed inspection') || '';
-        const post = new FormData();
-        post.append('schedule_id', sid);
-        post.append('remarks', remarks);
-        b.disabled = true;
-        try {
-          const res = await fetch(rootUrl + '/admin/api/module4/cancel_schedule.php', { method: 'POST', body: post });
-          const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'cancel_failed');
-          showToast('Schedule cancelled.');
-          setTimeout(() => { window.location.reload(); }, 400);
-        } catch (err) {
-          showToast(err.message || 'Failed', 'error');
-          b.disabled = false;
-        }
+        showPromptOverlay({
+          title: 'Cancel Schedule',
+          label: 'Cancellation Remarks (Optional)',
+          placeholder: 'e.g., No-show / missed inspection',
+          defaultValue: 'No-show / missed inspection',
+          confirmText: 'Cancel Schedule',
+          onConfirm: async (remarks) => {
+            const post = new FormData();
+            post.append('schedule_id', sid);
+            post.append('remarks', String(remarks || ''));
+            b.disabled = true;
+            try {
+              const res = await fetch(rootUrl + '/admin/api/module4/cancel_schedule.php', { method: 'POST', body: post });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'cancel_failed');
+              showToast('Schedule cancelled.');
+              setTimeout(() => { window.location.reload(); }, 400);
+            } catch (err) {
+              showToast(err.message || 'Failed', 'error');
+              b.disabled = false;
+            }
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-delete-sid]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const sid = String(b.getAttribute('data-delete-sid') || '').trim();
+        if (!sid) return;
+        const plate = String(b.getAttribute('data-delete-plate') || '').trim();
+        const status = String(b.getAttribute('data-delete-status') || '').trim();
+        const isCompleted = status === 'Completed';
+        showConfirmOverlay({
+          title: isCompleted ? 'Delete Completed Schedule' : 'Delete Schedule',
+          message: `This will permanently delete SCH-${sid}${plate ? ' • ' + plate : ''}.`,
+          confirmText: 'Delete',
+          confirmClass: 'bg-rose-600 hover:bg-rose-700 text-white',
+          onConfirm: async () => {
+            const post = new FormData();
+            post.append('schedule_id', sid);
+            if (isCompleted) post.append('force', '1');
+            b.disabled = true;
+            try {
+              const res = await fetch(rootUrl + '/admin/api/module4/delete_schedule.php', { method: 'POST', body: post });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'delete_failed');
+              showToast('Schedule deleted.');
+              setTimeout(() => { window.location.reload(); }, 400);
+            } catch (err) {
+              if (err && String(err.message || '') === 'cannot_delete_completed') {
+                showToast('Cannot delete a completed schedule without force.', 'error');
+              } else {
+                showToast(err.message || 'Failed', 'error');
+              }
+              b.disabled = false;
+            }
+          }
+        });
       });
     });
 

@@ -53,4 +53,22 @@ if (!$ok) {
     exit;
 }
 
+$submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
+if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
+if ($submittedByName === '') $submittedByName = 'Admin';
+if ($submittedByName !== '' && strpos($submittedByName, ' ') !== false) {
+    $parts = preg_split('/\s+/', $submittedByName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if ($parts) $submittedByName = (string)$parts[0];
+}
+$stmtS = $db->prepare("UPDATE operators
+                       SET submitted_by_name=COALESCE(NULLIF(submitted_by_name,''), ?),
+                           submitted_at=COALESCE(submitted_at, NOW())
+                       WHERE id=?
+                         AND COALESCE(portal_user_id, 0)=0");
+if ($stmtS) {
+    $stmtS->bind_param('si', $submittedByName, $operatorId);
+    $stmtS->execute();
+    $stmtS->close();
+}
+
 echo json_encode(['ok' => true, 'operator_id' => $operatorId]);

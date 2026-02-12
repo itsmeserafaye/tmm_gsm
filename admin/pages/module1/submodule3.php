@@ -273,15 +273,14 @@ function tmm_required_doc_list(string $operatorType): array {
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeModal(); });
 
-    // Custom Modal implementation instead of prompt/alert
     function showModalPrompt(title, label, callback) {
       const existing = document.getElementById('custom-prompt-modal');
       if (existing) existing.remove();
 
       const html = `
-        <div id="custom-prompt-modal" class="fixed inset-0 z-[130] flex items-center justify-center p-4">
-          <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-          <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 transform transition-all scale-100 opacity-100">
+        <div id="custom-prompt-modal" class="fixed inset-0 z-[140] flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-black/50 backdrop-blur-sm z-0" data-prompt-backdrop="1"></div>
+          <div class="relative z-10 w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 pointer-events-auto" data-prompt-panel="1">
             <div class="p-6">
               <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">${title}</h3>
               <div class="mb-4">
@@ -302,24 +301,30 @@ function tmm_required_doc_list(string $operatorType): array {
       const input = document.getElementById('prompt-input');
       const cancel = document.getElementById('prompt-cancel');
       const confirm = document.getElementById('prompt-confirm');
+      const backdrop = modal ? modal.querySelector('[data-prompt-backdrop="1"]') : null;
+      const panel = modal ? modal.querySelector('[data-prompt-panel="1"]') : null;
       
-      input.focus();
+      requestAnimationFrame(() => { if (input) input.focus(); });
       
       const close = () => {
+        if (!modal) return;
         modal.classList.add('opacity-0');
-        setTimeout(() => modal.remove(), 200);
+        modal.style.transition = 'opacity 150ms';
+        setTimeout(() => modal.remove(), 160);
       };
       
-      cancel.onclick = close;
+      if (backdrop) backdrop.addEventListener('click', close);
+      if (panel) panel.addEventListener('click', (e) => e.stopPropagation());
+      if (cancel) cancel.onclick = close;
       
-      confirm.onclick = () => {
-        const val = input.value.trim();
+      if (confirm) confirm.onclick = () => {
+        const val = (input ? input.value : '').trim();
         close();
         callback(val);
       };
 
-      input.onkeydown = (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) confirm.click();
+      if (input) input.onkeydown = (e) => {
+        if (e.key === 'Enter' && e.ctrlKey && confirm) confirm.click();
         if (e.key === 'Escape') close();
       };
     }

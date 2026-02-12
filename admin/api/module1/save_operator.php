@@ -55,6 +55,10 @@ $workflowStatus = 'Draft';
 $submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
 if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
 if ($submittedByName === '') $submittedByName = 'Admin';
+if ($submittedByName !== '' && strpos($submittedByName, ' ') !== false) {
+    $parts = preg_split('/\s+/', $submittedByName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if ($parts) $submittedByName = (string)$parts[0];
+}
 
 $stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

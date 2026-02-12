@@ -538,7 +538,7 @@ if ($rootUrl === '/') $rootUrl = '';
           try {
             const fd = new FormData(form);
             const saveFd = new FormData();
-            ['operator_type','name','address','contact_no','email'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
+            ['assisted','operator_type','name','address','contact_no','email'].forEach((k) => saveFd.append(k, fd.get(k) || ''));
 
             const res = await fetch(rootUrl + '/admin/api/module1/save_operator.php', { method: 'POST', body: saveFd });
             const data = await res.json();
