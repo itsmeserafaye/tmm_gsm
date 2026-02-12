@@ -20,6 +20,10 @@ if ($rootUrl === '/') $rootUrl = '';
         <i data-lucide="layout-grid" class="w-4 h-4"></i>
         Terminal Slots
       </a>
+      <a href="?page=analytics/ops_insights" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+        Reports & Analytics
+      </a>
       <button type="button" id="btnRefreshOps" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
         <i data-lucide="refresh-ccw" class="w-4 h-4"></i>
         Refresh
