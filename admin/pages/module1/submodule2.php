@@ -1823,7 +1823,9 @@ $typesList = vehicle_types();
             if (!res.ok || !data || !data.ok) {
               const code = (data && data.error) ? String(data.error) : '';
               const httpHint = (!res.ok && res.status) ? (' (HTTP ' + res.status + ')') : '';
-              const msg = code === 'invalid_plate' ? 'Invalid plate. Use format ABC-1234.'
+              const isDbConnectText = raw && raw.toLowerCase().includes('db connect error');
+              const msg = code === 'db_connect_error' || isDbConnectText ? 'Database connection error. Please start MySQL in XAMPP.'
+                : code === 'invalid_plate' ? 'Invalid plate. Use format ABC-1234.'
                 : code === 'missing_vehicle_type' ? 'Vehicle type is required.'
                   : code === 'cr_required' ? 'CR is required. Upload CR to encode the vehicle.'
                     : code === 'or_expiry_required' ? 'OR expiry date is required when uploading OR.'

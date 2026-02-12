@@ -47,6 +47,14 @@ function db()
     }
   }
   if (!$conn || $conn->connect_error) {
+    $script = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    $isApi = (strpos($script, '/api/') !== false) || (strpos($script, '\\api\\') !== false);
+    if ($isApi && !headers_sent()) {
+      http_response_code(500);
+      header('Content-Type: application/json');
+      echo json_encode(['ok' => false, 'error' => 'db_connect_error']);
+      exit;
+    }
     die('DB connect error');
   }
   $conn->set_charset('utf8mb4');
