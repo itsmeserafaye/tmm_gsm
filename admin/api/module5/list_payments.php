@@ -10,6 +10,10 @@ $terminalId = isset($_GET['terminal_id']) ? (int)$_GET['terminal_id'] : 0;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
 $onlyUnexported = (string)($_GET['unexported'] ?? '') === '1';
+$q = trim((string)($_GET['q'] ?? ''));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
+$exported = trim((string)($_GET['exported'] ?? ''));
 
 if ($limit <= 0) $limit = 50;
 if ($limit > 500) $limit = 500;
@@ -28,9 +32,36 @@ $params = [$terminalId];
 if ($onlyUnexported) {
   $where .= " AND (pp.exported_to_treasury IS NULL OR pp.exported_to_treasury=0)";
 }
+if ($exported !== '') {
+  if ($exported === 'exported') {
+    $where .= " AND COALESCE(pp.exported_to_treasury,0)=1";
+  } elseif ($exported === 'pending') {
+    $where .= " AND COALESCE(pp.exported_to_treasury,0)=0";
+  }
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $where .= " AND pp.paid_at >= ?";
+  $types .= "s";
+  $params[] = $from . " 00:00:00";
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $where .= " AND pp.paid_at <= ?";
+  $types .= "s";
+  $params[] = $to . " 23:59:59";
+}
+if ($q !== '') {
+  $where .= " AND (v.plate_number LIKE ? OR pp.or_no LIKE ? OR ps.slot_no LIKE ? OR t.name LIKE ?)";
+  $like = '%' . $q . '%';
+  $types .= "ssss";
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+  $params[] = $like;
+}
 
 $sql = "SELECT
   pp.payment_id,
+  pp.slot_id,
   pp.amount,
   pp.or_no,
   pp.paid_at,
@@ -68,4 +99,3 @@ while ($res && ($r = $res->fetch_assoc())) {
 $stmt->close();
 
 echo json_encode(['ok' => true, 'data' => $rows]);
-

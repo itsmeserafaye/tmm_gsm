@@ -42,6 +42,7 @@ function tmm_violation_count_vehicle_window(mysqli $db, string $plate, string $s
     return 0;
 
   $count = 0;
+  $sinceDate = substr($sinceSql, 0, 10);
 
   $stmtV = $db->prepare("SELECT COUNT(*) FROM violations WHERE plate_number=? AND COALESCE(violation_date, created_at) >= ?");
   if ($stmtV) {
@@ -61,6 +62,18 @@ function tmm_violation_count_vehicle_window(mysqli $db, string $plate, string $s
     $count += (int)($row[0] ?? 0);
   }
 
+  $stmtSts = $db->prepare("SELECT COUNT(*)
+                           FROM sts_tickets t
+                           JOIN violations v ON v.id=t.linked_violation_id
+                           WHERE v.plate_number=? AND COALESCE(t.date_issued, DATE(t.created_at)) >= ?");
+  if ($stmtSts) {
+    $stmtSts->bind_param('ss', $plate, $sinceDate);
+    $stmtSts->execute();
+    $row = $stmtSts->get_result()->fetch_row();
+    $stmtSts->close();
+    $count += (int)($row[0] ?? 0);
+  }
+
   return $count;
 }
 
@@ -70,6 +83,7 @@ function tmm_violation_count_operator_window(mysqli $db, int $operatorId, string
     return 0;
 
   $count = 0;
+  $sinceDate = substr($sinceSql, 0, 10);
 
   $stmtV = $db->prepare("SELECT COUNT(*) FROM violations WHERE operator_id=? AND COALESCE(violation_date, created_at) >= ?");
   if ($stmtV) {
@@ -86,6 +100,18 @@ function tmm_violation_count_operator_window(mysqli $db, int $operatorId, string
     $stmtT->execute();
     $row = $stmtT->get_result()->fetch_row();
     $stmtT->close();
+    $count += (int)($row[0] ?? 0);
+  }
+
+  $stmtSts = $db->prepare("SELECT COUNT(*)
+                           FROM sts_tickets t
+                           JOIN violations v ON v.id=t.linked_violation_id
+                           WHERE v.operator_id=? AND COALESCE(t.date_issued, DATE(t.created_at)) >= ?");
+  if ($stmtSts) {
+    $stmtSts->bind_param('is', $operatorId, $sinceDate);
+    $stmtSts->execute();
+    $row = $stmtSts->get_result()->fetch_row();
+    $stmtSts->close();
     $count += (int)($row[0] ?? 0);
   }
 
@@ -137,25 +163,58 @@ function tmm_apply_progressive_violation_policy(mysqli $db, array $ctx): array
   $severity = tmm_violation_get_severity($db, $code);
   $count30 = tmm_violation_count_vehicle_window($db, $plate, $since30);
   $vehPolicy = tmm_violation_compute_vehicle_compliance($severity, $count30);
+  $vehRiskLevel = 'Low';
+  if ($vehPolicy['status'] === 'Flagged') $vehRiskLevel = 'Medium';
+  elseif (in_array($vehPolicy['status'], ['Suspended', 'For Review'], true)) $vehRiskLevel = 'High';
+  elseif ($count30 >= 1) $vehRiskLevel = 'Medium';
+  if (ucfirst(strtolower(trim($severity))) === 'Critical') $vehRiskLevel = 'High';
+
+  $hasVehRiskCol = false;
+  $chkVehRisk = $db->query("SHOW COLUMNS FROM vehicles LIKE 'risk_level'");
+  if ($chkVehRisk && ($chkVehRisk->num_rows ?? 0) > 0) {
+    $hasVehRiskCol = true;
+  } else {
+    @$db->query("ALTER TABLE vehicles ADD COLUMN risk_level ENUM('Low','Medium','High') NOT NULL DEFAULT 'Low'");
+    $chkVehRisk2 = $db->query("SHOW COLUMNS FROM vehicles LIKE 'risk_level'");
+    if ($chkVehRisk2 && ($chkVehRisk2->num_rows ?? 0) > 0) $hasVehRiskCol = true;
+  }
 
   $riskCount = tmm_violation_count_operator_window($db, $operatorId, $since90);
   $opRisk = tmm_violation_compute_operator_risk($riskCount);
 
   if ($vehicleId > 0) {
     $reason = substr("{$code} {$severity} ({$count30}/30d)", 0, 255);
-    $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, compliance_updated_at=NOW(), compliance_reason=? WHERE id=?");
-    if ($stmt) {
-      $stmt->bind_param('ssi', $vehPolicy['status'], $reason, $vehicleId);
-      $stmt->execute();
-      $stmt->close();
+    if ($hasVehRiskCol) {
+      $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, risk_level=?, compliance_updated_at=NOW(), compliance_reason=? WHERE id=?");
+      if ($stmt) {
+        $stmt->bind_param('sssi', $vehPolicy['status'], $vehRiskLevel, $reason, $vehicleId);
+        $stmt->execute();
+        $stmt->close();
+      }
+    } else {
+      $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, compliance_updated_at=NOW(), compliance_reason=? WHERE id=?");
+      if ($stmt) {
+        $stmt->bind_param('ssi', $vehPolicy['status'], $reason, $vehicleId);
+        $stmt->execute();
+        $stmt->close();
+      }
     }
   } elseif ($plate !== '') {
     $reason = substr("{$code} {$severity} ({$count30}/30d)", 0, 255);
-    $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, compliance_updated_at=NOW(), compliance_reason=? WHERE plate_number=?");
-    if ($stmt) {
-      $stmt->bind_param('sss', $vehPolicy['status'], $reason, $plate);
-      $stmt->execute();
-      $stmt->close();
+    if ($hasVehRiskCol) {
+      $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, risk_level=?, compliance_updated_at=NOW(), compliance_reason=? WHERE plate_number=?");
+      if ($stmt) {
+        $stmt->bind_param('ssss', $vehPolicy['status'], $vehRiskLevel, $reason, $plate);
+        $stmt->execute();
+        $stmt->close();
+      }
+    } else {
+      $stmt = $db->prepare("UPDATE vehicles SET compliance_status=?, compliance_updated_at=NOW(), compliance_reason=? WHERE plate_number=?");
+      if ($stmt) {
+        $stmt->bind_param('sss', $vehPolicy['status'], $reason, $plate);
+        $stmt->execute();
+        $stmt->close();
+      }
     }
   }
 
@@ -183,4 +242,3 @@ function tmm_apply_progressive_violation_policy(mysqli $db, array $ctx): array
     'operator' => ['count_90d' => $riskCount, 'policy' => $opRisk],
   ];
 }
-

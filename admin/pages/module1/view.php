@@ -4,11 +4,13 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_any_permission(['module1.view','module1.vehicles.write']);
 $db = db();
 $plate = trim($_GET['plate'] ?? '');
+$canEdit = has_permission('module1.vehicles.write');
 $v = null;
 if ($plate !== '') {
   $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id,
                                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
+                               v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner, v.color,
                                v.status, v.created_at
                         FROM vehicles v
                         LEFT JOIN operators o ON o.id=v.operator_id
@@ -87,31 +89,137 @@ if ($rootUrl === '/') $rootUrl = '';
             <i data-lucide="info" class="w-4 h-4 text-blue-500"></i> Vehicle Information
           </h3>
         </div>
-        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle Type</span>
-            <div class="font-bold text-slate-900 dark:text-white text-lg"><?php echo htmlspecialchars($v['vehicle_type']); ?></div>
-          </div>
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle ID</span>
-            <div class="font-bold text-slate-900 dark:text-white text-lg"><?php echo (int)($v['vehicle_id'] ?? 0); ?></div>
-          </div>
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Engine No</span>
-            <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['engine_no'] ?? '-'); ?></div>
-          </div>
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chassis No</span>
-            <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['chassis_no'] ?? '-'); ?></div>
-          </div>
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Make / Model</span>
-            <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['make'] ?? '') . ' ' . (string)($v['model'] ?? '')) ?: '-'); ?></div>
-          </div>
-          <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Year / Fuel</span>
-            <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['year_model'] ?? '') . ' ' . (string)($v['fuel_type'] ?? '')) ?: '-'); ?></div>
-          </div>
+        <div class="p-6">
+          <?php if (!$canEdit): ?>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle Type</span>
+                <div class="font-bold text-slate-900 dark:text-white text-lg"><?php echo htmlspecialchars($v['vehicle_type']); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle ID</span>
+                <div class="font-bold text-slate-900 dark:text-white text-lg"><?php echo (int)($v['vehicle_id'] ?? 0); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Engine No</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['engine_no'] ?? '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chassis No</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['chassis_no'] ?? '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Make / Model</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['make'] ?? '') . ' ' . (string)($v['model'] ?? '')) ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Year / Fuel</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['year_model'] ?? '') . ' ' . (string)($v['fuel_type'] ?? '')) ?: '-'); ?></div>
+              </div>
+            </div>
+          <?php else: ?>
+            <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+            <form id="vehInlineEditForm" class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6" novalidate>
+              <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars((string)($v['plate_number'] ?? ''), ENT_QUOTES); ?>">
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle Type</span>
+                <input name="vehicle_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['vehicle_type'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Vehicle ID</span>
+                <input class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo (int)($v['vehicle_id'] ?? 0); ?>" disabled>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Engine No</span>
+                <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9-]{5,20}$" autocapitalize="characters" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold uppercase" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? ''), ENT_QUOTES); ?>" placeholder="e.g., 1NZFE-12345">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chassis No</span>
+                <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold uppercase" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? ''), ENT_QUOTES); ?>" placeholder="e.g., NCP12345678901234">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Make</span>
+                <input name="make" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['make'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Model</span>
+                <input name="model" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['model'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Year Model</span>
+                <input name="year_model" maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fuel Type</span>
+                <input name="fuel_type" maxlength="20" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">OR Number</span>
+                <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['or_number'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Number</span>
+                <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9-]{6,20}$" autocapitalize="characters" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold uppercase" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Issue Date</span>
+                <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registered Owner</span>
+                <input name="registered_owner" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Color</span>
+                <input name="color" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['color'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Save</span>
+                <button id="vehInlineSaveBtn" class="w-full px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Changes</button>
+              </div>
+            </form>
+            <script>
+              (function () {
+                const rootUrl = <?php echo json_encode($rootUrl); ?>;
+                const form = document.getElementById('vehInlineEditForm');
+                const btn = document.getElementById('vehInlineSaveBtn');
+                const toastContainer = document.getElementById('toast-container');
+                function toast(msg, type) {
+                  if (!toastContainer) return;
+                  const t = (type || 'success').toString();
+                  const color = t === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+                  const el = document.createElement('div');
+                  el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold ${color}`;
+                  el.textContent = msg;
+                  toastContainer.appendChild(el);
+                  setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
+                  setTimeout(() => { el.remove(); }, 3000);
+                }
+                if (!form || !btn) return;
+                form.addEventListener('submit', async (e) => {
+                  e.preventDefault();
+                  if (!form.checkValidity()) { form.reportValidity(); return; }
+                  btn.disabled = true;
+                  const old = btn.textContent;
+                  btn.textContent = 'Saving...';
+                  try {
+                    const res = await fetch(rootUrl + '/admin/api/module1/update_vehicle.php', { method: 'POST', body: new FormData(form) });
+                    const data = await res.json().catch(() => null);
+                    if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+                    toast('Saved.');
+                  } catch (err) {
+                    toast(err.message || 'Failed', 'error');
+                  } finally {
+                    btn.disabled = false;
+                    btn.textContent = old;
+                  }
+                });
+                form.querySelectorAll('input[autocapitalize="characters"]').forEach((el) => {
+                  el.addEventListener('input', () => { el.value = (el.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
+                });
+              })();
+            </script>
+          <?php endif; ?>
         </div>
       </div>
     </div>

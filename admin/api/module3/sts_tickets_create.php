@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/util.php';
+require_once __DIR__ . '/../../includes/violation_escalation.php';
 require_permission('module3.issue');
 
 $db = db();
@@ -72,5 +73,26 @@ $id = (int)$db->insert_id;
 $stmt->close();
 
 if (!$ok) error_response(500, 'db_error');
+if ($linkedViolationId > 0) {
+  $stmtCtx = $db->prepare("SELECT plate_number, violation_type, operator_id, vehicle_id, COALESCE(NULLIF(violation_date,''), created_at) AS observed_at
+                           FROM violations WHERE id=? LIMIT 1");
+  if ($stmtCtx) {
+    $stmtCtx->bind_param('i', $linkedViolationId);
+    $stmtCtx->execute();
+    $vctx = $stmtCtx->get_result()->fetch_assoc();
+    $stmtCtx->close();
+    if ($vctx) {
+      $obs = (string)($vctx['observed_at'] ?? '');
+      if ($dateSql !== null && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $dateSql)) $obs = $dateSql . ' 00:00:00';
+      tmm_apply_progressive_violation_policy($db, [
+        'plate_number' => (string)($vctx['plate_number'] ?? ''),
+        'violation_code' => (string)($vctx['violation_type'] ?? ''),
+        'operator_id' => (int)($vctx['operator_id'] ?? 0),
+        'vehicle_id' => (int)($vctx['vehicle_id'] ?? 0),
+        'observed_at' => $obs !== '' ? $obs : date('Y-m-d H:i:s'),
+      ]);
+    }
+  }
+}
 tmm_audit_event($db, 'STS_TICKET_RECORDED', 'STSTicket', (string)$id, ['sts_ticket_no' => $ticketNo, 'status' => $status]);
 echo json_encode(['ok' => true, 'sts_ticket_id' => $id]);

@@ -143,6 +143,25 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search Slot</label>
+              <input id="slotFilterQ" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Slot no (e.g., P-01)">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select id="slotFilterStatus" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" selected>All</option>
+                <option value="Free">Free</option>
+                <option value="Occupied">Occupied</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
@@ -211,9 +230,19 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
           <div class="font-black text-slate-900 dark:text-white">Payments History</div>
-          <button type="button" id="btnRefreshPayments" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-            Refresh
-          </button>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <select id="payFilterExported" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <option value="" selected>All</option>
+              <option value="pending">Pending</option>
+              <option value="exported">Exported</option>
+            </select>
+            <input id="payFilterFrom" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <input id="payFilterTo" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <input id="payFilterQ" class="w-full sm:w-64 px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / OR / slot">
+            <button type="button" id="btnRefreshPayments" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm">
@@ -263,7 +292,15 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
       <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
         <div class="font-black text-slate-900 dark:text-white">Queue (FIFO)</div>
-        <button type="button" id="btnQueueRefresh" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Refresh</button>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <select id="queueFilterPriority" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" selected>All</option>
+            <option value="Normal">Normal</option>
+            <option value="Priority">Priority</option>
+          </select>
+          <input id="queueFilterQ" class="w-full sm:w-64 px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate">
+          <button type="button" id="btnQueueRefresh" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Refresh</button>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
@@ -356,11 +393,19 @@ if ($rootUrl === '/') $rootUrl = '';
     const formQueueAdd = document.getElementById('formQueueAdd');
     const btnQueueAdd = document.getElementById('btnQueueAdd');
     const btnQueueRefresh = document.getElementById('btnQueueRefresh');
+    const queueFilterPriority = document.getElementById('queueFilterPriority');
+    const queueFilterQ = document.getElementById('queueFilterQ');
     const histBody = document.getElementById('histBody');
     const histQ = document.getElementById('histQ');
     const histFrom = document.getElementById('histFrom');
     const histTo = document.getElementById('histTo');
     const btnHistRefresh = document.getElementById('btnHistRefresh');
+    const slotFilterQ = document.getElementById('slotFilterQ');
+    const slotFilterStatus = document.getElementById('slotFilterStatus');
+    const payFilterExported = document.getElementById('payFilterExported');
+    const payFilterFrom = document.getElementById('payFilterFrom');
+    const payFilterTo = document.getElementById('payFilterTo');
+    const payFilterQ = document.getElementById('payFilterQ');
 
     if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
     if (orInput) {
@@ -391,7 +436,11 @@ if ($rootUrl === '/') $rootUrl = '';
         const res = await fetch(rootUrl + '/admin/api/module5/queue_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
         const data = await res.json();
         if (!data || !data.ok || !Array.isArray(data.data)) throw new Error('load_failed');
-        const rows = data.data;
+        let rows = data.data;
+        const qp = queueFilterPriority ? queueFilterPriority.value.trim() : '';
+        const qq = queueFilterQ ? queueFilterQ.value.trim().toUpperCase() : '';
+        if (qp !== '') rows = rows.filter((r) => String(r.priority || '') === qp);
+        if (qq !== '') rows = rows.filter((r) => String(r.plate_number || '').toUpperCase().includes(qq));
         if (rows.length === 0) {
           queueBody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Queue is empty.</td></tr>`;
           return;
@@ -427,6 +476,9 @@ if ($rootUrl === '/') $rootUrl = '';
     if (activeTab === 'queue') {
       loadQueue().catch(() => {});
     }
+    if (btnQueueRefresh) btnQueueRefresh.addEventListener('click', () => loadQueue().catch(() => {}));
+    if (queueFilterPriority) queueFilterPriority.addEventListener('change', () => loadQueue().catch(() => {}));
+    if (queueFilterQ) queueFilterQ.addEventListener('input', () => loadQueue().catch(() => {}));
     async function loadHistory() {
       if (!histBody) return;
       histBody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
@@ -510,7 +562,6 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
-    if (btnQueueRefresh) btnQueueRefresh.addEventListener('click', loadQueue);
     if (queueBody) {
       queueBody.addEventListener('click', async (e) => {
         const btnServe = e.target.closest('[data-queue-serve]');
@@ -621,7 +672,11 @@ if ($rootUrl === '/') $rootUrl = '';
       const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
       const data = await res.json();
       if (!data || !data.ok) throw new Error('load_failed');
-      const rows = (data.data || []);
+      let rows = (data.data || []);
+      const qv = slotFilterQ ? slotFilterQ.value.trim().toUpperCase() : '';
+      const st = slotFilterStatus ? slotFilterStatus.value.trim() : '';
+      if (qv !== '') rows = rows.filter((r) => String(r.slot_no || '').toUpperCase().includes(qv));
+      if (st !== '') rows = rows.filter((r) => String(r.status || '') === st);
       if (!rows.length) {
         body.innerHTML = '<tr><td colspan="3" class="py-10 text-center text-slate-500 font-medium italic">No slots yet.</td></tr>';
         return;
@@ -797,7 +852,15 @@ if ($rootUrl === '/') $rootUrl = '';
       const body = document.getElementById('paymentsBody');
       if (!body) return;
       body.innerHTML = '<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
-      const res = await fetch(rootUrl + '/admin/api/module5/list_payments.php?terminal_id=' + encodeURIComponent(String(terminalId)) + '&limit=50&offset=0');
+      const qs = new URLSearchParams();
+      qs.set('terminal_id', String(terminalId));
+      qs.set('limit', '50');
+      qs.set('offset', '0');
+      if (payFilterExported && payFilterExported.value) qs.set('exported', payFilterExported.value);
+      if (payFilterFrom && payFilterFrom.value) qs.set('from', payFilterFrom.value);
+      if (payFilterTo && payFilterTo.value) qs.set('to', payFilterTo.value);
+      if (payFilterQ && payFilterQ.value.trim() !== '') qs.set('q', payFilterQ.value.trim());
+      const res = await fetch(rootUrl + '/admin/api/module5/list_payments.php?' + qs.toString());
       const data = await res.json();
       if (!data || !data.ok) throw new Error('load_failed');
       const rows = Array.isArray(data.data) ? data.data : [];
@@ -809,7 +872,14 @@ if ($rootUrl === '/') $rootUrl = '';
         const exported = Number(r.exported_to_treasury || 0) === 1;
         const badge = exported ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
         const bText = exported ? ('Exported ' + (r.exported_at ? fmtDate(r.exported_at) : '')) : 'Pending';
-        const action = exported ? '' : `<button data-mark-exported="${r.payment_id}" class="btnMarkExported px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">Mark Exported</button>`;
+        const slotId = Number(r.slot_id || 0);
+        const viewBtn = slotId > 0
+          ? `<button type="button" data-view-slot="${slotId}" class="btnViewSlot px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">View</button>`
+          : '';
+        const plate = (r.plate_number || '').toString();
+        const vehLink = plate ? `<a class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold" target="_blank" href="?page=module1/submodule2&q=${encodeURIComponent(plate)}&highlight_plate=${encodeURIComponent(plate)}">Vehicle</a>` : '';
+        const exportBtn = exported ? '' : `<button data-mark-exported="${r.payment_id}" class="btnMarkExported px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20">Mark Exported</button>`;
+        const action = `<div class="flex items-center justify-end gap-2">${viewBtn}${vehLink}${exportBtn}</div>`;
         return `
           <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
             <td class="py-4 px-6 text-slate-700 dark:text-slate-200 font-semibold">${fmtDate(r.paid_at)}</td>
@@ -971,6 +1041,12 @@ if ($rootUrl === '/') $rootUrl = '';
 
     const btnRefreshPayments = document.getElementById('btnRefreshPayments');
     if (btnRefreshPayments) btnRefreshPayments.addEventListener('click', () => { loadPayments().catch(() => {}); });
+    if (payFilterExported) payFilterExported.addEventListener('change', () => loadPayments().catch(() => {}));
+    if (payFilterFrom) payFilterFrom.addEventListener('change', () => loadPayments().catch(() => {}));
+    if (payFilterTo) payFilterTo.addEventListener('change', () => loadPayments().catch(() => {}));
+    if (payFilterQ) payFilterQ.addEventListener('input', () => loadPayments().catch(() => {}));
+    if (slotFilterQ) slotFilterQ.addEventListener('input', () => { if (activeTab === 'slots') loadSlotsTable().catch(() => {}); });
+    if (slotFilterStatus) slotFilterStatus.addEventListener('change', () => { if (activeTab === 'slots') loadSlotsTable().catch(() => {}); });
 
     const pendingTx = getTreasuryPendingParkingTx();
     if (pendingTx) pollTreasuryReceipt(pendingTx);

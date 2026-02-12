@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/enforcement.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -66,6 +67,13 @@ if ($operatorId <= 0) {
 if ($operatorId <= 0) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'vehicle_not_linked_to_operator']);
+    exit;
+}
+
+$block = tmm_enforcement_get_block_reasons($db, ['vehicle_id' => $vehicleId, 'operator_id' => $operatorId, 'plate_number' => $plate]);
+if (!$block['ok']) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => (string)($block['error'] ?? 'blocked_by_enforcement'), 'reasons' => $block['reasons'] ?? []]);
     exit;
 }
 

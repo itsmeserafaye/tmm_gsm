@@ -133,198 +133,112 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                     </h3>
                 </div>
                 <div class="<?php echo $cardBodyClass; ?>">
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Vehicle Type</dt>
-                            <dd class="text-lg font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['vehicle_type']); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Vehicle ID</dt>
-                            <dd class="text-lg font-bold text-slate-900 dark:text-white"><?php echo (int)$v['vehicle_id']; ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Engine No</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['engine_no'] ?? '-'); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Chassis No</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars($v['chassis_no'] ?? '-'); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">CR Number</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_number'] ?? '') ?: '-'); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">CR Issue Date</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '') ?: '-'); ?></dd>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <dt class="<?php echo $labelClass; ?>">Registered Owner</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['registered_owner'] ?? '') ?: '-'); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Make / Model</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim(($v['make'] ?? '') . ' ' . ($v['model'] ?? '')) ?: '-'); ?></dd>
-                        </div>
-                        <div>
-                            <dt class="<?php echo $labelClass; ?>">Year / Fuel</dt>
-                            <dd class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim(($v['year_model'] ?? '') . ' ' . ($v['fuel_type'] ?? '')) ?: '-'); ?></dd>
-                        </div>
-                    </dl>
-                </div>
-            </div>
-
-            <!-- Management Card -->
-            <div class="<?php echo $cardClass; ?>">
-                <div class="<?php echo $cardHeaderClass; ?>">
-                    <div class="flex items-center justify-between gap-3">
-                        <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <i data-lucide="settings-2" class="w-4 h-4 text-slate-500"></i> Management
-                        </h3>
-                        <button type="button" id="btnVehEnableEdit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors">
-                            <i data-lucide="pencil" class="w-4 h-4"></i>
-                            Enable Editing
-                        </button>
-                    </div>
-                </div>
-                <div class="<?php echo $cardBodyClass; ?> space-y-6">
-                    <div id="vehEditLocked" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                        Editing is disabled. Click “Enable Editing” to update this record.
-                    </div>
-                    <div id="vehEditWrap" class="hidden space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Status Form -->
-                        <form id="formStatus" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php">
-                            <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                            <label class="<?php echo $labelClass; ?>">Update Status</label>
-                            <div class="flex gap-2">
-                                <select name="status" class="<?php echo $inputClass; ?>">
-                                    <option disabled>Select Status</option>
-                                    <?php if (!in_array((string)$v['status'], ['Active','Inactive'], true)): ?>
-                                        <option selected disabled><?php echo htmlspecialchars((string)$v['status']); ?></option>
-                                    <?php endif; ?>
-                                    <option <?php echo ($v['status']==='Active'?'selected':''); ?>>Active</option>
-                                    <option <?php echo ($v['status']==='Inactive'?'selected':''); ?>>Inactive</option>
-                                </select>
-                                <button class="<?php echo $btnClass; ?>">Save</button>
-                            </div>
-                        </form>
-
-                        <!-- Type Form -->
-                        <form id="formType" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php">
-                            <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                            <label class="<?php echo $labelClass; ?>">Update Type</label>
-                            <div class="flex gap-2">
+                    <form id="formDetails" class="space-y-4" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php" novalidate>
+                        <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Vehicle Type</label>
                                 <select name="vehicle_type" class="<?php echo $inputClass; ?>">
-                                    <option disabled>Select Type</option>
+                                    <option value="">Select type</option>
                                     <?php foreach ($types as $t): ?>
-                                        <option <?php echo ($v['vehicle_type']===$t?'selected':''); ?>><?php echo htmlspecialchars($t); ?></option>
+                                        <option value="<?php echo htmlspecialchars($t); ?>" <?php echo ((string)($v['vehicle_type'] ?? '') === (string)$t) ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <button class="<?php echo $btnClass; ?>">Save</button>
+                                <div class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Editing updates this record immediately.</div>
                             </div>
-                        </form>
-                    </div>
-
-                    <div id="vehUpdateDetails" class="border-t border-slate-100 dark:border-slate-800 pt-6">
-                        <label class="<?php echo $labelClass; ?> mb-3">Update Details</label>
-                        <form id="formDetails" class="space-y-4" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php" novalidate>
-                            <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Engine No</label>
-                                    <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345">
-                                    <div class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Engine number (from engine block or CR)</div>
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Chassis No</label>
-                                    <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">OR Number</label>
-                                    <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['or_number'] ?? '')); ?>" placeholder="e.g., 123456">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">CR Number</label>
-                                    <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? '')); ?>" placeholder="e.g., ABCD-123456">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">CR Issue Date</label>
-                                    <input name="cr_issue_date" type="date" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '')); ?>">
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="<?php echo $labelClass; ?>">Registered Owner</label>
-                                    <input name="registered_owner" list="vehEditOwnerList" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
-                                    <datalist id="vehEditOwnerList"></datalist>
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Color</label>
-                                    <input name="color" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['color'] ?? '')); ?>" placeholder="e.g., White">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Make</label>
-                                    <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>"></select>
-                                    <div id="vehEditMakeOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditMakeOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type make">
-                                    </div>
-                                    <input id="vehEditMakeHidden" name="make" type="hidden" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Model</label>
-                                    <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>"></select>
-                                    <div id="vehEditModelOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditModelOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type model">
-                                    </div>
-                                    <input id="vehEditModelHidden" name="model" type="hidden" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>">
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Year Model</label>
-                                    <select name="year_model" class="<?php echo $inputClass; ?>">
-                                        <option value="">Select year</option>
-                                        <?php $curY = (int)date('Y'); ?>
-                                        <?php for ($y = $curY; $y >= 1950; $y--): ?>
-                                            <option value="<?php echo $y; ?>" <?php echo ((string)($v['year_model'] ?? '') === (string)$y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
-                                        <?php endfor; ?>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="<?php echo $labelClass; ?>">Fuel Type</label>
-                                    <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>"></select>
-                                    <div id="vehEditFuelOtherWrap" class="hidden mt-2">
-                                        <input id="vehEditFuelOtherInput" maxlength="20" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
-                                    </div>
-                                    <input id="vehEditFuelHidden" name="fuel_type" type="hidden" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>">
-                                </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Vehicle ID</label>
+                                <input class="<?php echo $inputClass; ?>" value="<?php echo (int)$v['vehicle_id']; ?>" disabled>
                             </div>
-                            <button class="<?php echo $btnClass; ?>">Save Details</button>
-                        </form>
-                    </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Engine No</label>
+                                <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Chassis No</label>
+                                <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">OR Number</label>
+                                <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['or_number'] ?? '')); ?>" placeholder="e.g., 123456">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">CR Number</label>
+                                <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? '')); ?>" placeholder="e.g., ABCD-123456">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">CR Issue Date</label>
+                                <input name="cr_issue_date" type="date" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '')); ?>">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="<?php echo $labelClass; ?>">Registered Owner</label>
+                                <input name="registered_owner" list="vehEditOwnerList" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
+                                <datalist id="vehEditOwnerList"></datalist>
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Color</label>
+                                <input name="color" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['color'] ?? '')); ?>" placeholder="e.g., White">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Make</label>
+                                <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>"></select>
+                                <div id="vehEditMakeOtherWrap" class="hidden mt-2">
+                                    <input id="vehEditMakeOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type make">
+                                </div>
+                                <input id="vehEditMakeHidden" name="make" type="hidden" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Model</label>
+                                <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>"></select>
+                                <div id="vehEditModelOtherWrap" class="hidden mt-2">
+                                    <input id="vehEditModelOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type model">
+                                </div>
+                                <input id="vehEditModelHidden" name="model" type="hidden" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>">
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Year Model</label>
+                                <select name="year_model" class="<?php echo $inputClass; ?>">
+                                    <option value="">Select year</option>
+                                    <?php $curY = (int)date('Y'); ?>
+                                    <?php for ($y = $curY; $y >= 1950; $y--): ?>
+                                        <option value="<?php echo $y; ?>" <?php echo ((string)($v['year_model'] ?? '') === (string)$y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                                    <?php endfor; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="<?php echo $labelClass; ?>">Fuel Type</label>
+                                <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>"></select>
+                                <div id="vehEditFuelOtherWrap" class="hidden mt-2">
+                                    <input id="vehEditFuelOtherInput" maxlength="20" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
+                                </div>
+                                <input id="vehEditFuelHidden" name="fuel_type" type="hidden" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>">
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button class="<?php echo $btnClass; ?>">Save</button>
+                        </div>
+                    </form>
 
-                    <div class="border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <div class="border-t border-slate-100 dark:border-slate-800 pt-6 mt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Link Vehicle to Operator</label>
                         <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
                             <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
                             
-                            <!-- Searchable Dropdown Container -->
                             <div class="md:col-span-2 relative">
                                 <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Search Operator</label>
                                 <div class="relative">
                                     <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo ((int)($v['operator_exists'] ?? 0) === 1) ? ((int)($v['operator_id'] ?? 0) ?: '') : ''; ?>">
                                     <div class="relative">
                                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                                        <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9" 
-                                               placeholder="Search by name or ID..." 
-                                               autocomplete="off" 
+                                        <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9"
+                                               placeholder="Search by name or ID..."
+                                               autocomplete="off"
                                                value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>">
                                         <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>">
                                             <i data-lucide="x" class="w-3 h-3"></i>
                                         </button>
                                     </div>
-                                    
-                                    <!-- Dropdown Results -->
-                                    <div id="linkOpResults" class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden">
-                                        <!-- Items will be injected here -->
-                                    </div>
+                                    <div id="linkOpResults" class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden"></div>
                                 </div>
                                 <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400" id="linkOpHint">Type to search existing operators</div>
                             </div>
@@ -333,7 +247,6 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp">Link Operator</button>
                             </div>
                         </form>
-                    </div>
                     </div>
                 </div>
             </div>

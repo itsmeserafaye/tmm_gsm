@@ -719,29 +719,6 @@ $typesList = vehicle_types();
         el.addEventListener('change', () => { try { el.blur(); } catch (_) {} });
       });
 
-      const btnEnableEdit = root.querySelector('#btnVehEnableEdit');
-      const editWrap = root.querySelector('#vehEditWrap');
-      const editLocked = root.querySelector('#vehEditLocked');
-      if (btnEnableEdit && editWrap) {
-        const setEditing = (enabled) => {
-          editWrap.classList.toggle('hidden', !enabled);
-          if (editLocked) editLocked.classList.toggle('hidden', enabled);
-          btnEnableEdit.innerHTML = enabled
-            ? '<i data-lucide="lock" class="w-4 h-4"></i> Disable Editing'
-            : '<i data-lucide="pencil" class="w-4 h-4"></i> Enable Editing';
-          editWrap.querySelectorAll('input,select,textarea,button').forEach((el) => {
-            const tag = (el.tagName || '').toLowerCase();
-            const type = (tag === 'input') ? (el.getAttribute('type') || '').toLowerCase() : '';
-            if (type === 'hidden') return;
-            if (tag === 'button' && el.getAttribute('type') === 'button') return;
-            el.disabled = !enabled;
-          });
-          if (window.lucide) window.lucide.createIcons();
-        };
-        setEditing(false);
-        btnEnableEdit.addEventListener('click', () => setEditing(editWrap.classList.contains('hidden')));
-      }
-
       const engineInput = root.querySelector('input[name="engine_no"]');
       if (engineInput) {
         const validate = () => {

@@ -16,6 +16,12 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Ticket Tracking (Official STS Reference)</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Record official STS tickets and link them to recorded violations for monitoring and reporting.</p>
     </div>
+    <div class="flex items-center gap-2">
+      <button type="button" id="btnOpenStsModal" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        Record STS Ticket
+      </button>
+    </div>
   </div>
 
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -35,70 +41,79 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-      <div class="text-base font-black text-slate-900 dark:text-white">Record STS Ticket</div>
-      <div class="text-sm text-slate-500 dark:text-slate-400">Manual entry or upload scan/photo of official ticket.</div>
-    </div>
-    <div class="p-6">
-      <form id="formCreateStsTicket" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
-        <div class="md:col-span-4 space-y-4">
+  <div id="modalStsTicket" class="fixed inset-0 z-[220] hidden">
+    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div class="w-full max-w-5xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket No.</label>
-            <input name="sts_ticket_no" required minlength="3" maxlength="64" pattern="^(?:[0-9A-Za-z/]|-){3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="STS-2026-000123">
+            <div class="text-sm font-black text-slate-900 dark:text-white">Record STS Ticket</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Manual entry or upload scan/photo of official ticket.</div>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issued By</label>
-            <input name="issued_by" maxlength="128" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Officer / STS Reference">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date Issued</label>
-            <input name="date_issued" type="date" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
-          </div>
+          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
         </div>
-
-        <div class="md:col-span-5 space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Fine Amount</label>
-              <input name="fine_amount" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="0.00">
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
-              <select name="status" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
-                <option value="Pending Payment">Pending Payment</option>
-                <option value="Paid">Paid</option>
-                <option value="Closed">Closed</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Linked Violation (optional)</label>
-            <div class="flex flex-col sm:flex-row gap-2">
-              <input id="linkedViolationId" name="linked_violation_id" inputmode="numeric" pattern="^[0-9]{0,10}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Violation ID">
-              <button type="button" id="btnFindViolation" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Find</button>
-            </div>
-            <div id="violationPickPanel" class="mt-2 hidden rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div class="p-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
-                <input id="violationPickSearch" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search plate/type/location…">
+        <div class="p-6 overflow-auto">
+          <form id="formCreateStsTicket" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
+            <div class="md:col-span-4 space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket No.</label>
+                <input name="sts_ticket_no" required minlength="3" maxlength="64" pattern="^(?:[0-9A-Za-z/]|-){3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="STS-2026-000123">
               </div>
-              <div id="violationPickList" class="max-h-64 overflow-y-auto"></div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issued By</label>
+                <input name="issued_by" maxlength="128" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Officer / STS Reference">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date Issued</label>
+                <input name="date_issued" type="date" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+              </div>
             </div>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Verification Notes</label>
-            <textarea name="verification_notes" rows="3" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold"></textarea>
-          </div>
+            <div class="md:col-span-5 space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Fine Amount</label>
+                  <input name="fine_amount" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="0.00">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
+                  <select name="status" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                    <option value="Pending Payment">Pending Payment</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Linked Violation (optional)</label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input id="linkedViolationId" name="linked_violation_id" inputmode="numeric" pattern="^[0-9]{0,10}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Violation ID">
+                  <button type="button" id="btnFindViolation" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Find</button>
+                </div>
+                <div id="violationPickPanel" class="mt-2 hidden rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div class="p-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
+                    <input id="violationPickSearch" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search plate/type/location…">
+                  </div>
+                  <div id="violationPickList" class="max-h-64 overflow-y-auto"></div>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Verification Notes</label>
+                <textarea name="verification_notes" rows="3" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold"></textarea>
+              </div>
+            </div>
+            <div class="md:col-span-3 space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Upload Ticket (optional)</label>
+                <input name="ticket_scan" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">
+              </div>
+              <button id="btnCreateStsTicket" class="w-full py-3 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-black">Save</button>
+              <button type="button" id="btnCloseStsModal" class="w-full py-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-black">Cancel</button>
+            </div>
+          </form>
         </div>
-
-        <div class="md:col-span-3 space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Upload Ticket (optional)</label>
-            <input name="ticket_scan" type="file" accept=".jpg,.jpeg,.png,.pdf" class="w-full text-sm">
-          </div>
-          <button id="btnCreateStsTicket" class="w-full py-3 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-black">Save</button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -115,6 +130,8 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
           <option value="Paid">Paid</option>
           <option value="Closed">Closed</option>
         </select>
+        <input id="filterFrom" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        <input id="filterTo" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
         <input id="filterQ" class="w-full sm:w-72 px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ticket/plate…">
         <button id="btnReload" class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
       </div>
@@ -161,8 +178,13 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
 
     const formCreate = document.getElementById('formCreateStsTicket');
     const btnCreate = document.getElementById('btnCreateStsTicket');
+    const modal = document.getElementById('modalStsTicket');
+    const btnOpenModal = document.getElementById('btnOpenStsModal');
+    const btnCloseModal = document.getElementById('btnCloseStsModal');
     const tbody = document.getElementById('ticketsTbody');
     const filterStatus = document.getElementById('filterStatus');
+    const filterFrom = document.getElementById('filterFrom');
+    const filterTo = document.getElementById('filterTo');
     const filterQ = document.getElementById('filterQ');
     const btnReload = document.getElementById('btnReload');
     const linkedViolationId = document.getElementById('linkedViolationId');
@@ -170,12 +192,34 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
     const pickPanel = document.getElementById('violationPickPanel');
     const pickSearch = document.getElementById('violationPickSearch');
     const pickList = document.getElementById('violationPickList');
+ 
+    function openModal() {
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      try { if (window.lucide && window.lucide.createIcons) window.lucide.createIcons(); } catch (_) {}
+    }
+    function closeModal() {
+      if (!modal) return;
+      modal.classList.add('hidden');
+      if (pickPanel) pickPanel.classList.add('hidden');
+    }
+    if (btnOpenModal) btnOpenModal.addEventListener('click', openModal);
+    if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
+    if (modal) {
+      const b = modal.querySelector('[data-modal-backdrop]');
+      const c = modal.querySelector('[data-modal-close]');
+      if (b) b.addEventListener('click', closeModal);
+      if (c) c.addEventListener('click', closeModal);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+    }
 
     async function loadTickets() {
       if (!tbody) return;
       tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-6 text-center text-slate-500">Loading…</td></tr>`;
       const qs = new URLSearchParams();
       if (filterStatus && filterStatus.value) qs.set('status', filterStatus.value);
+      if (filterFrom && filterFrom.value) qs.set('from', filterFrom.value);
+      if (filterTo && filterTo.value) qs.set('to', filterTo.value);
       if (filterQ && filterQ.value.trim() !== '') qs.set('q', filterQ.value.trim());
       const res = await fetch(rootUrl + '/admin/api/module3/sts_tickets_list.php?' + qs.toString());
       const data = await res.json().catch(() => null);
@@ -270,6 +314,8 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
 
     if (btnReload) btnReload.addEventListener('click', loadTickets);
     if (filterStatus) filterStatus.addEventListener('change', loadTickets);
+    if (filterFrom) filterFrom.addEventListener('change', loadTickets);
+    if (filterTo) filterTo.addEventListener('change', loadTickets);
     if (filterQ) filterQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadTickets(); } });
 
     if (formCreate) {
@@ -286,6 +332,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
           formCreate.reset();
           if (pickPanel) pickPanel.classList.add('hidden');
           loadTickets();
+          closeModal();
         } catch (err) {
           showToast((err && err.message) ? err.message : 'Failed.', 'error');
         } finally {

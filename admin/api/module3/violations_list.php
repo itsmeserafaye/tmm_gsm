@@ -9,6 +9,8 @@ header('Content-Type: application/json');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $workflow = trim((string)($_GET['workflow_status'] ?? ''));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
 $limit = (int)($_GET['limit'] ?? 200);
 if ($limit <= 0) $limit = 200;
 if ($limit > 500) $limit = 500;
@@ -30,6 +32,16 @@ $types = '';
 if ($workflow !== '') {
   $conds[] = "v.workflow_status=?";
   $params[] = $workflow;
+  $types .= 's';
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $conds[] = "v.violation_date >= ?";
+  $params[] = $from . ' 00:00:00';
+  $types .= 's';
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $conds[] = "v.violation_date <= ?";
+  $params[] = $to . ' 23:59:59';
   $types .= 's';
 }
 if ($q !== '') {

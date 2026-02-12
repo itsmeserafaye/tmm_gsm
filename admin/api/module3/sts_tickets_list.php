@@ -9,6 +9,8 @@ header('Content-Type: application/json');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
 $limit = (int)($_GET['limit'] ?? 200);
 if ($limit <= 0) $limit = 200;
 if ($limit > 500) $limit = 500;
@@ -28,6 +30,16 @@ $types = '';
 if ($status !== '') {
   $conds[] = "t.status=?";
   $params[] = $status;
+  $types .= 's';
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $conds[] = "COALESCE(t.date_issued, DATE(t.created_at)) >= ?";
+  $params[] = $from;
+  $types .= 's';
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $conds[] = "COALESCE(t.date_issued, DATE(t.created_at)) <= ?";
+  $params[] = $to;
   $types .= 's';
 }
 if ($q !== '') {
