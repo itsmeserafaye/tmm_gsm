@@ -1805,7 +1805,11 @@ $typesList = vehicle_types();
             if (ocrConfirmWrap) ocrConfirmWrap.classList.remove('hidden');
             return;
           }
-          if (!form.checkValidity()) { form.reportValidity(); return; }
+          if (window.TMMFormEnhancements && typeof window.TMMFormEnhancements.validateForm === 'function') {
+            if (!window.TMMFormEnhancements.validateForm(form)) return;
+          } else {
+            try { if (!form.checkValidity()) { form.reportValidity(); return; } } catch (_) { showToast('Please fix the highlighted fields.', 'error'); return; }
+          }
           btnSave.disabled = true;
           btnSave.textContent = 'Saving...';
           try {
