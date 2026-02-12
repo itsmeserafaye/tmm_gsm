@@ -1422,9 +1422,9 @@ $typesList = vehicle_types();
                 </div>
                 <div class="sm:col-span-2">
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR Expiry Date</label>
-                  <div class="hidden" data-or-expiry-wrap="1">
-                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
-                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Required only if OR is uploaded.</div>
+                  <div data-or-expiry-wrap="1" class="opacity-50">
+                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1" disabled>
+                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Choose an OR file to enable this field.</div>
                   </div>
                   <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR expired → Operation blocked.</div>
                 </div>
@@ -1649,9 +1649,11 @@ $typesList = vehicle_types();
           const hasOr = !!(orFileInput && orFileInput.files && orFileInput.files.length > 0);
           if (orExpiryInput) {
             orExpiryInput.required = hasOr;
+            orExpiryInput.disabled = !hasOr;
             if (!hasOr) orExpiryInput.setCustomValidity('');
+            if (!hasOr) orExpiryInput.value = '';
           }
-          if (orExpiryWrap) orExpiryWrap.classList.toggle('hidden', !hasOr);
+          if (orExpiryWrap) orExpiryWrap.classList.toggle('opacity-50', !hasOr);
         };
         if (orFileInput) orFileInput.addEventListener('change', syncOrExpiryRequired);
         if (orExpiryInput) orExpiryInput.addEventListener('change', () => { syncOrExpiryRequired(); try { orExpiryInput.blur(); } catch (_) {} });
