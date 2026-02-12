@@ -399,13 +399,17 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         var warnSecRaw = <?php echo json_encode((int)trim((string)tmm_get_app_setting('session_warning_seconds', '30'))); ?>;
         var warnSec = warnSecRaw > 0 ? warnSecRaw : 30;
         warnSec = Math.max(10, Math.min(120, warnSec));
+        var overrideTimeoutSec = null;
 
         try {
           var sp = new URLSearchParams(window.location.search || '');
           var override = sp.get('tmm_timeout_sec');
           if (override !== null && override !== '') {
             var ov = parseInt(String(override), 10);
-            if (!isNaN(ov) && ov >= 30 && ov <= 86400) timeoutSec = ov;
+            if (!isNaN(ov) && ov >= 30 && ov <= 86400) {
+              overrideTimeoutSec = ov;
+              timeoutSec = ov;
+            }
           }
         } catch (e) { }
 
@@ -420,6 +424,24 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         var showing = false;
         var tickId = null;
         var lastMouseResetMs = 0;
+
+        function applyServerState(data) {
+          try {
+            if (!data || data.ok !== true) return;
+            var ts = parseInt(String(data.timeout_sec || ''), 10);
+            if (!isNaN(ts) && ts >= 30 && ts <= 86400) {
+              if (overrideTimeoutSec === null) timeoutSec = ts;
+            }
+            var ws = parseInt(String(data.warning_sec || ''), 10);
+            if (!isNaN(ws) && ws > 0) warnSec = ws;
+            warnSec = Math.max(10, Math.min(120, warnSec));
+            warnSec = Math.min(warnSec, Math.max(10, timeoutSec - 5));
+            var idle = parseInt(String(data.idle_sec || ''), 10);
+            if (!isNaN(idle) && idle >= 0) {
+              lastActivityMs = Date.now() - (idle * 1000);
+            }
+          } catch (e) { }
+        }
 
         function hideToast() {
           if (!toast) return;
@@ -450,14 +472,20 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           if (showing) hideToast();
         }
 
-        function ping() {
+        function ping(touch) {
           try {
-            return fetch(pingUrl, { headers: { 'Accept': 'application/json' } })
+            var u = pingUrl + '?touch=' + (touch === false ? '0' : '1');
+            return fetch(u, { headers: { 'Accept': 'application/json' } })
               .then(function (r) { return r.json(); })
-              .then(function () { resetActivity(); })
-              .catch(function () { resetActivity(); });
+              .then(function (data) {
+                applyServerState(data);
+                if (touch !== false) resetActivity();
+              })
+              .catch(function () {
+                if (touch !== false) resetActivity();
+              });
           } catch (e) {
-            resetActivity();
+            if (touch !== false) resetActivity();
             return Promise.resolve();
           }
         }
@@ -479,7 +507,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(function (evt) {
           document.addEventListener(evt, resetActivity, { passive: true });
         });
-        if (btnStay) btnStay.addEventListener('click', function () { ping(); });
+        if (btnStay) btnStay.addEventListener('click', function () { ping(true); });
         if (btnClose) btnClose.addEventListener('click', function () { hideToast(); });
         if (toast) {
           toast.addEventListener('click', function (e) {
@@ -487,6 +515,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           });
         }
 
+        ping(false);
         tick();
         tickId = window.setInterval(tick, 1000);
       })();

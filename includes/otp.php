@@ -2,6 +2,11 @@
 require_once __DIR__ . '/mailer.php';
 
 function otp_ensure_schema(mysqli $db): bool {
+  static $done = false;
+  if ($done) return true;
+  $done = true;
+  $t = $db->query("SHOW TABLES LIKE 'email_otps'");
+  if ($t && $t->num_rows > 0) return true;
   $ok = $db->query("CREATE TABLE IF NOT EXISTS email_otps (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(190) NOT NULL,

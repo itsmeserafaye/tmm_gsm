@@ -8,7 +8,11 @@ require_once __DIR__ . '/export_toolbar.php';
 function tmm_get_app_setting(string $key, ?string $default = null): ?string {
   static $cache = [];
   $now = time();
-  if (isset($cache[$key]) && ($now - (int)($cache[$key]['ts'] ?? 0)) < 60) {
+  $ttl = 60;
+  if ($key === 'session_timeout' || $key === 'session_warning_seconds') {
+    $ttl = 0;
+  }
+  if ($ttl > 0 && isset($cache[$key]) && ($now - (int)($cache[$key]['ts'] ?? 0)) < $ttl) {
     return $cache[$key]['val'];
   }
   try {
@@ -81,16 +85,22 @@ function tmm_logout_unauthorized(string $error): void {
   exit;
 }
 
-function tmm_enforce_session_timeout(): void {
+function tmm_enforce_session_timeout(bool $touch = true): void {
   if (php_sapi_name() === 'cli') return;
   if (empty($_SESSION['user_id'])) return;
   $now = time();
   $ttl = tmm_session_timeout_seconds();
   $last = (int)($_SESSION['last_activity'] ?? 0);
+  if ($last <= 0) {
+    $_SESSION['last_activity'] = $now;
+    return;
+  }
   if ($last > 0 && ($now - $last) > $ttl) {
     tmm_logout_unauthorized('session_expired');
   }
-  $_SESSION['last_activity'] = $now;
+  if ($touch) {
+    $_SESSION['last_activity'] = $now;
+  }
 }
 
 function rbac_get_config_auth() {
@@ -133,9 +143,9 @@ function current_user_role() {
   return normalize_role($role);
 }
 
-function require_login() {
+function require_login(bool $touch = true) {
   if (!empty($_SESSION['user_id'])) {
-    tmm_enforce_session_timeout();
+    tmm_enforce_session_timeout($touch);
     return;
   }
   if (defined('TMM_TEST')) {

@@ -48,10 +48,11 @@ $gsm_root_url = (function (): string{
 })();
 
 $db = db();
-rbac_ensure_schema($db);
-$gsmRecaptchaCfg = recaptcha_config($db);
-$gsmRecaptchaSiteKey = (string)($gsmRecaptchaCfg['site_key'] ?? '');
-$gsmRecaptchaSecretKey = (string)($gsmRecaptchaCfg['secret_key'] ?? '');
+if (!rbac_schema_ready($db)) {
+  rbac_ensure_schema($db);
+}
+$gsmRecaptchaSiteKey = '';
+$gsmRecaptchaSecretKey = '';
 
 function gsm_verify_recaptcha_or_fail(string $siteKey, string $secretKey, array $input): void {
   $siteKey = trim($siteKey);
@@ -158,6 +159,18 @@ function gsm_require_operator_mfa(mysqli $db): bool
 
 function td_ensure_schema(mysqli $db): void
 {
+  static $done = false;
+  if ($done) return;
+  $done = true;
+
+  $t = $db->query("SHOW TABLES LIKE 'trusted_devices'");
+  if ($t && $t->num_rows > 0) {
+    $cols = $db->query("SHOW COLUMNS FROM trusted_devices LIKE 'user_agent_hash'");
+    if ($cols && $cols->num_rows > 0) return;
+    $db->query("ALTER TABLE trusted_devices ADD COLUMN user_agent_hash VARCHAR(64) DEFAULT NULL AFTER device_hash");
+    return;
+  }
+
   $db->query("CREATE TABLE IF NOT EXISTS trusted_devices (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_type VARCHAR(20) NOT NULL,
@@ -170,11 +183,6 @@ function td_ensure_schema(mysqli $db): void
     UNIQUE KEY uniq_user_device (user_type, user_id, device_hash),
     INDEX idx_expires (expires_at)
   ) ENGINE=InnoDB");
-
-  $cols = $db->query("SHOW COLUMNS FROM trusted_devices LIKE 'user_agent_hash'");
-  if (!$cols || $cols->num_rows === 0) {
-    $db->query("ALTER TABLE trusted_devices ADD COLUMN user_agent_hash VARCHAR(64) DEFAULT NULL AFTER device_hash");
-  }
 }
 
 function td_hash_device(string $deviceId): string
@@ -278,6 +286,9 @@ if ($action !== 'login_otp_verify' && $action !== 'login_otp_resend' && $action 
 }
 
 if ($action === 'login' || $action === 'operator_login') {
+  $gsmRecaptchaCfg = recaptcha_config($db);
+  $gsmRecaptchaSiteKey = (string)($gsmRecaptchaCfg['site_key'] ?? '');
+  $gsmRecaptchaSecretKey = (string)($gsmRecaptchaCfg['secret_key'] ?? '');
   gsm_verify_recaptcha_or_fail($gsmRecaptchaSiteKey, $gsmRecaptchaSecretKey, $input);
 }
 

@@ -14,7 +14,18 @@ function rbac_get_config() {
     return $config;
 }
 
+function rbac_schema_ready(mysqli $db): bool {
+  $res = $db->query("SHOW TABLES LIKE 'rbac_users'");
+  if (!$res || $res->num_rows <= 0) return false;
+  $res2 = $db->query("SHOW TABLES LIKE 'rbac_roles'");
+  if (!$res2 || $res2->num_rows <= 0) return false;
+  $res3 = $db->query("SHOW TABLES LIKE 'rbac_permissions'");
+  if (!$res3 || $res3->num_rows <= 0) return false;
+  return true;
+}
+
 function rbac_ensure_schema(mysqli $db) {
+  if (rbac_schema_ready($db)) return;
   $db->query("CREATE TABLE IF NOT EXISTS rbac_users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(190) NOT NULL UNIQUE,
