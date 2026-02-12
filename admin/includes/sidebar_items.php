@@ -28,7 +28,6 @@ $sidebarItems = [
       ['id' => 'submodule1', 'label' => 'Franchise Applications', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history','module2.apply']],
       ['id' => 'submodule2', 'label' => 'Submit Franchise Application', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.apply']],
       ['id' => 'submodule3', 'label' => 'Endorsement & LTFRB Approval', 'path' => '/module2/submodule3', 'anyPermissions' => ['module2.endorse','module2.approve','module2.history']],
-      ['id' => 'submodule4', 'label' => 'Operator Document Validation', 'path' => '/puv-database/operator-document-validation', 'anyPermissions' => ['module1.write','module2.endorse','module2.approve','module2.apply']],
       ['id' => 'submodule5', 'label' => 'Route Assignment', 'path' => '/module2/submodule5', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history']],
     ],
   ],

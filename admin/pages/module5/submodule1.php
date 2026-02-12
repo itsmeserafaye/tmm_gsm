@@ -167,20 +167,29 @@ if ($rootUrl === '/') $rootUrl = '';
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
-          <?php if (has_permission('reports.export')): ?>
-            <?php tmm_render_export_toolbar([
-              [
+          <?php
+            $exportItems = [];
+            if (has_permission('reports.export')) {
+              $exportItems[] = [
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php',
                 'label' => 'CSV',
                 'icon' => 'download'
-              ],
-              [
+              ];
+              $exportItems[] = [
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php?format=excel',
                 'label' => 'Excel',
                 'icon' => 'file-spreadsheet'
-              ]
-            ], ['mb' => 'mb-0']); ?>
-          <?php endif; ?>
+              ];
+            }
+            $exportItems[] = [
+              'tag' => 'button',
+              'label' => 'Import',
+              'icon' => 'upload',
+              'attrs' => ['id' => 'btnImportTerminals']
+            ];
+            if ($exportItems) tmm_render_export_toolbar($exportItems, ['mb' => 'mb-0']);
+          ?>
+          <input id="fileImportTerminals" type="file" accept=".csv,text/csv" class="hidden">
           <div class="flex items-center justify-between gap-3">
             <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center p-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white">
               <i data-lucide="plus" class="w-4 h-4"></i>
@@ -577,6 +586,31 @@ if ($rootUrl === '/') $rootUrl = '';
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    const btnImportTerminals = document.getElementById('btnImportTerminals');
+    const fileImportTerminals = document.getElementById('fileImportTerminals');
+    if (btnImportTerminals && fileImportTerminals) {
+      btnImportTerminals.addEventListener('click', () => fileImportTerminals.click());
+      fileImportTerminals.addEventListener('change', async () => {
+        const f = fileImportTerminals.files && fileImportTerminals.files[0] ? fileImportTerminals.files[0] : null;
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('file', f);
+        btnImportTerminals.disabled = true;
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module5/import_terminals.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
+          showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          setTimeout(() => { window.location.reload(); }, 600);
+        } catch (e) {
+          showToast(e.message || 'Import failed', 'error');
+          btnImportTerminals.disabled = false;
+        } finally {
+          fileImportTerminals.value = '';
+        }
+      });
     }
 
     function openCreateTerminalModal() {

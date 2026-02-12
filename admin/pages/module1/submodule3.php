@@ -469,7 +469,7 @@ function tmm_required_doc_list(string $operatorType): array {
               : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
         if (nm === 'declared_fleet') {
           return `
-          <div>
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
             <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
               <span>${String(f.label || '')}</span>
               <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
@@ -484,7 +484,7 @@ function tmm_required_doc_list(string $operatorType): array {
         `;
         }
         return `
-        <div>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
             <span>${String(f.label || '')}</span>
             <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
@@ -494,24 +494,58 @@ function tmm_required_doc_list(string $operatorType): array {
         </div>
       `};
 
+      const requiredTotal = Array.isArray(matrix.required) ? matrix.required.length : 0;
+      const requiredVerified = (Array.isArray(matrix.required) ? matrix.required : []).filter((f) => fieldState(f) === 'Verified').length;
+      const optionalTotal = Array.isArray(matrix.optional) ? matrix.optional.length : 0;
+      const optionalVerified = (Array.isArray(matrix.optional) ? matrix.optional : []).filter((f) => fieldState(f) === 'Verified').length;
+      const requiredPct = requiredTotal > 0 ? Math.round((requiredVerified / requiredTotal) * 100) : 0;
+
       const uploadHtml = `
-        <div class="mt-6 pt-5 border-t border-slate-200 dark:border-slate-700">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Upload Missing</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">${opType} — upload only the relevant documents (PDF/JPG/PNG).</div>
-          <form id="formUploadOperatorDocs" class="space-y-4 mt-4" novalidate>
-            <input type="hidden" name="operator_id" value="${String(operatorId || '')}">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="sm:col-span-2">
-                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Required</div>
+        <div class="space-y-4">
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <div class="text-sm font-black text-slate-900 dark:text-white">Upload Missing Documents</div>
+                <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">${opType} — upload only what is applicable (PDF/JPG/PNG).</div>
               </div>
-              ${matrix.required.map(renderField).join('')}
-              ${matrix.optional.length ? `
-                <div class="sm:col-span-2 pt-2">
-                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Optional / Supporting</div>
-                </div>
-                ${matrix.optional.map(renderField).join('')}
-              ` : ``}
+              <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <div><span class="font-black">Required:</span> ${esc(requiredVerified)} / ${esc(requiredTotal)} verified</div>
+                ${optionalTotal ? `<div class="mt-1"><span class="font-black">Optional:</span> ${esc(optionalVerified)} / ${esc(optionalTotal)} verified</div>` : ``}
+              </div>
             </div>
+            <div class="mt-4">
+              <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div class="h-2 bg-emerald-600" style="width:${esc(requiredPct)}%"></div>
+              </div>
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required verification progress: ${esc(requiredPct)}%</div>
+            </div>
+          </div>
+
+          <form id="formUploadOperatorDocs" class="space-y-4" novalidate>
+            <input type="hidden" name="operator_id" value="${String(operatorId || '')}">
+
+            <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 p-5">
+              <div class="flex items-center justify-between gap-3">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Required</div>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${esc(requiredVerified)} / ${esc(requiredTotal)} verified</div>
+              </div>
+              <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                ${matrix.required.map(renderField).join('')}
+              </div>
+            </div>
+
+            ${matrix.optional.length ? `
+              <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Optional / Supporting</div>
+                  <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${esc(optionalVerified)} / ${esc(optionalTotal)} verified</div>
+                </div>
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  ${matrix.optional.map(renderField).join('')}
+                </div>
+              </div>
+            ` : ``}
+
             <div class="flex items-center justify-end gap-2">
               <button id="btnUploadOperatorDocs" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
             </div>
@@ -519,8 +553,46 @@ function tmm_required_doc_list(string $operatorType): array {
         </div>
       `;
 
-      body.innerHTML = `<div>${listHtml}${uploadHtml}</div>`;
+      const tabsHtml = `
+        <div class="flex items-center gap-2">
+          <button type="button" data-doc-tab="uploaded" class="px-3 py-2 rounded-lg text-xs font-black border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">Uploaded</button>
+          <button type="button" data-doc-tab="upload" class="px-3 py-2 rounded-lg text-xs font-black border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300">Upload Missing</button>
+        </div>
+      `;
+
+      const uploadedPane = `
+        <div data-doc-pane="uploaded" class="space-y-3">
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+            <div class="text-sm font-black text-slate-900 dark:text-white">Uploaded Documents</div>
+            <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Verify or reject documents from the list below.</div>
+          </div>
+          ${listHtml}
+        </div>
+      `;
+
+      const uploadPane = `<div data-doc-pane="upload" class="hidden">${uploadHtml}</div>`;
+
+      body.innerHTML = `<div class="space-y-4">${tabsHtml}${uploadedPane}${uploadPane}</div>`;
       if (window.lucide) window.lucide.createIcons();
+
+      const tabs = Array.from(body.querySelectorAll('[data-doc-tab]'));
+      const panes = Array.from(body.querySelectorAll('[data-doc-pane]'));
+      const setTab = (key) => {
+        tabs.forEach((t) => {
+          const k = t.getAttribute('data-doc-tab');
+          const active = k === key;
+          t.className = active
+            ? 'px-3 py-2 rounded-lg text-xs font-black border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200'
+            : 'px-3 py-2 rounded-lg text-xs font-black border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300';
+        });
+        panes.forEach((p) => {
+          const k = p.getAttribute('data-doc-pane');
+          if (k === key) p.classList.remove('hidden');
+          else p.classList.add('hidden');
+        });
+      };
+      tabs.forEach((t) => t.addEventListener('click', () => setTab(t.getAttribute('data-doc-tab') || 'uploaded')));
+      setTab(requiredVerified < requiredTotal ? 'upload' : 'uploaded');
 
       body.querySelectorAll('[data-doc-set="1"]').forEach((b) => {
         b.addEventListener('click', async () => {

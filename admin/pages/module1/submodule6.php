@@ -124,20 +124,31 @@ if ($params) {
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[120] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-    <?php if (has_permission('reports.export')): ?>
-      <?php tmm_render_export_toolbar([
-        [
+    <?php
+      $exportItems = [];
+      if (has_permission('reports.export')) {
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'csv']),
           'label' => 'CSV',
           'icon' => 'download'
-        ],
-        [
+        ];
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
-        ]
-      ]); ?>
-    <?php endif; ?>
+        ];
+      }
+      if ($canManage) {
+        $exportItems[] = [
+          'tag' => 'button',
+          'label' => 'Import',
+          'icon' => 'upload',
+          'attrs' => ['id' => 'btnImportRoutes']
+        ];
+      }
+      if ($exportItems) tmm_render_export_toolbar($exportItems);
+    ?>
+    <input id="fileImportRoutes" type="file" accept=".csv,text/csv" class="hidden">
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/routes-lptrp">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -332,6 +343,31 @@ if ($params) {
       container.appendChild(el);
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    const btnImportRoutes = document.getElementById('btnImportRoutes');
+    const fileImportRoutes = document.getElementById('fileImportRoutes');
+    if (btnImportRoutes && fileImportRoutes) {
+      btnImportRoutes.addEventListener('click', () => fileImportRoutes.click());
+      fileImportRoutes.addEventListener('change', async () => {
+        const f = fileImportRoutes.files && fileImportRoutes.files[0] ? fileImportRoutes.files[0] : null;
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('file', f);
+        btnImportRoutes.disabled = true;
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module1/import_routes.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
+          showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          setTimeout(() => { window.location.reload(); }, 600);
+        } catch (e) {
+          showToast(e.message || 'Import failed', 'error');
+          btnImportRoutes.disabled = false;
+        } finally {
+          fileImportRoutes.value = '';
+        }
+      });
     }
 
     const modal = document.getElementById('modalRoute');

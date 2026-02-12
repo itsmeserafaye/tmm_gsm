@@ -240,20 +240,31 @@ $typesList = vehicle_types();
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-    <?php if (has_permission('reports.export')): ?>
-      <?php tmm_render_export_toolbar([
-        [
+    <?php
+      $exportItems = [];
+      if (has_permission('reports.export')) {
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status]),
           'label' => 'CSV',
           'icon' => 'download'
-        ],
-        [
+        ];
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
-        ]
-      ]); ?>
-    <?php endif; ?>
+        ];
+      }
+      if (has_any_permission(['module1.write','module1.vehicles.write'])) {
+        $exportItems[] = [
+          'tag' => 'button',
+          'label' => 'Import',
+          'icon' => 'upload',
+          'attrs' => ['id' => 'btnImportVehicles']
+        ];
+      }
+      if ($exportItems) tmm_render_export_toolbar($exportItems);
+    ?>
+    <input id="fileImportVehicles" type="file" accept=".csv,text/csv" class="hidden">
     <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/vehicle-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -504,6 +515,31 @@ $typesList = vehicle_types();
       .replace(/\"/g, '&quot;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+
+    const btnImportVehicles = document.getElementById('btnImportVehicles');
+    const fileImportVehicles = document.getElementById('fileImportVehicles');
+    if (btnImportVehicles && fileImportVehicles) {
+      btnImportVehicles.addEventListener('click', () => fileImportVehicles.click());
+      fileImportVehicles.addEventListener('change', async () => {
+        const f = fileImportVehicles.files && fileImportVehicles.files[0] ? fileImportVehicles.files[0] : null;
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('file', f);
+        btnImportVehicles.disabled = true;
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module1/import_vehicles.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
+          showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          setTimeout(() => { window.location.reload(); }, 600);
+        } catch (e) {
+          showToast(e.message || 'Import failed', 'error');
+          btnImportVehicles.disabled = false;
+        } finally {
+          fileImportVehicles.value = '';
+        }
+      });
+    }
 
     const vehSubStatus = document.getElementById('vehSubStatus');
     const vehSubQ = document.getElementById('vehSubQ');

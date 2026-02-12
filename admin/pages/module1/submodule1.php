@@ -154,20 +154,31 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-    <?php if (has_permission('reports.export')): ?>
-      <?php tmm_render_export_toolbar([
-        [
+    <?php
+      $exportItems = [];
+      if (has_permission('reports.export')) {
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_operators_csv.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status]),
           'label' => 'CSV',
           'icon' => 'download'
-        ],
-        [
+        ];
+        $exportItems[] = [
           'href' => $rootUrl . '/admin/api/module1/export_operators_csv.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
-        ]
-      ]); ?>
-    <?php endif; ?>
+        ];
+      }
+      if (has_permission('module1.write')) {
+        $exportItems[] = [
+          'tag' => 'button',
+          'label' => 'Import',
+          'icon' => 'upload',
+          'attrs' => ['id' => 'btnImportOperators']
+        ];
+      }
+      if ($exportItems) tmm_render_export_toolbar($exportItems);
+    ?>
+    <input id="fileImportOperators" type="file" accept=".csv,text/csv" class="hidden">
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/operator-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -350,6 +361,31 @@ if ($rootUrl === '/') $rootUrl = '';
         .replace(/\"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+    }
+
+    const btnImportOperators = document.getElementById('btnImportOperators');
+    const fileImportOperators = document.getElementById('fileImportOperators');
+    if (btnImportOperators && fileImportOperators) {
+      btnImportOperators.addEventListener('click', () => fileImportOperators.click());
+      fileImportOperators.addEventListener('change', async () => {
+        const f = fileImportOperators.files && fileImportOperators.files[0] ? fileImportOperators.files[0] : null;
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('file', f);
+        btnImportOperators.disabled = true;
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module1/import_operators.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
+          showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          setTimeout(() => { window.location.reload(); }, 600);
+        } catch (e) {
+          showToast(e.message || 'Import failed', 'error');
+          btnImportOperators.disabled = false;
+        } finally {
+          fileImportOperators.value = '';
+        }
+      });
     }
 
     const subStatus = document.getElementById('subStatus');

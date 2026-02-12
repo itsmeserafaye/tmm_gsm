@@ -17,28 +17,33 @@ if (!function_exists('tmm_render_export_toolbar')) {
     $idx = 0;
     foreach ($items as $item) {
       if (!is_array($item)) continue;
+      $tag = isset($item['tag']) ? strtolower((string)$item['tag']) : 'a';
       $href = isset($item['href']) ? (string)$item['href'] : '#';
       $text = isset($item['label']) ? (string)$item['label'] : '';
       $icon = isset($item['icon']) ? (string)$item['icon'] : '';
       $target = isset($item['target']) ? (string)$item['target'] : '';
       $attrs = isset($item['attrs']) && is_array($item['attrs']) ? $item['attrs'] : [];
       $classes = $buttonBaseClass . ($idx > 0 ? (' ' . $separatorClass) : '');
-      $attrs['href'] = $href;
       $attrs['class'] = $classes;
-      if ($target !== '') $attrs['target'] = $target;
-      if (($attrs['target'] ?? '') === '_blank') $attrs['rel'] = 'noopener';
+      if ($tag === 'a') {
+        $attrs['href'] = $href;
+        if ($target !== '') $attrs['target'] = $target;
+        if (($attrs['target'] ?? '') === '_blank') $attrs['rel'] = 'noopener';
+      } else {
+        if (!isset($attrs['type'])) $attrs['type'] = 'button';
+      }
       $attrStr = '';
       foreach ($attrs as $k => $v) {
         $k = (string)$k;
         if ($k === '') continue;
         $attrStr .= ' ' . htmlspecialchars($k, ENT_QUOTES) . '="' . htmlspecialchars((string)$v, ENT_QUOTES) . '"';
       }
-      echo '<a' . $attrStr . '>';
+      echo '<' . htmlspecialchars($tag, ENT_QUOTES) . $attrStr . '>';
       if ($icon !== '') {
         echo '<i data-lucide="' . htmlspecialchars($icon, ENT_QUOTES) . '" class="w-4 h-4"></i>';
       }
       echo htmlspecialchars($text, ENT_QUOTES);
-      echo '</a>';
+      echo '</' . htmlspecialchars($tag, ENT_QUOTES) . '>';
       $idx++;
     }
     echo '</div>';
