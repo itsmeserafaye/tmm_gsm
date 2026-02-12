@@ -4,7 +4,16 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/util.php';
 
+@ini_set('display_errors', '0');
+@ini_set('html_errors', '0');
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException((string)$message, 0, (int)$severity, (string)$file, (int)$line);
+});
 
 register_shutdown_function(function () {
     if (defined('TMM_TEST')) return;
@@ -301,15 +310,37 @@ try {
         tmm_audit_event($db, 'PUV_ASSISTED_VEHICLE_ENCODED', 'Vehicle', (string)$vehicleId, ['assisted' => true, 'plate_number' => $plate]);
     }
     echo json_encode(['ok' => true, 'vehicle_id' => $vehicleId, 'plate_number' => $plate, 'status' => $vehicleStatus, 'inspection_status' => $inspectionStatus, 'assisted' => $assisted]);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if (defined('TMM_TEST')) {
         throw $e;
     }
     if (isset($db) && $db instanceof mysqli) {
         try { $db->rollback(); } catch (Throwable $_) {}
     }
-    http_response_code(400);
-    $msg = $e->getMessage();
-    echo json_encode(['ok' => false, 'error' => $msg !== '' ? $msg : 'request_failed']);
+    $rawMsg = (string)$e->getMessage();
+    $safe = [
+        'invalid_plate',
+        'missing_vehicle_type',
+        'invalid_engine_no',
+        'invalid_chassis_no',
+        'invalid_or_number',
+        'invalid_cr_number',
+        'invalid_cr_issue_date',
+        'cr_required',
+        'or_expiry_required',
+        'ocr_confirmation_required',
+        'db_prepare_failed',
+        'db_insert_failed',
+        'upload_move_failed',
+        'invalid_file_type',
+        'file_failed_security_scan',
+        'server_error',
+        'db_connect_error',
+    ];
+    $errCode = in_array($rawMsg, $safe, true) ? $rawMsg : 'server_error';
+    $status = in_array($errCode, ['invalid_plate','missing_vehicle_type','invalid_engine_no','invalid_chassis_no','invalid_or_number','invalid_cr_number','invalid_cr_issue_date','cr_required','or_expiry_required','ocr_confirmation_required'], true) ? 400 : 500;
+    http_response_code($status);
+    error_log('create_vehicle.php error: ' . get_class($e) . ' ' . $rawMsg);
+    echo json_encode(['ok' => false, 'error' => $errCode]);
 }
 ?> 
