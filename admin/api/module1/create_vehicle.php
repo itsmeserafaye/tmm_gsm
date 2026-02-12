@@ -235,7 +235,7 @@ try {
     $submittedPortalUserId = null;
     $submittedNameBind = $assisted ? $submittedByName : null;
     $submittedAtBind = $assisted ? date('Y-m-d H:i:s') : null;
-    $stmt->bind_param('ssissssssssssssssiss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner, $submittedPortalUserId, $submittedNameBind, $submittedAtBind);
+    $stmt->bind_param('ssissssssssssssssisss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner, $submittedPortalUserId, $submittedNameBind, $submittedAtBind);
     $ok = $stmt->execute();
     if (!$ok) {
         $db->rollback();
