@@ -370,7 +370,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         localStorage.setItem('sidebarOpenMobile', 'false');
       });
     }
-    document.addEventListener('DOMContentLoaded', function () {
+    function tmmInitAdminShell() {
       initTheme();
       initSidebar();
       setupExpandableNav();
@@ -399,6 +399,16 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         var warnSecRaw = <?php echo json_encode((int)trim((string)tmm_get_app_setting('session_warning_seconds', '30'))); ?>;
         var warnSec = warnSecRaw > 0 ? warnSecRaw : 30;
         warnSec = Math.max(10, Math.min(120, warnSec));
+
+        try {
+          var sp = new URLSearchParams(window.location.search || '');
+          var override = sp.get('tmm_timeout_sec');
+          if (override !== null && override !== '') {
+            var ov = parseInt(String(override), 10);
+            if (!isNaN(ov) && ov >= 30 && ov <= 86400) timeoutSec = ov;
+          }
+        } catch (e) { }
+
         warnSec = Math.min(warnSec, Math.max(10, timeoutSec - 5));
         var toast = document.getElementById('tmm-session-toast');
         var toastMsg = document.getElementById('tmm-session-toast-msg');
@@ -409,6 +419,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         var lastActivityMs = Date.now();
         var showing = false;
         var tickId = null;
+        var lastMouseResetMs = 0;
 
         function hideToast() {
           if (!toast) return;
@@ -430,6 +441,11 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           try {
             if (ev && ev.isTrusted === false) return;
           } catch (e) { }
+          if (ev && ev.type === 'mousemove') {
+            var now = Date.now();
+            if (now - lastMouseResetMs < 5000) return;
+            lastMouseResetMs = now;
+          }
           lastActivityMs = Date.now();
           if (showing) hideToast();
         }
@@ -471,9 +487,13 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           });
         }
 
+        tick();
         tickId = window.setInterval(tick, 1000);
       })();
-    });
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tmmInitAdminShell);
+    else tmmInitAdminShell();
     window.addEventListener('resize', function () { initSidebar() });
   </script>
 </body>
