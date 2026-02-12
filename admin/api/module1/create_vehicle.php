@@ -235,12 +235,26 @@ try {
     $submittedPortalUserId = null;
     $submittedNameBind = $assisted ? $submittedByName : null;
     $submittedAtBind = $assisted ? date('Y-m-d H:i:s') : null;
-    $stmt->bind_param('ssissssssssssssssisss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDate, $registeredOwner, $submittedPortalUserId, $submittedNameBind, $submittedAtBind);
+    $crIssueDateBind = $crIssueDate !== '' ? $crIssueDate : null;
+    $stmt->bind_param('ssissssssssssssssisss', $plate, $type, $operatorIdBind, $opNameResolved, $engineNo, $chassisNo, $make, $model, $yearModel, $fuelType, $color, $recordStatus, $vehicleStatus, $inspectionStatus, $orNumber, $crNumber, $crIssueDateBind, $registeredOwner, $submittedPortalUserId, $submittedNameBind, $submittedAtBind);
     $ok = $stmt->execute();
     if (!$ok) {
+        $errno = (int)($stmt->errno ?? 0);
+        $errText = (string)($stmt->error ?? '');
         $db->rollback();
+        $lower = strtolower($errText);
+        if ($errno === 1292 && (str_contains($lower, 'cr_issue_date') || str_contains($lower, 'incorrect date'))) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'invalid_cr_issue_date']);
+            exit;
+        }
+        if ($errno === 1054 && preg_match("/unknown column '([^']+)'/i", $errText, $m)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'db_schema_mismatch', 'missing_column' => (string)($m[1] ?? '')]);
+            exit;
+        }
         http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'db_insert_failed']);
+        echo json_encode(['ok' => false, 'error' => 'db_insert_failed', 'errno' => $errno]);
         exit;
     }
     $vehicleId = (int)$db->insert_id;
