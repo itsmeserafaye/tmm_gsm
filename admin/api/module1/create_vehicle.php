@@ -8,7 +8,7 @@ header('Content-Type: application/json');
 
 try {
     $db = db();
-    require_permission('module1.vehicles.write');
+    require_any_permission(['module1.write','module1.vehicles.write']);
 
     $plateRaw = (string)($_POST['plate_number'] ?? ($_POST['plate_no'] ?? ''));
     $plateNorm = strtoupper(preg_replace('/\s+/', '', trim($plateRaw)));

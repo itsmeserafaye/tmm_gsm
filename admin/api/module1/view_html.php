@@ -254,7 +254,8 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="<?php echo $labelClass; ?>">Registered Owner</label>
-                                    <input name="registered_owner" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
+                                    <input name="registered_owner" list="vehEditOwnerList" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
+                                    <datalist id="vehEditOwnerList"></datalist>
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Color</label>
@@ -278,7 +279,13 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Year Model</label>
-                                    <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['year_model'] ?? '')); ?>" placeholder="e.g., 2018">
+                                    <select name="year_model" class="<?php echo $inputClass; ?>">
+                                        <option value="">Select year</option>
+                                        <?php $curY = (int)date('Y'); ?>
+                                        <?php for ($y = $curY; $y >= 1950; $y--): ?>
+                                            <option value="<?php echo $y; ?>" <?php echo ((string)($v['year_model'] ?? '') === (string)$y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="<?php echo $labelClass; ?>">Fuel Type</label>

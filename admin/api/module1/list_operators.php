@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 
 $db = db();
 header('Content-Type: application/json');
-require_any_permission(['module1.view','module1.vehicles.write']);
+require_any_permission(['module1.read','module1.write','module1.view','module1.vehicles.write']);
 
 $q = trim((string)($_GET['q'] ?? ''));
 $type = trim((string)($_GET['operator_type'] ?? ($_GET['type'] ?? '')));

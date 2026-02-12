@@ -715,6 +715,10 @@ $typesList = vehicle_types();
     function initVehicleViewBindings(plate) {
       const root = body;
 
+      root.querySelectorAll('input[type="date"]').forEach((el) => {
+        el.addEventListener('change', () => { try { el.blur(); } catch (_) {} });
+      });
+
       const btnEnableEdit = root.querySelector('#btnVehEnableEdit');
       const editWrap = root.querySelector('#vehEditWrap');
       const editLocked = root.querySelector('#vehEditLocked');
@@ -760,6 +764,26 @@ $typesList = vehicle_types();
         vinInput.addEventListener('input', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
         vinInput.addEventListener('blur', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
         validate();
+      }
+
+      const ownerInput = root.querySelector('input[name="registered_owner"]');
+      const ownerList = root.querySelector('#vehEditOwnerList');
+      if (ownerInput && ownerList) {
+        let debounce = null;
+        const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const loadOwners = async (q) => {
+          try {
+            const r = await fetch(rootUrl + '/admin/api/module1/list_operators.php?limit=30&q=' + encodeURIComponent((q || '').toString()));
+            const data = await r.json().catch(() => null);
+            if (!data || !data.ok || !Array.isArray(data.data)) return;
+            ownerList.innerHTML = data.data.map((op) => `<option value="${esc(op.name || '')}"></option>`).join('');
+          } catch (_) {}
+        };
+        ownerInput.addEventListener('focus', () => loadOwners(ownerInput.value));
+        ownerInput.addEventListener('input', () => {
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(() => loadOwners(ownerInput.value), 250);
+        });
       }
 
       const makeSelect = root.querySelector('#vehEditMakeSelect');
@@ -1171,6 +1195,7 @@ $typesList = vehicle_types();
           }
         };
         if (orInput) orInput.addEventListener('change', syncOrExpiry);
+        if (orExpiryInput) orExpiryInput.addEventListener('change', () => { try { orExpiryInput.blur(); } catch (_) {} });
         syncOrExpiry();
 
 
@@ -1337,7 +1362,10 @@ $typesList = vehicle_types();
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
-                <input name="year_model" type="tel" inputmode="numeric" minlength="4" maxlength="4" pattern="^[0-9]{4}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2018">
+                <select name="year_model" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="" selected>Select year</option>
+                  ${(() => { const ys = []; const cy = new Date().getFullYear(); for (let y=cy; y>=1950; y--) ys.push(`<option value="${y}">${y}</option>`); return ys.join(''); })()}
+                </select>
               </div>
             </div>
 
@@ -1373,7 +1401,8 @@ $typesList = vehicle_types();
                 </div>
                 <div class="sm:col-span-3">
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Registered Owner</label>
-                  <input name="registered_owner" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
+                  <input name="registered_owner" list="vehOwnerList" maxlength="150" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Name as it appears on CR">
+                  <datalist id="vehOwnerList"></datalist>
                 </div>
               </div>
             </div>
@@ -1393,7 +1422,10 @@ $typesList = vehicle_types();
                 </div>
                 <div class="sm:col-span-2">
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">OR Expiry Date</label>
-                  <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
+                  <div class="hidden" data-or-expiry-wrap="1">
+                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" data-or-expiry="1">
+                    <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Required only if OR is uploaded.</div>
+                  </div>
                   <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">OR expired → Operation blocked.</div>
                 </div>
               </div>
@@ -1446,6 +1478,9 @@ $typesList = vehicle_types();
         const form = document.getElementById('formAddVehicle');
         const btnSave = document.getElementById('btnSaveVehicle');
         if (!form || !btnSave) return;
+        form.querySelectorAll('input[type="date"]').forEach((el) => {
+          el.addEventListener('change', () => { try { el.blur(); } catch (_) {} });
+        });
         const plateInput = form.querySelector('input[name="plate_no"]');
         const normalizePlate = (value) => {
           const v = (value || '').toString().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').replace(/-+/g, '-');
@@ -1458,11 +1493,24 @@ $typesList = vehicle_types();
           plateInput.addEventListener('input', () => { plateInput.value = normalizePlate(plateInput.value); });
           plateInput.addEventListener('blur', () => { plateInput.value = normalizePlate(plateInput.value); });
         }
-        const yearInput = form.querySelector('input[name="year_model"]');
-        const normalizeYear = (value) => (value || '').toString().replace(/\D+/g, '').slice(0, 4);
-        if (yearInput) {
-          yearInput.addEventListener('input', () => { yearInput.value = normalizeYear(yearInput.value); });
-          yearInput.addEventListener('blur', () => { yearInput.value = normalizeYear(yearInput.value); });
+        const ownerInput = form.querySelector('input[name="registered_owner"]');
+        const ownerList = document.getElementById('vehOwnerList');
+        if (ownerInput && ownerList) {
+          let debounce = null;
+          const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+          const loadOwners = async (q) => {
+            try {
+              const r = await fetch(rootUrl + '/admin/api/module1/list_operators.php?limit=30&q=' + encodeURIComponent((q || '').toString()));
+              const data = await r.json().catch(() => null);
+              if (!data || !data.ok || !Array.isArray(data.data)) return;
+              ownerList.innerHTML = data.data.map((op) => `<option value="${esc(op.name || '')}"></option>`).join('');
+            } catch (_) {}
+          };
+          ownerInput.addEventListener('focus', () => loadOwners(ownerInput.value));
+          ownerInput.addEventListener('input', () => {
+            if (debounce) clearTimeout(debounce);
+            debounce = setTimeout(() => loadOwners(ownerInput.value), 250);
+          });
         }
 
         const normalizeUpperNoSpaces = (value) => (value || '').toString().toUpperCase().replace(/\s+/g, '');
@@ -1596,15 +1644,17 @@ $typesList = vehicle_types();
 
         const orFileInput = form.querySelector('[data-or-file="1"]');
         const orExpiryInput = form.querySelector('[data-or-expiry="1"]');
+        const orExpiryWrap = form.querySelector('[data-or-expiry-wrap="1"]');
         const syncOrExpiryRequired = () => {
           const hasOr = !!(orFileInput && orFileInput.files && orFileInput.files.length > 0);
           if (orExpiryInput) {
             orExpiryInput.required = hasOr;
             if (!hasOr) orExpiryInput.setCustomValidity('');
           }
+          if (orExpiryWrap) orExpiryWrap.classList.toggle('hidden', !hasOr);
         };
         if (orFileInput) orFileInput.addEventListener('change', syncOrExpiryRequired);
-        if (orExpiryInput) orExpiryInput.addEventListener('change', syncOrExpiryRequired);
+        if (orExpiryInput) orExpiryInput.addEventListener('change', () => { syncOrExpiryRequired(); try { orExpiryInput.blur(); } catch (_) {} });
         syncOrExpiryRequired();
 
         const crFileInput = form.querySelector('input[name="cr"]');
