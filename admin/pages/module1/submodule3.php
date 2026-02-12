@@ -21,6 +21,13 @@ $sql = "SELECT
   COALESCE(NULLIF(o.registered_name,''), NULLIF(o.name,''), o.full_name) AS display_name,
   o.workflow_status,
   o.created_at,
+  (
+    SELECT d2.remarks
+    FROM operator_documents d2
+    WHERE d2.operator_id=o.id AND d2.doc_type='GovID'
+    ORDER BY COALESCE(d2.uploaded_at, d2.verified_at) DESC, d2.doc_id DESC
+    LIMIT 1
+  ) AS govid_remarks,
   MAX(CASE WHEN d.doc_type='GovID' THEN d.is_verified ELSE 0 END) AS govid_verified,
   MAX(CASE WHEN d.doc_type='CDA' THEN d.is_verified ELSE 0 END) AS cda_verified,
   MAX(CASE WHEN d.doc_type='SEC' THEN d.is_verified ELSE 0 END) AS sec_verified,
@@ -72,6 +79,16 @@ function tmm_required_doc_list(string $operatorType): array {
   if ($operatorType === 'Cooperative') return ['CDA Registration', 'CDA Good Standing', 'Board Resolution'];
   if ($operatorType === 'Corporation') return ['SEC Registration', 'Articles/By-laws', 'Board Resolution'];
   return ['Government ID'];
+}
+
+function tmm_extract_gov_id_kind(?string $remarks): string {
+  $remarks = trim((string)$remarks);
+  if ($remarks === '') return '';
+  $parts = explode('|', $remarks);
+  if (count($parts) < 2) return '';
+  $kind = trim((string)($parts[1] ?? ''));
+  $kind = preg_replace('/\s+/', ' ', $kind);
+  return trim((string)$kind);
 }
 ?>
 
@@ -168,7 +185,12 @@ function tmm_required_doc_list(string $operatorType): array {
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
                 $required = tmm_required_doc_list($opType);
-                $requiredText = implode(', ', $required);
+                $govIdKind = $opType === 'Individual' ? tmm_extract_gov_id_kind((string)($row['govid_remarks'] ?? '')) : '';
+                $requiredText = implode(', ', array_map(function ($x) use ($govIdKind) {
+                  $t = (string)$x;
+                  if ($t === 'Government ID' && $govIdKind !== '') return 'Government ID (' . $govIdKind . ')';
+                  return $t;
+                }, $required));
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="py-4 px-6">
@@ -452,7 +474,7 @@ function tmm_required_doc_list(string $operatorType): array {
         if (st) return st;
         return Number(match.is_verified || 0) === 1 ? 'Verified' : 'For Review';
       }
-      const renderField = (f) => {
+      const renderField = (f, isRequired) => {
         const nm = String(f.name || '');
         const accept = nm === 'declared_fleet'
           ? '.pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv'
@@ -465,14 +487,14 @@ function tmm_required_doc_list(string $operatorType): array {
           : (st === 'Rejected'
             ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
             : (st === 'Pending Upload'
-              ? 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300'
+              ? 'bg-sky-100 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-500/20'
               : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
         if (nm === 'declared_fleet') {
           return `
           <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
             <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
               <span>${String(f.label || '')}</span>
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
+              <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black ring-1 ring-inset ${badge}">${st}</span>
             </label>
             <div class="flex items-center gap-2">
               <button type="button" data-generate-fleet="1" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">Generate Declared Fleet</button>
@@ -483,13 +505,20 @@ function tmm_required_doc_list(string $operatorType): array {
           </div>
         `;
         }
+        const inputClass = isRequired
+          ? 'w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800'
+          : 'w-full text-sm';
+        const govIdKindInput = nm === 'gov_id'
+          ? `<input name="gov_id_kind" type="text" maxlength="80" placeholder="Government ID type (e.g., Driver’s License, UMID, PhilSys ID)" class="mb-2 w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 text-sm font-semibold">`
+          : '';
         return `
         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
             <span>${String(f.label || '')}</span>
-            <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset ${badge}">${st}</span>
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black ring-1 ring-inset ${badge}">${st}</span>
           </label>
-          <input name="${nm}" type="file" accept="${accept}" class="w-full text-sm">
+          ${govIdKindInput}
+          <input name="${nm}" type="file" accept="${accept}" class="${inputClass}">
           ${f.hint ? `<div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">${String(f.hint)}</div>` : ``}
         </div>
       `};
@@ -530,7 +559,7 @@ function tmm_required_doc_list(string $operatorType): array {
                 <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${esc(requiredVerified)} / ${esc(requiredTotal)} verified</div>
               </div>
               <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                ${matrix.required.map(renderField).join('')}
+                ${matrix.required.map((f) => renderField(f, true)).join('')}
               </div>
             </div>
 
@@ -541,7 +570,7 @@ function tmm_required_doc_list(string $operatorType): array {
                   <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${esc(optionalVerified)} / ${esc(optionalTotal)} verified</div>
                 </div>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  ${matrix.optional.map(renderField).join('')}
+                  ${matrix.optional.map((f) => renderField(f, false)).join('')}
                 </div>
               </div>
             ` : ``}

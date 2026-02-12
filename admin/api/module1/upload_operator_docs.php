@@ -46,6 +46,12 @@ if (!is_dir($uploadsDir)) {
 $uploaded = [];
 $errors = [];
 
+$govIdKind = trim((string)($_POST['gov_id_kind'] ?? ''));
+$govIdKind = preg_replace('/\s+/', ' ', $govIdKind);
+$govIdKind = str_replace('|', ' ', $govIdKind);
+$govIdKind = trim((string)$govIdKind);
+if (strlen($govIdKind) > 80) $govIdKind = substr($govIdKind, 0, 80);
+
 $fields = [
   'gov_id' => ['type' => 'GovID', 'label' => 'Valid Government ID'],
   'proof_address' => ['type' => 'BarangayCert', 'label' => 'Proof of Address'],
@@ -72,6 +78,9 @@ $fields = [
 foreach ($fields as $field => $cfg) {
   $docType = (string)($cfg['type'] ?? '');
   $label = isset($cfg['label']) ? $cfg['label'] : null;
+  if ($field === 'gov_id' && $label !== null && $govIdKind !== '') {
+    $label = $label . ' | ' . $govIdKind;
+  }
   if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) continue;
   $ext = strtolower(pathinfo((string)$_FILES[$field]['name'], PATHINFO_EXTENSION));
   $allowed = $field === 'declared_fleet'
