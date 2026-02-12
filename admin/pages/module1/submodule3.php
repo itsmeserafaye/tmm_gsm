@@ -273,6 +273,57 @@ function tmm_required_doc_list(string $operatorType): array {
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeModal(); });
 
+    // Custom Modal implementation instead of prompt/alert
+    function showModalPrompt(title, label, callback) {
+      const existing = document.getElementById('custom-prompt-modal');
+      if (existing) existing.remove();
+
+      const html = `
+        <div id="custom-prompt-modal" class="fixed inset-0 z-[130] flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div class="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 transform transition-all scale-100 opacity-100">
+            <div class="p-6">
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">${title}</h3>
+              <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">${label}</label>
+                <textarea id="prompt-input" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all" placeholder="Enter details here..."></textarea>
+              </div>
+              <div class="flex items-center justify-end gap-3">
+                <button type="button" id="prompt-cancel" class="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancel</button>
+                <button type="button" id="prompt-confirm" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">Confirm</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', html);
+      
+      const modal = document.getElementById('custom-prompt-modal');
+      const input = document.getElementById('prompt-input');
+      const cancel = document.getElementById('prompt-cancel');
+      const confirm = document.getElementById('prompt-confirm');
+      
+      input.focus();
+      
+      const close = () => {
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.remove(), 200);
+      };
+      
+      cancel.onclick = close;
+      
+      confirm.onclick = () => {
+        const val = input.value.trim();
+        close();
+        callback(val);
+      };
+
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) confirm.click();
+        if (e.key === 'Escape') close();
+      };
+    }
+
     async function loadOperatorDocs(operatorId) {
       const res = await fetch(rootUrl + '/admin/api/module1/list_operator_documents.php?operator_id=' + encodeURIComponent(operatorId));
       const data = await res.json();
@@ -470,44 +521,56 @@ function tmm_required_doc_list(string $operatorType): array {
         b.addEventListener('click', async () => {
           const docId = b.getAttribute('data-doc-id');
           const next = b.getAttribute('data-doc-status') || 'For Review';
-          try {
-            const fd = new FormData();
-            fd.append('doc_id', String(docId || ''));
-            fd.append('doc_status', String(next));
-            if (String(next) === 'Verified') {
-              const note = (prompt('Verification notes (optional):') || '').trim();
-              if (note) fd.append('remarks', note);
+
+          const processVerification = async (note) => {
+            try {
+              const fd = new FormData();
+              fd.append('doc_id', String(docId || ''));
+              fd.append('doc_status', String(next));
+              if (String(next) === 'Verified' && note) {
+                fd.append('remarks', note);
+              }
+              const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
+              showToast(next === 'Verified' ? 'Document verified.' : 'Document marked for review.');
+              const latest = await loadOperatorDocs(operatorId);
+              renderDocs(operatorId, operatorName, latest);
+            } catch (err) {
+              showToast(err.message || 'Failed', 'error');
             }
-            const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
-            showToast(next === 'Verified' ? 'Document verified.' : 'Document marked for review.');
-            const latest = await loadOperatorDocs(operatorId);
-            renderDocs(operatorId, operatorName, latest);
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
+          };
+
+          if (String(next) === 'Verified') {
+            showModalPrompt('Verify Document', 'Verification Notes (Optional):', (val) => {
+              processVerification(val);
+            });
+          } else {
+            processVerification('');
           }
         });
       });
       body.querySelectorAll('[data-doc-reject="1"]').forEach((b) => {
         b.addEventListener('click', async () => {
           const docId = b.getAttribute('data-doc-id');
-          const remark = (prompt('Reject remarks (required):') || '').trim();
-          if (!remark) { showToast('Remarks required for rejection.', 'error'); return; }
-          try {
-            const fd = new FormData();
-            fd.append('doc_id', String(docId || ''));
-            fd.append('doc_status', 'Rejected');
-            fd.append('remarks', remark);
-            const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'reject_failed');
-            showToast('Document rejected.');
-            const latest = await loadOperatorDocs(operatorId);
-            renderDocs(operatorId, operatorName, latest);
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
-          }
+          
+          showModalPrompt('Reject Document', 'Rejection Reason (Required):', async (remark) => {
+            if (!remark) { showToast('Remarks required for rejection.', 'error'); return; }
+            try {
+              const fd = new FormData();
+              fd.append('doc_id', String(docId || ''));
+              fd.append('doc_status', 'Rejected');
+              fd.append('remarks', remark);
+              const res = await fetch(rootUrl + '/admin/api/module1/verify_operator_document.php', { method: 'POST', body: fd });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'reject_failed');
+              showToast('Document rejected.');
+              const latest = await loadOperatorDocs(operatorId);
+              renderDocs(operatorId, operatorName, latest);
+            } catch (err) {
+              showToast(err.message || 'Failed', 'error');
+            }
+          });
         });
       });
 
