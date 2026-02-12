@@ -49,9 +49,9 @@ function db()
   if (!$conn || $conn->connect_error) {
     $script = (string)($_SERVER['SCRIPT_NAME'] ?? '');
     $isApi = (strpos($script, '/api/') !== false) || (strpos($script, '\\api\\') !== false);
-    if ($isApi && !headers_sent()) {
+    if ($isApi) {
       http_response_code(500);
-      header('Content-Type: application/json');
+      if (!headers_sent()) header('Content-Type: application/json');
       echo json_encode(['ok' => false, 'error' => 'db_connect_error']);
       exit;
     }

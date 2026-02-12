@@ -1828,6 +1828,32 @@ $typesList = vehicle_types();
               const isDbConnectText = raw && raw.toLowerCase().includes('db connect error');
               if (looksHtml || (!ct.includes('application/json') && raw && raw.trim() !== '')) {
                 console.error('create_vehicle.php non-JSON response', { status: res.status, contentType: ct, bodyPreview: raw.slice(0, 500) });
+                try {
+                  const preview = (raw || '').toString().slice(0, 1800);
+                  openModal(`
+                    <div class="space-y-4">
+                      <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        Save failed because the server returned a non-JSON response. This usually means a PHP fatal error, a session redirect, or server misconfiguration.
+                      </div>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Endpoint</div>
+                          <div class="font-mono break-all">${escAttr(rootUrl + '/admin/api/module1/create_vehicle.php')}</div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">HTTP</div>
+                          <div class="font-mono">${escAttr(String(res.status || ''))}</div>
+                          <div class="mt-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Content-Type</div>
+                          <div class="font-mono break-all">${escAttr(ct || '')}</div>
+                        </div>
+                      </div>
+                      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Response Preview</div>
+                        <pre class="whitespace-pre-wrap break-words text-xs font-mono text-slate-700 dark:text-slate-200">${escAttr(preview)}</pre>
+                      </div>
+                    </div>
+                  `, 'Save Debug');
+                } catch (_) { }
               } else {
                 console.error('create_vehicle.php error', { status: res.status, contentType: ct, data, raw });
               }

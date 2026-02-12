@@ -1,19 +1,7 @@
 <?php
-require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/security.php';
-require_once __DIR__ . '/../../includes/util.php';
-
 @ini_set('display_errors', '0');
 @ini_set('html_errors', '0');
 error_reporting(E_ALL);
-
-header('Content-Type: application/json');
-
-set_error_handler(function ($severity, $message, $file, $line) {
-    if (!(error_reporting() & $severity)) return false;
-    throw new ErrorException((string)$message, 0, (int)$severity, (string)$file, (int)$line);
-});
 
 register_shutdown_function(function () {
     if (defined('TMM_TEST')) return;
@@ -21,11 +9,22 @@ register_shutdown_function(function () {
     if (!$err) return;
     $type = (int)($err['type'] ?? 0);
     if (!in_array($type, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
-    if (headers_sent()) return;
     http_response_code(500);
-    header('Content-Type: application/json');
+    if (!headers_sent()) header('Content-Type: application/json');
     echo json_encode(['ok' => false, 'error' => 'server_error']);
     exit;
+});
+
+require_once __DIR__ . '/../../includes/db.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/security.php';
+require_once __DIR__ . '/../../includes/util.php';
+
+header('Content-Type: application/json');
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException((string)$message, 0, (int)$severity, (string)$file, (int)$line);
 });
 
 try {
