@@ -110,6 +110,13 @@ try {
     $status = trim((string)($r['status'] ?? 'Declared/linked'));
     if ($status === '') $status = 'Declared/linked';
     if ($recordStatus === '') $recordStatus = 'Encoded';
+    if ($operatorId <= 0) {
+      $recordStatus = 'Encoded';
+      if ($status === 'Pending Inspection') $status = 'Declared/linked';
+    } else {
+      if ($recordStatus !== 'Archived') $recordStatus = 'Linked';
+      if ($status === 'Declared/linked') $status = 'Pending Inspection';
+    }
 
     $stmt->bind_param(
       'ssisssssssssssss',

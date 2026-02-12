@@ -148,7 +148,20 @@ if ($params) {
       }
       if ($exportItems) tmm_render_export_toolbar($exportItems);
     ?>
-    <input id="fileImportRoutes" type="file" accept=".csv,text/csv" class="hidden">
+    <div id="modalImportRoutes" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
+      <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">
+        <div class="text-lg font-black text-slate-900 dark:text-white">Import Routes</div>
+        <div class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Upload a CSV file.</div>
+        <div class="mt-4">
+          <input id="fileImportRoutes" type="file" accept=".csv,text/csv" class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+        </div>
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" id="btnCancelImportRoutes" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <button type="button" id="btnUploadImportRoutes" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+        </div>
+      </div>
+    </div>
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/routes-lptrp">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -163,7 +176,9 @@ if ($params) {
               <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $vehicleType === $t ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
         <div class="relative w-full sm:w-44">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -172,7 +187,9 @@ if ($params) {
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
@@ -346,26 +363,36 @@ if ($params) {
     }
 
     const btnImportRoutes = document.getElementById('btnImportRoutes');
+    const modalImportRoutes = document.getElementById('modalImportRoutes');
     const fileImportRoutes = document.getElementById('fileImportRoutes');
-    if (btnImportRoutes && fileImportRoutes) {
-      btnImportRoutes.addEventListener('click', () => fileImportRoutes.click());
-      fileImportRoutes.addEventListener('change', async () => {
+    const btnCancelImportRoutes = document.getElementById('btnCancelImportRoutes');
+    const btnUploadImportRoutes = document.getElementById('btnUploadImportRoutes');
+    if (btnImportRoutes && modalImportRoutes && fileImportRoutes && btnCancelImportRoutes && btnUploadImportRoutes) {
+      const closeImport = () => modalImportRoutes.classList.add('hidden');
+      const openImport = () => {
+        fileImportRoutes.value = '';
+        btnUploadImportRoutes.disabled = false;
+        modalImportRoutes.classList.remove('hidden');
+      };
+      btnImportRoutes.addEventListener('click', openImport);
+      btnCancelImportRoutes.addEventListener('click', closeImport);
+      modalImportRoutes.querySelectorAll('[data-import-close="1"]').forEach((el) => el.addEventListener('click', closeImport));
+      btnUploadImportRoutes.addEventListener('click', async () => {
         const f = fileImportRoutes.files && fileImportRoutes.files[0] ? fileImportRoutes.files[0] : null;
-        if (!f) return;
+        if (!f) { showToast('Please choose a CSV file.', 'error'); return; }
         const fd = new FormData();
         fd.append('file', f);
-        btnImportRoutes.disabled = true;
+        btnUploadImportRoutes.disabled = true;
         try {
           const res = await fetch(rootUrl + '/admin/api/module1/import_routes.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
           showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          closeImport();
           setTimeout(() => { window.location.reload(); }, 600);
         } catch (e) {
           showToast(e.message || 'Import failed', 'error');
-          btnImportRoutes.disabled = false;
-        } finally {
-          fileImportRoutes.value = '';
+          btnUploadImportRoutes.disabled = false;
         }
       });
     }

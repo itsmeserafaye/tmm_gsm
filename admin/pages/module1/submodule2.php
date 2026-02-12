@@ -69,7 +69,12 @@ $sql = "SELECT v.id AS vehicle_id,
                v.operator_id,
                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
-               v.record_status, v.status, v.created_at,
+               v.record_status,
+               CASE
+                 WHEN v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL) THEN 'Encoded'
+                 ELSE v.record_status
+               END AS record_status_effective,
+               v.status, v.created_at,
                v.inspection_status,
                v.franchise_id,
                vr.registration_status,
@@ -99,15 +104,21 @@ if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
   $types .= 's';
 }
 if ($recordStatus !== '' && $recordStatus !== 'Record status') {
-  $conds[] = "v.record_status=?";
-  $params[] = $recordStatus;
-  $types .= 's';
+  if ($recordStatus === 'Linked') {
+    $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
+  } elseif ($recordStatus === 'Encoded') {
+    $conds[] = "(v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
+  } else {
+    $conds[] = "v.record_status=?";
+    $params[] = $recordStatus;
+    $types .= 's';
+  }
 }
 if ($status !== '' && $status !== 'Status') {
   if ($status === 'Linked') {
-    $conds[] = "v.record_status='Linked'";
+    $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
   } elseif ($status === 'Unlinked') {
-    $conds[] = "v.record_status='Encoded'";
+    $conds[] = "(v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
   } else {
     $conds[] = "v.status=?";
     $params[] = $status;
@@ -264,7 +275,20 @@ $typesList = vehicle_types();
       }
       if ($exportItems) tmm_render_export_toolbar($exportItems);
     ?>
-    <input id="fileImportVehicles" type="file" accept=".csv,text/csv" class="hidden">
+    <div id="modalImportVehicles" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
+      <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">
+        <div class="text-lg font-black text-slate-900 dark:text-white">Import Vehicles</div>
+        <div class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Upload a CSV file.</div>
+        <div class="mt-4">
+          <input id="fileImportVehicles" type="file" accept=".csv,text/csv" class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+        </div>
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" id="btnCancelImportVehicles" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <button type="button" id="btnUploadImportVehicles" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+        </div>
+      </div>
+    </div>
     <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/vehicle-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -284,8 +308,9 @@ $typesList = vehicle_types();
                 <?php echo htmlspecialchars($t); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down"
-            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
         <div class="relative w-full sm:w-52">
           <select name="record_status"
@@ -296,8 +321,9 @@ $typesList = vehicle_types();
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down"
-            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
         <div class="relative w-full sm:w-44">
           <select name="status"
@@ -308,8 +334,9 @@ $typesList = vehicle_types();
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down"
-            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
@@ -348,11 +375,8 @@ $typesList = vehicle_types();
               $plate = (string) ($row['plate_number'] ?? '');
               $plateUp = strtoupper($plate);
               $isHighlight = $highlightPlate !== '' && $highlightPlate === $plateUp;
-              $rs = (string) ($row['record_status'] ?? '');
-              if ($rs === '') {
-                $opId = (int) ($row['operator_id'] ?? 0);
-                $rs = $opId > 0 ? 'Linked' : 'Encoded';
-              }
+              $rs = (string) ($row['record_status_effective'] ?? ($row['record_status'] ?? ''));
+              if ($rs === '') $rs = 'Encoded';
               $insp = (string)($row['inspection_status'] ?? '');
               $frAppSt = (string)($row['franchise_app_status'] ?? '');
               $regSt = (string)($row['registration_status'] ?? '');
@@ -517,26 +541,36 @@ $typesList = vehicle_types();
       .replace(/>/g, '&gt;');
 
     const btnImportVehicles = document.getElementById('btnImportVehicles');
+    const modalImportVehicles = document.getElementById('modalImportVehicles');
     const fileImportVehicles = document.getElementById('fileImportVehicles');
-    if (btnImportVehicles && fileImportVehicles) {
-      btnImportVehicles.addEventListener('click', () => fileImportVehicles.click());
-      fileImportVehicles.addEventListener('change', async () => {
+    const btnCancelImportVehicles = document.getElementById('btnCancelImportVehicles');
+    const btnUploadImportVehicles = document.getElementById('btnUploadImportVehicles');
+    if (btnImportVehicles && modalImportVehicles && fileImportVehicles && btnCancelImportVehicles && btnUploadImportVehicles) {
+      const closeImport = () => modalImportVehicles.classList.add('hidden');
+      const openImport = () => {
+        fileImportVehicles.value = '';
+        btnUploadImportVehicles.disabled = false;
+        modalImportVehicles.classList.remove('hidden');
+      };
+      btnImportVehicles.addEventListener('click', openImport);
+      btnCancelImportVehicles.addEventListener('click', closeImport);
+      modalImportVehicles.querySelectorAll('[data-import-close="1"]').forEach((el) => el.addEventListener('click', closeImport));
+      btnUploadImportVehicles.addEventListener('click', async () => {
         const f = fileImportVehicles.files && fileImportVehicles.files[0] ? fileImportVehicles.files[0] : null;
-        if (!f) return;
+        if (!f) { showToast('Please choose a CSV file.', 'error'); return; }
         const fd = new FormData();
         fd.append('file', f);
-        btnImportVehicles.disabled = true;
+        btnUploadImportVehicles.disabled = true;
         try {
           const res = await fetch(rootUrl + '/admin/api/module1/import_vehicles.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
           showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          closeImport();
           setTimeout(() => { window.location.reload(); }, 600);
         } catch (e) {
           showToast(e.message || 'Import failed', 'error');
-          btnImportVehicles.disabled = false;
-        } finally {
-          fileImportVehicles.value = '';
+          btnUploadImportVehicles.disabled = false;
         }
       });
     }
@@ -846,6 +880,15 @@ $typesList = vehicle_types();
 
       const postForm = async (form) => {
         if (!form) return;
+        if ((form.getAttribute('id') || '') === 'formLink') {
+          const opId = form.querySelector('#linkOpId');
+          const opName = form.querySelector('#linkOpSearch');
+          if (!opId || String(opId.value || '').trim() === '') {
+            showToast('Please select an operator from the dropdown.', 'error');
+            if (opName && typeof opName.focus === 'function') opName.focus();
+            return;
+          }
+        }
         if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
           if (typeof form.reportValidity === 'function') form.reportValidity();
           return;
@@ -886,9 +929,40 @@ $typesList = vehicle_types();
       if (opSearch && opResults && opIdInput) {
         let debounce = null;
         const showResults = (show) => opResults.classList.toggle('hidden', !show);
+        const renderNoResults = () => { opResults.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>'; showResults(true); };
+        const fetchOperators = async (q) => {
+          try {
+            const r = await fetch(rootUrl + '/admin/api/module1/list_operators.php?limit=10&q=' + encodeURIComponent(q || ''));
+            const res = await r.json();
+            if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+              opResults.innerHTML = res.data.map((op) => {
+                const meta = [];
+                if (op.operator_type) meta.push(op.operator_type);
+                if (op.contact_no) meta.push(op.contact_no);
+                const safeName = String(op.name || '').replace(/"/g, '&quot;');
+                return `
+                    <div class="p-3 border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                         data-op-id="${op.operator_id}" data-op-name="${safeName}">
+                      <div class="font-bold text-sm text-slate-900 dark:text-white">${op.name}</div>
+                      <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
+                        <span>${meta.join(' • ')}</span>
+                        <span class="font-mono">ID: ${op.operator_id}</span>
+                      </div>
+                    </div>
+                  `;
+              }).join('');
+              showResults(true);
+              return;
+            }
+            renderNoResults();
+          } catch (_) {
+            renderNoResults();
+          }
+        };
         const selectOperator = (id, name) => {
           opIdInput.value = id;
           opSearch.value = name;
+          opSearch.dataset.tmmSelected = '1';
           showResults(false);
           if (opClear) opClear.classList.remove('hidden');
           if (opHint) opHint.textContent = 'Selected: ID ' + id;
@@ -911,45 +985,28 @@ $typesList = vehicle_types();
         });
 
         opSearch.addEventListener('input', () => {
-          const q = (opSearch.value || '').trim();
-          if (q === '') {
-            showResults(false);
-            if (opClear) opClear.classList.add('hidden');
+          if (opSearch.dataset.tmmSelected === '1') {
+            opSearch.dataset.tmmSelected = '0';
             return;
           }
+          opIdInput.value = '';
+          const q = (opSearch.value || '').trim();
+          if (q === '') { showResults(false); if (opClear) opClear.classList.add('hidden'); if (opHint) opHint.textContent = 'Type to search existing operators'; return; }
           if (opClear) opClear.classList.remove('hidden');
           if (debounce) clearTimeout(debounce);
           debounce = setTimeout(async () => {
-            try {
-              const r = await fetch(rootUrl + '/admin/api/module1/list_operators.php?limit=10&q=' + encodeURIComponent(q));
-              const res = await r.json();
-              if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
-                opResults.innerHTML = res.data.map((op) => {
-                  const meta = [];
-                  if (op.operator_type) meta.push(op.operator_type);
-                  if (op.contact_no) meta.push(op.contact_no);
-                  const safeName = String(op.name || '').replace(/"/g, '&quot;');
-                  return `
-                    <div class="p-3 border-b border-slate-100 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
-                         data-op-id="${op.operator_id}" data-op-name="${safeName}">
-                      <div class="font-bold text-sm text-slate-900 dark:text-white">${op.name}</div>
-                      <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
-                        <span>${meta.join(' • ')}</span>
-                        <span class="font-mono">ID: ${op.operator_id}</span>
-                      </div>
-                    </div>
-                  `;
-                }).join('');
-                showResults(true);
-              } else {
-                opResults.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
-                showResults(true);
-              }
-            } catch (_) {
-              opResults.innerHTML = '<div class="p-3 text-xs text-slate-500 text-center">No operators found</div>';
-              showResults(true);
-            }
+            await fetchOperators(q);
           }, 300);
+        });
+
+        opSearch.addEventListener('focus', async () => {
+          if ((opSearch.value || '').trim() === '') {
+            await fetchOperators('');
+          }
+        });
+
+        opSearch.addEventListener('blur', () => {
+          setTimeout(() => showResults(false), 150);
         });
 
         operatorSearchState = { search: opSearch, results: opResults, hideResults: showResults };

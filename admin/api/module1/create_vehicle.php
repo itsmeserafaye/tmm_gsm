@@ -133,24 +133,43 @@ try {
         }
     }
 
-    $recordStatus = ($operatorId > 0 || $operatorName !== '') ? 'Linked' : 'Encoded';
-    $vehicleStatus = $recordStatus === 'Linked' ? 'Pending Inspection' : 'Declared/linked';
-
+    $operatorExists = false;
     $opNameResolved = '';
     if ($operatorId > 0) {
-        $stmtOp = $db->prepare("SELECT name, full_name FROM operators WHERE id=? LIMIT 1");
+        $stmtOp = $db->prepare("SELECT id, name, full_name FROM operators WHERE id=? LIMIT 1");
         if ($stmtOp) {
             $stmtOp->bind_param('i', $operatorId);
             $stmtOp->execute();
             $rowOp = $stmtOp->get_result()->fetch_assoc();
             $stmtOp->close();
             if ($rowOp) {
+                $operatorExists = true;
+                $opNameResolved = trim((string)($rowOp['name'] ?? ''));
+                if ($opNameResolved === '') $opNameResolved = trim((string)($rowOp['full_name'] ?? ''));
+            } else {
+                $operatorId = 0;
+            }
+        }
+    }
+    if (!$operatorExists && $operatorName !== '') {
+        $stmtOp = $db->prepare("SELECT id, name, full_name FROM operators WHERE COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name)=? OR full_name=? OR name=? LIMIT 1");
+        if ($stmtOp) {
+            $stmtOp->bind_param('sss', $operatorName, $operatorName, $operatorName);
+            $stmtOp->execute();
+            $rowOp = $stmtOp->get_result()->fetch_assoc();
+            $stmtOp->close();
+            if ($rowOp) {
+                $operatorExists = true;
+                $operatorId = (int)($rowOp['id'] ?? 0);
                 $opNameResolved = trim((string)($rowOp['name'] ?? ''));
                 if ($opNameResolved === '') $opNameResolved = trim((string)($rowOp['full_name'] ?? ''));
             }
         }
     }
     if ($opNameResolved === '' && $operatorName !== '') $opNameResolved = $operatorName;
+
+    $recordStatus = ($operatorExists && $operatorId > 0) ? 'Linked' : 'Encoded';
+    $vehicleStatus = $recordStatus === 'Linked' ? 'Pending Inspection' : 'Declared/linked';
     if ($registeredOwner === '' && $opNameResolved !== '') $registeredOwner = $opNameResolved;
 
     $route = '';

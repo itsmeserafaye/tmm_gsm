@@ -31,7 +31,9 @@ $ensureVehCols = function () use ($db, $hasCol): void {
 };
 $ensureVehCols();
 
-$stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id, COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
+$stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id,
+                             CASE WHEN o.id IS NULL OR COALESCE(v.operator_id,0)=0 THEN 0 ELSE 1 END AS operator_exists,
+                             CASE WHEN o.id IS NULL OR COALESCE(v.operator_id,0)=0 THEN '' ELSE COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), '') END AS operator_display,
                              v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type, v.color,
                              v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner,
                              v.status, v.created_at
@@ -290,13 +292,13 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                             <div class="md:col-span-2 relative">
                                 <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Search Operator</label>
                                 <div class="relative">
-                                    <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo (int)($v['operator_id'] ?? 0) ?: ''; ?>">
+                                    <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo ((int)($v['operator_exists'] ?? 0) === 1) ? ((int)($v['operator_id'] ?? 0) ?: '') : ''; ?>">
                                     <div class="relative">
                                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                                         <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9" 
                                                placeholder="Search by name or ID..." 
                                                autocomplete="off" 
-                                               value="<?php echo htmlspecialchars($v['operator_display'] ?? ''); ?>">
+                                               value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>">
                                         <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>">
                                             <i data-lucide="x" class="w-3 h-3"></i>
                                         </button>

@@ -38,9 +38,9 @@ if ($resolvedId > 0) {
         $resolvedEmail = strtolower(trim((string)($rowO['email'] ?? '')));
     }
 } else {
-    $stmtO = $db->prepare("SELECT id, name, full_name, email FROM operators WHERE full_name=? LIMIT 1");
+    $stmtO = $db->prepare("SELECT id, name, full_name, email FROM operators WHERE COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name)=? OR full_name=? OR name=? LIMIT 1");
     if ($stmtO) {
-        $stmtO->bind_param('s', $resolvedName);
+        $stmtO->bind_param('sss', $resolvedName, $resolvedName, $resolvedName);
         $stmtO->execute();
         $rowO = $stmtO->get_result()->fetch_assoc();
         $stmtO->close();
@@ -51,8 +51,13 @@ if ($resolvedId > 0) {
     }
 }
 
-$resolvedIdBind = $resolvedId > 0 ? $resolvedId : null;
+$resolvedIdBind = $resolvedId > 0 ? $resolvedId : 0;
 $targetOperatorId = $resolvedId > 0 ? $resolvedId : 0;
+if ($targetOperatorId <= 0) {
+    http_response_code(404);
+    echo json_encode(['ok'=>false,'error'=>'operator_not_found']);
+    exit;
+}
 if ($currentOperatorId > 0 && $targetOperatorId > 0 && $currentOperatorId !== $targetOperatorId) {
     http_response_code(409);
     echo json_encode(['ok'=>false,'error'=>'already_linked', 'current_operator_id'=>$currentOperatorId]);
@@ -64,8 +69,8 @@ if ($currentOperatorId > 0 && $targetOperatorId === 0) {
     exit;
 }
 $stmt = $db->prepare("UPDATE vehicles
-                       SET operator_id=?,
-                           current_operator_id=?,
+                       SET operator_id=NULLIF(?,0),
+                           current_operator_id=NULLIF(?,0),
                            operator_name=?,
                            record_status='Linked',
                            status=CASE
@@ -73,8 +78,7 @@ $stmt = $db->prepare("UPDATE vehicles
                              ELSE status END
                        WHERE plate_number=?");
 if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
-$resolvedIdBind2 = $resolvedId > 0 ? $resolvedId : null;
-$stmt->bind_param('iiss', $resolvedIdBind, $resolvedIdBind2, $resolvedName, $plate);
+$stmt->bind_param('iiss', $resolvedIdBind, $resolvedIdBind, $resolvedName, $plate);
 $ok = $stmt->execute();
 
 if ($ok) {

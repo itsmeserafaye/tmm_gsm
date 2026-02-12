@@ -189,7 +189,20 @@ if ($rootUrl === '/') $rootUrl = '';
             ];
             if ($exportItems) tmm_render_export_toolbar($exportItems, ['mb' => 'mb-0']);
           ?>
-          <input id="fileImportTerminals" type="file" accept=".csv,text/csv" class="hidden">
+          <div id="modalImportTerminals" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
+            <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">
+              <div class="text-lg font-black text-slate-900 dark:text-white">Import Terminals</div>
+              <div class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Upload a CSV file.</div>
+              <div class="mt-4">
+                <input id="fileImportTerminals" type="file" accept=".csv,text/csv" class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+              </div>
+              <div class="mt-5 flex items-center justify-end gap-2">
+                <button type="button" id="btnCancelImportTerminals" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+                <button type="button" id="btnUploadImportTerminals" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+              </div>
+            </div>
+          </div>
           <div class="flex items-center justify-between gap-3">
             <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center p-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white">
               <i data-lucide="plus" class="w-4 h-4"></i>
@@ -589,26 +602,36 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     const btnImportTerminals = document.getElementById('btnImportTerminals');
+    const modalImportTerminals = document.getElementById('modalImportTerminals');
     const fileImportTerminals = document.getElementById('fileImportTerminals');
-    if (btnImportTerminals && fileImportTerminals) {
-      btnImportTerminals.addEventListener('click', () => fileImportTerminals.click());
-      fileImportTerminals.addEventListener('change', async () => {
+    const btnCancelImportTerminals = document.getElementById('btnCancelImportTerminals');
+    const btnUploadImportTerminals = document.getElementById('btnUploadImportTerminals');
+    if (btnImportTerminals && modalImportTerminals && fileImportTerminals && btnCancelImportTerminals && btnUploadImportTerminals) {
+      const closeImport = () => modalImportTerminals.classList.add('hidden');
+      const openImport = () => {
+        fileImportTerminals.value = '';
+        btnUploadImportTerminals.disabled = false;
+        modalImportTerminals.classList.remove('hidden');
+      };
+      btnImportTerminals.addEventListener('click', openImport);
+      btnCancelImportTerminals.addEventListener('click', closeImport);
+      modalImportTerminals.querySelectorAll('[data-import-close="1"]').forEach((el) => el.addEventListener('click', closeImport));
+      btnUploadImportTerminals.addEventListener('click', async () => {
         const f = fileImportTerminals.files && fileImportTerminals.files[0] ? fileImportTerminals.files[0] : null;
-        if (!f) return;
+        if (!f) { showToast('Please choose a CSV file.', 'error'); return; }
         const fd = new FormData();
         fd.append('file', f);
-        btnImportTerminals.disabled = true;
+        btnUploadImportTerminals.disabled = true;
         try {
           const res = await fetch(rootUrl + '/admin/api/module5/import_terminals.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
           showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          closeImport();
           setTimeout(() => { window.location.reload(); }, 600);
         } catch (e) {
           showToast(e.message || 'Import failed', 'error');
-          btnImportTerminals.disabled = false;
-        } finally {
-          fileImportTerminals.value = '';
+          btnUploadImportTerminals.disabled = false;
         }
       });
     }

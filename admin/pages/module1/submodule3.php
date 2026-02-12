@@ -131,7 +131,9 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $type === $t ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
         <div class="relative w-full sm:w-56">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -140,7 +142,9 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
@@ -179,7 +183,8 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                 $badge = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
                   'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                  'Incomplete' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
+                  'Draft' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
+                  'Incomplete' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                   'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
@@ -207,10 +212,6 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div class="inline-flex items-center gap-2">
-                    <a href="?page=puv-database/link-vehicle-to-operator&highlight_operator_id=<?php echo (int)$rid; ?>" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors" title="Link Vehicle to Operator">
-                      <i data-lucide="link-2" class="w-4 h-4"></i>
-                      Link Vehicle
-                    </a>
                     <button type="button"
                       class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold transition-colors"
                       data-op-review="1"
@@ -509,7 +510,23 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
           ? 'w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800'
           : 'w-full text-sm';
         const govIdKindInput = nm === 'gov_id'
-          ? `<input name="gov_id_kind" type="text" maxlength="80" placeholder="Government ID type (e.g., Driver’s License, UMID, PhilSys ID)" class="mb-2 w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 text-sm font-semibold">`
+          ? `<div class="mb-2 grid grid-cols-1 gap-2">
+               <select name="gov_id_kind" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 text-sm font-semibold">
+                 <option value="" selected>Select Government ID type</option>
+                 <option>Driver’s License</option>
+                 <option>UMID</option>
+                 <option>PhilSys ID</option>
+                 <option>Passport</option>
+                 <option>Postal ID</option>
+                 <option>PRC ID</option>
+                 <option>Senior Citizen ID</option>
+                 <option>Voter’s ID</option>
+                 <option>SSS ID</option>
+                 <option>GSIS ID</option>
+                 <option>Other</option>
+               </select>
+               <input name="gov_id_kind_other" type="text" maxlength="80" placeholder="If Other, specify here" class="hidden w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 text-sm font-semibold">
+             </div>`
           : '';
         return `
         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
@@ -622,6 +639,21 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
       };
       tabs.forEach((t) => t.addEventListener('click', () => setTab(t.getAttribute('data-doc-tab') || 'uploaded')));
       setTab(requiredVerified < requiredTotal ? 'upload' : 'uploaded');
+
+      const govKindSel = body.querySelector('select[name="gov_id_kind"]');
+      const govKindOther = body.querySelector('input[name="gov_id_kind_other"]');
+      if (govKindSel && govKindOther) {
+        const syncGovKind = () => {
+          const v = (govKindSel.value || '').trim();
+          if (v === 'Other') govKindOther.classList.remove('hidden');
+          else {
+            govKindOther.classList.add('hidden');
+            govKindOther.value = '';
+          }
+        };
+        govKindSel.addEventListener('change', syncGovKind);
+        syncGovKind();
+      }
 
       body.querySelectorAll('[data-doc-set="1"]').forEach((b) => {
         b.addEventListener('click', async () => {

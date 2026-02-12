@@ -178,7 +178,20 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       if ($exportItems) tmm_render_export_toolbar($exportItems);
     ?>
-    <input id="fileImportOperators" type="file" accept=".csv,text/csv" class="hidden">
+    <div id="modalImportOperators" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
+      <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">
+        <div class="text-lg font-black text-slate-900 dark:text-white">Import Operators</div>
+        <div class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Upload a CSV file.</div>
+        <div class="mt-4">
+          <input id="fileImportOperators" type="file" accept=".csv,text/csv" class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+        </div>
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" id="btnCancelImportOperators" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <button type="button" id="btnUploadImportOperators" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+        </div>
+      </div>
+    </div>
     <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/operator-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
@@ -193,7 +206,9 @@ if ($rootUrl === '/') $rootUrl = '';
               <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $type === $t ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
         <div class="relative w-full sm:w-56">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
@@ -202,7 +217,9 @@ if ($rootUrl === '/') $rootUrl = '';
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
@@ -242,8 +259,8 @@ if ($rootUrl === '/') $rootUrl = '';
                 $badge = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
                   'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                  'Incomplete' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
                   'Draft' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
+                  'Incomplete' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                   'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
@@ -364,26 +381,36 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     const btnImportOperators = document.getElementById('btnImportOperators');
+    const modalImportOperators = document.getElementById('modalImportOperators');
     const fileImportOperators = document.getElementById('fileImportOperators');
-    if (btnImportOperators && fileImportOperators) {
-      btnImportOperators.addEventListener('click', () => fileImportOperators.click());
-      fileImportOperators.addEventListener('change', async () => {
+    const btnCancelImportOperators = document.getElementById('btnCancelImportOperators');
+    const btnUploadImportOperators = document.getElementById('btnUploadImportOperators');
+    if (btnImportOperators && modalImportOperators && fileImportOperators && btnCancelImportOperators && btnUploadImportOperators) {
+      const closeImport = () => modalImportOperators.classList.add('hidden');
+      const openImport = () => {
+        fileImportOperators.value = '';
+        btnUploadImportOperators.disabled = false;
+        modalImportOperators.classList.remove('hidden');
+      };
+      btnImportOperators.addEventListener('click', openImport);
+      btnCancelImportOperators.addEventListener('click', closeImport);
+      modalImportOperators.querySelectorAll('[data-import-close="1"]').forEach((el) => el.addEventListener('click', closeImport));
+      btnUploadImportOperators.addEventListener('click', async () => {
         const f = fileImportOperators.files && fileImportOperators.files[0] ? fileImportOperators.files[0] : null;
-        if (!f) return;
+        if (!f) { showToast('Please choose a CSV file.', 'error'); return; }
         const fd = new FormData();
         fd.append('file', f);
-        btnImportOperators.disabled = true;
+        btnUploadImportOperators.disabled = true;
         try {
           const res = await fetch(rootUrl + '/admin/api/module1/import_operators.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
           showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
+          closeImport();
           setTimeout(() => { window.location.reload(); }, 600);
         } catch (e) {
           showToast(e.message || 'Import failed', 'error');
-          btnImportOperators.disabled = false;
-        } finally {
-          fileImportOperators.value = '';
+          btnUploadImportOperators.disabled = false;
         }
       });
     }
