@@ -22,8 +22,8 @@ header('Content-Type: text/html; charset=utf-8');
 <?php
 // Try to connect with standard XAMPP defaults or env
 $host = 'localhost';
-$user = 'root';
-$pass = '';
+$user = 'tmm_tmmgosergfvx';
+$pass = 'niajrmcrpfbvrrke';
 $db_names = ['tmm_tmm', 'tmm']; 
 
 $conn = null;
