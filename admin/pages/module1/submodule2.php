@@ -1817,14 +1817,23 @@ $typesList = vehicle_types();
           try {
             const fd = new FormData(form);
             const res = await fetch(rootUrl + '/admin/api/module1/create_vehicle.php', { method: 'POST', body: fd });
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
             const raw = await res.text();
             let data = null;
             try { data = raw ? JSON.parse(raw) : null; } catch (_) { data = null; }
             if (!res.ok || !data || !data.ok) {
               const code = (data && data.error) ? String(data.error) : '';
-              const httpHint = (!res.ok && res.status) ? (' (HTTP ' + res.status + ')') : '';
+              const httpHint = res.status ? (' (HTTP ' + res.status + ')') : '';
+              const looksHtml = raw && (raw.trim().startsWith('<') || raw.toLowerCase().includes('<html') || raw.toLowerCase().includes('<!doctype'));
               const isDbConnectText = raw && raw.toLowerCase().includes('db connect error');
+              if (looksHtml || (!ct.includes('application/json') && raw && raw.trim() !== '')) {
+                console.error('create_vehicle.php non-JSON response', { status: res.status, contentType: ct, bodyPreview: raw.slice(0, 500) });
+              } else {
+                console.error('create_vehicle.php error', { status: res.status, contentType: ct, data, raw });
+              }
               const msg = code === 'db_connect_error' || isDbConnectText ? 'Database connection error. Please start MySQL in XAMPP.'
+                : looksHtml ? ('Save failed' + httpHint + '. API returned HTML (session/redirect/server error). Check DevTools → Network → create_vehicle.php → Response.')
+                  : (!ct.includes('application/json') && raw && raw.trim() !== '') ? ('Save failed' + httpHint + '. API returned non-JSON. Check DevTools → Network → create_vehicle.php → Response.')
                 : code === 'invalid_plate' ? 'Invalid plate. Use format ABC-1234.'
                 : code === 'missing_vehicle_type' ? 'Vehicle type is required.'
                   : code === 'cr_required' ? 'CR is required. Upload CR to encode the vehicle.'
@@ -1834,7 +1843,7 @@ $typesList = vehicle_types();
                           : code === 'invalid_chassis_no' ? 'Invalid chassis/VIN format (17 chars, no I/O/Q).'
                             : code === 'invalid_or_number' ? 'Invalid OR number (6–12 digits).'
                               : code === 'invalid_cr_number' ? 'Invalid CR number format.'
-                                : (code ? code : (raw && raw.trim() ? ('Save failed' + httpHint) : ('Save failed' + httpHint)));
+                                : (code ? (code + httpHint) : ('Save failed' + httpHint));
               throw new Error(msg);
             }
             const plate = (data.plate_number || fd.get('plate_no') || '').toString().toUpperCase().trim();
@@ -1847,7 +1856,8 @@ $typesList = vehicle_types();
             if (plate) params.set('highlight_plate', plate);
             window.location.search = params.toString();
           } catch (err) {
-            showToast(err.message || 'Failed', 'error');
+            const m = (err && err.message) ? String(err.message) : '';
+            showToast(m !== '' ? m : 'Failed', 'error');
             btnSave.disabled = false;
             btnSave.textContent = 'Save';
           }

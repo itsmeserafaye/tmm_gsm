@@ -6,6 +6,19 @@ require_once __DIR__ . '/../../includes/util.php';
 
 header('Content-Type: application/json');
 
+register_shutdown_function(function () {
+    if (defined('TMM_TEST')) return;
+    $err = error_get_last();
+    if (!$err) return;
+    $type = (int)($err['type'] ?? 0);
+    if (!in_array($type, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+    if (headers_sent()) return;
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['ok' => false, 'error' => 'server_error']);
+    exit;
+});
+
 try {
     $db = db();
     require_any_permission(['module1.write','module1.vehicles.write']);
