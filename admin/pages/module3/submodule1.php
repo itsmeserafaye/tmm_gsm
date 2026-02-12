@@ -45,7 +45,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
         <div class="md:col-span-4 space-y-4">
           <div>
             <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
-            <input id="plateNumberInput" name="plate_number" list="plateNumberList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
+            <input id="plateNumberInput" name="plate_number" list="plateNumberList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
             <datalist id="plateNumberList"></datalist>
           </div>
           <div>

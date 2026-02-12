@@ -960,7 +960,7 @@ $typesList = vehicle_types();
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
-                        <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}\\-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
+                        <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition uppercase text-sm font-semibold"
                             placeholder="ABC-1234" required>
                     </div>
