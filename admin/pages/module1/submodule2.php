@@ -1817,12 +1817,22 @@ $typesList = vehicle_types();
           try {
             const fd = new FormData(form);
             const res = await fetch(rootUrl + '/admin/api/module1/create_vehicle.php', { method: 'POST', body: fd });
-            const data = await res.json().catch(() => null);
-            if (!data || !data.ok) {
-              const code = (data && data.error) ? String(data.error) : 'save_failed';
-              const msg = code === 'cr_required' ? 'CR is required. Upload CR to encode the vehicle.'
-                : code === 'or_expiry_required' ? 'OR expiry date is required when uploading OR.'
-                  : (data && data.message) ? String(data.message) : code;
+            const raw = await res.text();
+            let data = null;
+            try { data = raw ? JSON.parse(raw) : null; } catch (_) { data = null; }
+            if (!res.ok || !data || !data.ok) {
+              const code = (data && data.error) ? String(data.error) : '';
+              const httpHint = (!res.ok && res.status) ? (' (HTTP ' + res.status + ')') : '';
+              const msg = code === 'invalid_plate' ? 'Invalid plate. Use format ABC-1234.'
+                : code === 'missing_vehicle_type' ? 'Vehicle type is required.'
+                  : code === 'cr_required' ? 'CR is required. Upload CR to encode the vehicle.'
+                    : code === 'or_expiry_required' ? 'OR expiry date is required when uploading OR.'
+                      : code === 'ocr_confirmation_required' ? 'Confirm scanned details before saving.'
+                        : code === 'invalid_engine_no' ? 'Invalid engine number format.'
+                          : code === 'invalid_chassis_no' ? 'Invalid chassis/VIN format (17 chars, no I/O/Q).'
+                            : code === 'invalid_or_number' ? 'Invalid OR number (6–12 digits).'
+                              : code === 'invalid_cr_number' ? 'Invalid CR number format.'
+                                : (code ? code : (raw && raw.trim() ? ('Save failed' + httpHint) : ('Save failed' + httpHint)));
               throw new Error(msg);
             }
             const plate = (data.plate_number || fd.get('plate_no') || '').toString().toUpperCase().trim();
