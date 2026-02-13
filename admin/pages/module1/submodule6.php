@@ -313,6 +313,12 @@ $legacyGroups = array_values($legacyGroups);
       }
       if ($canManage) {
         $exportItems[] = [
+          'href' => $rootUrl . '/admin/tools/normalize_routes_realworld.php',
+          'label' => 'Normalize',
+          'icon' => 'wand-2',
+          'target' => '_blank'
+        ];
+        $exportItems[] = [
           'tag' => 'button',
           'label' => 'Import',
           'icon' => 'upload',
@@ -377,132 +383,186 @@ $legacyGroups = array_values($legacyGroups);
     </form>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-          <tr class="text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-200">
-            <th class="py-4 px-6">Route</th>
-            <th class="py-4 px-4">Allowed Vehicle Types</th>
-            <th class="py-4 px-4">Status</th>
-            <th class="py-4 px-4 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y-2 divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
-          <?php $items = $useAlloc ? $corridors : $legacyGroups; ?>
-          <?php if (!$items): ?>
-            <tr><td colspan="4" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
-          <?php endif; ?>
-          <?php $currentCat = null; ?>
-          <?php foreach ($items as $r): ?>
-            <?php
-              $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
-              if ($catPrimary === '') $catPrimary = 'Unmapped';
-              $catList = trim((string)($r['terminal_categories'] ?? ''));
-              if ($catList === '') $catList = $catPrimary;
-              $st = trim((string)($r['status'] ?? 'Active'));
-              $badge = $st === 'Active'
-                ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
-                : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
-              $code = $useAlloc ? (string)($r['route_code'] ?? '') : (string)($r['base_code'] ?? '');
-              $name = (string)($r['route_name'] ?? '');
-              $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
-              $allocs = is_array($r['allocations'] ?? null) ? $r['allocations'] : [];
-              $rowPayload = [
-                'corridor_id' => (int)($r['corridor_id'] ?? 0),
-                'route_code' => $code,
-                'route_name' => $name,
-                'origin' => (string)($r['origin'] ?? ''),
-                'destination' => (string)($r['destination'] ?? ''),
-                'via' => (string)($r['via'] ?? ''),
-                'structure' => (string)($r['structure'] ?? ''),
-                'distance_km' => $r['distance_km'] ?? null,
-                'status' => $st,
-                'terminal_categories' => $catList,
-                'primary_terminal_category' => $catPrimary,
-                'allocations' => $allocs,
-                'legacy' => !$useAlloc,
-              ];
-            ?>
-            <?php if ($currentCat !== $catPrimary): ?>
-              <?php $currentCat = $catPrimary; ?>
-              <tr class="bg-slate-100/80 dark:bg-slate-900/40 border-t-2 border-slate-300 dark:border-slate-700">
-                <td colspan="4" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
-                  <span class="inline-flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-                    <?php echo htmlspecialchars($currentCat); ?>
-                  </span>
-                </td>
-              </tr>
-            <?php endif; ?>
-            <tr>
-              <td class="py-4 px-6 align-top">
-                <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($code); ?></div>
-                <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
-                <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block"><?php echo htmlspecialchars($fullRoute !== ' → ' ? $fullRoute : '-'); ?></div>
-                <div class="mt-2 flex flex-wrap gap-1">
-                  <?php foreach (array_values(array_filter(array_map('trim', explode('•', $catList)))) as $tag): ?>
-                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black ring-1 ring-inset bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-500/20"><?php echo htmlspecialchars($tag); ?></span>
+  <div class="space-y-4">
+    <?php $items = $useAlloc ? $corridors : $legacyGroups; ?>
+    <?php if (!$items): ?>
+      <div class="bg-white dark:bg-slate-800 p-10 rounded-lg border border-slate-200 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</div>
+    <?php endif; ?>
+
+    <?php $currentCat = null; ?>
+    <?php foreach ($items as $r): ?>
+      <?php
+        $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
+        if ($catPrimary === '') $catPrimary = 'Unmapped';
+        $catList = trim((string)($r['terminal_categories'] ?? ''));
+        if ($catList === '') $catList = $catPrimary;
+        $st = trim((string)($r['status'] ?? 'Active'));
+        $badge = $st === 'Active'
+          ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+          : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
+        $code = $useAlloc ? (string)($r['route_code'] ?? '') : (string)($r['base_code'] ?? '');
+        $name = (string)($r['route_name'] ?? '');
+        $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
+        $allocs = is_array($r['allocations'] ?? null) ? $r['allocations'] : [];
+        $rowPayload = [
+          'corridor_id' => (int)($r['corridor_id'] ?? 0),
+          'route_code' => $code,
+          'route_name' => $name,
+          'origin' => (string)($r['origin'] ?? ''),
+          'destination' => (string)($r['destination'] ?? ''),
+          'via' => (string)($r['via'] ?? ''),
+          'structure' => (string)($r['structure'] ?? ''),
+          'distance_km' => $r['distance_km'] ?? null,
+          'status' => $st,
+          'terminal_categories' => $catList,
+          'primary_terminal_category' => $catPrimary,
+          'allocations' => $allocs,
+          'legacy' => !$useAlloc,
+        ];
+      ?>
+
+      <?php if ($currentCat !== $catPrimary): ?>
+        <?php if ($currentCat !== null): ?>
+          </div>
+        </div>
+        <?php endif; ?>
+        <?php $currentCat = $catPrimary; ?>
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+              <div class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($currentCat); ?></div>
+            </div>
+            <div class="text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo $useAlloc ? 'Route Corridors' : 'Legacy (grouped)'; ?></div>
+          </div>
+          <div class="mt-4 space-y-4">
+      <?php endif; ?>
+
+      <details class="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <summary class="list-none cursor-pointer p-5">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="text-lg font-black text-slate-900 dark:text-white truncate"><?php echo htmlspecialchars($code); ?></div>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
+                <?php if (!$allocs): ?>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-500/20">Missing Allowed Vehicle Types</span>
+                <?php endif; ?>
+              </div>
+              <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold truncate"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
+              <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold"><?php echo htmlspecialchars($fullRoute !== ' → ' ? $fullRoute : '-'); ?></div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <?php foreach (array_values(array_filter(array_map('trim', explode('•', $catList)))) as $tag): ?>
+                  <span class="inline-flex items-center rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($tag); ?></span>
+                <?php endforeach; ?>
+              </div>
+              <?php if ($allocs): ?>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <?php foreach (array_slice($allocs, 0, 6) as $a): ?>
+                    <?php
+                      $vt = (string)($a['vehicle_type'] ?? '');
+                      $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
+                      $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
+                      if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+                      $fareText = '—';
+                      if ($fareMin !== null) {
+                        if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱' . number_format($fareMin, 2) . '–' . number_format($fareMax, 2);
+                        else $fareText = '₱' . number_format((float)$fareMin, 2);
+                      }
+                    ?>
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+                      <i data-lucide="tag" class="w-3.5 h-3.5 text-slate-400"></i>
+                      <?php echo htmlspecialchars($vt); ?>
+                      <span class="text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($fareText); ?></span>
+                    </span>
                   <?php endforeach; ?>
                 </div>
-              </td>
-              <td class="py-4 px-4 align-top">
+              <?php endif; ?>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" class="route-action inline-flex items-center justify-center p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-route-view="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>" title="View">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+              </button>
+              <?php if ($canManage && $useAlloc): ?>
+                <button type="button" class="route-action inline-flex items-center justify-center p-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>" title="Edit">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+              <?php endif; ?>
+              <div class="p-2 rounded-lg text-slate-400 group-open:rotate-180 transition-transform">
+                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+        </summary>
+        <div class="px-5 pb-5">
+          <?php if (!$useAlloc): ?>
+            <div class="mb-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <div class="text-sm font-black text-amber-900 dark:text-amber-200">Legacy route group</div>
+              <div class="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200/80">This is grouped from old route-per-vehicle-type records. Use the normalization tool to convert them into real-life route corridors with allocations.</div>
+            </div>
+          <?php endif; ?>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route Details</div>
+              <div class="mt-2 space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <div><span class="text-slate-500 dark:text-slate-400">Origin:</span> <?php echo htmlspecialchars((string)($r['origin'] ?? '-') ?: '-'); ?></div>
+                <div><span class="text-slate-500 dark:text-slate-400">Destination:</span> <?php echo htmlspecialchars((string)($r['destination'] ?? '-') ?: '-'); ?></div>
+                <div><span class="text-slate-500 dark:text-slate-400">Structure:</span> <?php echo htmlspecialchars((string)($r['structure'] ?? '-') ?: '-'); ?></div>
+                <div><span class="text-slate-500 dark:text-slate-400">Distance:</span> <?php echo htmlspecialchars(($r['distance_km'] === null || $r['distance_km'] === '') ? '-' : (string)$r['distance_km']); ?></div>
+              </div>
+              <div class="mt-3 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-pre-wrap"><?php echo htmlspecialchars(trim((string)($r['via'] ?? '')) !== '' ? (string)$r['via'] : ''); ?></div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Allowed Vehicle Types</div>
+              <div class="mt-3 space-y-3">
                 <?php if (!$allocs): ?>
-                  <div class="text-sm text-slate-500 dark:text-slate-400 italic">No vehicle-type allocation yet.</div>
+                  <div class="text-sm text-slate-500 dark:text-slate-400 italic">No allocations yet. A real-life route must have at least one allowed vehicle type with a fare.</div>
                 <?php else: ?>
-                  <div class="space-y-2">
-                    <?php foreach ($allocs as $a): ?>
-                      <?php
-                        $vt = (string)($a['vehicle_type'] ?? '');
-                        $au = (int)($a['authorized_units'] ?? 0);
-                        $used = (int)($a['used_units'] ?? 0);
-                        $rem = (int)($a['remaining_units'] ?? ($au > 0 ? max(0, $au - $used) : 0));
-                        $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
-                        $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
-                        if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
-                        $fareText = '-';
-                        if ($fareMin !== null) {
-                          if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
-                          else $fareText = '₱ ' . number_format((float)$fareMin, 2);
-                        }
-                        $ast = (string)($a['status'] ?? 'Active');
-                      ?>
-                      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-                        <div class="flex items-center justify-between gap-3">
-                          <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($vt); ?></div>
-                          <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($fareText); ?></div>
-                        </div>
-                        <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          <span>Authorized: <?php echo (int)$au; ?></span>
-                          <span>Used: <?php echo (int)$used; ?></span>
-                          <span>Remaining: <?php echo (int)$rem; ?></span>
-                          <span>Status: <?php echo htmlspecialchars($ast); ?></span>
-                        </div>
+                  <?php foreach ($allocs as $a): ?>
+                    <?php
+                      $vt = (string)($a['vehicle_type'] ?? '');
+                      $au = (int)($a['authorized_units'] ?? 0);
+                      $used = (int)($a['used_units'] ?? 0);
+                      $rem = (int)($a['remaining_units'] ?? ($au > 0 ? max(0, $au - $used) : 0));
+                      $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
+                      $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
+                      if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+                      $fareText = '-';
+                      if ($fareMin !== null) {
+                        if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
+                        else $fareText = '₱ ' . number_format((float)$fareMin, 2);
+                      }
+                      $ast = (string)($a['status'] ?? 'Active');
+                      $fareMissing = $fareMin === null && $fareMax === null;
+                    ?>
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($vt); ?></div>
+                        <div class="text-sm font-black <?php echo $fareMissing ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'; ?>"><?php echo htmlspecialchars($fareMissing ? 'Missing fare' : $fareText); ?></div>
                       </div>
-                    <?php endforeach; ?>
-                  </div>
+                      <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <span>Authorized: <?php echo (int)$au; ?></span>
+                        <span>Used: <?php echo (int)$used; ?></span>
+                        <span>Remaining: <?php echo (int)$rem; ?></span>
+                        <span>Status: <?php echo htmlspecialchars($ast); ?></span>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
                 <?php endif; ?>
-              </td>
-              <td class="py-4 px-4 align-top">
-                <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
-              </td>
-              <td class="py-4 px-4 text-right align-top">
-                <div class="inline-flex items-center gap-2">
-                  <button type="button" title="View" class="inline-flex items-center justify-center p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-route-view="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                  </button>
-                  <?php if ($canManage && $useAlloc): ?>
-                    <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
-                      <i data-lucide="pencil" class="w-4 h-4"></i>
-                    </button>
-                  <?php endif; ?>
-                </div>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    <?php endforeach; ?>
+    <?php if ($currentCat !== null): ?>
+        </div>
+      </div>
+    <?php endif; ?>
   </div>
 </div>
 
@@ -893,12 +953,18 @@ $legacyGroups = array_values($legacyGroups);
     }
 
     document.querySelectorAll('[data-route-view="1"]').forEach((btn) => {
-      btn.addEventListener('click', () => openView(parsePayload(btn)));
+      btn.addEventListener('click', (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        openView(parsePayload(btn));
+      });
     });
 
     if (canManage) {
       document.querySelectorAll('[data-route-edit="1"]').forEach((btn) => {
-        btn.addEventListener('click', () => openEdit(parsePayload(btn)));
+        btn.addEventListener('click', (e) => {
+          if (e) { e.preventDefault(); e.stopPropagation(); }
+          openEdit(parsePayload(btn));
+        });
       });
     }
   })();

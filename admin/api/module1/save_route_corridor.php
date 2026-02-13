@@ -68,6 +68,7 @@ foreach ($allocations as $a) {
 
   $ast = trim((string)($a['status'] ?? 'Active'));
   if (!in_array($ast, ['Active','Inactive'], true)) $ast = 'Active';
+  if ($ast === 'Active' && $fareMin === null && $fareMax === null) $ast = 'Inactive';
 
   $cleanAllocs[$vt] = [
     'vehicle_type' => $vt,
@@ -78,6 +79,11 @@ foreach ($allocations as $a) {
   ];
 }
 $cleanAllocs = array_values($cleanAllocs);
+$activeAllocCount = 0;
+foreach ($cleanAllocs as $a) {
+  if (($a['status'] ?? 'Inactive') === 'Active') $activeAllocCount++;
+}
+if ($activeAllocCount <= 0) $status = 'Inactive';
 
 try {
   $db->begin_transaction();
