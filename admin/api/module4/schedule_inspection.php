@@ -166,11 +166,6 @@ $cols = [
   'requested_by',
   'contact_person',
   'contact_number',
-  'inspector_id',
-  'inspector_label',
-  'status',
-  'cr_verified',
-  'or_verified',
 ];
 $vals = [
   $plateDb,
@@ -182,13 +177,31 @@ $vals = [
   $requestedBy,
   $contactPerson,
   $contactNumber,
-  $inspectorIdDb,
-  $inspectorLabel,
-  $status,
-  $crVerified,
-  $orVerified,
 ];
-$typesStr = 'sisssssssissii';
+$typesStr = 'sisssssss';
+
+if ($inspectorId > 0) {
+  $cols[] = 'inspector_id';
+  $vals[] = (int)$inspectorId;
+  $typesStr .= 'i';
+}
+if ($inspectorLabel !== '') {
+  $cols[] = 'inspector_label';
+  $vals[] = $inspectorLabel;
+  $typesStr .= 's';
+}
+
+$cols[] = 'status';
+$vals[] = $status;
+$typesStr .= 's';
+
+$cols[] = 'cr_verified';
+$vals[] = $crVerified;
+$typesStr .= 'i';
+
+$cols[] = 'or_verified';
+$vals[] = $orVerified;
+$typesStr .= 'i';
 
 if ($reinspectOf > 0 && $hasCol('inspection_schedules', 'reinspect_of_schedule_id')) {
   $cols[] = 'reinspect_of_schedule_id';
@@ -273,9 +286,11 @@ if ($scheduleId > 0) {
     exit;
   }
 
+  $setInspectorId = $inspectorId > 0 ? "inspector_id=?" : "inspector_id=NULL";
+  $setInspectorLabel = $inspectorLabel !== '' ? "inspector_label=?" : "inspector_label=NULL";
   $stmtU = $db->prepare("UPDATE inspection_schedules
                          SET plate_number=?, vehicle_id=?, scheduled_at=?, schedule_date=?, location=?, inspection_type=?,
-                             inspector_id=?, inspector_label=?,
+                             $setInspectorId, $setInspectorLabel,
                              status=?, cr_verified=?, or_verified=?, status_remarks=?, overdue_marked_at=NULL
                          WHERE schedule_id=?");
   if (!$stmtU) {
@@ -283,7 +298,17 @@ if ($scheduleId > 0) {
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
   }
-  $stmtU->bind_param('sissssissiisi', $plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType, $inspectorIdDb, $inspectorLabel, $status, $crVerified, $orVerified, $statusRemarks, $scheduleId);
+  $uTypes = 'sissss';
+  $uVals = [$plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType];
+  if ($inspectorId > 0) { $uTypes .= 'i'; $uVals[] = (int)$inspectorId; }
+  if ($inspectorLabel !== '') { $uTypes .= 's'; $uVals[] = $inspectorLabel; }
+  $uTypes .= 'siisi';
+  $uVals[] = $status;
+  $uVals[] = $crVerified;
+  $uVals[] = $orVerified;
+  $uVals[] = $statusRemarks;
+  $uVals[] = $scheduleId;
+  $stmtU->bind_param($uTypes, ...$uVals);
   $okU = $stmtU->execute();
   $uErr = $stmtU->error;
   $stmtU->close();

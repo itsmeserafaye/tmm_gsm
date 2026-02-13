@@ -378,6 +378,7 @@ $typesList = vehicle_types();
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
+          </select>
           <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
           </span>

@@ -409,6 +409,8 @@ if ($rootUrl === '/') $rootUrl = '';
           <textarea name="status_remarks" rows="3" maxlength="255" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Vehicle unavailable / operator no-show"><?php echo htmlspecialchars($editRemarks); ?></textarea>
         </div>
 
+        <div id="scheduleError" class="hidden p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-200 text-sm font-semibold"></div>
+
         <div class="flex items-center justify-end gap-2 pt-2">
           <button id="btnSchedule" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold"><?php echo $scheduleId > 0 ? 'Reschedule' : 'Save'; ?></button>
         </div>
@@ -434,6 +436,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const correctionWrap = document.getElementById('correctionWrap');
     const correctionDue = document.getElementById('correctionDue');
     const scheduleIdEl = document.getElementById('scheduleId');
+    const scheduleError = document.getElementById('scheduleError');
     const vehiclePick = document.getElementById('vehiclePick');
     const vehiclePickToggle = document.getElementById('vehiclePickToggle');
     const vehiclePickPanel = document.getElementById('vehiclePickPanel');
@@ -742,6 +745,7 @@ if ($rootUrl === '/') $rootUrl = '';
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
+        if (scheduleError) { scheduleError.textContent = ''; scheduleError.classList.add('hidden'); }
         const fd = new FormData(form);
         const pick = (fd.get('vehicle_pick') || '').toString().trim();
         const hid = Number((fd.get('vehicle_id') || '').toString().trim() || 0);
@@ -773,12 +777,16 @@ if ($rootUrl === '/') $rootUrl = '';
         btn.textContent = 'Saving...';
         try {
           const res = await fetch(rootUrl + '/admin/api/module4/schedule_inspection.php', { method: 'POST', body: post });
-          const data = await res.json();
+          const raw = await res.text();
+          let data = null;
+          try { data = raw ? JSON.parse(raw) : null; } catch (_) { data = null; }
           if (!data || !data.ok || !data.schedule_id) {
             if (data && data.error === 'duplicate_schedule' && data.schedule_id) {
               throw new Error('Duplicate schedule detected. Open SCH-' + String(data.schedule_id) + ' instead.');
             }
-            throw new Error((data && data.error) ? data.error : 'save_failed');
+            const msg = (data && data.error) ? String(data.error) : (!res.ok ? ('server_error_' + String(res.status || 500)) : 'save_failed');
+            const dbErr = (data && data.db_error) ? String(data.db_error) : '';
+            throw new Error(dbErr ? (msg + ' • ' + dbErr) : msg);
           }
           if (data.updated) {
             showToast('Inspection rescheduled.');
@@ -791,7 +799,13 @@ if ($rootUrl === '/') $rootUrl = '';
             setTimeout(() => { window.location.href = '?page=module4/submodule4&schedule_id=' + encodeURIComponent(data.schedule_id); }, 500);
           }
         } catch (err) {
-          showToast(err.message || 'Failed', 'error');
+          const msg = (err && err.message) ? String(err.message) : 'Failed';
+          if (scheduleError) {
+            scheduleError.textContent = msg;
+            scheduleError.classList.remove('hidden');
+            try { scheduleError.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+          }
+          showToast(msg, 'error');
           btn.disabled = false;
           btn.textContent = (scheduleIdEl && scheduleIdEl.value) ? 'Reschedule' : 'Save';
         }

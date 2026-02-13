@@ -8,6 +8,12 @@ $db = db();
 $q = trim((string)($_GET['q'] ?? ''));
 $vehicleType = trim((string)($_GET['vehicle_type'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$tab = trim((string)($_GET['tab'] ?? 'corridors'));
+if (!in_array($tab, ['corridors','tricycle'], true)) $tab = 'corridors';
+
+$saQ = trim((string)($_GET['sa_q'] ?? ''));
+$saStatus = trim((string)($_GET['sa_status'] ?? ''));
+if ($saStatus !== '' && !in_array($saStatus, ['Active','Inactive'], true)) $saStatus = '';
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -272,6 +278,58 @@ if ($useAlloc) {
 
 $corridors = array_values($corridors);
 $legacyGroups = array_values($legacyGroups);
+
+$serviceAreas = [];
+$saConds = ["1=1"];
+$saParams = [];
+$saTypes = '';
+if ($saQ !== '') {
+  $like = '%' . $saQ . '%';
+  $saConds[] = "(a.area_code LIKE ? OR a.area_name LIKE ? OR COALESCE(a.barangay,'') LIKE ?)";
+  $saParams[] = $like; $saParams[] = $like; $saParams[] = $like;
+  $saTypes .= 'sss';
+}
+if ($saStatus !== '') {
+  $saConds[] = "a.status=?";
+  $saParams[] = $saStatus;
+  $saTypes .= 's';
+}
+$saSql = "SELECT
+  a.id,
+  a.area_code,
+  a.area_name,
+  a.barangay,
+  a.authorized_units,
+  a.fare_min,
+  a.fare_max,
+  a.coverage_notes,
+  a.status,
+  COALESCE(p.points_count,0) AS points_count,
+  COALESCE(p.points, '') AS points
+FROM tricycle_service_areas a
+LEFT JOIN (
+  SELECT area_id,
+         COUNT(*) AS points_count,
+         GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+  FROM tricycle_service_area_points
+  GROUP BY area_id
+) p ON p.area_id=a.id
+WHERE " . implode(' AND ', $saConds) . "
+ORDER BY a.status='Active' DESC, a.area_name ASC, a.id DESC
+LIMIT 2000";
+if ($saParams) {
+  $stmtSa = $db->prepare($saSql);
+  if ($stmtSa) {
+    $stmtSa->bind_param($saTypes, ...$saParams);
+    $stmtSa->execute();
+    $resSa = $stmtSa->get_result();
+    while ($resSa && ($r = $resSa->fetch_assoc())) $serviceAreas[] = $r;
+    $stmtSa->close();
+  }
+} else {
+  $resSa = $db->query($saSql);
+  if ($resSa) while ($r = $resSa->fetch_assoc()) $serviceAreas[] = $r;
+}
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
@@ -281,21 +339,40 @@ $legacyGroups = array_values($legacyGroups);
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Define authorized routes, set capacity limits, and use route availability as the basis for franchise endorsement.</p>
     </div>
     <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-      <?php if ($canManage): ?>
+      <?php if ($canManage && $tab === 'corridors'): ?>
         <button type="button" id="btnAddRoute" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
           <i data-lucide="plus" class="w-4 h-4"></i>
           Add Route
         </button>
       <?php endif; ?>
-      <a href="?page=puv-database/tricycle-service-areas" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-        <i data-lucide="map" class="w-4 h-4"></i>
-        Tricycle Service Areas
-      </a>
+      <?php if ($canManage && $tab === 'tricycle'): ?>
+        <button type="button" id="btnAddArea" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          Add Service Area
+        </button>
+      <?php endif; ?>
     </div>
+  </div>
+
+  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+    <?php
+      $baseParams = ['page' => 'puv-database/routes-lptrp'];
+      $corrParams = array_merge($baseParams, ['tab' => 'corridors', 'q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status]);
+      $triParams = array_merge($baseParams, ['tab' => 'tricycle', 'sa_q' => $saQ, 'sa_status' => $saStatus]);
+    ?>
+    <a href="?<?php echo http_build_query($corrParams); ?>" class="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold border transition-colors <?php echo $tab === 'corridors' ? 'bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?>">
+      <i data-lucide="route" class="w-4 h-4"></i>
+      Route Corridors
+    </a>
+    <a href="?<?php echo http_build_query($triParams); ?>" class="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold border transition-colors <?php echo $tab === 'tricycle' ? 'bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?>">
+      <i data-lucide="map" class="w-4 h-4"></i>
+      Tricycle Service Areas
+    </a>
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[120] flex flex-col gap-3 pointer-events-none"></div>
 
+  <div id="tabCorridors" class="<?php echo $tab === 'tricycle' ? 'hidden' : ''; ?>">
   <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
     <?php
       $exportItems = [];
@@ -503,24 +580,28 @@ $legacyGroups = array_values($legacyGroups);
             </div>
           <?php endif; ?>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route Details</div>
-              <div class="mt-2 space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                <div><span class="text-slate-500 dark:text-slate-400">Origin:</span> <?php echo htmlspecialchars((string)($r['origin'] ?? '-') ?: '-'); ?></div>
-                <div><span class="text-slate-500 dark:text-slate-400">Destination:</span> <?php echo htmlspecialchars((string)($r['destination'] ?? '-') ?: '-'); ?></div>
-                <div><span class="text-slate-500 dark:text-slate-400">Structure:</span> <?php echo htmlspecialchars((string)($r['structure'] ?? '-') ?: '-'); ?></div>
-                <div><span class="text-slate-500 dark:text-slate-400">Distance:</span> <?php echo htmlspecialchars(($r['distance_km'] === null || $r['distance_km'] === '') ? '-' : (string)$r['distance_km']); ?></div>
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Allowed Vehicle Types</div>
+                <div class="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">Allocation, fares, and capacity usage.</div>
               </div>
-              <div class="mt-3 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-pre-wrap"><?php echo htmlspecialchars(trim((string)($r['via'] ?? '')) !== '' ? (string)$r['via'] : ''); ?></div>
+              <?php if ($canManage && $useAlloc): ?>
+                <button type="button" class="route-action inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors text-xs font-black" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                  Edit Allocations
+                </button>
+              <?php endif; ?>
             </div>
 
-            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Allowed Vehicle Types</div>
-              <div class="mt-3 space-y-3">
-                <?php if (!$allocs): ?>
-                  <div class="text-sm text-slate-500 dark:text-slate-400 italic">No allocations yet. A real-life route must have at least one allowed vehicle type with a fare.</div>
-                <?php else: ?>
+            <div class="mt-4">
+              <?php if (!$allocs): ?>
+                <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <div class="text-sm font-black text-amber-900 dark:text-amber-200">Missing Allowed Vehicle Types</div>
+                  <div class="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200/80">Add at least one vehicle type with a fare to make this route usable for franchising.</div>
+                </div>
+              <?php else: ?>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <?php foreach ($allocs as $a): ?>
                     <?php
                       $vt = (string)($a['vehicle_type'] ?? '');
@@ -530,29 +611,74 @@ $legacyGroups = array_values($legacyGroups);
                       $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
                       $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
                       if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+                      $fareMissing = $fareMin === null && $fareMax === null;
                       $fareText = '-';
                       if ($fareMin !== null) {
                         if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
                         else $fareText = '₱ ' . number_format((float)$fareMin, 2);
                       }
                       $ast = (string)($a['status'] ?? 'Active');
-                      $fareMissing = $fareMin === null && $fareMax === null;
+                      $pct = $au > 0 ? max(0, min(100, (int)round(($used / max(1, $au)) * 100))) : 0;
+                      $icon = match($vt) {
+                        'Bus' => 'bus',
+                        'UV' => 'car',
+                        default => 'truck'
+                      };
+                      $statusBadge = $ast === 'Active'
+                        ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+                        : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
                     ?>
-                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-                      <div class="flex items-center justify-between gap-3">
-                        <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($vt); ?></div>
-                        <div class="text-sm font-black <?php echo $fareMissing ? 'text-rose-700 dark:text-rose-400' : 'text-slate-900 dark:text-white'; ?>"><?php echo htmlspecialchars($fareMissing ? 'Missing fare' : $fareText); ?></div>
+                    <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                              <i data-lucide="<?php echo htmlspecialchars($icon); ?>" class="w-5 h-5 text-slate-500 dark:text-slate-300"></i>
+                            </span>
+                            <div class="min-w-0">
+                              <div class="text-sm font-black text-slate-900 dark:text-white truncate"><?php echo htmlspecialchars($vt); ?></div>
+                              <div class="mt-0.5 flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded-lg text-[11px] font-black ring-1 ring-inset <?php echo $statusBadge; ?>"><?php echo htmlspecialchars($ast); ?></span>
+                                <?php if ($fareMissing): ?>
+                                  <span class="px-2 py-0.5 rounded-lg text-[11px] font-black ring-1 ring-inset bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-500/20">Missing fare</span>
+                                <?php endif; ?>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-lg font-black <?php echo $fareMissing ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-white'; ?>"><?php echo htmlspecialchars($fareMissing ? '—' : $fareText); ?></div>
+                          <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Fare</div>
+                        </div>
                       </div>
-                      <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        <span>Authorized: <?php echo (int)$au; ?></span>
-                        <span>Used: <?php echo (int)$used; ?></span>
-                        <span>Remaining: <?php echo (int)$rem; ?></span>
-                        <span>Status: <?php echo htmlspecialchars($ast); ?></span>
+
+                      <div class="mt-4">
+                        <div class="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <span>Used <?php echo (int)$used; ?><?php echo $au > 0 ? (' / ' . (int)$au) : ''; ?></span>
+                          <span><?php echo $au > 0 ? ((int)$pct . '%') : 'No cap'; ?></span>
+                        </div>
+                        <div class="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                          <div class="h-full rounded-full <?php echo $au > 0 ? 'bg-blue-600 dark:bg-blue-400' : 'bg-slate-300 dark:bg-slate-600'; ?>" style="width: <?php echo (int)$pct; ?>%"></div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Authorized</div>
+                            <div class="mt-1 text-sm font-black"><?php echo (int)$au; ?></div>
+                          </div>
+                          <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Used</div>
+                            <div class="mt-1 text-sm font-black"><?php echo (int)$used; ?></div>
+                          </div>
+                          <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <div class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Remaining</div>
+                            <div class="mt-1 text-sm font-black"><?php echo (int)$rem; ?></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   <?php endforeach; ?>
-                <?php endif; ?>
-              </div>
+                </div>
+              <?php endif; ?>
             </div>
           </div>
         </div>
@@ -563,6 +689,151 @@ $legacyGroups = array_values($legacyGroups);
         </div>
       </div>
     <?php endif; ?>
+  </div>
+  </div>
+
+  <div id="tabTricycle" class="<?php echo $tab === 'corridors' ? 'hidden' : ''; ?>">
+    <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+      <form class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between" method="GET">
+        <input type="hidden" name="page" value="puv-database/routes-lptrp">
+        <input type="hidden" name="tab" value="tricycle">
+        <div class="flex-1 flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1 sm:max-w-md group">
+            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+            <input name="sa_q" value="<?php echo htmlspecialchars($saQ); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-400" placeholder="Search area code/name/barangay...">
+          </div>
+          <div class="relative w-full sm:w-44">
+            <select name="sa_status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+              <option value="">All Status</option>
+              <?php foreach (['Active','Inactive'] as $s): ?>
+                <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $saStatus === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </span>
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+            <i data-lucide="filter" class="w-4 h-4"></i>
+            Apply
+          </button>
+          <a href="?<?php echo http_build_query(['page' => 'puv-database/routes-lptrp', 'tab' => 'tricycle']); ?>" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+            Reset
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <div class="space-y-4">
+      <?php if (!$serviceAreas): ?>
+        <div class="bg-white dark:bg-slate-800 p-10 rounded-lg border border-slate-200 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400 italic">No service areas found.</div>
+      <?php endif; ?>
+
+      <?php foreach ($serviceAreas as $a): ?>
+        <?php
+          $id = (int)($a['id'] ?? 0);
+          $code = trim((string)($a['area_code'] ?? ''));
+          $name = trim((string)($a['area_name'] ?? ''));
+          $barangay = trim((string)($a['barangay'] ?? ''));
+          $au = (int)($a['authorized_units'] ?? 0);
+          $st = trim((string)($a['status'] ?? 'Active'));
+          $badge = $st === 'Active'
+            ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+            : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
+          $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
+          $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
+          if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+          $fareText = '-';
+          if ($fareMin !== null) {
+            if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
+            else $fareText = '₱ ' . number_format((float)$fareMin, 2);
+          }
+          $points = trim((string)($a['points'] ?? ''));
+          $payload = [
+            'id' => $id,
+            'area_code' => $code,
+            'area_name' => $name,
+            'barangay' => $barangay,
+            'authorized_units' => $au,
+            'fare_min' => $fareMin,
+            'fare_max' => $fareMax,
+            'coverage_notes' => (string)($a['coverage_notes'] ?? ''),
+            'status' => $st,
+            'points' => str_replace(' • ', "\n", $points),
+          ];
+          $fareMissing = $fareMin === null && $fareMax === null;
+        ?>
+        <details class="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <summary class="list-none cursor-pointer p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="text-lg font-black text-slate-900 dark:text-white truncate"><?php echo htmlspecialchars($code); ?></div>
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
+                  <?php if ($fareMissing): ?>
+                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-300 dark:ring-rose-500/20">Missing Fare</span>
+                  <?php endif; ?>
+                </div>
+                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold truncate"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
+                <?php if ($barangay !== ''): ?>
+                  <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold"><?php echo htmlspecialchars($barangay); ?></div>
+                <?php endif; ?>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i>
+                    Authorized: <?php echo (int)$au; ?>
+                  </span>
+                  <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <i data-lucide="badge-dollar-sign" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <?php echo htmlspecialchars($fareText); ?>
+                  </span>
+                </div>
+                <?php if ($points !== ''): ?>
+                  <div class="mt-3 text-xs text-slate-600 dark:text-slate-300 font-semibold line-clamp-2"><?php echo htmlspecialchars($points); ?></div>
+                <?php endif; ?>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <?php if ($canManage): ?>
+                  <button type="button" class="route-action inline-flex items-center justify-center p-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-area-edit="1" data-area="<?php echo htmlspecialchars(json_encode($payload), ENT_QUOTES); ?>" title="Edit">
+                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                  </button>
+                  <button type="button" class="route-action inline-flex items-center justify-center p-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors" data-area-del="1" data-id="<?php echo (int)$id; ?>" data-code="<?php echo htmlspecialchars($code, ENT_QUOTES); ?>" title="Delete">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                <?php endif; ?>
+                <div class="p-2 rounded-lg text-slate-400 group-open:rotate-180 transition-transform">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </div>
+              </div>
+            </div>
+          </summary>
+          <div class="px-5 pb-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Service Area Details</div>
+                <div class="mt-2 space-y-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <div><span class="text-slate-500 dark:text-slate-400">Barangay:</span> <?php echo htmlspecialchars($barangay !== '' ? $barangay : '-'); ?></div>
+                  <div><span class="text-slate-500 dark:text-slate-400">Authorized Units:</span> <?php echo (int)$au; ?></div>
+                  <div><span class="text-slate-500 dark:text-slate-400">Fare:</span> <?php echo htmlspecialchars($fareText); ?></div>
+                </div>
+                <?php $notes = trim((string)($a['coverage_notes'] ?? '')); ?>
+                <?php if ($notes !== ''): ?>
+                  <div class="mt-3 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-pre-wrap"><?php echo htmlspecialchars($notes); ?></div>
+                <?php endif; ?>
+              </div>
+              <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Coverage Points</div>
+                <div class="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <?php echo $points !== '' ? htmlspecialchars($points) : '<span class="text-slate-500 dark:text-slate-400 italic">No points encoded.</span>'; ?>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      <?php endforeach; ?>
+    </div>
   </div>
 </div>
 
@@ -577,6 +848,21 @@ $legacyGroups = array_values($legacyGroups);
         </button>
       </div>
       <div id="modalRouteBody" class="p-6 max-h-[80vh] overflow-y-auto"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modalArea" class="fixed inset-0 z-[210] hidden">
+  <div id="modalAreaBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalAreaPanel" class="w-full max-w-3xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white" id="modalAreaTitle">Service Area</div>
+        <button type="button" id="modalAreaClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="modalAreaBody" class="p-6 max-h-[80vh] overflow-y-auto"></div>
     </div>
   </div>
 </div>
@@ -871,7 +1157,7 @@ $legacyGroups = array_values($legacyGroups);
           <div class="text-sm font-black text-amber-900 dark:text-amber-200">Legacy route group</div>
           <div class="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200/80">This was grouped from old route-per-vehicle-type records. Run migration to fully normalize.</div>
           <div class="mt-3">
-            <a class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-white" href="${rootUrl}/admin/tools/migrate_routes_to_realworld.php" target="_blank" rel="noopener">Open Migration Tool</a>
+            <a class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-white" href="${rootUrl}/admin/tools/normalize_routes_realworld.php" target="_blank" rel="noopener">Open Normalization Tool</a>
           </div>
         </div>
       ` : '';
@@ -967,5 +1253,221 @@ $legacyGroups = array_values($legacyGroups);
         });
       });
     }
+  })();
+</script>
+
+<script>
+  (function(){
+    const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const canManage = <?php echo json_encode($canManage); ?>;
+    const modal = document.getElementById('modalArea');
+    const panel = document.getElementById('modalAreaPanel');
+    const backdrop = document.getElementById('modalAreaBackdrop');
+    const title = document.getElementById('modalAreaTitle');
+    const body = document.getElementById('modalAreaBody');
+    const closeBtn = document.getElementById('modalAreaClose');
+
+    function showToast(message, type) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const t = (type || 'success').toString();
+      const color = t === 'error' ? 'bg-rose-600' : 'bg-emerald-600';
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold ${color}`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
+      setTimeout(() => { el.remove(); }, 3000);
+    }
+
+    function esc(s) {
+      return (s || '').toString().replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch] || ch));
+    }
+
+    function parsePayload(btn) {
+      const raw = btn ? (btn.getAttribute('data-area') || '') : '';
+      if (!raw) return {};
+      try { return JSON.parse(raw); } catch (_) { return {}; }
+    }
+
+    function openModal(html, t) {
+      if (!modal || !panel || !backdrop || !body || !title) return;
+      title.textContent = t || 'Service Area';
+      body.innerHTML = html;
+      modal.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        panel.classList.remove('scale-95','opacity-0');
+      });
+      try { document.body.style.overflow = 'hidden'; } catch (_) {}
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeModal() {
+      if (!modal || !panel || !backdrop) return;
+      backdrop.classList.add('opacity-0');
+      panel.classList.add('scale-95','opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 180);
+      try { document.body.style.overflow = ''; } catch (_) {}
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', (e) => { if (e && e.target === modal) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e && e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeModal(); });
+
+    function renderForm(a) {
+      const id = a && a.id ? Number(a.id) : 0;
+      const isEdit = id > 0;
+      const code = a && a.area_code ? String(a.area_code) : '';
+      const name = a && a.area_name ? String(a.area_name) : '';
+      const barangay = a && a.barangay ? String(a.barangay) : '';
+      const au = a && a.authorized_units ? Number(a.authorized_units) : 0;
+      const fareMin = (a && a.fare_min !== null && a.fare_min !== undefined && a.fare_min !== '') ? Number(a.fare_min) : '';
+      const fareMax = (a && a.fare_max !== null && a.fare_max !== undefined && a.fare_max !== '') ? Number(a.fare_max) : '';
+      const status = a && a.status ? String(a.status) : 'Active';
+      const coverage = a && a.coverage_notes ? String(a.coverage_notes) : '';
+      const points = a && a.points ? String(a.points) : '';
+
+      return `
+        <form id="formAreaSave" class="space-y-5" novalidate>
+          ${isEdit ? `<input type="hidden" name="id" value="${id}">` : ``}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Area Code</label>
+              <input name="area_code" required maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" value="${esc(code)}" placeholder="e.g., TODA-BAGUMBONG">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Area Name</label>
+              <input name="area_name" required maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(name)}" placeholder="e.g., Bagumbong TODA Zone">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay (optional)</label>
+              <input name="barangay" maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(barangay)}" placeholder="e.g., Brgy 176">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Authorized Units</label>
+              <input name="authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select name="status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===status?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Min (₱)</label>
+              <input name="fare_min" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMin}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Max (₱)</label>
+              <input name="fare_max" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMax}">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Coverage Notes (optional)</label>
+            <textarea name="coverage_notes" rows="3" maxlength="800" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Describe boundaries, TODA notes, restrictions...">${esc(coverage)}</textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Coverage Points (one per line)</label>
+            <textarea name="points" rows="6" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal / landmarks / pickup points...">${esc(points)}</textarea>
+          </div>
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
+            <button id="btnAreaSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Service Area'}</button>
+          </div>
+        </form>
+      `;
+    }
+
+    async function saveArea(form) {
+      const fd = new FormData(form);
+      const res = await fetch(rootUrl + '/admin/api/module1/save_tricycle_service_area.php', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+      return data;
+    }
+
+    function bindFormHandlers() {
+      const form = document.getElementById('formAreaSave');
+      const btn = document.getElementById('btnAreaSave');
+      const close = body ? body.querySelector('[data-close="1"]') : null;
+      if (close) close.addEventListener('click', closeModal);
+      if (form && btn) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!form.checkValidity()) { form.reportValidity(); return; }
+          btn.disabled = true;
+          btn.textContent = 'Saving...';
+          try {
+            await saveArea(form);
+            showToast('Service area saved.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page', 'puv-database/routes-lptrp');
+            params.set('tab', 'tricycle');
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast((err && err.message) ? err.message : 'Failed', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Save';
+          }
+        });
+      }
+    }
+
+    const btnAdd = document.getElementById('btnAddArea');
+    if (btnAdd && canManage) {
+      btnAdd.addEventListener('click', (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        openModal(renderForm({ status: 'Active' }), 'Add Service Area');
+        bindFormHandlers();
+      });
+    }
+
+    document.querySelectorAll('[data-area-edit="1"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (!canManage) return;
+        const a = parsePayload(btn);
+        openModal(renderForm(a), 'Edit • ' + (a.area_code || ''));
+        bindFormHandlers();
+      });
+    });
+
+    document.querySelectorAll('[data-area-del="1"]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (!canManage) return;
+        const id = Number(btn.getAttribute('data-id') || 0);
+        const code = (btn.getAttribute('data-code') || '').toString();
+        if (!id) return;
+        if (!confirm('Delete ' + code + '?')) return;
+        btn.disabled = true;
+        try {
+          const fd = new FormData();
+          fd.append('id', String(id));
+          const res = await fetch(rootUrl + '/admin/api/module1/delete_tricycle_service_area.php', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'delete_failed');
+          showToast('Deleted.');
+          const params = new URLSearchParams(window.location.search || '');
+          params.set('page', 'puv-database/routes-lptrp');
+          params.set('tab', 'tricycle');
+          window.location.search = params.toString();
+        } catch (err) {
+          showToast((err && err.message) ? err.message : 'Failed', 'error');
+          btn.disabled = false;
+        }
+      });
+    });
   })();
 </script>
