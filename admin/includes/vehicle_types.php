@@ -8,6 +8,7 @@ function vehicle_types() {
     'Tricycle',
     'Motorized Pedicab',
     'Mini-bus',
+    'Bus',
     'City Bus',
     'Shuttle Van',
     'Taxi',

@@ -314,7 +314,7 @@ $typesList = vehicle_types();
         </div>
       </div>
     </div>
-    <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
+    <form id="vehFilterForm" class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
       <input type="hidden" name="page" value="puv-database/vehicle-encoding">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-sm group">
@@ -393,7 +393,7 @@ $typesList = vehicle_types();
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+        <tbody id="vehTbody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
           <?php if ($res && $res->num_rows > 0): ?>
             <?php while ($row = $res->fetch_assoc()): ?>
               <?php
@@ -1079,20 +1079,26 @@ $typesList = vehicle_types();
       }
     }
 
-    document.querySelectorAll('[data-veh-view="1"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const plate = btn.getAttribute('data-plate') || '';
-        openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Vehicle • ' + plate);
-        try {
-          await loadVehicleView(plate);
-        } catch (err) {
-          body.innerHTML = `<div class="text-sm text-rose-600">Failed to load.</div>`;
-        }
+    function bindVehicleRowActions(scope) {
+      const root = scope || document;
+      root.querySelectorAll('[data-veh-view="1"]').forEach((btn) => {
+        if (btn.getAttribute('data-bound') === '1') return;
+        btn.setAttribute('data-bound', '1');
+        btn.addEventListener('click', async () => {
+          const plate = btn.getAttribute('data-plate') || '';
+          openModal(`<div class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>`, 'Vehicle • ' + plate);
+          try {
+            await loadVehicleView(plate);
+          } catch (err) {
+            body.innerHTML = `<div class="text-sm text-rose-600">Failed to load.</div>`;
+          }
+        });
       });
-    });
 
-    document.querySelectorAll('[data-veh-docs="1"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      root.querySelectorAll('[data-veh-docs="1"]').forEach((btn) => {
+        if (btn.getAttribute('data-bound') === '1') return;
+        btn.setAttribute('data-bound', '1');
+        btn.addEventListener('click', async () => {
         if (!canWrite) return;
         const plate = btn.getAttribute('data-plate') || '';
         const vehicleId = btn.getAttribute('data-vehicle-id') || '';
@@ -1325,8 +1331,51 @@ $typesList = vehicle_types();
             }
           });
         }
+        });
       });
-    });
+    }
+
+    bindVehicleRowActions(document);
+
+    const vehFilterForm = document.getElementById('vehFilterForm');
+    const vehTbody = document.getElementById('vehTbody');
+    async function loadVehiclesTable(pushState) {
+      if (!vehFilterForm || !vehTbody) return;
+      vehTbody.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      try {
+        const fd = new FormData(vehFilterForm);
+        const qs = new URLSearchParams();
+        ['q','vehicle_type','record_status','status','highlight_plate'].forEach((k) => {
+          const v = (fd.get(k) || '').toString().trim();
+          if (v !== '') qs.set(k, v);
+        });
+        const res = await fetch(rootUrl + '/admin/api/module1/vehicles_table.php?' + qs.toString());
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        vehTbody.innerHTML = (data.html || '').toString();
+        bindVehicleRowActions(vehTbody);
+        if (window.lucide) window.lucide.createIcons();
+
+        if (pushState) {
+          const params = new URLSearchParams();
+          params.set('page', 'puv-database/vehicle-encoding');
+          ['q','vehicle_type','record_status','status'].forEach((k) => {
+            const v = (fd.get(k) || '').toString().trim();
+            if (v !== '') params.set(k, v);
+          });
+          history.replaceState(null, '', '?' + params.toString());
+        }
+      } catch (e) {
+        vehTbody.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-rose-600 font-semibold">Failed to load vehicles.</td></tr>`;
+      }
+    }
+
+    if (vehFilterForm) {
+      vehFilterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadVehiclesTable(true);
+      });
+    }
 
     const btnAdd = document.getElementById('btnOpenAddVehicle');
     if (btnAdd && canWrite) {
