@@ -1398,6 +1398,7 @@ $typesList = vehicle_types();
         loadVehiclesTable(true);
       });
     }
+    loadVehiclesTable(false);
 
     const btnAdd = document.getElementById('btnOpenAddVehicle');
     if (btnAdd && canWrite) {

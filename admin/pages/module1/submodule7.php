@@ -15,6 +15,12 @@ $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 
+$redir = ['page' => 'puv-database/routes-lptrp', 'tab' => 'tricycle'];
+if ($q !== '') $redir['sa_q'] = $q;
+if ($status !== '') $redir['sa_status'] = $status;
+header('Location: ?' . http_build_query($redir));
+exit;
+
 $canManage = has_any_permission(['module1.routes.write','module1.write']);
 
 $conds = ["1=1"];
@@ -422,4 +428,3 @@ if ($params) {
     });
   })();
 </script>
-

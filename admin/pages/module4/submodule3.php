@@ -176,29 +176,29 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-          <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-            <input type="hidden" name="page" value="module4/submodule3">
-            <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
-            <select name="list_status" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <?php $ls = trim((string)($_GET['list_status'] ?? '')); ?>
-              <option value="" <?php echo $ls === '' ? 'selected' : ''; ?>>All Status</option>
-              <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
-                <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
-              <?php endforeach; ?>
-            </select>
-            <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Apply</button>
-            <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
-          </form>
+      <div class="space-y-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
+          </div>
           <button type="button" id="btnOpenScheduleModal" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">
             <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
           </button>
         </div>
+        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+          <input type="hidden" name="page" value="module4/submodule3">
+          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
+          <select name="list_status" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <?php $ls = trim((string)($_GET['list_status'] ?? '')); ?>
+            <option value="" <?php echo $ls === '' ? 'selected' : ''; ?>>All Status</option>
+            <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
+              <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Apply</button>
+          <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
+        </form>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
