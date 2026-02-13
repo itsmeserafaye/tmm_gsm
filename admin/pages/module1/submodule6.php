@@ -38,56 +38,112 @@ if ($q !== '') {
   $types .= 'sssss';
 }
 if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
-  $conds[] = "r.vehicle_type=?";
+  $conds[] = "a.vehicle_type=?";
   $params[] = $vehicleType;
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "r.status=?";
+  $conds[] = "a.status=?";
   $params[] = $status;
   $types .= 's';
 }
 
-$sql = "SELECT
-  r.id,
-  r.route_id,
-  r.route_code,
-  r.route_name,
-  r.vehicle_type,
-  r.origin,
-  r.destination,
-  r.via,
-  r.structure,
-  r.distance_km,
-  r.authorized_units,
-  r.fare,
-  " . ($hasFareMin ? "r.fare_min" : "NULL") . " AS fare_min,
-  " . ($hasFareMax ? "r.fare_max" : "NULL") . " AS fare_max,
-  r.status,
-  r.created_at,
-  r.updated_at,
-  COALESCE(u.used_units,0) AS used_units,
-  COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
-  COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
-FROM routes r
-LEFT JOIN (
-  SELECT
-    tr.route_id,
-    GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
-    MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
-  FROM terminal_routes tr
-  JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
-  GROUP BY tr.route_id
-) tc ON tc.route_id=r.route_id
-LEFT JOIN (
-  SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
-  FROM franchise_applications
-  WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
-  GROUP BY route_id
-) u ON u.route_id=r.id
-WHERE " . implode(' AND ', $conds) . "
-ORDER BY r.status='Active' DESC, COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
-LIMIT 1000";
+$useAlloc = false;
+$tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
+if ($tAlloc && $tAlloc->num_rows > 0) {
+  $cAlloc = $db->query("SELECT COUNT(*) AS c FROM route_vehicle_types");
+  if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
+}
+
+if ($useAlloc) {
+  $sql = "SELECT
+    r.id AS corridor_id,
+    r.route_id,
+    r.route_code,
+    r.route_name,
+    r.origin,
+    r.destination,
+    r.via,
+    r.structure,
+    r.distance_km,
+    r.status AS corridor_status,
+    a.id AS id,
+    a.vehicle_type,
+    a.authorized_units,
+    a.fare_min AS fare_min,
+    a.fare_max AS fare_max,
+    a.status,
+    r.created_at,
+    r.updated_at,
+    COALESCE(u.used_units,0) AS used_units,
+    COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
+    COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
+  FROM routes r
+  JOIN route_vehicle_types a ON a.route_id=r.id
+  LEFT JOIN (
+    SELECT
+      tr.route_id,
+      GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
+      MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
+    FROM terminal_routes tr
+    JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
+    GROUP BY tr.route_id
+  ) tc ON tc.route_id=r.route_id
+  LEFT JOIN (
+    SELECT route_id, vehicle_type, COALESCE(SUM(vehicle_count),0) AS used_units
+    FROM franchise_applications
+    WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+    GROUP BY route_id, vehicle_type
+  ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
+  WHERE " . implode(' AND ', $conds) . "
+  ORDER BY COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, a.vehicle_type ASC, a.id DESC
+  LIMIT 1000";
+} else {
+  $condsLegacy = [];
+  foreach ($conds as $c) {
+    $condsLegacy[] = str_replace(['a.vehicle_type','a.status'], ['r.vehicle_type','r.status'], $c);
+  }
+  $sql = "SELECT
+    r.id,
+    r.route_id,
+    r.route_code,
+    r.route_name,
+    r.vehicle_type,
+    r.origin,
+    r.destination,
+    r.via,
+    r.structure,
+    r.distance_km,
+    r.authorized_units,
+    r.fare,
+    " . ($hasFareMin ? "r.fare_min" : "NULL") . " AS fare_min,
+    " . ($hasFareMax ? "r.fare_max" : "NULL") . " AS fare_max,
+    r.status,
+    r.created_at,
+    r.updated_at,
+    COALESCE(u.used_units,0) AS used_units,
+    COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
+    COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
+  FROM routes r
+  LEFT JOIN (
+    SELECT
+      tr.route_id,
+      GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
+      MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
+    FROM terminal_routes tr
+    JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
+    GROUP BY tr.route_id
+  ) tc ON tc.route_id=r.route_id
+  LEFT JOIN (
+    SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
+    FROM franchise_applications
+    WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+    GROUP BY route_id
+  ) u ON u.route_id=r.id
+  WHERE " . implode(' AND ', $condsLegacy) . "
+  ORDER BY r.status='Active' DESC, COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
+  LIMIT 1000";
+}
 
 $routes = [];
 if ($params) {
@@ -118,6 +174,10 @@ if ($params) {
           Add Route
         </button>
       <?php endif; ?>
+      <a href="?page=puv-database/tricycle-service-areas" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="map" class="w-4 h-4"></i>
+        Tricycle Service Areas
+      </a>
     </div>
   </div>
 
@@ -172,7 +232,7 @@ if ($params) {
         <div class="relative w-full sm:w-52">
           <select name="vehicle_type" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Vehicle Types</option>
-            <?php foreach (['Tricycle','Jeepney','UV','Bus'] as $t): ?>
+            <?php foreach (['Jeepney','UV','Bus'] as $t): ?>
               <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $vehicleType === $t ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
             <?php endforeach; ?>
           </select>
@@ -245,9 +305,6 @@ if ($params) {
               $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
               $fareMin = $r['fare_min'] === null || $r['fare_min'] === '' ? null : (float)$r['fare_min'];
               $fareMax = $r['fare_max'] === null || $r['fare_max'] === '' ? null : (float)$r['fare_max'];
-              $storedFare = $r['fare'] === null || $r['fare'] === '' ? null : (float)$r['fare'];
-              if ($fareMin === null && $storedFare !== null) $fareMin = $storedFare;
-              if ($fareMax === null && $storedFare !== null) $fareMax = $storedFare;
               if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
               $fareText = '-';
               if ($fareMin !== null) {
@@ -256,6 +313,7 @@ if ($params) {
               }
               $rowPayload = [
                 'id' => (int)($r['id'] ?? 0),
+                'corridor_id' => (int)($r['corridor_id'] ?? $r['id'] ?? 0),
                 'route_code' => $code,
                 'route_name' => $name,
                 'vehicle_type' => $vt,
@@ -265,10 +323,10 @@ if ($params) {
                 'structure' => (string)($r['structure'] ?? ''),
                 'distance_km' => $distanceKm,
                 'authorized_units' => (int)($r['authorized_units'] ?? 0),
-                'fare' => $storedFare,
                 'fare_min' => $fareMin,
                 'fare_max' => $fareMax,
                 'status' => $st,
+                'corridor_status' => (string)($r['corridor_status'] ?? ''),
                 'used_units' => $used,
                 'terminal_categories' => $catList,
                 'primary_terminal_category' => $catPrimary,
@@ -435,6 +493,7 @@ if ($params) {
 
     function renderForm(r) {
       const id = r && r.id ? Number(r.id) : 0;
+      const corridorId = r && r.corridor_id ? Number(r.corridor_id) : 0;
       const isEdit = id > 0;
       const routeCode = r && r.route_code ? String(r.route_code) : '';
       const routeName = r && r.route_name ? String(r.route_name) : '';
@@ -445,13 +504,14 @@ if ($params) {
       const structure = r && r.structure ? String(r.structure) : '';
       const distanceKm = (r && r.distance_km !== null && r.distance_km !== undefined && r.distance_km !== '') ? Number(r.distance_km) : '';
       const au = r && r.authorized_units ? Number(r.authorized_units) : 0;
-      const fareMin = (r && r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : ((r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '');
-      const fareMax = (r && r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : ((r && r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : '');
+      const fareMin = (r && r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : '';
+      const fareMax = (r && r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : '';
       const status = r && r.status ? String(r.status) : 'Active';
 
       return `
         <form id="formRouteSave" class="space-y-5" novalidate>
           ${isEdit ? `<input type="hidden" name="id" value="${id}">` : ``}
+          ${corridorId ? `<input type="hidden" name="corridor_id" value="${corridorId}">` : ``}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route Code</label>
@@ -468,7 +528,7 @@ if ($params) {
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
               <select name="vehicle_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <option value="">Select</option>
-                ${['Tricycle','Jeepney','UV','Bus'].map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
+                ${['Jeepney','UV','Bus'].map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
               </select>
             </div>
             <div>
@@ -533,7 +593,7 @@ if ($params) {
       const au = Number(r.authorized_units || 0);
       const used = Number(r.used_units || 0);
       const rem = au > 0 ? Math.max(0, au - used) : 0;
-      const fmin = (r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : ((r.fare !== null && r.fare !== undefined && r.fare !== '') ? Number(r.fare) : null);
+      const fmin = (r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : null;
       const fmax = (r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : fmin;
       let fareText = '-';
       if (fmin !== null && !Number.isNaN(fmin)) {
@@ -614,9 +674,13 @@ if ($params) {
       if (c) c.addEventListener('click', closeModal);
 
       const box = body.querySelector('#routeOperatorsBox');
-      const routeId = Number(r.id || 0);
-      if (box && routeId > 0) {
-        fetch(rootUrl + '/admin/api/module1/route_operators.php?route_id=' + encodeURIComponent(String(routeId)), { headers: { 'Accept': 'application/json' } })
+      const corridorId = Number(r.corridor_id || 0);
+      const vehicleType = (r.vehicle_type || '').toString();
+      if (box && corridorId > 0) {
+        const qs = new URLSearchParams();
+        qs.set('route_id', String(corridorId));
+        if (vehicleType) qs.set('vehicle_type', vehicleType);
+        fetch(rootUrl + '/admin/api/module1/route_operators.php?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
           .then((rr) => rr.json())
           .then((data) => {
             if (!data || !data.ok) { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Failed to load.</div>'; return; }
@@ -731,6 +795,7 @@ if ($params) {
           try {
             const fd = new FormData();
             fd.append('id', String(r.id || 0));
+            fd.append('corridor_id', String(r.corridor_id || 0));
             fd.append('route_code', String(r.route_code || ''));
             fd.append('route_name', String(r.route_name || ''));
             fd.append('vehicle_type', String(r.vehicle_type || ''));
@@ -742,7 +807,6 @@ if ($params) {
             fd.append('authorized_units', String(r.authorized_units || 0));
             fd.append('fare_min', (r.fare_min === null || r.fare_min === undefined) ? '' : String(r.fare_min));
             fd.append('fare_max', (r.fare_max === null || r.fare_max === undefined) ? '' : String(r.fare_max));
-            fd.append('fare', (r.fare_min === null || r.fare_min === undefined) ? ((r.fare === null || r.fare === undefined) ? '' : String(r.fare)) : String(r.fare_min));
             fd.append('status', next);
             const res = await fetch(rootUrl + '/admin/api/module1/save_route.php', { method: 'POST', body: fd });
             const data = await res.json();

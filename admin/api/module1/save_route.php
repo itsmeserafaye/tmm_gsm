@@ -23,6 +23,7 @@ try {
     $hasFareMax = isset($routeCols['fare_max']);
 
     $routePk = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $corridorPk = isset($_POST['corridor_id']) ? (int)$_POST['corridor_id'] : 0;
     $routeCode = strtoupper(trim((string)($_POST['route_code'] ?? ($_POST['route_id'] ?? ''))));
     $routeName = trim((string)($_POST['route_name'] ?? ''));
     $origin = trim((string)($_POST['origin'] ?? ''));
@@ -126,6 +127,108 @@ try {
 
     if ($authorizedUnits === null || $authorizedUnits <= 0) {
         $authorizedUnits = $suggestAuthorized($vehicleType, $distanceKm, $fare, $fareMin, $fareMax, $routeCode);
+    }
+
+    $useAlloc = false;
+    $t = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
+    if ($t && $t->num_rows > 0) $useAlloc = true;
+
+    if ($useAlloc) {
+        if ($vehicleType === null || $vehicleType === '') {
+            throw new Exception('invalid_vehicle_type');
+        }
+
+        $statusAllowed = ['Active','Inactive'];
+        $stOk = false;
+        foreach ($statusAllowed as $s) {
+            if (strcasecmp($status, $s) === 0) { $status = $s; $stOk = true; break; }
+        }
+        if (!$stOk) $status = 'Active';
+
+        $viaBind = $via !== '' ? $via : null;
+        $structureBind = $structure !== '' ? $structure : null;
+
+        if ($corridorPk > 0) {
+            $stmtC = $db->prepare("SELECT id FROM routes WHERE id=? LIMIT 1");
+            if (!$stmtC) throw new Exception('db_prepare_failed');
+            $stmtC->bind_param('i', $corridorPk);
+            $stmtC->execute();
+            $corr = $stmtC->get_result()->fetch_assoc();
+            $stmtC->close();
+            if (!$corr) throw new Exception('route_not_found');
+        } else {
+            $stmtFind = $db->prepare("SELECT id FROM routes WHERE (route_id=? OR route_code=?) AND (vehicle_type IS NULL OR vehicle_type='') LIMIT 1");
+            if (!$stmtFind) throw new Exception('db_prepare_failed');
+            $stmtFind->bind_param('ss', $routeCode, $routeCode);
+            $stmtFind->execute();
+            $corr = $stmtFind->get_result()->fetch_assoc();
+            $stmtFind->close();
+            $corridorPk = (int)($corr['id'] ?? 0);
+        }
+
+        if ($corridorPk <= 0) {
+            $stmtDup = $db->prepare("SELECT id FROM routes WHERE route_id=? OR route_code=? LIMIT 1");
+            if (!$stmtDup) throw new Exception('db_prepare_failed');
+            $stmtDup->bind_param('ss', $routeCode, $routeCode);
+            $stmtDup->execute();
+            $dup = $stmtDup->get_result()->fetch_assoc();
+            $stmtDup->close();
+            if ($dup) throw new Exception('duplicate_route_code');
+
+            $maxLimit = (int)($authorizedUnits ?? 50);
+            if ($maxLimit <= 0) $maxLimit = 50;
+
+            $stmtIns = $db->prepare("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, via, structure, distance_km, fare, authorized_units, max_vehicle_limit, status)
+                                     VALUES(?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL, ?, 'Active')");
+            if (!$stmtIns) throw new Exception('db_prepare_failed');
+            $stmtIns->bind_param('sssssssdi', $routeCode, $routeCode, $routeName, $origin, $destination, $viaBind, $structureBind, $distanceKm, $maxLimit);
+            $ok = $stmtIns->execute();
+            $corridorPk = (int)$db->insert_id;
+            $stmtIns->close();
+        }
+
+        $authorizedBind = (int)$authorizedUnits;
+        $fareMinBind = $fareMin;
+        $fareMaxBind = $fareMax;
+
+        if ($routePk > 0) {
+            $stmtChk = $db->prepare("SELECT id FROM route_vehicle_types WHERE id=? LIMIT 1");
+            if ($stmtChk) {
+                $stmtChk->bind_param('i', $routePk);
+                $stmtChk->execute();
+                $existsAlloc = $stmtChk->get_result()->fetch_assoc();
+                $stmtChk->close();
+                if (!$existsAlloc) $routePk = 0;
+            }
+        }
+
+        if ($routePk > 0) {
+            $stmt = $db->prepare("UPDATE route_vehicle_types SET vehicle_type=?, authorized_units=?, fare_min=?, fare_max=?, status=? WHERE id=? AND route_id=?");
+            if (!$stmt) throw new Exception('db_prepare_failed');
+            $stmt->bind_param('siddsii', $vehicleType, $authorizedBind, $fareMinBind, $fareMaxBind, $status, $routePk, $corridorPk);
+            $ok = $stmt->execute();
+            $stmt->close();
+        } else {
+            $stmt = $db->prepare("INSERT INTO route_vehicle_types(route_id, vehicle_type, authorized_units, fare_min, fare_max, status)
+                                  VALUES(?, ?, ?, ?, ?, ?)
+                                  ON DUPLICATE KEY UPDATE authorized_units=VALUES(authorized_units), fare_min=VALUES(fare_min), fare_max=VALUES(fare_max), status=VALUES(status)");
+            if (!$stmt) throw new Exception('db_prepare_failed');
+            $stmt->bind_param('isidds', $corridorPk, $vehicleType, $authorizedBind, $fareMinBind, $fareMaxBind, $status);
+            $ok = $stmt->execute();
+            $stmt->close();
+
+            $stmtId = $db->prepare("SELECT id FROM route_vehicle_types WHERE route_id=? AND vehicle_type=? LIMIT 1");
+            if ($stmtId) {
+                $stmtId->bind_param('is', $corridorPk, $vehicleType);
+                $stmtId->execute();
+                $rowId = $stmtId->get_result()->fetch_assoc();
+                $stmtId->close();
+                $routePk = (int)($rowId['id'] ?? 0);
+            }
+        }
+
+        echo json_encode(['ok' => (bool)$ok, 'route_code' => $routeCode, 'route_id' => $routeCode, 'id' => $routePk, 'corridor_id' => $corridorPk]);
+        exit;
     }
 
     $maxLimit = $authorizedUnits;

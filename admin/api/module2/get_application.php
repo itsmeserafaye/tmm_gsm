@@ -17,12 +17,22 @@ $sql = "SELECT fa.*,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                o.operator_type,
                o.status AS operator_status,
-               r.route_id AS route_code,
-               r.origin, r.destination, r.structure, r.distance_km, r.authorized_units, r.status AS route_status,
+               COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
+               COALESCE(NULLIF(r.route_name,''), sa.area_name, '') AS route_name,
+               COALESCE(r.origin, sap.points, '') AS origin,
+               COALESCE(r.destination, '') AS destination,
+               r.structure, r.distance_km, r.authorized_units, r.status AS route_status,
+               sa.status AS service_area_status,
                f.ltfrb_ref_no, f.decision_order_no, f.authority_type, f.issue_date, f.expiry_date AS franchise_expiry_date, f.status AS franchise_status
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN (
+          SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+          FROM tricycle_service_area_points
+          GROUP BY area_id
+        ) sap ON sap.area_id=sa.id
         LEFT JOIN franchises f ON f.application_id=fa.application_id
         WHERE fa.application_id=? LIMIT 1";
 $stmt = $db->prepare($sql);

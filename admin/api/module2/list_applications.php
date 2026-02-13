@@ -26,19 +26,28 @@ if ($limit > 500) $limit = 500;
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                fa.route_id,
-               r.route_id AS route_code,
-               r.origin, r.destination,
+               fa.service_area_id,
+               fa.vehicle_type,
+               COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
+               COALESCE(r.origin, sap.points, '') AS origin,
+               COALESCE(r.destination, '') AS destination,
                fa.vehicle_count, fa.representative_name,
                fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
-        LEFT JOIN routes r ON r.id=fa.route_id";
+        LEFT JOIN routes r ON r.id=fa.route_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN (
+          SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+          FROM tricycle_service_area_points
+          GROUP BY area_id
+        ) sap ON sap.area_id=sa.id";
 $conds = [];
 $params = [];
 $types = '';
 
 if ($q !== '') {
-  $conds[] = "(fa.franchise_ref_number LIKE ? OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE ? OR r.route_id LIKE ? OR r.origin LIKE ? OR r.destination LIKE ?)";
+  $conds[] = "(fa.franchise_ref_number LIKE ? OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE ? OR COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) LIKE ? OR COALESCE(r.origin, sap.points, '') LIKE ? OR COALESCE(r.destination,'') LIKE ?)";
   $params[] = "%$q%";
   $params[] = "%$q%";
   $params[] = "%$q%";

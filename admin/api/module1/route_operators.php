@@ -13,6 +13,12 @@ if ($routeDbId <= 0) {
   exit;
 }
 
+$vehicleType = trim((string)($_GET['vehicle_type'] ?? ''));
+$vehicleTypeAllowed = ['Tricycle','Jeepney','UV','Bus'];
+if ($vehicleType !== '' && !in_array($vehicleType, $vehicleTypeAllowed, true)) {
+  $vehicleType = '';
+}
+
 $sql = "SELECT
   o.id AS operator_id,
   o.operator_type,
@@ -22,6 +28,7 @@ $sql = "SELECT
 FROM franchise_applications fa
 JOIN operators o ON o.id=fa.operator_id
 WHERE fa.route_id=?
+  " . ($vehicleType !== '' ? "AND fa.vehicle_type=?\n  " : "") . "
   AND fa.status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
 GROUP BY o.id, o.operator_type, operator_name
 ORDER BY total_units DESC, operator_name ASC";
@@ -32,7 +39,9 @@ if (!$stmt) {
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
   exit;
 }
-$stmt->bind_param('i', $routeDbId);
+$types = $vehicleType !== '' ? 'is' : 'i';
+if ($vehicleType !== '') $stmt->bind_param($types, $routeDbId, $vehicleType);
+else $stmt->bind_param($types, $routeDbId);
 $stmt->execute();
 $res = $stmt->get_result();
 $rows = [];
@@ -40,4 +49,3 @@ while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
 $stmt->close();
 
 echo json_encode(['ok' => true, 'route_id' => $routeDbId, 'operators' => $rows]);
-

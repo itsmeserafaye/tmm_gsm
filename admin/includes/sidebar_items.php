@@ -18,6 +18,7 @@ $sidebarItems = [
       ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/puv-database/link-vehicle-to-operator', 'page' => 'module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
       ['id' => 'submodule5', 'label' => 'Ownership Transfer', 'path' => '/puv-database/ownership-transfer', 'page' => 'module1/submodule5', 'anyPermissions' => ['module1.write','module1.vehicles.write']],
       ['id' => 'submodule6', 'label' => 'List of Routes', 'path' => '/puv-database/routes-lptrp', 'page' => 'module1/submodule6', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule7', 'label' => 'Tricycle Service Areas', 'path' => '/puv-database/tricycle-service-areas', 'page' => 'module1/submodule7', 'anyPermissions' => ['module1.read','module1.write']],
     ],
   ],
   [

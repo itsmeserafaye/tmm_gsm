@@ -6,7 +6,7 @@ require_once __DIR__ . '/../../includes/util.php';
 $db = db();
 
 header('Content-Type: application/json');
-require_permission('module2.franchises.manage');
+require_any_permission(['module2.apply','module2.franchises.manage']);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
@@ -15,6 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $operator_id = (int)($_POST['operator_id'] ?? 0);
 $route_id = (int)($_POST['route_id'] ?? 0);
+$service_area_id = (int)($_POST['service_area_id'] ?? 0);
+$vehicle_type = trim((string)($_POST['vehicle_type'] ?? ''));
 $vehicle_count = (int)($_POST['vehicle_count'] ?? 0);
 $representative_name = trim((string)($_POST['representative_name'] ?? ''));
 $assisted = (int)($_POST['assisted'] ?? 0) === 1;
@@ -22,8 +24,10 @@ $assisted = (int)($_POST['assisted'] ?? 0) === 1;
 $hasUpload = isset($_FILES['declared_fleet_doc']) && is_array($_FILES['declared_fleet_doc']);
 
 if ($operator_id <= 0 || $route_id <= 0 || $vehicle_count <= 0) {
-    echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
-    exit;
+    if ($operator_id <= 0 || $vehicle_count <= 0) {
+        echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
+        exit;
+    }
 }
 
 try {
@@ -45,23 +49,86 @@ try {
         exit;
     }
 
-    $stmtR = $db->prepare("SELECT id, route_id, status FROM routes WHERE id=? LIMIT 1");
-    if (!$stmtR) throw new Exception('db_prepare_failed');
-    $stmtR->bind_param('i', $route_id);
-    $stmtR->execute();
-    $route = $stmtR->get_result()->fetch_assoc();
-    $stmtR->close();
-    if (!$route) {
-        echo json_encode(['ok' => false, 'error' => 'route_not_found']);
-        exit;
-    }
-    if (($route['status'] ?? '') !== 'Active') {
-        echo json_encode(['ok' => false, 'error' => 'route_inactive']);
+    $allowedVehicleTypes = ['Tricycle','Jeepney','UV','Bus'];
+    if (!in_array($vehicle_type, $allowedVehicleTypes, true)) {
+        echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
         exit;
     }
 
+    $isTricycle = $vehicle_type === 'Tricycle';
+    if ($isTricycle) {
+        if ($service_area_id <= 0) { echo json_encode(['ok' => false, 'error' => 'missing_required_fields']); exit; }
+        $stmtA = $db->prepare("SELECT id, status, COALESCE(authorized_units,0) AS authorized_units FROM tricycle_service_areas WHERE id=? LIMIT 1");
+        if (!$stmtA) throw new Exception('db_prepare_failed');
+        $stmtA->bind_param('i', $service_area_id);
+        $stmtA->execute();
+        $area = $stmtA->get_result()->fetch_assoc();
+        $stmtA->close();
+        if (!$area) { echo json_encode(['ok' => false, 'error' => 'service_area_not_found']); exit; }
+        if (($area['status'] ?? '') !== 'Active') { echo json_encode(['ok' => false, 'error' => 'service_area_inactive']); exit; }
+
+        $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+                               FROM franchise_applications
+                               WHERE service_area_id=? AND COALESCE(vehicle_type,'')='Tricycle'
+                                 AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+        if ($stmtU) {
+            $stmtU->bind_param('i', $service_area_id);
+            $stmtU->execute();
+            $u = $stmtU->get_result()->fetch_assoc();
+            $stmtU->close();
+            $limit = (int)($area['authorized_units'] ?? 0);
+            $used = (int)($u['used_units'] ?? 0);
+            $remaining = max(0, $limit - $used);
+            if ($limit > 0 && $vehicle_count > $remaining) { echo json_encode(['ok' => false, 'error' => 'capacity_exceeded']); exit; }
+        }
+        $route_id = 0;
+    } else {
+        if ($route_id <= 0) { echo json_encode(['ok' => false, 'error' => 'missing_required_fields']); exit; }
+        $stmtR = $db->prepare("SELECT id, route_id, status FROM routes WHERE id=? LIMIT 1");
+        if (!$stmtR) throw new Exception('db_prepare_failed');
+        $stmtR->bind_param('i', $route_id);
+        $stmtR->execute();
+        $route = $stmtR->get_result()->fetch_assoc();
+        $stmtR->close();
+        if (!$route) { echo json_encode(['ok' => false, 'error' => 'route_not_found']); exit; }
+        if (($route['status'] ?? '') !== 'Active') { echo json_encode(['ok' => false, 'error' => 'route_inactive']); exit; }
+
+        $useAlloc = false;
+        $tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
+        if ($tAlloc && $tAlloc->num_rows > 0) {
+            $cAlloc = $db->query("SELECT COUNT(*) AS c FROM route_vehicle_types");
+            if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
+        }
+        if ($useAlloc) {
+            $stmtA = $db->prepare("SELECT COALESCE(authorized_units,0) AS authorized_units FROM route_vehicle_types WHERE route_id=? AND vehicle_type=? AND status='Active' LIMIT 1");
+            if ($stmtA) {
+                $stmtA->bind_param('is', $route_id, $vehicle_type);
+                $stmtA->execute();
+                $alloc = $stmtA->get_result()->fetch_assoc();
+                $stmtA->close();
+                if (!$alloc) { echo json_encode(['ok' => false, 'error' => 'allocation_not_found']); exit; }
+
+                $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+                                       FROM franchise_applications
+                                       WHERE route_id=? AND vehicle_type=?
+                                         AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+                if ($stmtU) {
+                    $stmtU->bind_param('is', $route_id, $vehicle_type);
+                    $stmtU->execute();
+                    $u = $stmtU->get_result()->fetch_assoc();
+                    $stmtU->close();
+                    $limit = (int)($alloc['authorized_units'] ?? 0);
+                    $used = (int)($u['used_units'] ?? 0);
+                    $remaining = max(0, $limit - $used);
+                    if ($limit > 0 && $vehicle_count > $remaining) { echo json_encode(['ok' => false, 'error' => 'capacity_exceeded']); exit; }
+                }
+            }
+        }
+        $service_area_id = 0;
+    }
+
     $franchise_ref = 'APP-' . date('Ymd') . '-' . substr(uniqid(), -6);
-    $route_ids_val = (string)$route_id;
+    $route_ids_val = $isTricycle ? ('AREA:' . (string)$service_area_id) : (string)$route_id;
     $submittedByUserId = (int)($_SESSION['user_id'] ?? 0);
     $submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
     if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
@@ -70,11 +137,13 @@ try {
 
     $db->begin_transaction();
 
+    $routeIdBind = $route_id > 0 ? $route_id : null;
+    $areaIdBind = $service_area_id > 0 ? $service_area_id : null;
     $stmt = $db->prepare("INSERT INTO franchise_applications
-                          (franchise_ref_number, operator_id, route_id, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_user_id, submitted_by_name, submitted_channel)
-                          VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, ?)");
+                          (franchise_ref_number, operator_id, route_id, service_area_id, vehicle_type, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_user_id, submitted_by_name, submitted_channel)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, ?)");
     if (!$stmt) throw new Exception('db_prepare_failed');
-    $stmt->bind_param('siisisisss', $franchise_ref, $operator_id, $route_id, $route_ids_val, $vehicle_count, $representative_name, $submittedByUserId, $submittedByName, $submittedChannel);
+    $stmt->bind_param('siiissisiss', $franchise_ref, $operator_id, $routeIdBind, $areaIdBind, $vehicle_type, $route_ids_val, $vehicle_count, $representative_name, $submittedByUserId, $submittedByName, $submittedChannel);
     $execOk = $stmt->execute();
 } catch (mysqli_sql_exception $e) {
     $db->rollback();

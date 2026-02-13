@@ -616,6 +616,68 @@ function db()
                   ELSE COALESCE(NULLIF(max_vehicle_limit,0), 50)
                 END
                 WHERE authorized_units IS NULL OR authorized_units<=0");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS route_vehicle_types (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    route_id INT NOT NULL,
+    vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') NOT NULL,
+    authorized_units INT DEFAULT NULL,
+    fare_min DECIMAL(10,2) DEFAULT NULL,
+    fare_max DECIMAL(10,2) DEFAULT NULL,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_route_vehicle (route_id, vehicle_type),
+    INDEX idx_route_status (route_id, status),
+    FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS route_legacy_map (
+    legacy_route_pk INT PRIMARY KEY,
+    route_id INT NOT NULL,
+    vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_route_vehicle (route_id, vehicle_type),
+    FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS tricycle_service_areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    area_code VARCHAR(64) NOT NULL UNIQUE,
+    area_name VARCHAR(128) NOT NULL,
+    barangay VARCHAR(128) DEFAULT NULL,
+    terminal_id INT DEFAULT NULL,
+    authorized_units INT DEFAULT NULL,
+    fare_min DECIMAL(10,2) DEFAULT NULL,
+    fare_max DECIMAL(10,2) DEFAULT NULL,
+    coverage_notes TEXT DEFAULT NULL,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_terminal (terminal_id),
+    INDEX idx_status (status),
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE SET NULL
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS tricycle_service_area_points (
+    point_id INT AUTO_INCREMENT PRIMARY KEY,
+    area_id INT NOT NULL,
+    point_name VARCHAR(128) NOT NULL,
+    point_type ENUM('Landmark','Terminal','Barangay','Other') DEFAULT 'Landmark',
+    lat DECIMAL(10,7) DEFAULT NULL,
+    lng DECIMAL(10,7) DEFAULT NULL,
+    sort_order INT DEFAULT 0,
+    INDEX idx_area (area_id),
+    FOREIGN KEY (area_id) REFERENCES tricycle_service_areas(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
+
+  $conn->query("CREATE TABLE IF NOT EXISTS tricycle_legacy_map (
+    legacy_route_pk INT PRIMARY KEY,
+    service_area_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_area (service_area_id),
+    FOREIGN KEY (service_area_id) REFERENCES tricycle_service_areas(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB");
   $check = $conn->query("SELECT COUNT(*) AS c FROM routes");
   if ($check && ($check->fetch_assoc()['c'] ?? 0) == 0) {
     $conn->query("INSERT INTO routes(route_id, route_code, route_name, vehicle_type, origin, destination, structure, fare_min, fare_max, fare, status) VALUES
@@ -1125,6 +1187,8 @@ function db()
   }
   $faCols = [
     'route_id' => "INT DEFAULT NULL",
+    'vehicle_type' => "ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL",
+    'service_area_id' => "INT DEFAULT NULL",
     'route_ids' => "VARCHAR(255)",
     'fee_receipt_id' => "VARCHAR(100)",
     'representative_name' => "VARCHAR(150) DEFAULT NULL",
@@ -1156,6 +1220,10 @@ function db()
   $idxFaRoute = $conn->query("SHOW INDEX FROM franchise_applications WHERE Key_name='idx_franchise_route_id'");
   if (!$idxFaRoute || $idxFaRoute->num_rows == 0) {
     $conn->query("ALTER TABLE franchise_applications ADD INDEX idx_franchise_route_id (route_id)");
+  }
+  $idxFaArea = $conn->query("SHOW INDEX FROM franchise_applications WHERE Key_name='idx_franchise_area_id'");
+  if (!$idxFaArea || $idxFaArea->num_rows == 0) {
+    $conn->query("ALTER TABLE franchise_applications ADD INDEX idx_franchise_area_id (service_area_id)");
   }
 
   $conn->query("CREATE TABLE IF NOT EXISTS franchises (
@@ -1189,12 +1257,15 @@ function db()
     franchise_id INT DEFAULT NULL,
     franchise_ref_number VARCHAR(64) DEFAULT NULL,
     route_id INT DEFAULT NULL,
+    vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL,
+    service_area_id INT DEFAULT NULL,
     vehicle_id INT NOT NULL,
     status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_franchise_id (franchise_id),
     INDEX idx_franchise_ref (franchise_ref_number),
     INDEX idx_route_status (route_id, status),
+    INDEX idx_area_status (service_area_id, status),
     INDEX idx_vehicle_status (vehicle_id, status),
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
     FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE SET NULL

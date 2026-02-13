@@ -21,35 +21,6 @@ if ($resO) {
   }
 }
 
-$routes = [];
-$resR = $db->query("SELECT
-                      id,
-                      route_id,
-                      COALESCE(NULLIF(route_code,''), route_id) AS route_code,
-                      route_name,
-                      origin,
-                      destination,
-                      status
-                    FROM routes
-                    WHERE status='Active'
-                    ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC
-                    LIMIT 800");
-if ($resR) {
-  while ($r = $resR->fetch_assoc()) {
-    $id = (int)($r['id'] ?? 0);
-    $code = trim((string)($r['route_code'] ?? ''));
-    if ($id <= 0 || $code === '') continue;
-    $routes[] = [
-      'route_id' => $id,
-      'route_code' => $code,
-      'route_name' => (string)($r['route_name'] ?? ''),
-      'origin' => (string)($r['origin'] ?? ''),
-      'destination' => (string)($r['destination'] ?? ''),
-      'status' => (string)($r['status'] ?? ''),
-    ];
-  }
-}
-
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -96,15 +67,21 @@ if ($rootUrl === '/') $rootUrl = '';
             </datalist>
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route</label>
-            <input name="route_pick" list="routePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 45 - R_001 • Origin → Destination)">
-            <datalist id="routePickList">
-              <?php foreach ($routes as $r): ?>
-                <?php $label = $r['route_code'] . ($r['route_name'] ? (' • ' . $r['route_name']) : '') . ' • ' . trim($r['origin'] . ' → ' . $r['destination']); ?>
-                <option value="<?php echo htmlspecialchars($r['route_id'] . ' - ' . $label, ENT_QUOTES); ?>"></option>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
+            <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <option value="">Select</option>
+              <?php foreach (['Jeepney','UV','Bus','Tricycle'] as $t): ?>
+                <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
               <?php endforeach; ?>
-            </datalist>
+            </select>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route / Service Area</label>
+          <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a vehicle type first">
+          <datalist id="servicePickList"></datalist>
+          <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">For Tricycles: choose a TODA service area (coverage points). For Jeepney/UV/Bus: choose a corridor route.</div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -168,7 +145,50 @@ if ($rootUrl === '/') $rootUrl = '';
 
     if (form && btn) {
       const opEl = form.querySelector('input[name="operator_pick"]');
-      const rtEl = form.querySelector('input[name="route_pick"]');
+      const vtEl = form.querySelector('select[name="vehicle_type"]');
+      const svcEl = document.getElementById('servicePick');
+      const svcList = document.getElementById('servicePickList');
+      let routesCache = null;
+
+      async function loadServices() {
+        if (routesCache) return routesCache;
+        const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error('routes_load_failed');
+        routesCache = Array.isArray(data.data) ? data.data : [];
+        return routesCache;
+      }
+
+      function rebuildServiceList(vehicleType) {
+        if (!svcList || !svcEl) return;
+        const vt = (vehicleType || '').toString();
+        svcList.innerHTML = '';
+        svcEl.value = '';
+        svcEl.placeholder = vt ? (vt === 'Tricycle' ? 'Select a service area (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a route (e.g., 45 - JEEP-...)') : 'Select a vehicle type first';
+        if (!vt) return;
+        const rows = Array.isArray(routesCache) ? routesCache : [];
+        const filtered = rows.filter((r) => {
+          const kind = (r && r.kind) ? String(r.kind) : 'route';
+          const rv = (r && r.vehicle_type) ? String(r.vehicle_type) : '';
+          if (vt === 'Tricycle') return kind === 'service_area';
+          return kind === 'route' && rv === vt;
+        });
+        filtered.forEach((r) => {
+          const kind = (r && r.kind) ? String(r.kind) : 'route';
+          const opt = document.createElement('option');
+          if (kind === 'service_area') {
+            const id = Number(r.service_area_id || 0);
+            const label = `${String(r.area_code || '')} • ${String(r.area_name || '')}${r.points ? ' • ' + String(r.points) : ''}`;
+            opt.value = `${id} - ${label}`;
+          } else {
+            const id = Number(r.route_db_id || 0);
+            const label = `${String(r.route_code || '')}${r.route_name ? ' • ' + String(r.route_name) : ''} • ${(r.origin || '')} → ${(r.destination || '')}`;
+            opt.value = `${id} - ${label}`;
+          }
+          svcList.appendChild(opt);
+        });
+      }
+
       const setPickValidity = (el) => {
         if (!el) return;
         const v = (el.value || '').toString();
@@ -179,21 +199,38 @@ if ($rootUrl === '/') $rootUrl = '';
         opEl.addEventListener('input', () => { opEl.setCustomValidity(''); });
         opEl.addEventListener('blur', () => { setPickValidity(opEl); });
       }
-      if (rtEl) {
-        rtEl.addEventListener('input', () => { rtEl.setCustomValidity(''); });
-        rtEl.addEventListener('blur', () => { setPickValidity(rtEl); });
+      if (svcEl) {
+        svcEl.addEventListener('input', () => { svcEl.setCustomValidity(''); });
+        svcEl.addEventListener('blur', () => { setPickValidity(svcEl); });
       }
+      if (vtEl) {
+        vtEl.addEventListener('change', async () => {
+          try {
+            await loadServices();
+            rebuildServiceList(vtEl.value || '');
+          } catch (e) {
+            showToast('Failed to load routes/service areas.', 'error');
+          }
+        });
+      }
+      (async () => {
+        try {
+          await loadServices();
+          if (vtEl) rebuildServiceList(vtEl.value || '');
+        } catch (_) {}
+      })();
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fd = new FormData(form);
         const operatorId = parseId(fd.get('operator_pick'));
-        const routeId = parseId(fd.get('route_pick'));
+        const vehicleType = (fd.get('vehicle_type') || '').toString();
+        const pickId = parseId(fd.get('service_pick'));
         const vehicleCount = Number(fd.get('vehicle_count') || 0);
         if (opEl) setPickValidity(opEl);
-        if (rtEl) setPickValidity(rtEl);
+        if (svcEl) setPickValidity(svcEl);
         if (!form.checkValidity()) { form.reportValidity(); return; }
-        if (!operatorId || !routeId || !vehicleCount) { showToast('Missing required fields.', 'error'); return; }
+        if (!operatorId || !vehicleType || !pickId || !vehicleCount) { showToast('Missing required fields.', 'error'); return; }
 
         btn.disabled = true;
         btn.textContent = 'Submitting...';
@@ -201,7 +238,9 @@ if ($rootUrl === '/') $rootUrl = '';
         try {
           const post = new FormData();
           post.append('operator_id', String(operatorId));
-          post.append('route_id', String(routeId));
+          post.append('vehicle_type', vehicleType);
+          if (vehicleType === 'Tricycle') post.append('service_area_id', String(pickId));
+          else post.append('route_id', String(pickId));
           post.append('vehicle_count', String(vehicleCount));
           post.append('representative_name', (fd.get('representative_name') || '').toString());
           const assisted = document.getElementById('assistedWalkin');
