@@ -557,6 +557,9 @@ function db()
   if (!isset($routeCols['vehicle_type'])) {
     $conn->query("ALTER TABLE routes ADD COLUMN vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL");
   }
+  if (!isset($routeCols['route_category'])) {
+    $conn->query("ALTER TABLE routes ADD COLUMN route_category VARCHAR(64) DEFAULT NULL");
+  }
   if (!isset($routeCols['origin'])) {
     $conn->query("ALTER TABLE routes ADD COLUMN origin VARCHAR(100) DEFAULT NULL");
   }
@@ -586,6 +589,12 @@ function db()
   }
   if (!isset($routeCols['approved_date'])) {
     $conn->query("ALTER TABLE routes ADD COLUMN approved_date DATE DEFAULT NULL");
+  }
+  $rtVtCol = $conn->query("SHOW COLUMNS FROM routes LIKE 'vehicle_type'");
+  $rtVt = $rtVtCol ? $rtVtCol->fetch_assoc() : null;
+  $rtVtType = strtolower((string)($rtVt['Type'] ?? ''));
+  if ($rtVtType !== '' && substr($rtVtType, 0, 5) === 'enum(' && strpos($rtVtType, "'modern jeepney'") === false) {
+    @$conn->query("ALTER TABLE routes MODIFY COLUMN vehicle_type ENUM('Tricycle','Jeepney','Modern Jeepney','UV','UV Express','Bus','City Bus','Mini-bus','E-trike','Shuttle Van','Motorized Pedicab','Taxi') DEFAULT NULL");
   }
   $conn->query("UPDATE routes SET route_code=route_id WHERE (route_code IS NULL OR route_code='') AND COALESCE(route_id,'')<>''");
   $conn->query("UPDATE routes SET route_id=route_code WHERE (route_id IS NULL OR route_id='') AND COALESCE(route_code,'')<>''");
@@ -631,6 +640,12 @@ function db()
     INDEX idx_route_status (route_id, status),
     FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $rvtCol = $conn->query("SHOW COLUMNS FROM route_vehicle_types LIKE 'vehicle_type'");
+  $rvt = $rvtCol ? $rvtCol->fetch_assoc() : null;
+  $rvtType = strtolower((string)($rvt['Type'] ?? ''));
+  if ($rvtType !== '' && substr($rvtType, 0, 5) === 'enum(' && strpos($rvtType, "'modern jeepney'") === false) {
+    @$conn->query("ALTER TABLE route_vehicle_types MODIFY COLUMN vehicle_type ENUM('Tricycle','Jeepney','Modern Jeepney','UV','UV Express','Bus','City Bus','Mini-bus','E-trike','Shuttle Van','Motorized Pedicab','Taxi') NOT NULL");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS route_legacy_map (
     legacy_route_pk INT PRIMARY KEY,
@@ -640,6 +655,12 @@ function db()
     INDEX idx_route_vehicle (route_id, vehicle_type),
     FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+  $rlmCol = $conn->query("SHOW COLUMNS FROM route_legacy_map LIKE 'vehicle_type'");
+  $rlm = $rlmCol ? $rlmCol->fetch_assoc() : null;
+  $rlmType = strtolower((string)($rlm['Type'] ?? ''));
+  if ($rlmType !== '' && substr($rlmType, 0, 5) === 'enum(' && strpos($rlmType, "'modern jeepney'") === false) {
+    @$conn->query("ALTER TABLE route_legacy_map MODIFY COLUMN vehicle_type ENUM('Tricycle','Jeepney','Modern Jeepney','UV','UV Express','Bus','City Bus','Mini-bus','E-trike','Shuttle Van','Motorized Pedicab','Taxi') NOT NULL");
+  }
 
   $conn->query("CREATE TABLE IF NOT EXISTS tricycle_service_areas (
     id INT AUTO_INCREMENT PRIMARY KEY,

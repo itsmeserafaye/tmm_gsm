@@ -46,7 +46,7 @@ if (!$structOk) $structure = null;
 
 if (!in_array($status, ['Active','Inactive'], true)) $status = 'Active';
 
-$allowedVehicleTypes = ['Jeepney','UV','Bus'];
+$allowedVehicleTypes = ['Jeepney','Modern Jeepney','UV','UV Express','Bus','City Bus','Mini-bus','Shuttle Van','E-trike'];
 $cleanAllocs = [];
 foreach ($allocations as $a) {
   if (!is_array($a)) continue;

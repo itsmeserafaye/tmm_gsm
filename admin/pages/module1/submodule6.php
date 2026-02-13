@@ -8,6 +8,9 @@ $db = db();
 $q = trim((string)($_GET['q'] ?? ''));
 $vehicleType = trim((string)($_GET['vehicle_type'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$routeCategory = trim((string)($_GET['route_category'] ?? ''));
+$allowedCategories = ['Urban PUV Corridor','Provincial Bus Corridor'];
+if ($routeCategory !== '' && !in_array($routeCategory, $allowedCategories, true)) $routeCategory = '';
 $tab = trim((string)($_GET['tab'] ?? 'corridors'));
 if (!in_array($tab, ['corridors','tricycle'], true)) $tab = 'corridors';
 
@@ -23,6 +26,12 @@ if ($rootUrl === '/') $rootUrl = '';
 
 $canManage = has_any_permission(['module1.routes.write','module1.write']);
 
+require_once __DIR__ . '/../../includes/vehicle_types.php';
+$corridorVehicleTypes = array_values(array_filter(vehicle_types(), function ($t) {
+  return !in_array($t, ['Tricycle','Motorized Pedicab','Taxi'], true);
+}));
+if (!in_array('UV', $corridorVehicleTypes, true)) $corridorVehicleTypes[] = 'UV';
+
 $routeColsRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('fare_min','fare_max')"); 
 $hasFareMin = false;
 $hasFareMax = false;
@@ -34,7 +43,7 @@ if ($routeColsRes) {
   }
 }
 
-$conds = ["1=1"];
+$conds = ["1=1", "COALESCE(r.route_category,'') <> 'Tricycle Service Area'"];
 $params = [];
 $types = '';
 if ($q !== '') {
@@ -53,6 +62,11 @@ if ($status !== '' && $status !== 'Status') {
   $params[] = $status;
   $types .= 's';
 }
+if ($routeCategory !== '') {
+  $conds[] = "r.route_category=?";
+  $params[] = $routeCategory;
+  $types .= 's';
+}
 
 $useAlloc = false;
 $tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
@@ -69,6 +83,7 @@ if ($useAlloc) {
     r.via,
     r.structure,
     r.distance_km,
+    r.route_category,
     r.status AS corridor_status,
     a.id AS id,
     a.vehicle_type,
@@ -78,20 +93,9 @@ if ($useAlloc) {
     a.status,
     r.created_at,
     r.updated_at,
-    COALESCE(u.used_units,0) AS used_units,
-    COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
-    COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
+    COALESCE(u.used_units,0) AS used_units
   FROM routes r
   LEFT JOIN route_vehicle_types a ON a.route_id=r.id AND a.vehicle_type<>'Tricycle'
-  LEFT JOIN (
-    SELECT
-      tr.route_id,
-      GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
-      MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
-    FROM terminal_routes tr
-    JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
-    GROUP BY tr.route_id
-  ) tc ON tc.route_id=r.route_id
   LEFT JOIN (
     SELECT route_id, vehicle_type, COALESCE(SUM(vehicle_count),0) AS used_units
     FROM franchise_applications
@@ -99,7 +103,7 @@ if ($useAlloc) {
     GROUP BY route_id, vehicle_type
   ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
   WHERE " . implode(' AND ', $conds) . "
-  ORDER BY COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, a.vehicle_type ASC, a.id DESC
+  ORDER BY COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, a.vehicle_type ASC, a.id DESC
   LIMIT 1000";
 } else {
   $condsLegacy = ["1=1"];
@@ -112,11 +116,16 @@ if ($useAlloc) {
   if ($status !== '' && $status !== 'Status') {
     $condsLegacy[] = "r.status=?";
   }
+  $condsLegacy[] = "COALESCE(r.route_category,'') <> 'Tricycle Service Area'";
+  if ($routeCategory !== '') {
+    $condsLegacy[] = "r.route_category=?";
+  }
   $sql = "SELECT
     r.id,
     r.route_id,
     r.route_code,
     r.route_name,
+    r.route_category,
     r.vehicle_type,
     r.origin,
     r.destination,
@@ -130,19 +139,8 @@ if ($useAlloc) {
     r.status,
     r.created_at,
     r.updated_at,
-    COALESCE(u.used_units,0) AS used_units,
-    COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
-    COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
+    COALESCE(u.used_units,0) AS used_units
   FROM routes r
-  LEFT JOIN (
-    SELECT
-      tr.route_id,
-      GROUP_CONCAT(DISTINCT COALESCE(NULLIF(t.category,''),'Unclassified') ORDER BY COALESCE(NULLIF(t.category,''),'Unclassified') SEPARATOR ' • ') AS terminal_categories,
-      MIN(COALESCE(NULLIF(t.category,''),'Unclassified')) AS primary_terminal_category
-    FROM terminal_routes tr
-    JOIN terminals t ON t.id=tr.terminal_id AND COALESCE(t.type,'') <> 'Parking'
-    GROUP BY tr.route_id
-  ) tc ON tc.route_id=r.route_id
   LEFT JOIN (
     SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
     FROM franchise_applications
@@ -150,7 +148,7 @@ if ($useAlloc) {
     GROUP BY route_id
   ) u ON u.route_id=r.id
   WHERE " . implode(' AND ', $condsLegacy) . "
-  ORDER BY r.status='Active' DESC, COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
+  ORDER BY r.status='Active' DESC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
   LIMIT 1000";
 }
 
@@ -186,22 +184,17 @@ if ($useAlloc) {
     if (!isset($corridors[$cid])) {
       $code = trim((string)($r['route_code'] ?? ''));
       if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
-      $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
-      if ($catPrimary === '') $catPrimary = 'Unmapped';
-      $catList = trim((string)($r['terminal_categories'] ?? ''));
-      if ($catList === '') $catList = $catPrimary;
       $corridors[$cid] = [
         'corridor_id' => $cid,
         'route_code' => $code,
         'route_name' => trim((string)($r['route_name'] ?? '')),
+        'route_category' => trim((string)($r['route_category'] ?? '')),
         'origin' => (string)($r['origin'] ?? ''),
         'destination' => (string)($r['destination'] ?? ''),
         'via' => (string)($r['via'] ?? ''),
         'structure' => (string)($r['structure'] ?? ''),
         'distance_km' => ($r['distance_km'] === null || $r['distance_km'] === '') ? null : (float)$r['distance_km'],
         'status' => (string)($r['corridor_status'] ?? $r['status'] ?? 'Active'),
-        'terminal_categories' => $catList,
-        'primary_terminal_category' => $catPrimary,
         'allocations' => [],
       ];
     }
@@ -232,21 +225,16 @@ if ($useAlloc) {
     if ($key === '') continue;
 
     if (!isset($legacyGroups[$key])) {
-      $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
-      if ($catPrimary === '') $catPrimary = 'Unmapped';
-      $catList = trim((string)($r['terminal_categories'] ?? ''));
-      if ($catList === '') $catList = $catPrimary;
       $legacyGroups[$key] = [
         'base_code' => $key,
         'route_name' => trim((string)($r['route_name'] ?? '')),
+        'route_category' => trim((string)($r['route_category'] ?? '')),
         'origin' => (string)($r['origin'] ?? ''),
         'destination' => (string)($r['destination'] ?? ''),
         'via' => (string)($r['via'] ?? ''),
         'structure' => (string)($r['structure'] ?? ''),
         'distance_km' => ($r['distance_km'] === null || $r['distance_km'] === '') ? null : (float)$r['distance_km'],
         'status' => (string)($r['status'] ?? 'Active'),
-        'terminal_categories' => $catList,
-        'primary_terminal_category' => $catPrimary,
         'allocations' => [],
       ];
     }
@@ -278,6 +266,24 @@ if ($useAlloc) {
 
 $corridors = array_values($corridors);
 $legacyGroups = array_values($legacyGroups);
+if ($corridors) {
+  usort($corridors, function ($a, $b) {
+    $ca = trim((string)($a['route_category'] ?? ''));
+    $cb = trim((string)($b['route_category'] ?? ''));
+    $g = strcasecmp($ca, $cb);
+    if ($g !== 0) return $g;
+    return strcasecmp((string)($a['route_code'] ?? ''), (string)($b['route_code'] ?? ''));
+  });
+}
+if ($legacyGroups) {
+  usort($legacyGroups, function ($a, $b) {
+    $ca = trim((string)($a['route_category'] ?? ''));
+    $cb = trim((string)($b['route_category'] ?? ''));
+    $g = strcasecmp($ca, $cb);
+    if ($g !== 0) return $g;
+    return strcasecmp((string)($a['base_code'] ?? ''), (string)($b['base_code'] ?? ''));
+  });
+}
 
 $serviceAreas = [];
 $saConds = ["1=1"];
@@ -378,12 +384,12 @@ if ($saParams) {
       $exportItems = [];
       if (has_permission('reports.export')) {
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'csv']),
+          'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status, 'format' => 'csv']),
           'label' => 'CSV',
           'icon' => 'download'
         ];
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'status' => $status, 'format' => 'excel']),
+          'href' => $rootUrl . '/admin/api/module1/export_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
@@ -422,8 +428,19 @@ if ($saParams) {
         <div class="relative w-full sm:w-52">
           <select name="vehicle_type" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Vehicle Types</option>
-            <?php foreach (['Jeepney','UV','Bus'] as $t): ?>
+            <?php foreach ($corridorVehicleTypes as $t): ?>
               <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $vehicleType === $t ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
+        </div>
+        <div class="relative w-full sm:w-56">
+          <select name="route_category" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+            <option value="">All Categories</option>
+            <?php foreach ($allowedCategories as $c): ?>
+              <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $routeCategory === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
             <?php endforeach; ?>
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
@@ -460,13 +477,11 @@ if ($saParams) {
       <div class="bg-white dark:bg-slate-800 p-10 rounded-lg border border-slate-200 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</div>
     <?php endif; ?>
 
-    <?php $currentCat = null; ?>
+    <?php $currentGroup = null; ?>
     <?php foreach ($items as $r): ?>
       <?php
-        $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
-        if ($catPrimary === '') $catPrimary = 'Unmapped';
-        $catList = trim((string)($r['terminal_categories'] ?? ''));
-        if ($catList === '') $catList = $catPrimary;
+        $grp = trim((string)($r['route_category'] ?? ''));
+        if ($grp === '') $grp = 'Unclassified';
         $st = trim((string)($r['status'] ?? 'Active'));
         $badge = $st === 'Active'
           ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
@@ -485,24 +500,22 @@ if ($saParams) {
           'structure' => (string)($r['structure'] ?? ''),
           'distance_km' => $r['distance_km'] ?? null,
           'status' => $st,
-          'terminal_categories' => $catList,
-          'primary_terminal_category' => $catPrimary,
           'allocations' => $allocs,
           'legacy' => !$useAlloc,
         ];
       ?>
 
-      <?php if ($currentCat !== $catPrimary): ?>
-        <?php if ($currentCat !== null): ?>
+      <?php if ($currentGroup !== $grp): ?>
+        <?php if ($currentGroup !== null): ?>
           </div>
         </div>
         <?php endif; ?>
-        <?php $currentCat = $catPrimary; ?>
+        <?php $currentGroup = $grp; ?>
         <div class="bg-white dark:bg-slate-800 p-5 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-              <div class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($currentCat); ?></div>
+              <div class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($currentGroup); ?></div>
             </div>
             <div class="text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo $useAlloc ? 'Route Corridors' : 'Legacy (grouped)'; ?></div>
           </div>
@@ -522,11 +535,6 @@ if ($saParams) {
               </div>
               <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold truncate"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
               <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold"><?php echo htmlspecialchars($fullRoute !== ' → ' ? $fullRoute : '-'); ?></div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <?php foreach (array_values(array_filter(array_map('trim', explode('•', $catList)))) as $tag): ?>
-                  <span class="inline-flex items-center rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($tag); ?></span>
-                <?php endforeach; ?>
-              </div>
               <?php if ($allocs): ?>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <?php foreach (array_slice($allocs, 0, 6) as $a): ?>
@@ -679,7 +687,7 @@ if ($saParams) {
       </details>
 
     <?php endforeach; ?>
-    <?php if ($currentCat !== null): ?>
+    <?php if ($currentGroup !== null): ?>
         </div>
       </div>
     <?php endif; ?>
@@ -865,6 +873,7 @@ if ($saParams) {
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const canManage = <?php echo json_encode($canManage); ?>;
+    const allocVehicleTypes = <?php echo json_encode(array_values($corridorVehicleTypes)); ?>;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -1016,7 +1025,7 @@ if ($saParams) {
             <div class="flex items-center justify-between gap-3">
               <div>
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Service Allocation (Per Vehicle Type)</div>
-                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">Jeepney / UV / Bus only. Tricycles use Service Areas.</div>
+                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">PUV corridors only. Tricycles use Service Areas.</div>
               </div>
               <button type="button" id="btnAddAlloc" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Add</button>
             </div>
@@ -1044,7 +1053,7 @@ if ($saParams) {
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
               <select name="alloc_vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <option value="">Select</option>
-                ${['Jeepney','UV','Bus'].map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
+                ${allocVehicleTypes.map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
               </select>
             </div>
             <div>
