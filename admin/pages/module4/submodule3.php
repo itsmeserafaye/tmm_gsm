@@ -277,11 +277,9 @@ if ($rootUrl === '/') $rootUrl = '';
                           <i data-lucide="calendar-clock" class="w-4 h-4"></i>
                         </a>
                       <?php endif; ?>
-                      <?php if (has_permission('module4.inspections.manage')): ?>
-                        <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars($st, ENT_QUOTES); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
-                          <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                      <?php endif; ?>
+                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -343,12 +341,12 @@ if ($rootUrl === '/') $rootUrl = '';
                         <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
                           <i data-lucide="calendar-clock" class="w-4 h-4"></i>
                         </a>
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View">
+                          <i data-lucide="eye" class="w-4 h-4"></i>
+                        </a>
                         <?php if (has_permission('module4.inspections.manage')): ?>
                           <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" title="Cancel">
                             <i data-lucide="x-circle" class="w-4 h-4"></i>
-                          </button>
-                          <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars((string)($r['status'] ?? ''), ENT_QUOTES); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
                           </button>
                         <?php endif; ?>
                       </div>
@@ -912,43 +910,6 @@ if ($rootUrl === '/') $rootUrl = '';
             } catch (err) {
               showToast(err.message || 'Failed', 'error');
               cancelBtn.disabled = false;
-            }
-          }
-        });
-        return;
-      }
-
-      const deleteBtn = t.closest ? t.closest('[data-delete-sid]') : null;
-      if (deleteBtn) {
-        const sid = String(deleteBtn.getAttribute('data-delete-sid') || '').trim();
-        if (!sid) return;
-        const plate = String(deleteBtn.getAttribute('data-delete-plate') || '').trim();
-        const status = String(deleteBtn.getAttribute('data-delete-status') || '').trim();
-        const isCompleted = status === 'Completed';
-        showConfirmOverlay({
-          title: isCompleted ? 'Delete Completed Schedule' : 'Delete Schedule',
-          message: `This will permanently delete SCH-${sid}${plate ? ' • ' + plate : ''}.`,
-          confirmText: 'Delete',
-          confirmClass: 'bg-rose-600 hover:bg-rose-700 text-white',
-          onConfirm: async () => {
-            const post = new FormData();
-            post.append('schedule_id', sid);
-            if (isCompleted) post.append('force', '1');
-            deleteBtn.disabled = true;
-            try {
-              const res = await fetch(rootUrl + '/admin/api/module4/delete_schedule.php', { method: 'POST', body: post });
-              const data = await res.json();
-              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'delete_failed');
-              showToast('Schedule deleted.');
-              await reloadSchedulesTable(false);
-            } catch (err) {
-              if (err && String(err.message || '') === 'cannot_delete_completed') {
-                showToast('Cannot delete a completed schedule without force.', 'error');
-              } else {
-                showToast(err.message || 'Failed', 'error');
-              }
-            } finally {
-              deleteBtn.disabled = false;
             }
           }
         });

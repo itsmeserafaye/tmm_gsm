@@ -5,6 +5,9 @@ require_permission('module2.apply');
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+require_once __DIR__ . '/../../includes/vehicle_types.php';
+$typesList = vehicle_types();
+
 $operators = [];
 $resO = $db->query("SELECT id, COALESCE(NULLIF(name,''), full_name) AS display_name, operator_type, status FROM operators ORDER BY created_at DESC LIMIT 800");
 if ($resO) {
@@ -70,7 +73,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
             <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select</option>
-              <?php foreach (['Jeepney','UV','Bus','Tricycle'] as $t): ?>
+              <?php foreach ($typesList as $t): ?>
                 <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
               <?php endforeach; ?>
             </select>
@@ -143,6 +146,17 @@ if ($rootUrl === '/') $rootUrl = '';
       return Number(m[1] || 0);
     }
 
+    function normalizeVehicleType(v) {
+      const s = (v || '').toString().trim();
+      if (!s) return '';
+      if (['Tricycle','Jeepney','UV','Bus'].includes(s)) return s;
+      const l = s.toLowerCase();
+      if (l.includes('tricycle') || l.includes('e-trike') || l.includes('pedicab')) return 'Tricycle';
+      if (l.includes('jeepney')) return 'Jeepney';
+      if (l.includes('bus') || l.includes('mini-bus')) return 'Bus';
+      return 'UV';
+    }
+
     if (form && btn) {
       const opEl = form.querySelector('input[name="operator_pick"]');
       const vtEl = form.querySelector('select[name="vehicle_type"]');
@@ -161,7 +175,8 @@ if ($rootUrl === '/') $rootUrl = '';
 
       function rebuildServiceList(vehicleType) {
         if (!svcList || !svcEl) return;
-        const vt = (vehicleType || '').toString();
+        const vtRaw = (vehicleType || '').toString();
+        const vt = normalizeVehicleType(vtRaw);
         svcList.innerHTML = '';
         svcEl.value = '';
         svcEl.placeholder = vt ? (vt === 'Tricycle' ? 'Select a service area (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a route (e.g., 45 - JEEP-...)') : 'Select a vehicle type first';
@@ -224,7 +239,8 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         const fd = new FormData(form);
         const operatorId = parseId(fd.get('operator_pick'));
-        const vehicleType = (fd.get('vehicle_type') || '').toString();
+        const vehicleTypeRaw = (fd.get('vehicle_type') || '').toString();
+        const vehicleType = normalizeVehicleType(vehicleTypeRaw);
         const pickId = parseId(fd.get('service_pick'));
         const vehicleCount = Number(fd.get('vehicle_count') || 0);
         if (opEl) setPickValidity(opEl);
@@ -351,7 +367,7 @@ if ($rootUrl === '/') $rootUrl = '';
           let guess = '';
           if (t.includes('toda') || t.includes('tricycle')) guess = 'Tricycle';
           else if (t.includes('jeep')) guess = 'Jeepney';
-          else if (t.includes('uv')) guess = 'UV';
+          else if (t.includes('uv')) guess = 'UV Express';
           else if (t.includes('bus')) guess = 'Bus';
           if (guess) {
             vtEl.value = guess;

@@ -215,7 +215,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                 $uploadedText = trim((string)($row['uploaded_labels'] ?? ''));
                 $uploadedText = $uploadedText !== '' ? $uploadedText : '-';
               ?>
-              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors" data-operator-row="<?php echo (int)$rid; ?>">
                 <td class="py-4 px-6">
                   <div class="font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($row['display_name'] ?? '')); ?></div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: <?php echo (int)$rid; ?></div>
@@ -223,10 +223,14 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                 <td class="py-4 px-4 hidden md:table-cell">
                   <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/10"><?php echo htmlspecialchars($opType); ?></span>
                 </td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm"><?php echo htmlspecialchars($uploadedText); ?></td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm"><?php echo (int)($row['doc_count'] ?? 0); ?></td>
+                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm">
+                  <span data-op-uploaded="1"><?php echo htmlspecialchars($uploadedText); ?></span>
+                </td>
+                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm">
+                  <span data-op-doc-count="1"><?php echo (int)($row['doc_count'] ?? 0); ?></span>
+                </td>
                 <td class="py-4 px-4">
-                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
+                  <span data-op-status="1" class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div class="inline-flex items-center gap-2">
@@ -375,6 +379,43 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
       const data = await res.json();
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       return { operator: (data.operator || null), rows: Array.isArray(data.data) ? data.data : [] };
+    }
+
+    function workflowBadgeClass(st) {
+      const s = String(st || '');
+      if (s === 'Active') return 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20';
+      if (s === 'Pending Validation') return 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
+      if (s === 'Draft') return 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400';
+      if (s === 'Incomplete') return 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20';
+      if (s === 'Returned') return 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20';
+      if (s === 'Rejected') return 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20';
+      if (s === 'Inactive') return 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
+      return 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400';
+    }
+
+    async function refreshOperatorRow(operatorId) {
+      const id = String(operatorId || '').trim();
+      if (!id) return;
+      const tr = document.querySelector('tr[data-operator-row="' + id.replace(/"/g, '\\"') + '"]');
+      if (!tr) return;
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module1/operator_validation_summary.php?operator_id=' + encodeURIComponent(id));
+        const data = await res.json();
+        if (!data || !data.ok || !data.data) return;
+        const uploadedText = (data.data.uploaded_labels || '').toString().trim() || '-';
+        const docCount = (data.data.doc_count ?? 0);
+        const wf = (data.data.workflow_status || '').toString().trim() || 'Draft';
+
+        const uploadedEl = tr.querySelector('[data-op-uploaded="1"]');
+        const countEl = tr.querySelector('[data-op-doc-count="1"]');
+        const stEl = tr.querySelector('[data-op-status="1"]');
+        if (uploadedEl) uploadedEl.textContent = uploadedText;
+        if (countEl) countEl.textContent = String(docCount);
+        if (stEl) {
+          stEl.textContent = wf;
+          stEl.className = 'px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ' + workflowBadgeClass(wf);
+        }
+      } catch (_) {}
     }
 
     function renderDocs(operatorId, operatorName, payload) {
@@ -679,6 +720,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               const latest = await loadOperatorDocs(operatorId);
               try { body.setAttribute('data-doc-active-tab', 'uploaded'); } catch (_) {}
               renderDocs(operatorId, operatorName, latest);
+              refreshOperatorRow(operatorId);
             } catch (err) {
               showToast(err.message || 'Failed', 'error');
             }
@@ -711,6 +753,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               const latest = await loadOperatorDocs(operatorId);
               try { body.setAttribute('data-doc-active-tab', 'uploaded'); } catch (_) {}
               renderDocs(operatorId, operatorName, latest);
+              refreshOperatorRow(operatorId);
             } catch (err) {
               showToast(err.message || 'Failed', 'error');
             }
@@ -736,6 +779,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             showToast('Documents uploaded.');
             const latest = await loadOperatorDocs(operatorId);
             renderDocs(operatorId, operatorName, latest);
+            refreshOperatorRow(operatorId);
           } catch (err) {
             showToast(err.message || 'Upload failed', 'error');
             btn.disabled = false;

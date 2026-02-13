@@ -103,9 +103,7 @@ if ($scheduleRows) {
     if (!($st === 'Completed' && $insRes === 'Passed')) {
       $scheduledHtml .= '<a href="?page=module4/submodule3&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule"><i data-lucide="calendar-clock" class="w-4 h-4"></i></a>';
     }
-    if ($canManage) {
-      $scheduledHtml .= '<button type="button" data-delete-sid="' . (int)$sid . '" data-delete-plate="' . $esc($plate) . '" data-delete-status="' . $esc($st) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
-    }
+    $scheduledHtml .= '<a href="?page=module4/submodule4&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>';
     $scheduledHtml .= '</div></td>';
     $scheduledHtml .= '</tr>';
   }
@@ -127,9 +125,9 @@ if ($overdueRows) {
     $overdueHtml .= '<td class="py-3 px-4"><div class="text-sm font-semibold text-slate-700 dark:text-slate-200">' . $esc($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-') . '</div><div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">' . $esc($loc !== '' ? $loc : '-') . '</div>' . ($schHasRemarks && $rem !== '' ? ('<div class="mt-1 text-xs font-semibold text-rose-700 dark:text-rose-300">' . $esc($rem) . '</div>') : '') . '</td>';
     $overdueHtml .= '<td class="py-3 px-4 text-right"><div class="flex items-center justify-end gap-2">';
     $overdueHtml .= '<a href="?page=module4/submodule3&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule"><i data-lucide="calendar-clock" class="w-4 h-4"></i></a>';
+    $overdueHtml .= '<a href="?page=module4/submodule4&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View"><i data-lucide="eye" class="w-4 h-4"></i></a>';
     if ($canManage) {
       $overdueHtml .= '<button type="button" data-cancel-sid="' . (int)$sid . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" title="Cancel"><i data-lucide="x-circle" class="w-4 h-4"></i></button>';
-      $overdueHtml .= '<button type="button" data-delete-sid="' . (int)$sid . '" data-delete-plate="' . $esc($plate) . '" data-delete-status="' . $esc($st) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
     }
     $overdueHtml .= '</div></td>';
     $overdueHtml .= '</tr>';
