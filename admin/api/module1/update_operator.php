@@ -8,11 +8,6 @@ header('Content-Type: application/json');
 require_any_permission(['module1.write', 'module1.vehicles.write']);
 
 $operatorId = isset($_POST['operator_id']) ? (int) $_POST['operator_id'] : 0;
-$name = trim((string) ($_POST['name'] ?? ''));
-$operatorType = trim((string) ($_POST['operator_type'] ?? 'Individual'));
-$address = trim((string) ($_POST['address'] ?? ''));
-$contactNo = trim((string) ($_POST['contact_no'] ?? ''));
-$email = trim((string) ($_POST['email'] ?? ''));
 
 if ($operatorId <= 0) {
     http_response_code(400);
@@ -20,24 +15,132 @@ if ($operatorId <= 0) {
     exit;
 }
 
-if ($name === '' || mb_strlen($name) < 3 || mb_strlen($name) > 120) {
+$sets = [];
+$params = [];
+$types = '';
+
+$hasKey = function (string $k): bool {
+    return array_key_exists($k, $_POST);
+};
+
+if ($hasKey('operator_type')) {
+    $operatorType = trim((string) ($_POST['operator_type'] ?? 'Individual'));
+    $allowedTypes = ['Individual', 'Cooperative', 'Corporation'];
+    if (!in_array($operatorType, $allowedTypes, true)) {
+        $operatorType = 'Individual';
+    }
+    $sets[] = "operator_type=?";
+    $params[] = $operatorType;
+    $types .= 's';
+}
+
+if ($hasKey('name')) {
+    $name = trim((string) ($_POST['name'] ?? ''));
+    if ($name === '' || mb_strlen($name) < 3 || mb_strlen($name) > 120) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_name']);
+        exit;
+    }
+    $sets[] = "registered_name=?";
+    $params[] = $name;
+    $types .= 's';
+    $sets[] = "name=?";
+    $params[] = $name;
+    $types .= 's';
+    $sets[] = "full_name=?";
+    $params[] = $name;
+    $types .= 's';
+}
+
+if ($hasKey('contact_no')) {
+    $contactNoRaw = (string) ($_POST['contact_no'] ?? '');
+    $contactNo = preg_replace('/\D+/', '', trim($contactNoRaw));
+    $contactNo = substr($contactNo, 0, 20);
+    $sets[] = "contact_no=?";
+    $params[] = $contactNo;
+    $types .= 's';
+}
+
+if ($hasKey('email')) {
+    $email = trim((string) ($_POST['email'] ?? ''));
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_email']);
+        exit;
+    }
+    $sets[] = "email=?";
+    $params[] = $email;
+    $types .= 's';
+}
+
+$addrKeys = ['address_street', 'address_barangay', 'address_city', 'address_province', 'address_postal_code'];
+$hasAddrParts = false;
+foreach ($addrKeys as $k) {
+    if ($hasKey($k)) {
+        $hasAddrParts = true;
+        break;
+    }
+}
+
+$legacyAddressProvided = $hasKey('address');
+if ($legacyAddressProvided) {
+    $address = trim((string) ($_POST['address'] ?? ''));
+    $sets[] = "address=?";
+    $params[] = $address;
+    $types .= 's';
+}
+
+if ($hasAddrParts) {
+    $street = trim((string) ($_POST['address_street'] ?? ''));
+    $brgy = trim((string) ($_POST['address_barangay'] ?? ''));
+    $city = trim((string) ($_POST['address_city'] ?? ''));
+    $prov = trim((string) ($_POST['address_province'] ?? ''));
+    $postal = preg_replace('/[^0-9A-Za-z\-]/', '', trim((string) ($_POST['address_postal_code'] ?? '')));
+    $postal = substr($postal, 0, 10);
+
+    $sets[] = "address_street=?";
+    $params[] = $street;
+    $types .= 's';
+    $sets[] = "address_barangay=?";
+    $params[] = $brgy;
+    $types .= 's';
+    $sets[] = "address_city=?";
+    $params[] = $city;
+    $types .= 's';
+    $sets[] = "address_province=?";
+    $params[] = $prov;
+    $types .= 's';
+    $sets[] = "address_postal_code=?";
+    $params[] = $postal;
+    $types .= 's';
+
+    if (!$legacyAddressProvided) {
+        $parts = array_values(array_filter([$street, $brgy, $city, $prov], fn($x) => $x !== ''));
+        $addrLine = $parts ? implode(', ', $parts) : '';
+        if ($postal !== '') $addrLine = trim($addrLine . ' ' . $postal);
+        $sets[] = "address=?";
+        $params[] = $addrLine;
+        $types .= 's';
+    }
+}
+
+if (!$sets) {
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'invalid_name']);
+    echo json_encode(['ok' => false, 'error' => 'nothing_to_update']);
     exit;
 }
 
-$allowedTypes = ['Individual', 'Cooperative', 'Corporation'];
-if (!in_array($operatorType, $allowedTypes, true)) {
-    $operatorType = 'Individual';
-}
+$sql = "UPDATE operators SET " . implode(", ", $sets) . ", updated_at=NOW() WHERE id=?";
+$params[] = $operatorId;
+$types .= 'i';
 
-$stmt = $db->prepare("UPDATE operators SET operator_type=?, registered_name=?, name=?, full_name=?, address=?, contact_no=?, email=?, updated_at=NOW() WHERE id=?");
+$stmt = $db->prepare($sql);
 if (!$stmt) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
 }
-$stmt->bind_param('sssssssi', $operatorType, $name, $name, $name, $address, $contactNo, $email, $operatorId);
+$stmt->bind_param($types, ...$params);
 $ok = $stmt->execute();
 $errno = (int) ($stmt->errno ?? 0);
 $stmt->close();

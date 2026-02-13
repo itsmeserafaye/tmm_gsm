@@ -24,7 +24,9 @@ if ($operatorId <= 0) {
     exit;
 }
 
-$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type, address, contact_no, email, verification_status, workflow_status, created_at,
+$stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type,
+                             address, address_street, address_barangay, address_city, address_province, address_postal_code,
+                             contact_no, email, verification_status, workflow_status, created_at,
                              COALESCE(portal_user_id,0) AS portal_user_id, COALESCE(submitted_by_name,'') AS submitted_by_name, submitted_at,
                              COALESCE(approved_by_name,'') AS approved_by_name, approved_at
                       FROM operators WHERE id=? LIMIT 1");
@@ -159,7 +161,28 @@ if ($stmtV) {
 
     <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
         <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Address</div>
-        <div class="text-sm font-semibold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars((string) ($op['address'] ?? '')); ?></div>
+        <?php
+          $street = trim((string)($op['address_street'] ?? ''));
+          $brgy = trim((string)($op['address_barangay'] ?? ''));
+          $city = trim((string)($op['address_city'] ?? ''));
+          $prov = trim((string)($op['address_province'] ?? ''));
+          $postal = trim((string)($op['address_postal_code'] ?? ''));
+          $legacy = trim((string)($op['address'] ?? ''));
+          $hasParts = ($street !== '' || $brgy !== '' || $city !== '' || $prov !== '' || $postal !== '');
+        ?>
+        <?php if ($hasParts): ?>
+          <div class="grid grid-cols-1 gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <?php if ($street !== ''): ?><div><?php echo htmlspecialchars($street); ?></div><?php endif; ?>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Barangay</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($brgy !== '' ? $brgy : '-'); ?></div></div>
+              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">City / Municipality</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($city !== '' ? $city : '-'); ?></div></div>
+              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Province</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($prov !== '' ? $prov : '-'); ?></div></div>
+              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Postal Code</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($postal !== '' ? $postal : '-'); ?></div></div>
+            </div>
+          </div>
+        <?php else: ?>
+          <div class="text-sm font-semibold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($legacy !== '' ? $legacy : '-'); ?></div>
+        <?php endif; ?>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

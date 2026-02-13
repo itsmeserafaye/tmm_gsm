@@ -1300,6 +1300,21 @@ function db()
   if (!isset($opsCols['address'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL");
   }
+  if (!isset($opsCols['address_street'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address_street VARCHAR(160) DEFAULT NULL");
+  }
+  if (!isset($opsCols['address_barangay'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address_barangay VARCHAR(120) DEFAULT NULL");
+  }
+  if (!isset($opsCols['address_city'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address_city VARCHAR(120) DEFAULT NULL");
+  }
+  if (!isset($opsCols['address_province'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address_province VARCHAR(120) DEFAULT NULL");
+  }
+  if (!isset($opsCols['address_postal_code'])) {
+    $conn->query("ALTER TABLE operators ADD COLUMN address_postal_code VARCHAR(10) DEFAULT NULL");
+  }
   if (!isset($opsCols['contact_no'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL");
   }

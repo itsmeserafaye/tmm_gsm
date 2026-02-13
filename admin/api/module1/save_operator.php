@@ -7,9 +7,22 @@ require_any_permission(['module1.write','module1.vehicles.write']);
 
 $operatorType = trim((string)($_POST['operator_type'] ?? ''));
 $name = trim((string)($_POST['name'] ?? ($_POST['full_name'] ?? '')));
-$address = trim((string)($_POST['address'] ?? ''));
 $contactNo = trim((string)($_POST['contact_no'] ?? ''));
 $email = trim((string)($_POST['email'] ?? ''));
+$addrStreet = trim((string)($_POST['address_street'] ?? ''));
+$addrBarangay = trim((string)($_POST['address_barangay'] ?? ''));
+$addrCity = trim((string)($_POST['address_city'] ?? ''));
+$addrProvince = trim((string)($_POST['address_province'] ?? ''));
+$addrPostal = preg_replace('/[^0-9A-Za-z\-]/', '', trim((string)($_POST['address_postal_code'] ?? '')));
+$addrPostal = substr($addrPostal, 0, 10);
+$address = trim((string)($_POST['address'] ?? ''));
+$addressProvided = array_key_exists('address', $_POST);
+$hasAddrParts = ($addrStreet !== '' || $addrBarangay !== '' || $addrCity !== '' || $addrProvince !== '' || $addrPostal !== '');
+if (!$addressProvided && $hasAddrParts) {
+    $parts = array_values(array_filter([$addrStreet, $addrBarangay, $addrCity, $addrProvince], fn($x) => $x !== ''));
+    $address = $parts ? implode(', ', $parts) : '';
+    if ($addrPostal !== '') $address = trim($address . ' ' . $addrPostal);
+}
 $status = trim((string)($_POST['status'] ?? ''));
 $contactLegacy = trim((string)($_POST['contact_info'] ?? ''));
 $_workflow = trim((string)($_POST['workflow_status'] ?? ''));
@@ -43,6 +56,8 @@ if ($contactNo === '' && $email === '' && $contactLegacy !== '') {
     if (strpos($contactLegacy, '@') !== false) $email = $contactLegacy;
     else $contactNo = $contactLegacy;
 }
+$contactNo = preg_replace('/\D+/', '', $contactNo);
+$contactNo = substr($contactNo, 0, 20);
 if ($email !== '' && !preg_match('/^[^\s@]+@[^\s@]+\.[^\s@]+$/', $email)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'invalid_email']);
@@ -60,14 +75,19 @@ if ($submittedByName !== '' && strpos($submittedByName, ' ') !== false) {
     if ($parts) $submittedByName = (string)$parts[0];
 }
 
-$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+$stmt = $db->prepare("INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, address_street, address_barangay, address_city, address_province, address_postal_code, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                       ON DUPLICATE KEY UPDATE
                         contact_info=VALUES(contact_info),
                         operator_type=VALUES(operator_type),
                         registered_name=VALUES(registered_name),
                         name=VALUES(name),
                         address=VALUES(address),
+                        address_street=VALUES(address_street),
+                        address_barangay=VALUES(address_barangay),
+                        address_city=VALUES(address_city),
+                        address_province=VALUES(address_province),
+                        address_postal_code=VALUES(address_postal_code),
                         contact_no=VALUES(contact_no),
                         email=VALUES(email),
                         status=VALUES(status),
@@ -84,7 +104,7 @@ if (!$stmt) {
 $contactInfo = trim(($contactNo !== '' ? $contactNo : '') . (($contactNo !== '' && $email !== '') ? ' / ' : '') . ($email !== '' ? $email : ''));
 $submitNameBind = $assisted ? $submittedByName : null;
 $submitAtBind = $assisted ? $now : null;
-$stmt->bind_param('ssssssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $contactNo, $email, $status, $verificationStatus, $workflowStatus, $now, $submitNameBind, $submitAtBind);
+$stmt->bind_param('sssssssssssssssssss', $name, $contactInfo, $operatorType, $name, $name, $address, $addrStreet, $addrBarangay, $addrCity, $addrProvince, $addrPostal, $contactNo, $email, $status, $verificationStatus, $workflowStatus, $now, $submitNameBind, $submitAtBind);
 if ($stmt->execute()) {
     $id = (int)($db->insert_id ?: ($stmt->insert_id ?? 0));
     if ($id <= 0) {
