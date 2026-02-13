@@ -105,9 +105,8 @@ if ($vehicleId > 0) {
     $rs = (string)($reg['registration_status'] ?? '');
     $okReg = $reg && in_array($rs, ['Registered','Recorded'], true) && trim((string)($reg['orcr_no'] ?? '')) !== '' && !empty($reg['orcr_date']);
     if (!$okReg) {
-      http_response_code(400);
-      echo json_encode(['ok' => false, 'error' => 'vehicle_not_registered']);
-      exit;
+      $crVerified = 0;
+      $orVerified = 0;
     }
   }
 }

@@ -158,7 +158,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight"><?php echo $scheduleId > 0 ? 'Reschedule Inspection' : 'Schedule Inspection'; ?></h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Only vehicles with recorded OR/CR can be scheduled. Reinspection is used after corrections from a failed result.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Schedule inspections for vehicles pending inspection. If OR/CR details are missing, the schedule stays under verification until documents are completed.</p>
     </div>
     <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
       <a href="?page=module4/submodule4" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
@@ -181,7 +181,12 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
           <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
         </div>
-        <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <button type="button" id="btnOpenScheduleModal" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">
+            <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
+          </button>
+        </div>
+        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <input type="hidden" name="page" value="module4/submodule3">
           <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
           <select name="list_status" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
@@ -191,6 +196,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
             <?php endforeach; ?>
           </select>
+          <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Apply</button>
           <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
         </form>
       </div>
@@ -207,7 +213,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+          <tbody id="scheduledTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
             <?php if (!empty($scheduleRows)): ?>
               <?php foreach ($scheduleRows as $r): ?>
                 <?php
@@ -293,7 +299,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            <tbody id="overdueTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
               <?php if (!empty($overdueRows)): ?>
                 <?php foreach ($overdueRows as $r): ?>
                   <?php
@@ -332,8 +338,18 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-6 space-y-5">
+  <div id="modalSchedule" class="fixed inset-0 z-[230] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-lg font-black text-slate-900 dark:text-white"><?php echo $scheduleId > 0 ? 'Reschedule Inspection' : 'Schedule Inspection'; ?></div>
+          <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Select a pending-inspection vehicle and set the schedule details.</div>
+        </div>
+        <button type="button" id="btnCloseScheduleModal" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-6">
       <form id="formSchedule" class="space-y-5" novalidate>
         <?php if ($scheduleId > 0): ?>
           <input type="hidden" id="scheduleId" name="schedule_id" value="<?php echo (int)$scheduleId; ?>">
@@ -397,6 +413,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <button id="btnSchedule" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold"><?php echo $scheduleId > 0 ? 'Reschedule' : 'Save'; ?></button>
         </div>
       </form>
+      </div>
     </div>
   </div>
 </div>
@@ -406,6 +423,12 @@ if ($rootUrl === '/') $rootUrl = '';
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const form = document.getElementById('formSchedule');
     const btn = document.getElementById('btnSchedule');
+    const modalSchedule = document.getElementById('modalSchedule');
+    const btnOpenScheduleModal = document.getElementById('btnOpenScheduleModal');
+    const btnCloseScheduleModal = document.getElementById('btnCloseScheduleModal');
+    const filterForm = document.getElementById('scheduleFilterForm');
+    const scheduledTbody = document.getElementById('scheduledTbody');
+    const overdueTbody = document.getElementById('overdueTbody');
     const scheduleDate = document.getElementById('scheduleDate');
     const inspectionType = document.getElementById('inspectionType');
     const correctionWrap = document.getElementById('correctionWrap');
@@ -657,6 +680,64 @@ if ($rootUrl === '/') $rootUrl = '';
       if (parsed) vehicleIdHidden.value = String(parsed);
     }
 
+    function openScheduleModal() {
+      if (!modalSchedule) return;
+      modalSchedule.classList.remove('hidden');
+      modalSchedule.classList.add('flex');
+      try { document.body.style.overflow = 'hidden'; } catch (e) { }
+    }
+    function closeScheduleModal() {
+      if (!modalSchedule) return;
+      modalSchedule.classList.add('hidden');
+      modalSchedule.classList.remove('flex');
+      try { document.body.style.overflow = ''; } catch (e) { }
+      closeVehiclePick();
+    }
+    if (btnOpenScheduleModal) btnOpenScheduleModal.addEventListener('click', openScheduleModal);
+    if (btnCloseScheduleModal) btnCloseScheduleModal.addEventListener('click', closeScheduleModal);
+    if (modalSchedule) {
+      modalSchedule.addEventListener('click', (e) => { if (e && e.target === modalSchedule) closeScheduleModal(); });
+      document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape' && !modalSchedule.classList.contains('hidden')) closeScheduleModal();
+      });
+    }
+
+    async function reloadSchedulesTable(pushState) {
+      if (!filterForm || !scheduledTbody || !overdueTbody) return;
+      const fd = new FormData(filterForm);
+      const qs = new URLSearchParams();
+      const q = (fd.get('q') || '').toString().trim();
+      const st = (fd.get('list_status') || '').toString().trim();
+      if (q) qs.set('q', q);
+      if (st) qs.set('list_status', st);
+      scheduledTbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      overdueTbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module4/schedules_table.php?' + qs.toString());
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        scheduledTbody.innerHTML = (data.scheduled_html || '').toString();
+        overdueTbody.innerHTML = (data.overdue_html || '').toString();
+        if (window.lucide) window.lucide.createIcons();
+        if (pushState) {
+          const urlParams = new URLSearchParams();
+          urlParams.set('page', 'module4/submodule3');
+          if (q) urlParams.set('q', q);
+          if (st) urlParams.set('list_status', st);
+          history.replaceState(null, '', '?' + urlParams.toString());
+        }
+      } catch (e) {
+        scheduledTbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-rose-600 font-semibold">Failed to load schedules.</td></tr>`;
+      }
+    }
+
+    if (filterForm) {
+      filterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        reloadSchedulesTable(true);
+      });
+    }
+
     if (form && btn) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -688,8 +769,6 @@ if ($rootUrl === '/') $rootUrl = '';
           const cd = (fd.get('correction_due_date') || '').toString();
           if (cd) post.append('correction_due_date', cd);
         }
-        post.append('cr_verified', '1');
-        post.append('or_verified', '1');
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
@@ -703,7 +782,10 @@ if ($rootUrl === '/') $rootUrl = '';
           }
           if (data.updated) {
             showToast('Inspection rescheduled.');
-            setTimeout(() => { window.location.href = '?page=module4/submodule3'; }, 500);
+            closeScheduleModal();
+            await reloadSchedulesTable(false);
+            btn.disabled = false;
+            btn.textContent = 'Reschedule';
           } else {
             showToast('Inspection scheduled.');
             setTimeout(() => { window.location.href = '?page=module4/submodule4&schedule_id=' + encodeURIComponent(data.schedule_id); }, 500);
@@ -715,72 +797,6 @@ if ($rootUrl === '/') $rootUrl = '';
         }
       });
     }
-
-    document.querySelectorAll('[data-cancel-sid]').forEach((b) => {
-      b.addEventListener('click', async () => {
-        const sid = String(b.getAttribute('data-cancel-sid') || '').trim();
-        if (!sid) return;
-        showPromptOverlay({
-          title: 'Cancel Schedule',
-          label: 'Cancellation Remarks (Optional)',
-          placeholder: 'e.g., No-show / missed inspection',
-          defaultValue: 'No-show / missed inspection',
-          confirmText: 'Cancel Schedule',
-          onConfirm: async (remarks) => {
-            const post = new FormData();
-            post.append('schedule_id', sid);
-            post.append('remarks', String(remarks || ''));
-            b.disabled = true;
-            try {
-              const res = await fetch(rootUrl + '/admin/api/module4/cancel_schedule.php', { method: 'POST', body: post });
-              const data = await res.json();
-              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'cancel_failed');
-              showToast('Schedule cancelled.');
-              setTimeout(() => { window.location.reload(); }, 400);
-            } catch (err) {
-              showToast(err.message || 'Failed', 'error');
-              b.disabled = false;
-            }
-          }
-        });
-      });
-    });
-
-    document.querySelectorAll('[data-delete-sid]').forEach((b) => {
-      b.addEventListener('click', async () => {
-        const sid = String(b.getAttribute('data-delete-sid') || '').trim();
-        if (!sid) return;
-        const plate = String(b.getAttribute('data-delete-plate') || '').trim();
-        const status = String(b.getAttribute('data-delete-status') || '').trim();
-        const isCompleted = status === 'Completed';
-        showConfirmOverlay({
-          title: isCompleted ? 'Delete Completed Schedule' : 'Delete Schedule',
-          message: `This will permanently delete SCH-${sid}${plate ? ' • ' + plate : ''}.`,
-          confirmText: 'Delete',
-          confirmClass: 'bg-rose-600 hover:bg-rose-700 text-white',
-          onConfirm: async () => {
-            const post = new FormData();
-            post.append('schedule_id', sid);
-            if (isCompleted) post.append('force', '1');
-            b.disabled = true;
-            try {
-              const res = await fetch(rootUrl + '/admin/api/module4/delete_schedule.php', { method: 'POST', body: post });
-              const data = await res.json();
-              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'delete_failed');
-              showToast('Schedule deleted.');
-              setTimeout(() => { window.location.reload(); }, 400);
-            } catch (err) {
-              if (err && String(err.message || '') === 'cannot_delete_completed') {
-                showToast('Cannot delete a completed schedule without force.', 'error');
-              } else {
-                showToast(err.message || 'Failed', 'error');
-              }
-              b.disabled = false;
-            }
-          }
-        });
-      });
-    });
 
     const modal = document.getElementById('modalOverdue');
     function openOverdueModal(focusSid) {
@@ -802,12 +818,6 @@ if ($rootUrl === '/') $rootUrl = '';
       modal.classList.remove('flex');
       try { document.body.style.overflow = ''; } catch (e) { }
     }
-    document.querySelectorAll('[data-open-overdue="1"]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const sid = String(b.getAttribute('data-sid') || '').trim();
-        openOverdueModal(sid);
-      });
-    });
     if (modal) {
       modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeOverdueModal));
       modal.addEventListener('click', (e) => {
@@ -821,5 +831,90 @@ if ($rootUrl === '/') $rootUrl = '';
     if (overdueCount > 0) {
       setTimeout(() => { openOverdueModal(''); }, 50);
     }
+
+    document.addEventListener('click', (e) => {
+      const t = e && e.target ? e.target : null;
+      if (!t) return;
+
+      const openBtn = t.closest ? t.closest('[data-open-overdue="1"]') : null;
+      if (openBtn) {
+        const sid = String(openBtn.getAttribute('data-sid') || '').trim();
+        openOverdueModal(sid);
+        return;
+      }
+
+      const cancelBtn = t.closest ? t.closest('[data-cancel-sid]') : null;
+      if (cancelBtn) {
+        const sid = String(cancelBtn.getAttribute('data-cancel-sid') || '').trim();
+        if (!sid) return;
+        showPromptOverlay({
+          title: 'Cancel Schedule',
+          label: 'Cancellation Remarks (Optional)',
+          placeholder: 'e.g., No-show / missed inspection',
+          defaultValue: 'No-show / missed inspection',
+          confirmText: 'Cancel Schedule',
+          onConfirm: async (remarks) => {
+            const post = new FormData();
+            post.append('schedule_id', sid);
+            post.append('remarks', String(remarks || ''));
+            cancelBtn.disabled = true;
+            try {
+              const res = await fetch(rootUrl + '/admin/api/module4/cancel_schedule.php', { method: 'POST', body: post });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'cancel_failed');
+              showToast('Schedule cancelled.');
+              await reloadSchedulesTable(false);
+              cancelBtn.disabled = false;
+            } catch (err) {
+              showToast(err.message || 'Failed', 'error');
+              cancelBtn.disabled = false;
+            }
+          }
+        });
+        return;
+      }
+
+      const deleteBtn = t.closest ? t.closest('[data-delete-sid]') : null;
+      if (deleteBtn) {
+        const sid = String(deleteBtn.getAttribute('data-delete-sid') || '').trim();
+        if (!sid) return;
+        const plate = String(deleteBtn.getAttribute('data-delete-plate') || '').trim();
+        const status = String(deleteBtn.getAttribute('data-delete-status') || '').trim();
+        const isCompleted = status === 'Completed';
+        showConfirmOverlay({
+          title: isCompleted ? 'Delete Completed Schedule' : 'Delete Schedule',
+          message: `This will permanently delete SCH-${sid}${plate ? ' • ' + plate : ''}.`,
+          confirmText: 'Delete',
+          confirmClass: 'bg-rose-600 hover:bg-rose-700 text-white',
+          onConfirm: async () => {
+            const post = new FormData();
+            post.append('schedule_id', sid);
+            if (isCompleted) post.append('force', '1');
+            deleteBtn.disabled = true;
+            try {
+              const res = await fetch(rootUrl + '/admin/api/module4/delete_schedule.php', { method: 'POST', body: post });
+              const data = await res.json();
+              if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'delete_failed');
+              showToast('Schedule deleted.');
+              await reloadSchedulesTable(false);
+            } catch (err) {
+              if (err && String(err.message || '') === 'cannot_delete_completed') {
+                showToast('Cannot delete a completed schedule without force.', 'error');
+              } else {
+                showToast(err.message || 'Failed', 'error');
+              }
+            } finally {
+              deleteBtn.disabled = false;
+            }
+          }
+        });
+        return;
+      }
+    });
+
+    try {
+      const sp = new URLSearchParams(window.location.search || '');
+      if (sp.get('schedule_id') || sp.get('vehicle_id') || sp.get('reinspect_of')) openScheduleModal();
+    } catch (_) {}
   })();
 </script>

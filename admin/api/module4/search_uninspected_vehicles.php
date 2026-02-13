@@ -20,12 +20,14 @@ $hasCol = function (string $table, string $col) use ($db): bool {
 
 $vehHasRecordStatus = $hasCol('vehicles', 'record_status');
 $vehHasInspectionStatus = $hasCol('vehicles', 'inspection_status');
+$vehHasOperatorId = $hasCol('vehicles', 'operator_id');
 
 $sql = "SELECT v.id, v.plate_number, v.vehicle_type
         FROM vehicles v
-        JOIN vehicle_registrations vr ON vr.vehicle_id=v.id AND vr.registration_status IN ('Registered','Recorded')
         WHERE 1=1";
 if ($vehHasRecordStatus) $sql .= " AND COALESCE(v.record_status,'') <> 'Archived'";
+if ($vehHasRecordStatus) $sql .= " AND COALESCE(v.record_status,'')='Linked'";
+if ($vehHasOperatorId) $sql .= " AND COALESCE(v.operator_id,0) > 0";
 if ($vehHasInspectionStatus) {
   $sql .= " AND COALESCE(v.inspection_status,'') <> 'Passed'";
 } else {
@@ -35,6 +37,12 @@ if ($vehHasInspectionStatus) {
       AND s.status='Completed'
   )";
 }
+
+$sql .= " AND NOT EXISTS (
+  SELECT 1 FROM inspection_schedules s2
+  WHERE (s2.vehicle_id=v.id OR ((s2.vehicle_id IS NULL OR s2.vehicle_id=0) AND s2.plate_number=v.plate_number))
+    AND s2.status IN ('Scheduled','Rescheduled','Pending Verification','Pending Assignment','Overdue / No-Show','Overdue')
+)";
 
 if ($q !== '') {
   $sql .= " AND (v.plate_number LIKE ? OR COALESCE(v.vehicle_type,'') LIKE ?)";
@@ -60,4 +68,3 @@ $rows = [];
 while ($res && ($r = $res->fetch_assoc())) $rows[] = $r;
 echo json_encode(['ok' => true, 'data' => $rows]);
 ?>
-
