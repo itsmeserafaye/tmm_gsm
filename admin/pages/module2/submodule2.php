@@ -302,7 +302,7 @@ if ($rootUrl === '/') $rootUrl = '';
       const wf = op ? String(op.workflow_status || '') : '';
       const vs = op ? String(op.verification_status || '') : '';
       const header = op ? `
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div class="text-sm font-black text-slate-900 dark:text-white">${String(op.display_name || '')}</div>
           <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Workflow: ${wf || '-'} • Verification: ${vs || '-'}</div>
         </div>
@@ -311,21 +311,25 @@ if ($rootUrl === '/') $rootUrl = '';
         opDocsBox.innerHTML = header + '<div class="text-sm text-slate-500 dark:text-slate-400 italic">No verified operator documents found.</div>';
         return;
       }
-      opDocsBox.innerHTML = header + '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' + rows.map((d) => {
+      opDocsBox.innerHTML = header + rows.map((d) => {
+        const href = rootUrl + '/admin/uploads/' + encodeURIComponent(String(d.file_path || ''));
         const dt = d.uploaded_at ? new Date(d.uploaded_at) : null;
         const date = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
+        const vdt = d.verified_at ? new Date(d.verified_at) : null;
+        const vdate = vdt && !isNaN(vdt.getTime()) ? vdt.toLocaleString() : '';
+        const vby = (d.verified_by_name || '').toString().trim();
         const name = operatorDocLabel(d);
         return `
-          <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">${name}</label>
-            <div class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-              <i data-lucide="file-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
-              <span>File loaded</span>
-              <span class="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400">Verified</span>
+          <a href="${href}" target="_blank" class="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-all mb-2">
+            <div>
+              <div class="text-sm font-black text-slate-800 dark:text-white">${name}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">${date}</div>
+              ${(vby || vdate) ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Verified by ${vby || '-'} • ${vdate || '-'}</div>` : ``}
             </div>
-          </div>
+            <div class="text-slate-400 hover:text-blue-600"><i data-lucide="external-link" class="w-4 h-4"></i></div>
+          </a>
         `;
-      }).join('') + '</div>';
+      }).join('');
       if (window.lucide) window.lucide.createIcons();
     }
     async function refreshOperatorDocs() {

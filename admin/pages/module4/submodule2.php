@@ -62,9 +62,10 @@ if ($rootUrl === '/') $rootUrl = '';
               <div id="vehSub" class="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300"></div>
             </div>
             <div class="flex items-center gap-2">
-              <a id="vehCrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View CR</a>
-              <a id="vehOrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View OR</a>
-              <a id="vehInsLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View Insurance</a>
+              <div id="vehCrLoaded" class="hidden px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-black flex items-center gap-2">
+                <i data-lucide="file-check" class="w-4 h-4"></i>
+                <span>CR file loaded</span>
+              </div>
             </div>
           </div>
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -116,8 +117,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR</label>
+              <label for="orFile" class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR</label>
               <input name="or_file" id="orFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <div id="orExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+                  <i data-lucide="file-check" class="w-4 h-4"></i>
+                  <span>OR file loaded</span>
+                </div>
+              </div>
               <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">OR missing/expired → cannot activate for PUV operations.</div>
             </div>
             <div>
@@ -125,8 +132,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <input name="insurance_expiry_date" id="insExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             </div>
             <div class="sm:col-span-1">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (CTPL)</label>
+              <label for="insFile" class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (CTPL)</label>
               <input name="insurance_file" id="insFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <div id="insExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+                  <i data-lucide="file-check" class="w-4 h-4"></i>
+                  <span>Insurance file loaded</span>
+                </div>
+              </div>
               <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Insurance missing/expired → cannot activate for PUV operations.</div>
             </div>
           </div>
@@ -166,9 +179,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehCrNo = document.getElementById('vehCrNo');
     const vehCrDate = document.getElementById('vehCrDate');
     const vehOwner = document.getElementById('vehOwner');
-    const vehCrLink = document.getElementById('vehCrLink');
-    const vehOrLink = document.getElementById('vehOrLink');
-    const vehInsLink = document.getElementById('vehInsLink');
+    const vehCrLoaded = document.getElementById('vehCrLoaded');
     const orNumber = document.getElementById('orNumber');
     const orDate = document.getElementById('orDate');
     const orExpiry = document.getElementById('orExpiry');
@@ -176,6 +187,8 @@ if ($rootUrl === '/') $rootUrl = '';
     const orFile = document.getElementById('orFile');
     const insExpiry = document.getElementById('insExpiry');
     const insFile = document.getElementById('insFile');
+    const orExistingBox = document.getElementById('orExistingBox');
+    const insExistingBox = document.getElementById('insExistingBox');
     const regStatusHint = document.getElementById('regStatusHint');
     const opStatusHint = document.getElementById('opStatusHint');
 
@@ -252,53 +265,14 @@ if ($rootUrl === '/') $rootUrl = '';
       if (vehCrNo) vehCrNo.textContent = String(v.cr_number || '-');
       if (vehCrDate) vehCrDate.textContent = String(v.cr_issue_date || '-');
       if (vehOwner) vehOwner.textContent = String(v.registered_owner || '-');
-      if (vehCrLink) {
-        const fp = String(v.cr_file_path || '');
-        if (fp) {
-          vehCrLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
-          vehCrLink.classList.remove('hidden');
-        } else {
-          vehCrLink.classList.add('hidden');
-        }
-      }
-      if (vehOrLink) {
-        const fp = String(r.or_file_path || '');
-        existingOrPath = fp;
-        if (fp) {
-          vehOrLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
-          vehOrLink.classList.remove('hidden');
-        } else {
-          vehOrLink.classList.add('hidden');
-        }
-      }
-      if (vehInsLink) {
-        const fp = String(r.insurance_file_path || '');
-        existingInsPath = fp;
-        if (fp) {
-          vehInsLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
-          vehInsLink.classList.remove('hidden');
-        } else {
-          vehInsLink.classList.add('hidden');
-        }
-      }
-      
-      const lblOr = document.querySelector('label[for="orFile"]');
-      if (lblOr) {
-        if (existingOrPath) {
-          lblOr.innerHTML = 'Upload OR <span class="text-emerald-600 text-xs ml-1">(File exists)</span> <a href="' + rootUrl + '/admin/uploads/' + encodeURIComponent(existingOrPath) + '" target="_blank" class="text-blue-600 hover:underline text-xs ml-2">View</a>';
-        } else {
-          lblOr.innerHTML = 'Upload OR';
-        }
-      }
-      
-      const lblIns = document.querySelector('label[for="insFile"]');
-      if (lblIns) {
-        if (existingInsPath) {
-          lblIns.innerHTML = 'Upload Insurance (CTPL) <span class="text-emerald-600 text-xs ml-1">(File exists)</span> <a href="' + rootUrl + '/admin/uploads/' + encodeURIComponent(existingInsPath) + '" target="_blank" class="text-blue-600 hover:underline text-xs ml-2">View</a>';
-        } else {
-          lblIns.innerHTML = 'Upload Insurance (CTPL)';
-        }
-      }
+      const crFp = String(v.cr_file_path || '');
+      if (vehCrLoaded) vehCrLoaded.classList.toggle('hidden', !crFp);
+
+      existingOrPath = String(r.or_file_path || '');
+      existingInsPath = String(r.insurance_file_path || '');
+
+      if (orExistingBox) orExistingBox.classList.toggle('hidden', !existingOrPath);
+      if (insExistingBox) insExistingBox.classList.toggle('hidden', !existingInsPath);
 
       if (orNumber) orNumber.value = String(r.or_number || '');
       if (orDate) orDate.value = String(r.or_date || '');
