@@ -177,10 +177,16 @@ if ($rootUrl === '/') $rootUrl = '';
           const kind = (r && r.kind) ? String(r.kind) : 'route';
           const rv = (r && r.vehicle_type) ? String(r.vehicle_type) : '';
           if (vt === 'Tricycle') return kind === 'service_area';
-          return kind === 'route' && rv === vt;
+          return kind === 'route' && normalizeVehicleType(rv) === vt;
         });
+        const seen = new Set();
         filtered.forEach((r) => {
           const kind = (r && r.kind) ? String(r.kind) : 'route';
+          const key = kind === 'service_area'
+            ? `a:${Number(r.service_area_id || 0)}`
+            : `r:${Number(r.route_db_id || 0)}`;
+          if (seen.has(key)) return;
+          seen.add(key);
           const opt = document.createElement('option');
           if (kind === 'service_area') {
             const id = Number(r.service_area_id || 0);

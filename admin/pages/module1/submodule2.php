@@ -55,7 +55,7 @@ $statMissingOrcr = max(0, $statTotalVeh - $statWithOrcr);
 $q = trim((string) ($_GET['q'] ?? ''));
 $vehicleType = trim((string) ($_GET['vehicle_type'] ?? ''));
 $recordStatus = trim((string) ($_GET['record_status'] ?? ''));
-$status = trim((string) ($_GET['status'] ?? ''));
+$docuStatus = trim((string) ($_GET['docu_status'] ?? ''));
 $highlightPlate = strtoupper(trim((string) ($_GET['highlight_plate'] ?? '')));
 
 $dbMakes = [];
@@ -172,42 +172,11 @@ if ($recordStatus !== '' && $recordStatus !== 'Record status') {
     $types .= 's';
   }
 }
-if ($status !== '' && $status !== 'Status') {
-  if (strncmp($status, 'DOCU ', 5) === 0) {
-    $want = trim(substr($status, 5));
-    $allowed = ['Pending Upload','For Review','Verified','Expired'];
-    if (in_array($want, $allowed, true)) {
-      $conds[] = $docuStatusExpr . "=?";
-      $params[] = $want;
-      $types .= 's';
-    }
-  } elseif ($status === 'Linked') {
-    $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
-  } elseif ($status === 'Unlinked') {
-    $conds[] = "(v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
-  } elseif ($status === 'Archived') {
-    $conds[] = "v.record_status='Archived'";
-  } elseif ($status === 'Declared') {
-    $conds[] = "(CASE WHEN v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL) THEN 'Encoded' ELSE v.record_status END)='Encoded' AND v.record_status<>'Archived'";
-  } elseif ($status === 'Pending Inspection') {
-    $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL AND COALESCE(v.inspection_status,'')<>'Passed' AND v.record_status<>'Archived'";
-  } elseif ($status === 'Inspected') {
-    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
-                AND NOT (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
-                AND v.record_status<>'Archived'";
-  } elseif ($status === 'Registered') {
-    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
-                AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
-                AND NOT (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
-                AND v.record_status<>'Archived'";
-  } elseif ($status === 'Active') {
-    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
-                AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
-                AND (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
-                AND v.record_status<>'Archived'";
-  } else {
-    $conds[] = "v.status=?";
-    $params[] = $status;
+if ($docuStatus !== '' && $docuStatus !== 'DOCU') {
+  $allowed = ['Pending Upload','For Review','Verified','Expired'];
+  if (in_array($docuStatus, $allowed, true)) {
+    $conds[] = $docuStatusExpr . "=?";
+    $params[] = $docuStatus;
     $types .= 's';
   }
 }
@@ -341,12 +310,12 @@ $typesList = vehicle_types();
       $exportItems = [];
       if (has_permission('reports.export')) {
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status]),
+          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus]),
           'label' => 'CSV',
           'icon' => 'download'
         ];
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'status' => $status, 'format' => 'excel']),
+          'href' => $rootUrl . '/admin/api/module1/export_vehicles_csv.php?' . http_build_query(['q' => $q, 'record_status' => $recordStatus, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
@@ -412,11 +381,11 @@ $typesList = vehicle_types();
           </span>
         </div>
         <div class="relative w-full sm:w-44">
-          <select name="status"
+          <select name="docu_status"
             class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="">All Status</option>
-            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active','Archived','DOCU Pending Upload','DOCU For Review','DOCU Verified','DOCU Expired'] as $s): ?>
-              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
+            <option value="">All DOCU</option>
+            <?php foreach (['Pending Upload','For Review','Verified','Expired'] as $s): ?>
+              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $docuStatus === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
