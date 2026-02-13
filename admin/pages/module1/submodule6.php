@@ -38,22 +38,19 @@ if ($q !== '') {
   $types .= 'sssss';
 }
 if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
-  $conds[] = "a.vehicle_type=?";
+  $conds[] = "EXISTS (SELECT 1 FROM route_vehicle_types aa WHERE aa.route_id=r.id AND aa.vehicle_type=? AND aa.vehicle_type<>'Tricycle')";
   $params[] = $vehicleType;
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  $conds[] = "a.status=?";
+  $conds[] = "r.status=?";
   $params[] = $status;
   $types .= 's';
 }
 
 $useAlloc = false;
 $tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
-if ($tAlloc && $tAlloc->num_rows > 0) {
-  $cAlloc = $db->query("SELECT COUNT(*) AS c FROM route_vehicle_types");
-  if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
-}
+if ($tAlloc && $tAlloc->num_rows > 0) $useAlloc = true;
 
 if ($useAlloc) {
   $sql = "SELECT
@@ -79,7 +76,7 @@ if ($useAlloc) {
     COALESCE(tc.terminal_categories, 'Unmapped') AS terminal_categories,
     COALESCE(tc.primary_terminal_category, 'Unmapped') AS primary_terminal_category
   FROM routes r
-  JOIN route_vehicle_types a ON a.route_id=r.id
+  LEFT JOIN route_vehicle_types a ON a.route_id=r.id AND a.vehicle_type<>'Tricycle'
   LEFT JOIN (
     SELECT
       tr.route_id,
@@ -99,9 +96,15 @@ if ($useAlloc) {
   ORDER BY COALESCE(tc.primary_terminal_category,'Unmapped') ASC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, a.vehicle_type ASC, a.id DESC
   LIMIT 1000";
 } else {
-  $condsLegacy = [];
-  foreach ($conds as $c) {
-    $condsLegacy[] = str_replace(['a.vehicle_type','a.status'], ['r.vehicle_type','r.status'], $c);
+  $condsLegacy = ["1=1"];
+  if ($q !== '') {
+    $condsLegacy[] = "(r.route_id LIKE ? OR r.route_code LIKE ? OR r.route_name LIKE ? OR r.origin LIKE ? OR r.destination LIKE ?)";
+  }
+  if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
+    $condsLegacy[] = "r.vehicle_type=?";
+  }
+  if ($status !== '' && $status !== 'Status') {
+    $condsLegacy[] = "r.status=?";
   }
   $sql = "SELECT
     r.id,
@@ -159,6 +162,116 @@ if ($params) {
   $res = $db->query($sql);
   if ($res) while ($r = $res->fetch_assoc()) $routes[] = $r;
 }
+
+$stripPrefix = function (string $code): string {
+  $c = strtoupper(trim($code));
+  $c = preg_replace('/^(BUS|UV|JEEP|JEEPNEY|TRI|TRICYCLE)\-+/', '', $c);
+  $c = trim((string)$c);
+  return $c !== '' ? $c : strtoupper(trim($code));
+};
+
+$corridors = [];
+$legacyGroups = [];
+
+if ($useAlloc) {
+  foreach ($routes as $r) {
+    $cid = (int)($r['corridor_id'] ?? 0);
+    if ($cid <= 0) continue;
+    if (!isset($corridors[$cid])) {
+      $code = trim((string)($r['route_code'] ?? ''));
+      if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
+      $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
+      if ($catPrimary === '') $catPrimary = 'Unmapped';
+      $catList = trim((string)($r['terminal_categories'] ?? ''));
+      if ($catList === '') $catList = $catPrimary;
+      $corridors[$cid] = [
+        'corridor_id' => $cid,
+        'route_code' => $code,
+        'route_name' => trim((string)($r['route_name'] ?? '')),
+        'origin' => (string)($r['origin'] ?? ''),
+        'destination' => (string)($r['destination'] ?? ''),
+        'via' => (string)($r['via'] ?? ''),
+        'structure' => (string)($r['structure'] ?? ''),
+        'distance_km' => ($r['distance_km'] === null || $r['distance_km'] === '') ? null : (float)$r['distance_km'],
+        'status' => (string)($r['corridor_status'] ?? $r['status'] ?? 'Active'),
+        'terminal_categories' => $catList,
+        'primary_terminal_category' => $catPrimary,
+        'allocations' => [],
+      ];
+    }
+
+    $vt = trim((string)($r['vehicle_type'] ?? ''));
+    if ($vt === '') continue;
+    $au = (int)($r['authorized_units'] ?? 0);
+    $used = (int)($r['used_units'] ?? 0);
+    $fareMin = $r['fare_min'] === null || $r['fare_min'] === '' ? null : (float)$r['fare_min'];
+    $fareMax = $r['fare_max'] === null || $r['fare_max'] === '' ? null : (float)$r['fare_max'];
+    if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+    $corridors[$cid]['allocations'][] = [
+      'vehicle_type' => $vt,
+      'authorized_units' => $au,
+      'used_units' => $used,
+      'remaining_units' => $au > 0 ? max(0, $au - $used) : 0,
+      'fare_min' => $fareMin,
+      'fare_max' => $fareMax,
+      'status' => (string)($r['status'] ?? 'Active'),
+    ];
+  }
+} else {
+  foreach ($routes as $r) {
+    $code = trim((string)($r['route_code'] ?? ''));
+    if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
+    $base = $stripPrefix($code);
+    $key = $base !== '' ? $base : $code;
+    if ($key === '') continue;
+
+    if (!isset($legacyGroups[$key])) {
+      $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
+      if ($catPrimary === '') $catPrimary = 'Unmapped';
+      $catList = trim((string)($r['terminal_categories'] ?? ''));
+      if ($catList === '') $catList = $catPrimary;
+      $legacyGroups[$key] = [
+        'base_code' => $key,
+        'route_name' => trim((string)($r['route_name'] ?? '')),
+        'origin' => (string)($r['origin'] ?? ''),
+        'destination' => (string)($r['destination'] ?? ''),
+        'via' => (string)($r['via'] ?? ''),
+        'structure' => (string)($r['structure'] ?? ''),
+        'distance_km' => ($r['distance_km'] === null || $r['distance_km'] === '') ? null : (float)$r['distance_km'],
+        'status' => (string)($r['status'] ?? 'Active'),
+        'terminal_categories' => $catList,
+        'primary_terminal_category' => $catPrimary,
+        'allocations' => [],
+      ];
+    }
+
+    $vt = trim((string)($r['vehicle_type'] ?? ''));
+    if ($vt === '' || $vt === 'Tricycle') continue;
+    $au = (int)($r['authorized_units'] ?? 0);
+    $used = (int)($r['used_units'] ?? 0);
+    $fareMin = $r['fare_min'] === null || $r['fare_min'] === '' ? null : (float)$r['fare_min'];
+    $fareMax = $r['fare_max'] === null || $r['fare_max'] === '' ? null : (float)$r['fare_max'];
+    $storedFare = $r['fare'] === null || $r['fare'] === '' ? null : (float)$r['fare'];
+    if ($fareMin === null && $storedFare !== null) $fareMin = $storedFare;
+    if ($fareMax === null && $storedFare !== null) $fareMax = $storedFare;
+    if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+    $legacyGroups[$key]['allocations'][$vt] = [
+      'vehicle_type' => $vt,
+      'authorized_units' => $au,
+      'used_units' => $used,
+      'remaining_units' => $au > 0 ? max(0, $au - $used) : 0,
+      'fare_min' => $fareMin,
+      'fare_max' => $fareMax,
+      'status' => (string)($r['status'] ?? 'Active'),
+    ];
+  }
+  foreach ($legacyGroups as $k => $g) {
+    $legacyGroups[$k]['allocations'] = array_values($g['allocations']);
+  }
+}
+
+$corridors = array_values($corridors);
+$legacyGroups = array_values($legacyGroups);
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
@@ -270,72 +383,51 @@ if ($params) {
         <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
           <tr class="text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-200">
             <th class="py-4 px-6">Route</th>
-            <th class="py-4 px-4 hidden md:table-cell">Vehicle Type</th>
-            <th class="py-4 px-4 hidden md:table-cell">Authorized</th>
-            <th class="py-4 px-4 hidden md:table-cell">Used</th>
-            <th class="py-4 px-4 hidden md:table-cell">Remaining</th>
-            <th class="py-4 px-4 hidden md:table-cell">Fare</th>
+            <th class="py-4 px-4">Allowed Vehicle Types</th>
             <th class="py-4 px-4">Status</th>
             <th class="py-4 px-4 text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y-2 divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-800">
-          <?php if (!$routes): ?>
-            <tr><td colspan="8" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
+          <?php $items = $useAlloc ? $corridors : $legacyGroups; ?>
+          <?php if (!$items): ?>
+            <tr><td colspan="4" class="py-10 px-6 text-sm text-slate-500 dark:text-slate-400 italic">No routes found.</td></tr>
           <?php endif; ?>
           <?php $currentCat = null; ?>
-          <?php foreach ($routes as $r): ?>
+          <?php foreach ($items as $r): ?>
             <?php
-              $code = trim((string)($r['route_code'] ?? ''));
-              if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
-              $name = trim((string)($r['route_name'] ?? ''));
-              $vt = trim((string)($r['vehicle_type'] ?? ''));
               $catPrimary = trim((string)($r['primary_terminal_category'] ?? ''));
               if ($catPrimary === '') $catPrimary = 'Unmapped';
               $catList = trim((string)($r['terminal_categories'] ?? ''));
               if ($catList === '') $catList = $catPrimary;
-              $distanceKm = $r['distance_km'] === null || $r['distance_km'] === '' ? 0.0 : (float)$r['distance_km'];
-              $au = (int)($r['authorized_units'] ?? 0);
-              $used = (int)($r['used_units'] ?? 0);
-              $rem = $au > 0 ? max(0, $au - $used) : 0;
               $st = trim((string)($r['status'] ?? 'Active'));
               $badge = $st === 'Active'
                 ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
                 : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-700/40 dark:text-slate-300 dark:ring-slate-500/20';
+              $code = $useAlloc ? (string)($r['route_code'] ?? '') : (string)($r['base_code'] ?? '');
+              $name = (string)($r['route_name'] ?? '');
               $fullRoute = trim((string)($r['origin'] ?? '') . ' → ' . (string)($r['destination'] ?? ''));
-              $fareMin = $r['fare_min'] === null || $r['fare_min'] === '' ? null : (float)$r['fare_min'];
-              $fareMax = $r['fare_max'] === null || $r['fare_max'] === '' ? null : (float)$r['fare_max'];
-              if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
-              $fareText = '-';
-              if ($fareMin !== null) {
-                if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
-                else $fareText = '₱ ' . number_format((float)$fareMin, 2);
-              }
+              $allocs = is_array($r['allocations'] ?? null) ? $r['allocations'] : [];
               $rowPayload = [
-                'id' => (int)($r['id'] ?? 0),
-                'corridor_id' => (int)($r['corridor_id'] ?? $r['id'] ?? 0),
+                'corridor_id' => (int)($r['corridor_id'] ?? 0),
                 'route_code' => $code,
                 'route_name' => $name,
-                'vehicle_type' => $vt,
                 'origin' => (string)($r['origin'] ?? ''),
                 'destination' => (string)($r['destination'] ?? ''),
                 'via' => (string)($r['via'] ?? ''),
                 'structure' => (string)($r['structure'] ?? ''),
-                'distance_km' => $distanceKm,
-                'authorized_units' => (int)($r['authorized_units'] ?? 0),
-                'fare_min' => $fareMin,
-                'fare_max' => $fareMax,
+                'distance_km' => $r['distance_km'] ?? null,
                 'status' => $st,
-                'corridor_status' => (string)($r['corridor_status'] ?? ''),
-                'used_units' => $used,
                 'terminal_categories' => $catList,
                 'primary_terminal_category' => $catPrimary,
+                'allocations' => $allocs,
+                'legacy' => !$useAlloc,
               ];
             ?>
             <?php if ($currentCat !== $catPrimary): ?>
               <?php $currentCat = $catPrimary; ?>
               <tr class="bg-slate-100/80 dark:bg-slate-900/40 border-t-2 border-slate-300 dark:border-slate-700">
-                <td colspan="8" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                <td colspan="4" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
                   <span class="inline-flex items-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                     <?php echo htmlspecialchars($currentCat); ?>
@@ -344,7 +436,7 @@ if ($params) {
               </tr>
             <?php endif; ?>
             <tr>
-              <td class="py-4 px-6">
+              <td class="py-4 px-6 align-top">
                 <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($code); ?></div>
                 <div class="text-xs text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($name !== '' ? $name : '-'); ?></div>
                 <div class="text-xs text-slate-500 dark:text-slate-400 mt-1 hidden sm:block"><?php echo htmlspecialchars($fullRoute !== ' → ' ? $fullRoute : '-'); ?></div>
@@ -354,27 +446,54 @@ if ($params) {
                   <?php endforeach; ?>
                 </div>
               </td>
-              <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo htmlspecialchars($vt !== '' ? $vt : '-'); ?></td>
-              <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$au; ?></td>
-              <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$used; ?></td>
-              <td class="py-4 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hidden md:table-cell"><?php echo (int)$rem; ?></td>
-              <td class="py-4 px-4 text-sm font-black text-slate-900 dark:text-white hidden md:table-cell">
-                <?php echo htmlspecialchars($fareText); ?>
+              <td class="py-4 px-4 align-top">
+                <?php if (!$allocs): ?>
+                  <div class="text-sm text-slate-500 dark:text-slate-400 italic">No vehicle-type allocation yet.</div>
+                <?php else: ?>
+                  <div class="space-y-2">
+                    <?php foreach ($allocs as $a): ?>
+                      <?php
+                        $vt = (string)($a['vehicle_type'] ?? '');
+                        $au = (int)($a['authorized_units'] ?? 0);
+                        $used = (int)($a['used_units'] ?? 0);
+                        $rem = (int)($a['remaining_units'] ?? ($au > 0 ? max(0, $au - $used) : 0));
+                        $fareMin = $a['fare_min'] === null || $a['fare_min'] === '' ? null : (float)$a['fare_min'];
+                        $fareMax = $a['fare_max'] === null || $a['fare_max'] === '' ? null : (float)$a['fare_max'];
+                        if ($fareMax === null && $fareMin !== null) $fareMax = $fareMin;
+                        $fareText = '-';
+                        if ($fareMin !== null) {
+                          if ($fareMax !== null && abs($fareMin - $fareMax) >= 0.001) $fareText = '₱ ' . number_format($fareMin, 2) . ' – ' . number_format($fareMax, 2);
+                          else $fareText = '₱ ' . number_format((float)$fareMin, 2);
+                        }
+                        $ast = (string)($a['status'] ?? 'Active');
+                      ?>
+                      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                        <div class="flex items-center justify-between gap-3">
+                          <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($vt); ?></div>
+                          <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($fareText); ?></div>
+                        </div>
+                        <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          <span>Authorized: <?php echo (int)$au; ?></span>
+                          <span>Used: <?php echo (int)$used; ?></span>
+                          <span>Remaining: <?php echo (int)$rem; ?></span>
+                          <span>Status: <?php echo htmlspecialchars($ast); ?></span>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
               </td>
-              <td class="py-4 px-4">
+              <td class="py-4 px-4 align-top">
                 <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
               </td>
-              <td class="py-4 px-4 text-right">
+              <td class="py-4 px-4 text-right align-top">
                 <div class="inline-flex items-center gap-2">
                   <button type="button" title="View" class="inline-flex items-center justify-center p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-route-view="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
                     <i data-lucide="eye" class="w-4 h-4"></i>
                   </button>
-                  <?php if ($canManage): ?>
+                  <?php if ($canManage && $useAlloc): ?>
                     <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors" data-route-edit="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
                       <i data-lucide="pencil" class="w-4 h-4"></i>
-                    </button>
-                    <button type="button" title="<?php echo $st === 'Active' ? 'Deactivate' : 'Activate'; ?>" class="inline-flex items-center justify-center p-2 rounded-lg <?php echo $st === 'Active' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'; ?> transition-colors" data-route-toggle="1" data-route="<?php echo htmlspecialchars(json_encode($rowPayload), ENT_QUOTES); ?>">
-                      <i data-lucide="<?php echo $st === 'Active' ? 'toggle-left' : 'toggle-right'; ?>" class="w-4 h-4"></i>
                     </button>
                   <?php endif; ?>
                 </div>
@@ -492,45 +611,32 @@ if ($params) {
     }
 
     function renderForm(r) {
-      const id = r && r.id ? Number(r.id) : 0;
       const corridorId = r && r.corridor_id ? Number(r.corridor_id) : 0;
-      const isEdit = id > 0;
+      const isEdit = corridorId > 0;
       const routeCode = r && r.route_code ? String(r.route_code) : '';
       const routeName = r && r.route_name ? String(r.route_name) : '';
-      const vt = r && r.vehicle_type ? String(r.vehicle_type) : '';
       const origin = r && r.origin ? String(r.origin) : '';
       const destination = r && r.destination ? String(r.destination) : '';
       const via = r && r.via ? String(r.via) : '';
       const structure = r && r.structure ? String(r.structure) : '';
       const distanceKm = (r && r.distance_km !== null && r.distance_km !== undefined && r.distance_km !== '') ? Number(r.distance_km) : '';
-      const au = r && r.authorized_units ? Number(r.authorized_units) : 0;
-      const fareMin = (r && r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : '';
-      const fareMax = (r && r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : '';
       const status = r && r.status ? String(r.status) : 'Active';
 
       return `
-        <form id="formRouteSave" class="space-y-5" novalidate>
-          ${isEdit ? `<input type="hidden" name="id" value="${id}">` : ``}
-          ${corridorId ? `<input type="hidden" name="corridor_id" value="${corridorId}">` : ``}
+        <form id="formCorridorSave" class="space-y-5" novalidate>
+          ${isEdit ? `<input type="hidden" name="corridor_id" value="${corridorId}">` : ``}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route Code</label>
-              <input name="route_code" required maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" value="${esc(routeCode)}" placeholder="e.g., TR-01">
+              <input name="route_code" required maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" value="${esc(routeCode)}" placeholder="e.g., R001-BAGUMBONG-DEPARO">
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route Name</label>
-              <input name="route_name" required maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(routeName)}" placeholder="e.g., Poblacion Loop">
+              <input name="route_name" required maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${esc(routeName)}" placeholder="e.g., Bagumbong - Deparo">
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
-              <select name="vehicle_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="">Select</option>
-                ${['Jeepney','UV','Bus'].map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
-              </select>
-            </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route Structure</label>
               <select name="structure" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
@@ -541,6 +647,12 @@ if ($params) {
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Distance (km)</label>
               <input name="distance_km" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${distanceKm}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select name="status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===status?'selected':''}>${t}</option>`).join('')}
+              </select>
             </div>
           </div>
 
@@ -560,47 +672,152 @@ if ($params) {
             <textarea name="via" rows="3" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Major streets / barangays">${esc(via)}</textarea>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Authorized Units</label>
-              <input name="authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Service Allocation (Per Vehicle Type)</div>
+                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">Jeepney / UV / Bus only. Tricycles use Service Areas.</div>
+              </div>
+              <button type="button" id="btnAddAlloc" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Add</button>
             </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Min (₱)</label>
-              <input name="fare_min" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMin}">
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Max (₱)</label>
-              <input name="fare_max" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fareMax}">
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
-              <select name="status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===status?'selected':''}>${t}</option>`).join('')}
-              </select>
-            </div>
+            <div id="allocRows" class="mt-4 space-y-3"></div>
           </div>
 
           <div class="flex items-center justify-end gap-2">
             <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
-            <button id="btnRouteSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
+            <button id="btnCorridorSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
           </div>
         </form>
       `;
     }
 
+    function allocRowHtml(a) {
+      const vt = a && a.vehicle_type ? String(a.vehicle_type) : '';
+      const au = (a && a.authorized_units !== null && a.authorized_units !== undefined && a.authorized_units !== '') ? Number(a.authorized_units) : 0;
+      const fmin = (a && a.fare_min !== null && a.fare_min !== undefined && a.fare_min !== '') ? Number(a.fare_min) : '';
+      const fmax = (a && a.fare_max !== null && a.fare_max !== undefined && a.fare_max !== '') ? Number(a.fare_max) : '';
+      const st = a && a.status ? String(a.status) : 'Active';
+      return `
+        <div class="alloc-row p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+          <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
+              <select name="alloc_vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="">Select</option>
+                ${['Jeepney','UV','Bus'].map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Authorized</label>
+              <input name="alloc_authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Min</label>
+              <input name="alloc_fare_min" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmin}">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Max</label>
+              <input name="alloc_fare_max" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmax}">
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                <select name="alloc_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===st?'selected':''}>${t}</option>`).join('')}
+                </select>
+              </div>
+              <button type="button" class="btnRemoveAlloc px-3 py-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold">Remove</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function collectAllocs() {
+      const box = document.getElementById('allocRows');
+      if (!box) return [];
+      const rows = Array.from(box.querySelectorAll('.alloc-row'));
+      const seen = new Set();
+      const out = [];
+      rows.forEach((row) => {
+        const vt = (row.querySelector('select[name="alloc_vehicle_type"]')?.value || '').toString();
+        if (!vt || seen.has(vt)) return;
+        seen.add(vt);
+        const au = (row.querySelector('input[name="alloc_authorized_units"]')?.value || '').toString();
+        const fmin = (row.querySelector('input[name="alloc_fare_min"]')?.value || '').toString();
+        const fmax = (row.querySelector('input[name="alloc_fare_max"]')?.value || '').toString();
+        const st = (row.querySelector('select[name="alloc_status"]')?.value || 'Active').toString();
+        out.push({
+          vehicle_type: vt,
+          authorized_units: au === '' ? null : Number(au),
+          fare_min: fmin === '' ? null : Number(fmin),
+          fare_max: fmax === '' ? null : Number(fmax),
+          status: st
+        });
+      });
+      return out;
+    }
+
+    function bindAllocRowHandlers(container) {
+      Array.from(container.querySelectorAll('.btnRemoveAlloc')).forEach((b) => {
+        b.addEventListener('click', () => {
+          const row = b.closest('.alloc-row');
+          if (row) row.remove();
+        });
+      });
+    }
+
+    async function saveCorridor(form) {
+      const fd = new FormData(form);
+      fd.append('allocations', JSON.stringify(collectAllocs()));
+      const res = await fetch(rootUrl + '/admin/api/module1/save_route_corridor.php', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+      return data;
+    }
+
     function openView(r) {
-      const au = Number(r.authorized_units || 0);
-      const used = Number(r.used_units || 0);
-      const rem = au > 0 ? Math.max(0, au - used) : 0;
-      const fmin = (r.fare_min !== null && r.fare_min !== undefined && r.fare_min !== '') ? Number(r.fare_min) : null;
-      const fmax = (r.fare_max !== null && r.fare_max !== undefined && r.fare_max !== '') ? Number(r.fare_max) : fmin;
-      let fareText = '-';
-      if (fmin !== null && !Number.isNaN(fmin)) {
-        if (fmax !== null && !Number.isNaN(fmax) && Math.abs(fmin - fmax) >= 0.001) fareText = '₱ ' + fmin.toFixed(2) + ' – ' + fmax.toFixed(2);
-        else fareText = '₱ ' + fmin.toFixed(2);
-      }
+      const allocs = Array.isArray(r.allocations) ? r.allocations : [];
+      const allocHtml = allocs.length ? allocs.map((a) => {
+        const vt = (a && a.vehicle_type) ? String(a.vehicle_type) : '-';
+        const au = Number(a && a.authorized_units ? a.authorized_units : 0);
+        const used = Number(a && a.used_units ? a.used_units : 0);
+        const rem = Number(a && a.remaining_units ? a.remaining_units : (au > 0 ? Math.max(0, au - used) : 0));
+        const fmin = (a && a.fare_min !== null && a.fare_min !== undefined && a.fare_min !== '') ? Number(a.fare_min) : null;
+        const fmax = (a && a.fare_max !== null && a.fare_max !== undefined && a.fare_max !== '') ? Number(a.fare_max) : fmin;
+        let fareText = '-';
+        if (fmin !== null && !Number.isNaN(fmin)) {
+          if (fmax !== null && !Number.isNaN(fmax) && Math.abs(fmin - fmax) >= 0.001) fareText = '₱ ' + fmin.toFixed(2) + ' – ' + fmax.toFixed(2);
+          else fareText = '₱ ' + fmin.toFixed(2);
+        }
+        return `
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-sm font-black text-slate-900 dark:text-white">${esc(vt)}</div>
+              <div class="text-sm font-black text-slate-900 dark:text-white">${esc(fareText)}</div>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span>Authorized: ${au}</span>
+              <span>Used: ${used}</span>
+              <span>Remaining: ${rem}</span>
+              <span>Status: ${(a && a.status) ? esc(a.status) : 'Active'}</span>
+            </div>
+          </div>
+        `;
+      }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No vehicle-type allocation yet.</div>`;
+
+      const legacyNote = r && r.legacy ? `
+        <div class="mb-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <div class="text-sm font-black text-amber-900 dark:text-amber-200">Legacy route group</div>
+          <div class="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200/80">This was grouped from old route-per-vehicle-type records. Run migration to fully normalize.</div>
+          <div class="mt-3">
+            <a class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-white" href="${rootUrl}/admin/tools/migrate_routes_to_realworld.php" target="_blank" rel="noopener">Open Migration Tool</a>
+          </div>
+        </div>
+      ` : '';
+
       openModal(`
+        ${legacyNote}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route Code</div>
@@ -608,148 +825,71 @@ if ($params) {
             <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">${esc(r.route_name || '')}</div>
           </div>
           <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Capacity</div>
-            <div class="mt-2 grid grid-cols-3 gap-2">
-              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Authorized</div>
-                <div class="text-lg font-black text-slate-900 dark:text-white">${au}</div>
-              </div>
-              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Used</div>
-                <div class="text-lg font-black text-slate-900 dark:text-white">${used}</div>
-              </div>
-              <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Remaining</div>
-                <div class="text-lg font-black ${rem>0?'text-emerald-700 dark:text-emerald-400':'text-rose-700 dark:text-rose-400'}">${rem}</div>
-              </div>
-            </div>
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route</div>
+            <div class="mt-2 text-sm font-bold text-slate-900 dark:text-white">${esc((r.origin || '-'))} → ${esc((r.destination || '-'))}</div>
+            <div class="mt-1 text-xs text-slate-600 dark:text-slate-300 font-semibold">${esc(r.structure || '-')}</div>
           </div>
         </div>
-
-        <div class="mt-4 p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Vehicle Type</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.vehicle_type || '-')}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Structure</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.structure || '-')}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare</div>
-              <div class="mt-1 text-sm font-black text-slate-900 dark:text-white">${fareText}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Origin</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.origin || '-')}</div>
-            </div>
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Destination</div>
-              <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white">${esc(r.destination || '-')}</div>
-            </div>
-            <div class="sm:col-span-2">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Via</div>
-              <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200 whitespace-pre-wrap">${esc(r.via || '-')}</div>
-            </div>
-          </div>
-          <div class="mt-4 flex items-center justify-end gap-2">
-            <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Close</button>
-          </div>
+        <div class="mt-4 space-y-3">
+          ${allocHtml}
         </div>
-
-        <div class="mt-4 p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Assigned Operators</div>
-              <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">Operators with endorsed/approved franchises on this route.</div>
-            </div>
-          </div>
-          <div id="routeOperatorsBox" class="mt-3 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
-            <div class="px-4 py-3 text-sm text-slate-500 italic">Loading...</div>
-          </div>
+        <div class="mt-4 flex items-center justify-end gap-2">
+          <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Close</button>
         </div>
       `, 'Route • ' + (r.route_code || ''));
+
       const c = body.querySelector('[data-close="1"]');
       if (c) c.addEventListener('click', closeModal);
-
-      const box = body.querySelector('#routeOperatorsBox');
-      const corridorId = Number(r.corridor_id || 0);
-      const vehicleType = (r.vehicle_type || '').toString();
-      if (box && corridorId > 0) {
-        const qs = new URLSearchParams();
-        qs.set('route_id', String(corridorId));
-        if (vehicleType) qs.set('vehicle_type', vehicleType);
-        fetch(rootUrl + '/admin/api/module1/route_operators.php?' + qs.toString(), { headers: { 'Accept': 'application/json' } })
-          .then((rr) => rr.json())
-          .then((data) => {
-            if (!data || !data.ok) { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Failed to load.</div>'; return; }
-            const ops = Array.isArray(data.operators) ? data.operators : [];
-            if (!ops.length) { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">No assigned operators yet.</div>'; return; }
-            box.innerHTML = `
-              <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                <thead class="bg-slate-50 dark:bg-slate-800">
-                  <tr>
-                    <th class="px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Operator</th>
-                    <th class="px-4 py-3 text-right text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Units</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                  ${ops.map((o) => `
-                    <tr>
-                      <td class="px-4 py-3">
-                        <div class="text-sm font-bold text-slate-900 dark:text-white">${esc(o.operator_name || '')}</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">${esc(o.operator_type || '')}${o.statuses ? ' • ' + esc(o.statuses) : ''}</div>
-                      </td>
-                      <td class="px-4 py-3 text-right font-black text-slate-900 dark:text-white">${Number(o.total_units || 0)}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            `;
-          })
-          .catch(() => { box.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Failed to load.</div>'; });
-      }
     }
 
-    async function saveRoute(form) {
-      const fd = new FormData(form);
-      const res = await fetch(rootUrl + '/admin/api/module1/save_route.php', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-      return data;
+    function openEdit(r) {
+      openModal(renderForm(r || { status: 'Active' }), (r && r.corridor_id) ? ('Edit Route • ' + (r.route_code || '')) : 'Add Route');
+      const close = body.querySelector('[data-close="1"]');
+      if (close) close.addEventListener('click', closeModal);
+      const form = document.getElementById('formCorridorSave');
+      const btnSave = document.getElementById('btnCorridorSave');
+      const allocBox = document.getElementById('allocRows');
+      const btnAddAlloc = document.getElementById('btnAddAlloc');
+      const initialAllocs = Array.isArray(r && r.allocations) ? r.allocations : [];
+      if (allocBox) {
+        allocBox.innerHTML = '';
+        if (initialAllocs.length) {
+          initialAllocs.forEach((a) => { allocBox.insertAdjacentHTML('beforeend', allocRowHtml(a)); });
+        } else {
+          allocBox.insertAdjacentHTML('beforeend', allocRowHtml({ vehicle_type: 'Jeepney', status: 'Active' }));
+        }
+        bindAllocRowHandlers(allocBox);
+      }
+      if (btnAddAlloc && allocBox) {
+        btnAddAlloc.addEventListener('click', () => {
+          allocBox.insertAdjacentHTML('beforeend', allocRowHtml({ status: 'Active' }));
+          bindAllocRowHandlers(allocBox);
+        });
+      }
+      if (form && btnSave) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!form.checkValidity()) { form.reportValidity(); return; }
+          btnSave.disabled = true;
+          btnSave.textContent = 'Saving...';
+          try {
+            await saveCorridor(form);
+            showToast('Route saved.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page', 'puv-database/routes-lptrp');
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast((err && err.message) ? err.message : 'Failed', 'error');
+            btnSave.disabled = false;
+            btnSave.textContent = (r && r.corridor_id) ? 'Save Changes' : 'Create Route';
+          }
+        });
+      }
     }
 
     if (canManage) {
       const btnAdd = document.getElementById('btnAddRoute');
-      if (btnAdd) {
-        btnAdd.addEventListener('click', () => {
-          openModal(renderForm({ status: 'Active' }), 'Add Route');
-          const close = body.querySelector('[data-close="1"]');
-          if (close) close.addEventListener('click', closeModal);
-          const form = document.getElementById('formRouteSave');
-          const btn = document.getElementById('btnRouteSave');
-          if (form && btn) {
-            form.addEventListener('submit', async (e) => {
-              e.preventDefault();
-              if (!form.checkValidity()) { form.reportValidity(); return; }
-              btn.disabled = true;
-              btn.textContent = 'Saving...';
-              try {
-                await saveRoute(form);
-                showToast('Route saved.');
-                const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'puv-database/routes-lptrp');
-                window.location.search = params.toString();
-              } catch (err) {
-                showToast((err && err.message) ? err.message : 'Failed', 'error');
-                btn.disabled = false;
-                btn.textContent = 'Create Route';
-              }
-            });
-          }
-        });
-      }
+      if (btnAdd) btnAdd.addEventListener('click', () => openEdit({ status: 'Active' }));
     }
 
     document.querySelectorAll('[data-route-view="1"]').forEach((btn) => {
@@ -758,67 +898,7 @@ if ($params) {
 
     if (canManage) {
       document.querySelectorAll('[data-route-edit="1"]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const r = parsePayload(btn);
-          openModal(renderForm(r), 'Edit Route • ' + (r.route_code || ''));
-          const close = body.querySelector('[data-close="1"]');
-          if (close) close.addEventListener('click', closeModal);
-          const form = document.getElementById('formRouteSave');
-          const btnSave = document.getElementById('btnRouteSave');
-          if (form && btnSave) {
-            form.addEventListener('submit', async (e) => {
-              e.preventDefault();
-              if (!form.checkValidity()) { form.reportValidity(); return; }
-              btnSave.disabled = true;
-              btnSave.textContent = 'Saving...';
-              try {
-                await saveRoute(form);
-                showToast('Route saved.');
-                const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'puv-database/routes-lptrp');
-                window.location.search = params.toString();
-              } catch (err) {
-                showToast((err && err.message) ? err.message : 'Failed', 'error');
-                btnSave.disabled = false;
-                btnSave.textContent = 'Save Changes';
-              }
-            });
-          }
-        });
-      });
-
-      document.querySelectorAll('[data-route-toggle="1"]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const r = parsePayload(btn);
-          if (!r || !r.route_code) return;
-          const next = (String(r.status || 'Active') === 'Active') ? 'Inactive' : 'Active';
-          try {
-            const fd = new FormData();
-            fd.append('id', String(r.id || 0));
-            fd.append('corridor_id', String(r.corridor_id || 0));
-            fd.append('route_code', String(r.route_code || ''));
-            fd.append('route_name', String(r.route_name || ''));
-            fd.append('vehicle_type', String(r.vehicle_type || ''));
-            fd.append('origin', String(r.origin || ''));
-            fd.append('destination', String(r.destination || ''));
-            fd.append('via', String(r.via || ''));
-            fd.append('structure', String(r.structure || ''));
-            fd.append('distance_km', (r.distance_km === null || r.distance_km === undefined) ? '' : String(r.distance_km));
-            fd.append('authorized_units', String(r.authorized_units || 0));
-            fd.append('fare_min', (r.fare_min === null || r.fare_min === undefined) ? '' : String(r.fare_min));
-            fd.append('fare_max', (r.fare_max === null || r.fare_max === undefined) ? '' : String(r.fare_max));
-            fd.append('status', next);
-            const res = await fetch(rootUrl + '/admin/api/module1/save_route.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-            showToast(next === 'Active' ? 'Route activated.' : 'Route deactivated.');
-            const params = new URLSearchParams(window.location.search || '');
-            params.set('page', 'puv-database/routes-lptrp');
-            window.location.search = params.toString();
-          } catch (err) {
-            showToast((err && err.message) ? err.message : 'Failed', 'error');
-          }
-        });
+        btn.addEventListener('click', () => openEdit(parsePayload(btn)));
       });
     }
   })();
