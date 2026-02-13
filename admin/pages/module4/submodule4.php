@@ -543,6 +543,14 @@ if ($rootUrl === '/') $rootUrl = '';
             btn.disabled = false; btn.textContent = 'Submit Result';
             return;
           }
+
+          // Inject DOC items into FormData so backend sees them as "Pass"
+          // We already validated they are present (uploaded or on file) above.
+          fd.append('items[DOC_CR]', 'Pass');
+          fd.append('items[DOC_OR]', 'Pass');
+          fd.append('items[DOC_CMVI]', 'Pass');
+          fd.append('items[DOC_CTPL]', 'Pass');
+
           if (requiredMissing.length) {
             const names = requiredMissing.map((c) => codeToLabel[c] || c);
             showToast('Required items cannot be N/A. Please complete: ' + names.join(', '), 'error');
