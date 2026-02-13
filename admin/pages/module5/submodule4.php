@@ -780,7 +780,9 @@ if ($rootUrl === '/') $rootUrl = '';
       const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
       const data = await res.json();
       if (!data || !data.ok) throw new Error('load_failed');
-      const slots = (data.data || []).filter(s => (s.status || '') === 'Free');
+      const slots = (data.data || [])
+        .filter(s => String(s.status || '').toLowerCase() !== 'occupied')
+        .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
       if (!slots.length) {
         slotSelect.innerHTML = '<option value="">No free slots</option>';
         return;
@@ -792,15 +794,15 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     function ensureSlotSelected() {
-      if (!slotSelect) return 0;
-      let v = Number(slotSelect.value || 0);
-      if (v > 0) return v;
-      const opt = Array.from(slotSelect.options).find(o => (o.value || '').toString().trim() !== '');
+      if (!slotSelect) return '';
+      let v = (slotSelect.value || '').toString().trim();
+      if (/^\d+$/.test(v)) return v;
+      const opt = Array.from(slotSelect.options).find(o => /^\d+$/.test((o.value || '').toString().trim()));
       if (opt) {
         slotSelect.value = opt.value;
-        v = Number(slotSelect.value || 0);
+        v = (slotSelect.value || '').toString().trim();
       }
-      return v > 0 ? v : 0;
+      return /^\d+$/.test(v) ? v : '';
     }
 
     async function loadAssignedVehicles() {

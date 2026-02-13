@@ -73,12 +73,13 @@ try {
     $slot = $stmtS->get_result()->fetch_assoc();
     $stmtS->close();
     if (!$slot) throw new Exception('slot_not_found');
-    if (($slot['status'] ?? '') !== 'Free') throw new Exception('slot_not_free');
+    $slotStatus = strtolower(trim((string)($slot['status'] ?? '')));
+    if ($slotStatus === 'occupied' || $slotStatus === '1') throw new Exception('slot_not_free');
     $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
   } else {
     $stmtS = $db->prepare("SELECT slot_id, status, terminal_id
                            FROM parking_slots
-                           WHERE terminal_id=? AND status='Free'
+                           WHERE terminal_id=? AND (status IS NULL OR LOWER(status) <> 'occupied')
                            ORDER BY (slot_no REGEXP '^[0-9]+$') DESC, CAST(slot_no AS UNSIGNED) ASC, slot_no ASC
                            LIMIT 1 FOR UPDATE");
     if (!$stmtS) throw new Exception('db_prepare_failed');
@@ -124,7 +125,7 @@ try {
   $paymentId = (int)$stmtP->insert_id;
   $stmtP->close();
 
-  $stmtU = $db->prepare("UPDATE parking_slots SET status='Occupied' WHERE slot_id=? AND status='Free'");
+  $stmtU = $db->prepare("UPDATE parking_slots SET status='Occupied' WHERE slot_id=? AND (status IS NULL OR LOWER(status) <> 'occupied')");
   if (!$stmtU) throw new Exception('db_prepare_failed');
   $stmtU->bind_param('i', $slotId);
   $stmtU->execute();
