@@ -137,7 +137,7 @@ if ($rootUrl === '/') $rootUrl = '';
       return Number(m[1] || 0);
     }
 
-    function normalizeVehicleType(v) {
+    function normalizeVehicleCategory(v) {
       const s = (v || '').toString().trim();
       if (!s) return '';
       if (['Tricycle','Jeepney','UV','Bus'].includes(s)) return s;
@@ -145,7 +145,12 @@ if ($rootUrl === '/') $rootUrl = '';
       if (l.includes('tricycle') || l.includes('e-trike') || l.includes('pedicab')) return 'Tricycle';
       if (l.includes('jeepney')) return 'Jeepney';
       if (l.includes('bus') || l.includes('mini-bus')) return 'Bus';
-      return 'UV';
+      if (l.includes('uv') || l.includes('van') || l.includes('shuttle')) return 'UV';
+      return '';
+    }
+
+    function isTricycleLike(v) {
+      return normalizeVehicleCategory(v) === 'Tricycle';
     }
 
     if (form && btn) {
@@ -166,18 +171,22 @@ if ($rootUrl === '/') $rootUrl = '';
 
       function rebuildServiceList(vehicleType) {
         if (!svcList || !svcEl) return;
-        const vtRaw = (vehicleType || '').toString();
-        const vt = normalizeVehicleType(vtRaw);
+        const vtRaw = (vehicleType || '').toString().trim();
+        const cat = normalizeVehicleCategory(vtRaw);
+        const tri = isTricycleLike(vtRaw);
         svcList.innerHTML = '';
         svcEl.value = '';
-        svcEl.placeholder = vt ? (vt === 'Tricycle' ? 'Select a service area (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a route (e.g., 45 - JEEP-...)') : 'Select a vehicle type first';
-        if (!vt) return;
+        svcEl.placeholder = vtRaw ? (tri ? 'Select a service area (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a route (e.g., 45 - JEEP-...)') : 'Select a vehicle type first';
+        if (!vtRaw) return;
         const rows = Array.isArray(routesCache) ? routesCache : [];
         const filtered = rows.filter((r) => {
           const kind = (r && r.kind) ? String(r.kind) : 'route';
           const rv = (r && r.vehicle_type) ? String(r.vehicle_type) : '';
-          if (vt === 'Tricycle') return kind === 'service_area';
-          return kind === 'route' && normalizeVehicleType(rv) === vt;
+          if (tri) return kind === 'service_area';
+          if (kind !== 'route') return false;
+          if (rv === vtRaw) return true;
+          if (!cat) return false;
+          return normalizeVehicleCategory(rv) === cat;
         });
         const seen = new Set();
         filtered.forEach((r) => {
@@ -236,8 +245,8 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         const fd = new FormData(form);
         const operatorId = parseId(fd.get('operator_pick'));
-        const vehicleTypeRaw = (fd.get('vehicle_type') || '').toString();
-        const vehicleType = normalizeVehicleType(vehicleTypeRaw);
+        const vehicleType = (fd.get('vehicle_type') || '').toString().trim();
+        const tri = isTricycleLike(vehicleType);
         const pickId = parseId(fd.get('service_pick'));
         const vehicleCount = Number(fd.get('vehicle_count') || 0);
         if (opEl) setPickValidity(opEl);
@@ -252,7 +261,7 @@ if ($rootUrl === '/') $rootUrl = '';
           const post = new FormData();
           post.append('operator_id', String(operatorId));
           post.append('vehicle_type', vehicleType);
-          if (vehicleType === 'Tricycle') post.append('service_area_id', String(pickId));
+          if (tri) post.append('service_area_id', String(pickId));
           else post.append('route_id', String(pickId));
           post.append('vehicle_count', String(vehicleCount));
           post.append('representative_name', (fd.get('representative_name') || '').toString());

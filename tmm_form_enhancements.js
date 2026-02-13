@@ -10,7 +10,12 @@
     style.textContent = [
       '.tmm-inline-error{margin-top:4px;font-size:12px;line-height:1.25;color:#e11d48;font-weight:600}',
       '.tmm-inline-error[hidden]{display:none}',
-      '.tmm-invalid{outline:2px solid rgba(225,29,72,.45);outline-offset:2px;border-color:#fb7185 !important}'
+      '.tmm-invalid{outline:2px solid rgba(225,29,72,.45);outline-offset:2px;border-color:#fb7185 !important}',
+      '.tmm-file-clear{margin-left:8px;display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:1px solid rgba(148,163,184,.7);background:#fff;color:#64748b;font-weight:900;line-height:1;cursor:pointer;user-select:none}',
+      '.tmm-file-clear:hover{background:#f1f5f9;color:#0f172a}',
+      '.tmm-file-clear:focus{outline:2px solid rgba(59,130,246,.45);outline-offset:2px}',
+      '.dark .tmm-file-clear{background:rgba(15,23,42,.55);border-color:rgba(100,116,139,.8);color:rgba(203,213,225,1)}',
+      '.dark .tmm-file-clear:hover{background:rgba(30,41,59,.8);color:#fff}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -369,15 +374,57 @@
     }, true);
   }
 
+  function enhanceFileInput(input) {
+    if (!input || input.dataset.tmmFileClearEnhanced === '1') return;
+    var type = (input.getAttribute('type') || '').toLowerCase();
+    if (type !== 'file') return;
+    input.dataset.tmmFileClearEnhanced = '1';
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tmm-file-clear';
+    btn.setAttribute('aria-label', 'Clear selected file');
+    btn.textContent = '×';
+
+    input.insertAdjacentElement('afterend', btn);
+
+    function hasSelection() {
+      try {
+        if (input.disabled) return false;
+        if (input.files && input.files.length > 0) return true;
+        return (input.value || '').toString().trim() !== '';
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function sync() {
+      btn.style.display = hasSelection() ? 'inline-flex' : 'none';
+    }
+
+    btn.addEventListener('click', function () {
+      try { input.value = ''; } catch (_) { }
+      sync();
+      try { input.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) { }
+      try { input.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) { }
+      setFieldValidityUI(input, false);
+    });
+
+    input.addEventListener('change', sync);
+    sync();
+  }
+
   function init(root) {
     ensureStyle();
     var node = root || document;
     if (node.tagName === 'FORM') {
       enhanceForm(node);
+      Array.prototype.slice.call(node.querySelectorAll ? node.querySelectorAll('input[type="file"]') : []).forEach(enhanceFileInput);
       return;
     }
     Array.prototype.slice.call(node.querySelectorAll ? node.querySelectorAll('form') : []).forEach(enhanceForm);
     Array.prototype.slice.call(node.querySelectorAll ? node.querySelectorAll('input,select,textarea') : []).forEach(enhanceField);
+    Array.prototype.slice.call(node.querySelectorAll ? node.querySelectorAll('input[type="file"]') : []).forEach(enhanceFileInput);
   }
 
   function startObserver() {

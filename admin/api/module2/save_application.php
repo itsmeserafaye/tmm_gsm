@@ -3,10 +3,27 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/util.php';
+require_once __DIR__ . '/../../includes/vehicle_types.php';
 $db = db();
 
 header('Content-Type: application/json');
 require_any_permission(['module2.apply','module2.franchises.manage']);
+
+function tmm_normalize_vehicle_category($v) {
+    $s = trim((string)$v);
+    if ($s === '') return '';
+    if (in_array($s, ['Tricycle','Jeepney','UV','Bus'], true)) return $s;
+    $l = strtolower($s);
+    if (str_contains($l, 'tricycle') || str_contains($l, 'e-trike') || str_contains($l, 'pedicab')) return 'Tricycle';
+    if (str_contains($l, 'jeepney')) return 'Jeepney';
+    if (str_contains($l, 'bus') || str_contains($l, 'mini-bus')) return 'Bus';
+    if (str_contains($l, 'uv') || str_contains($l, 'van') || str_contains($l, 'shuttle')) return 'UV';
+    return '';
+}
+
+function tmm_is_tricycle_like($v) {
+    return tmm_normalize_vehicle_category($v) === 'Tricycle';
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
@@ -49,13 +66,19 @@ try {
         exit;
     }
 
-    $allowedVehicleTypes = ['Tricycle','Jeepney','UV','Bus'];
-    if (!in_array($vehicle_type, $allowedVehicleTypes, true)) {
+    $allowedVehicleTypes = vehicle_types();
+    if (!in_array('UV', $allowedVehicleTypes, true)) $allowedVehicleTypes[] = 'UV';
+    if ($vehicle_type === '' || strlen($vehicle_type) > 60) {
+        echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
+        exit;
+    }
+    if (!in_array($vehicle_type, $allowedVehicleTypes, true) && tmm_normalize_vehicle_category($vehicle_type) === '') {
         echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
         exit;
     }
 
-    $isTricycle = $vehicle_type === 'Tricycle';
+    $isTricycle = tmm_is_tricycle_like($vehicle_type);
+    if ($isTricycle) $vehicle_type = 'Tricycle';
     if ($isTricycle) {
         if ($service_area_id <= 0) { echo json_encode(['ok' => false, 'error' => 'missing_required_fields']); exit; }
         $stmtA = $db->prepare("SELECT id, status, COALESCE(authorized_units,0) AS authorized_units FROM tricycle_service_areas WHERE id=? LIMIT 1");
@@ -100,28 +123,66 @@ try {
             if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
         }
         if ($useAlloc) {
-            $stmtA = $db->prepare("SELECT COALESCE(authorized_units,0) AS authorized_units FROM route_vehicle_types WHERE route_id=? AND vehicle_type=? AND status='Active' LIMIT 1");
+            $allocType = $vehicle_type;
+            $allocLimit = null;
+
+            $stmtA = $db->prepare("SELECT vehicle_type, COALESCE(authorized_units,0) AS authorized_units FROM route_vehicle_types WHERE route_id=? AND vehicle_type=? AND status='Active' LIMIT 1");
             if ($stmtA) {
-                $stmtA->bind_param('is', $route_id, $vehicle_type);
+                $stmtA->bind_param('is', $route_id, $allocType);
                 $stmtA->execute();
                 $alloc = $stmtA->get_result()->fetch_assoc();
                 $stmtA->close();
-                if (!$alloc) { echo json_encode(['ok' => false, 'error' => 'allocation_not_found']); exit; }
-
-                $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
-                                       FROM franchise_applications
-                                       WHERE route_id=? AND vehicle_type=?
-                                         AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
-                if ($stmtU) {
-                    $stmtU->bind_param('is', $route_id, $vehicle_type);
-                    $stmtU->execute();
-                    $u = $stmtU->get_result()->fetch_assoc();
-                    $stmtU->close();
-                    $limit = (int)($alloc['authorized_units'] ?? 0);
-                    $used = (int)($u['used_units'] ?? 0);
-                    $remaining = max(0, $limit - $used);
-                    if ($limit > 0 && $vehicle_count > $remaining) { echo json_encode(['ok' => false, 'error' => 'capacity_exceeded']); exit; }
+                if ($alloc) {
+                    $allocType = (string)($alloc['vehicle_type'] ?? $allocType);
+                    $allocLimit = (int)($alloc['authorized_units'] ?? 0);
                 }
+            }
+
+            if ($allocLimit === null) {
+                $cat = tmm_normalize_vehicle_category($vehicle_type);
+                if ($cat === '') { echo json_encode(['ok' => false, 'error' => 'allocation_not_found']); exit; }
+
+                $stmtAll = $db->prepare("SELECT vehicle_type, COALESCE(authorized_units,0) AS authorized_units FROM route_vehicle_types WHERE route_id=? AND status='Active' AND vehicle_type<>'Tricycle' ORDER BY id ASC");
+                if ($stmtAll) {
+                    $stmtAll->bind_param('i', $route_id);
+                    $stmtAll->execute();
+                    $resAll = $stmtAll->get_result();
+                    $candidates = [];
+                    while ($rr = $resAll->fetch_assoc()) {
+                        $vt = (string)($rr['vehicle_type'] ?? '');
+                        if ($vt === '') continue;
+                        if (tmm_normalize_vehicle_category($vt) !== $cat) continue;
+                        $candidates[] = $rr;
+                    }
+                    $stmtAll->close();
+                    if (!$candidates) { echo json_encode(['ok' => false, 'error' => 'allocation_not_found']); exit; }
+                    $picked = $candidates[0];
+                    foreach ($candidates as $cand) {
+                        if ((string)($cand['vehicle_type'] ?? '') === $cat) { $picked = $cand; break; }
+                    }
+                    $allocType = (string)($picked['vehicle_type'] ?? $allocType);
+                    $allocLimit = (int)($picked['authorized_units'] ?? 0);
+                } else {
+                    echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
+                    exit;
+                }
+            }
+
+            $vehicle_type = $allocType;
+
+            $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+                                   FROM franchise_applications
+                                   WHERE route_id=? AND vehicle_type=?
+                                     AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+            if ($stmtU) {
+                $stmtU->bind_param('is', $route_id, $vehicle_type);
+                $stmtU->execute();
+                $u = $stmtU->get_result()->fetch_assoc();
+                $stmtU->close();
+                $limit = (int)($allocLimit ?? 0);
+                $used = (int)($u['used_units'] ?? 0);
+                $remaining = max(0, $limit - $used);
+                if ($limit > 0 && $vehicle_count > $remaining) { echo json_encode(['ok' => false, 'error' => 'capacity_exceeded']); exit; }
             }
         }
         $service_area_id = 0;

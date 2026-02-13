@@ -27,6 +27,8 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                fa.route_id,
                fa.service_area_id,
+               fa.route_ids,
+               fa.approved_route_ids,
                fa.vehicle_type,
                COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
                COALESCE(r.origin, sap.points, '') AS origin,
@@ -82,5 +84,60 @@ $res = $stmt->get_result();
 $rows = [];
 while ($row = $res->fetch_assoc()) $rows[] = $row;
 $stmt->close();
+
+$tmmExtractRouteIds = function (string $csv): array {
+  $out = [];
+  if ($csv === '') return $out;
+  if (preg_match_all('/\d+/', $csv, $m)) {
+    foreach ($m[0] as $x) {
+      $id = (int)$x;
+      if ($id > 0) $out[] = $id;
+    }
+  }
+  return $out;
+};
+$routeIds = [];
+foreach ($rows as $row) {
+  $rid = (int)($row['route_id'] ?? 0);
+  if ($rid > 0) $routeIds[$rid] = true;
+  $csv = trim((string)($row['approved_route_ids'] ?? ''));
+  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
+  foreach ($tmmExtractRouteIds($csv) as $id) $routeIds[$id] = true;
+}
+$routeMap = [];
+if ($routeIds) {
+  $ids = array_map('intval', array_keys($routeIds));
+  sort($ids);
+  $in = implode(',', $ids);
+  $resR = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS code, origin, destination FROM routes WHERE id IN ($in)");
+  if ($resR) {
+    while ($r = $resR->fetch_assoc()) {
+      $id = (int)($r['id'] ?? 0);
+      if ($id <= 0) continue;
+      $routeMap[$id] = $r;
+    }
+  }
+}
+$tmmRouteLabel = function (array $r): string {
+  $code = trim((string)($r['code'] ?? ($r['route_code'] ?? ($r['route_id'] ?? ''))));
+  if ($code === '') $code = '-';
+  $ro = trim((string)($r['origin'] ?? ''));
+  $rd = trim((string)($r['destination'] ?? ''));
+  $label = $code;
+  if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
+  return $label;
+};
+foreach ($rows as &$row) {
+  $csv = trim((string)($row['approved_route_ids'] ?? ''));
+  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
+  $ids = $tmmExtractRouteIds($csv);
+  $labels = [];
+  foreach ($ids as $id) {
+    if (!isset($routeMap[$id])) continue;
+    $labels[] = $tmmRouteLabel($routeMap[$id]);
+  }
+  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
+}
+unset($row);
 
 echo json_encode(['ok' => true, 'data' => $rows]);

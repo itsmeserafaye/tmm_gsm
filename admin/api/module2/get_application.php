@@ -52,6 +52,52 @@ if (!$row) {
   exit;
 }
 
+$tmmExtractRouteIds = function (string $csv): array {
+  $out = [];
+  if ($csv === '') return $out;
+  if (preg_match_all('/\d+/', $csv, $m)) {
+    foreach ($m[0] as $x) {
+      $id = (int)$x;
+      if ($id > 0) $out[] = $id;
+    }
+  }
+  return $out;
+};
+$tmmRouteLabel = function (array $r): string {
+  $code = trim((string)($r['code'] ?? ($r['route_code'] ?? ($r['route_id'] ?? ''))));
+  if ($code === '') $code = '-';
+  $ro = trim((string)($r['origin'] ?? ''));
+  $rd = trim((string)($r['destination'] ?? ''));
+  $label = $code;
+  if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
+  return $label;
+};
+$csv = trim((string)($row['approved_route_ids'] ?? ''));
+if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
+$ids = $tmmExtractRouteIds($csv);
+if ($ids) {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($x) => $x > 0)));
+  sort($ids);
+  $in = implode(',', $ids);
+  $resR = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS code, origin, destination FROM routes WHERE id IN ($in)");
+  $routeMap = [];
+  if ($resR) {
+    while ($r = $resR->fetch_assoc()) {
+      $id = (int)($r['id'] ?? 0);
+      if ($id <= 0) continue;
+      $routeMap[$id] = $r;
+    }
+  }
+  $labels = [];
+  foreach ($ids as $id) {
+    if (!isset($routeMap[$id])) continue;
+    $labels[] = $tmmRouteLabel($routeMap[$id]);
+  }
+  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
+} else {
+  $row['routes_display'] = '';
+}
+
 $hasFranchises = (bool)($db->query("SHOW TABLES LIKE 'franchises'")?->fetch_row());
 if ($hasFranchises) {
   @$db->query("UPDATE franchises SET status='Expired' WHERE status='Active' AND expiry_date IS NOT NULL AND expiry_date < CURDATE()");

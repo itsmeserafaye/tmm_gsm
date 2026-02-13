@@ -1153,7 +1153,6 @@ $typesList = vehicle_types();
                   <div class="sm:col-span-2">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR (PDF/JPG/PNG)</label>
                     <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="or">
-                    <div class="file-indicator mt-2 hidden" data-indicator="or"></div>
                   </div>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
@@ -1179,7 +1178,6 @@ $typesList = vehicle_types();
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Certificate of Registration (CR)</div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload CR (PDF/JPG/PNG)</label>
                 <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="cr">
-                <div class="file-indicator mt-2 hidden" data-indicator="cr"></div>
               </div>
 
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
@@ -1193,7 +1191,6 @@ $typesList = vehicle_types();
                   <div class="sm:col-span-1">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (PDF/JPG/PNG)</label>
                     <input name="insurance" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="insurance">
-                    <div class="file-indicator mt-2 hidden" data-indicator="insurance"></div>
                   </div>
                 </div>
               </div>
@@ -1202,7 +1199,6 @@ $typesList = vehicle_types();
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Other Attachments</div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Other Document (PDF/JPG/PNG)</label>
                 <input name="others" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="others">
-                <div class="file-indicator mt-2 hidden" data-indicator="others"></div>
               </div>
             </div>
             <div class="flex items-center justify-end gap-2 pt-2">
@@ -1218,52 +1214,6 @@ $typesList = vehicle_types();
 
         const cancel = body.querySelector('[data-veh-docs-cancel="1"]');
         if (cancel) cancel.addEventListener('click', closeModal);
-
-        // Add file selection indicators
-        const fileInputs = body.querySelectorAll('.file-input');
-        fileInputs.forEach((input) => {
-          input.addEventListener('change', function () {
-            const fileType = this.getAttribute('data-file-type');
-            const indicator = body.querySelector(`[data-indicator="${fileType}"]`);
-            if (!indicator) return;
-
-            if (this.files && this.files.length > 0) {
-              const file = this.files[0];
-              const fileName = file.name;
-              const fileSize = (file.size / 1024).toFixed(2) + ' KB';
-
-              indicator.innerHTML = `
-                <div class="flex items-center justify-between p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
-                    <div>
-                      <div class="text-sm font-bold text-emerald-900 dark:text-emerald-100">${fileName}</div>
-                      <div class="text-xs text-emerald-700 dark:text-emerald-300">${fileSize}</div>
-                    </div>
-                  </div>
-                  <button type="button" class="p-1 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors" data-clear-file="${fileType}">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                  </button>
-                </div>
-              `;
-              indicator.classList.remove('hidden');
-              if (window.lucide) window.lucide.createIcons();
-
-              // Add clear functionality
-              const clearBtn = indicator.querySelector(`[data-clear-file="${fileType}"]`);
-              if (clearBtn) {
-                clearBtn.addEventListener('click', () => {
-                  input.value = '';
-                  indicator.classList.add('hidden');
-                  indicator.innerHTML = '';
-                });
-              }
-            } else {
-              indicator.classList.add('hidden');
-              indicator.innerHTML = '';
-            }
-          });
-        });
 
         const orInput = body.querySelector('input[name="or"]');
         const orExpiryWrap = body.querySelector('#orExpiryWrap');

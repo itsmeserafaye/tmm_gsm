@@ -29,6 +29,8 @@ $highlightAppId = (int)($_GET['highlight_application_id'] ?? 0);
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                fa.route_id,
+               fa.route_ids,
+               fa.approved_route_ids,
                r.route_id AS route_code,
                r.origin, r.destination,
                fa.vehicle_count, fa.representative_name,
@@ -70,6 +72,72 @@ if ($params) {
 } else {
   $res = $db->query($sql);
 }
+
+$appRows = [];
+if ($res) {
+  while ($rr = $res->fetch_assoc()) $appRows[] = $rr;
+}
+if (isset($stmt) && $stmt instanceof mysqli_stmt) {
+  try { $stmt->close(); } catch (Throwable $_) { }
+}
+
+$routeIds = [];
+$tmmExtractRouteIds = function (string $csv): array {
+  $out = [];
+  if ($csv === '') return $out;
+  if (preg_match_all('/\d+/', $csv, $m)) {
+    foreach ($m[0] as $x) {
+      $id = (int)$x;
+      if ($id > 0) $out[] = $id;
+    }
+  }
+  return $out;
+};
+foreach ($appRows as $row) {
+  $rid = (int)($row['route_id'] ?? 0);
+  if ($rid > 0) $routeIds[$rid] = true;
+  $csv = trim((string)($row['approved_route_ids'] ?? ''));
+  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
+  foreach ($tmmExtractRouteIds($csv) as $id) $routeIds[$id] = true;
+}
+
+$routeMap = [];
+if ($routeIds) {
+  $ids = array_map('intval', array_keys($routeIds));
+  sort($ids);
+  $in = implode(',', $ids);
+  $resR = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS code, route_name, origin, destination FROM routes WHERE id IN ($in)");
+  if ($resR) {
+    while ($r = $resR->fetch_assoc()) {
+      $id = (int)($r['id'] ?? 0);
+      if ($id <= 0) continue;
+      $routeMap[$id] = $r;
+    }
+  }
+}
+
+$tmmRouteLabel = function (array $r): string {
+  $code = trim((string)($r['code'] ?? ($r['route_code'] ?? ($r['route_id'] ?? ''))));
+  if ($code === '') $code = '-';
+  $ro = trim((string)($r['origin'] ?? ''));
+  $rd = trim((string)($r['destination'] ?? ''));
+  $label = $code;
+  if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
+  return $label;
+};
+
+foreach ($appRows as &$row) {
+  $csv = trim((string)($row['approved_route_ids'] ?? ''));
+  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
+  $ids = $tmmExtractRouteIds($csv);
+  $labels = [];
+  foreach ($ids as $id) {
+    if (!isset($routeMap[$id])) continue;
+    $labels[] = $tmmRouteLabel($routeMap[$id]);
+  }
+  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
+}
+unset($row);
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -202,8 +270,8 @@ if ($rootUrl === '/') $rootUrl = '';
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-          <?php if ($res && $res->num_rows > 0): ?>
-            <?php while ($row = $res->fetch_assoc()): ?>
+          <?php if ($appRows): ?>
+            <?php foreach ($appRows as $row): ?>
               <?php
                 $appId = (int)($row['application_id'] ?? 0);
                 $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
@@ -232,12 +300,16 @@ if ($rootUrl === '/') $rootUrl = '';
                 </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium">
                   <?php
+                    $multi = trim((string)($row['routes_display'] ?? ''));
+                    if ($multi !== '') { echo htmlspecialchars($multi); }
+                    else {
                     $rc = trim((string)($row['route_code'] ?? ''));
                     $ro = trim((string)($row['origin'] ?? ''));
                     $rd = trim((string)($row['destination'] ?? ''));
                     $label = $rc !== '' ? $rc : '-';
                     if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
                     echo htmlspecialchars($label);
+                    }
                   ?>
                 </td>
                 <td class="py-4 px-4 hidden sm:table-cell font-black text-slate-700 dark:text-slate-200"><?php echo (int)($row['vehicle_count'] ?? 0); ?></td>
@@ -265,7 +337,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   </div>
                 </td>
               </tr>
-            <?php endwhile; ?>
+            <?php endforeach; ?>
           <?php else: ?>
             <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No applications found.</td></tr>
           <?php endif; ?>
@@ -409,7 +481,8 @@ if ($rootUrl === '/') $rootUrl = '';
           const a = await loadApp(appId);
           const docs = a && a.operator_id ? await loadOperatorDocs(a.operator_id) : [];
           const appDocs = a && a.application_id ? await loadApplicationDocs(a.application_id) : [];
-          const routeLabel = (a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : '');
+          const routeLabel = (a.routes_display || '').toString().trim()
+            || ((a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : ''));
           body.innerHTML = `
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div class="lg:col-span-2 space-y-4">
