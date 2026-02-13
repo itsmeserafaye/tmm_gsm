@@ -101,6 +101,8 @@ try {
   $approvedNeed = $approvedVehicleCount > 0 ? $approvedVehicleCount : $need;
   if ($approvedNeed <= 0) $approvedNeed = 1;
   if ($approvedNeed > 500) $approvedNeed = 500;
+  $docNeed = 1;
+  $readyNeed = 1;
 
   $primaryRouteId = $routeDbId;
   if ($approvedRouteIds) $primaryRouteId = (int)$approvedRouteIds[0];
@@ -209,9 +211,9 @@ try {
     echo json_encode(['ok' => false, 'error' => 'no_linked_vehicles']);
     exit;
   }
-  if ($okCount < $approvedNeed) {
+  if ($okCount < $docNeed) {
     $db->rollback();
-    echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $approvedNeed, 'have' => $okCount, 'missing_plates' => array_slice($missing, 0, 25)]);
+    echo json_encode(['ok' => false, 'error' => 'orcr_required_for_approval', 'need' => $docNeed, 'have' => $okCount, 'missing_plates' => array_slice($missing, 0, 25)]);
     exit;
   }
 
@@ -265,12 +267,12 @@ try {
     }
     $stmtReady->close();
   }
-  if ($readyCount < $approvedNeed) {
+  if ($readyCount < $readyNeed) {
     $db->rollback();
     echo json_encode([
       'ok' => false,
       'error' => 'vehicles_not_ready',
-      'need' => $approvedNeed,
+      'need' => $readyNeed,
       'have' => $readyCount,
       'missing_inspection' => array_slice(array_values(array_unique($missingInspection)), 0, 25),
       'missing_docs' => array_slice(array_values(array_unique($missingDocs)), 0, 25),
