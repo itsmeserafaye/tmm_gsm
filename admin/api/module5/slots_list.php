@@ -40,7 +40,7 @@ if ($capacity > 0) {
     }
     $stmtSlots->close();
 
-    $shouldAutogen = empty($existing) || (!$hasNonNumeric && count($existing) < $capacity);
+    $shouldAutogen = empty($existing) || count($existing) < $capacity;
     if ($shouldAutogen) {
       $stmtIns = $db->prepare("INSERT IGNORE INTO parking_slots (terminal_id, slot_no, status) VALUES (?, ?, 'Free')");
       if ($stmtIns) {
