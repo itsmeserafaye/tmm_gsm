@@ -2038,6 +2038,22 @@ function db()
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
     FOREIGN KEY (inspector_id) REFERENCES officers(officer_id)
   ) ENGINE=InnoDB");
+
+  $colSchId = $conn->query("SHOW COLUMNS FROM inspection_schedules LIKE 'schedule_id'");
+  $schIdRow = $colSchId ? $colSchId->fetch_assoc() : null;
+  $schExtra = strtolower((string)($schIdRow['Extra'] ?? ''));
+  if (!$schIdRow) {
+    @$conn->query("ALTER TABLE inspection_schedules ADD COLUMN schedule_id INT NULL FIRST");
+    @$conn->query("SET @tmm_sid := 0");
+    @$conn->query("UPDATE inspection_schedules SET schedule_id = (@tmm_sid := @tmm_sid + 1) WHERE schedule_id IS NULL");
+  }
+  if ($schExtra === '' || strpos($schExtra, 'auto_increment') === false) {
+    $idxSchId = $conn->query("SHOW INDEX FROM inspection_schedules WHERE Column_name='schedule_id'");
+    if (!$idxSchId || $idxSchId->num_rows == 0) {
+      @$conn->query("ALTER TABLE inspection_schedules ADD UNIQUE KEY uniq_schedule_id (schedule_id)");
+    }
+    @$conn->query("ALTER TABLE inspection_schedules MODIFY COLUMN schedule_id INT NOT NULL AUTO_INCREMENT");
+  }
   $colCheckIns = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='inspection_schedules'");
   $haveInspectionType = false;
   $haveRequestedBy = false;

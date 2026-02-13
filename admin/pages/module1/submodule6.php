@@ -390,12 +390,6 @@ if ($saParams) {
       }
       if ($canManage) {
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/tools/normalize_routes_realworld.php',
-          'label' => 'Normalize',
-          'icon' => 'wand-2',
-          'target' => '_blank'
-        ];
-        $exportItems[] = [
           'tag' => 'button',
           'label' => 'Import',
           'icon' => 'upload',
