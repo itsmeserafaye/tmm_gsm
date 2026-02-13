@@ -54,6 +54,31 @@ $recordStatus = trim((string) ($_GET['record_status'] ?? ''));
 $status = trim((string) ($_GET['status'] ?? ''));
 $highlightPlate = strtoupper(trim((string) ($_GET['highlight_plate'] ?? '')));
 
+$dbMakes = [];
+$dbModelsByMake = [];
+$resMake = $db->query("SELECT DISTINCT TRIM(make) AS make FROM vehicles WHERE make IS NOT NULL AND TRIM(make)<>'' ORDER BY make ASC LIMIT 300");
+if ($resMake) {
+  while ($r = $resMake->fetch_assoc()) {
+    $m = trim((string)($r['make'] ?? ''));
+    if ($m !== '') $dbMakes[] = $m;
+  }
+}
+$resModel = $db->query("SELECT DISTINCT TRIM(make) AS make, TRIM(model) AS model FROM vehicles WHERE make IS NOT NULL AND TRIM(make)<>'' AND model IS NOT NULL AND TRIM(model)<>'' ORDER BY make ASC, model ASC LIMIT 5000");
+if ($resModel) {
+  while ($r = $resModel->fetch_assoc()) {
+    $m = trim((string)($r['make'] ?? ''));
+    $mo = trim((string)($r['model'] ?? ''));
+    if ($m === '' || $mo === '') continue;
+    if (!isset($dbModelsByMake[$m])) $dbModelsByMake[$m] = [];
+    $dbModelsByMake[$m][] = $mo;
+  }
+  foreach ($dbModelsByMake as $mk => $arr) {
+    $arr = array_values(array_unique($arr));
+    sort($arr, SORT_NATURAL | SORT_FLAG_CASE);
+    $dbModelsByMake[$mk] = $arr;
+  }
+}
+
 $hasOrcrSql = "0 AS has_orcr";
 if ($vdHasVehicleId && $vdHasPlate) {
   $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE (vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number)) AND $orcrCond) AS has_orcr";
@@ -500,11 +525,13 @@ $typesList = vehicle_types();
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const canWrite = <?php echo json_encode(has_permission('module1.vehicles.write')); ?>;
     const vehicleTypes = <?php echo json_encode(array_values($typesList)); ?>;
-    const makeOptions = [
+    const dbMakes = <?php echo json_encode(array_values($dbMakes)); ?>;
+    const dbModelsByMake = <?php echo json_encode($dbModelsByMake); ?>;
+    let makeOptions = [
       'Toyota', 'Mitsubishi', 'Nissan', 'Isuzu', 'Suzuki', 'Hyundai', 'Kia', 'Ford', 'Honda', 'Mazda', 'Chevrolet',
       'Foton', 'Hino', 'Daewoo', 'Mercedes-Benz', 'BMW', 'Audi', 'Volkswagen', 'BYD', 'Geely', 'Chery', 'MG', 'Changan'
     ];
-    const modelOptionsByMake = {
+    let modelOptionsByMake = {
       'Toyota': ['Hiace', 'Coaster', 'Innova', 'Vios', 'Fortuner', 'Hilux', 'Tamaraw FX', 'LiteAce'],
       'Mitsubishi': ['L300', 'L200', 'Adventure', 'Montero Sport', 'Canter', 'Rosa'],
       'Nissan': ['Urvan', 'Navara', 'NV350', 'Almera'],
@@ -519,6 +546,19 @@ $typesList = vehicle_types();
       'Foton': ['Gratour', 'Tornado'],
       'Hino': ['Dutro'],
     };
+    if (Array.isArray(dbMakes) && dbMakes.length) {
+      makeOptions = Array.from(new Set(makeOptions.concat(dbMakes.map((x) => (x || '').toString()).filter(Boolean))));
+      makeOptions.sort((a, b) => a.localeCompare(b));
+    }
+    if (dbModelsByMake && typeof dbModelsByMake === 'object') {
+      Object.keys(dbModelsByMake).forEach((mk) => {
+        const models = Array.isArray(dbModelsByMake[mk]) ? dbModelsByMake[mk] : [];
+        const cur = Array.isArray(modelOptionsByMake[mk]) ? modelOptionsByMake[mk] : [];
+        const merged = Array.from(new Set(cur.concat(models.map((x) => (x || '').toString()).filter(Boolean))));
+        merged.sort((a, b) => a.localeCompare(b));
+        modelOptionsByMake[mk] = merged;
+      });
+    }
     const fuelOptions = ['Diesel', 'Gasoline', 'Hybrid', 'Electric', 'LPG', 'CNG'];
 
     function showToast(message, type) {
@@ -1323,6 +1363,7 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Make</label>
+                <input id="vehMakeSearch" class="w-full mb-2 px-4 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search make...">
                 <select id="vehMakeSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
                 <div id="vehMakeOtherWrap" class="hidden mt-2">
                   <input id="vehMakeOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type make">
@@ -1331,6 +1372,7 @@ $typesList = vehicle_types();
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Model</label>
+                <input id="vehModelSearch" class="w-full mb-2 px-4 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search model...">
                 <select id="vehModelSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
                 <div id="vehModelOtherWrap" class="hidden mt-2">
                   <input id="vehModelOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type model">
@@ -1516,10 +1558,12 @@ $typesList = vehicle_types();
         }
 
         const makeSelect = document.getElementById('vehMakeSelect');
+        const makeSearch = document.getElementById('vehMakeSearch');
         const makeOtherInput = document.getElementById('vehMakeOtherInput');
         const makeHidden = document.getElementById('vehMakeHidden');
         const makeOtherWrap = document.getElementById('vehMakeOtherWrap');
         const modelSelect = document.getElementById('vehModelSelect');
+        const modelSearch = document.getElementById('vehModelSearch');
         const modelOtherInput = document.getElementById('vehModelOtherInput');
         const modelHidden = document.getElementById('vehModelHidden');
         const modelOtherWrap = document.getElementById('vehModelOtherWrap');
@@ -1530,12 +1574,16 @@ $typesList = vehicle_types();
 
         function setWrapVisible(wrap, visible) { if (!wrap) return; wrap.classList.toggle('hidden', !visible); }
 
-        function fillMakeOptions() {
+        function fillMakeOptions(filterQ) {
           if (!makeSelect) return;
+          const q = (filterQ || '').toString().trim().toUpperCase();
+          const list = q ? makeOptions.filter((m) => String(m).toUpperCase().includes(q)) : makeOptions;
+          const cur = makeSelect.value || '';
           makeSelect.innerHTML =
             `<option value="">Select</option>` +
-            makeOptions.map((m) => `<option value="${m}">${m}</option>`).join('') +
+            list.map((m) => `<option value="${m}">${m}</option>`).join('') +
             `<option value="__OTHER__">Other</option>`;
+          if (cur && Array.from(makeSelect.options).some((o) => o.value === cur)) makeSelect.value = cur;
         }
         function fillFuelOptions() {
           if (!fuelSelect) return;
@@ -1544,18 +1592,25 @@ $typesList = vehicle_types();
             fuelOptions.map((f) => `<option value="${f}">${f}</option>`).join('') +
             `<option value="__OTHER__">Other</option>`;
         }
-        function fillModelOptions(makeValue) {
+        function fillModelOptions(makeValue, filterQ) {
           if (!modelSelect) return;
           const models = modelOptionsByMake[makeValue] || [];
+          const q = (filterQ || '').toString().trim().toUpperCase();
+          const list = q ? models.filter((m) => String(m).toUpperCase().includes(q)) : models;
+          const cur = modelSelect.value || '';
           modelSelect.innerHTML =
             `<option value="">Select</option>` +
-            models.map((m) => `<option value="${m}">${m}</option>`).join('') +
+            list.map((m) => `<option value="${m}">${m}</option>`).join('') +
             `<option value="__OTHER__">Other</option>`;
+          if (cur && Array.from(modelSelect.options).some((o) => o.value === cur)) modelSelect.value = cur;
         }
 
-        fillMakeOptions();
+        fillMakeOptions('');
         fillFuelOptions();
-        fillModelOptions('');
+        fillModelOptions('', '');
+
+        if (makeSearch) makeSearch.addEventListener('input', () => fillMakeOptions(makeSearch.value));
+        if (modelSearch) modelSearch.addEventListener('input', () => fillModelOptions(makeHidden ? (makeHidden.value || '') : '', modelSearch.value));
 
         if (makeSelect && makeHidden) {
           makeSelect.addEventListener('change', () => {
@@ -1569,7 +1624,8 @@ $typesList = vehicle_types();
               makeHidden.value = v;
               setWrapVisible(makeOtherWrap, false);
             }
-            fillModelOptions(v);
+            if (modelSearch) modelSearch.value = '';
+            fillModelOptions(v, '');
             if (modelSelect && modelHidden) {
               modelSelect.value = '';
               modelHidden.value = '';

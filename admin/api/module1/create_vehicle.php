@@ -109,28 +109,6 @@ try {
         exit;
     }
 
-    $ensureVehicleCrCols = function () use ($db): void {
-        $has = function (string $col) use ($db): bool {
-            $r = $db->query("SHOW COLUMNS FROM vehicles LIKE '" . $db->real_escape_string($col) . "'");
-            return $r && $r->num_rows > 0;
-        };
-        if (!$has('or_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(12) NULL"); }
-        if (!$has('cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
-        if (!$has('cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
-        if (!$has('registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(150) NULL"); }
-        if (!$has('submitted_by_portal_user_id')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_by_portal_user_id INT DEFAULT NULL"); }
-        if (!$has('submitted_by_name')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_by_name VARCHAR(150) DEFAULT NULL"); }
-        if (!$has('submitted_at')) { @$db->query("ALTER TABLE vehicles ADD COLUMN submitted_at DATETIME DEFAULT NULL"); }
-    };
-
-    $ensureExpiryCol = function () use ($db): bool {
-        $res = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
-        if ($res && $res->num_rows > 0) return true;
-        $tbl = $db->query("SHOW TABLES LIKE 'documents'");
-        if (!$tbl || !$tbl->fetch_row()) return false;
-        return (bool)$db->query("ALTER TABLE documents ADD COLUMN expiry_date DATE NULL");
-    };
-
     $uploadsDir = __DIR__ . '/../../uploads';
     if (!is_dir($uploadsDir)) {
         @mkdir($uploadsDir, 0777, true);
@@ -197,7 +175,6 @@ try {
     $franchise = '';
     $inspectionStatus = 'Pending';
 
-    $ensureVehicleCrCols();
     $submittedByName = trim((string)($_SESSION['name'] ?? ($_SESSION['full_name'] ?? '')));
     if ($submittedByName === '') $submittedByName = trim((string)($_SESSION['email'] ?? ($_SESSION['user_email'] ?? '')));
     if ($submittedByName === '') $submittedByName = 'Admin';
@@ -288,7 +265,6 @@ try {
         return $filename;
     };
 
-    $ensureExpiryCol();
 
     $insertDoc = function (string $typeLower, string $filePath, ?string $expiry) use ($db, $plate): void {
         $hasExpiry = false;

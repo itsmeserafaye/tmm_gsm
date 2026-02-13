@@ -390,13 +390,21 @@ if ($action === 'login_otp_verify') {
     $userId = (int) ($pending['user_id'] ?? 0);
     if ($userId <= 0)
       gsm_send(false, 'Invalid OTP request.', null, 400);
-    $user = rbac_get_user_by_email($db, $pEmail);
-    if (!$user || (int) ($user['id'] ?? 0) !== $userId)
+    $user = null;
+    $stmtU = $db->prepare("SELECT id, email, first_name, last_name FROM rbac_users WHERE id=? LIMIT 1");
+    if ($stmtU) {
+      $stmtU->bind_param('i', $userId);
+      $stmtU->execute();
+      $user = $stmtU->get_result()->fetch_assoc();
+      $stmtU->close();
+    }
+    if (!$user || strcasecmp((string)($user['email'] ?? ''), $pEmail) !== 0)
       gsm_send(false, 'Invalid OTP request.', null, 400);
 
-    $roles = rbac_get_user_roles($db, $userId);
-    $perms = rbac_get_user_permissions($db, $userId);
-    $primaryRole = rbac_primary_role($roles);
+    $roles = (isset($pending['roles']) && is_array($pending['roles'])) ? $pending['roles'] : rbac_get_user_roles($db, $userId);
+    $perms = (isset($pending['permissions']) && is_array($pending['permissions'])) ? $pending['permissions'] : rbac_get_user_permissions($db, $userId);
+    $primaryRole = (string)($pending['primary_role'] ?? '');
+    if ($primaryRole === '') $primaryRole = rbac_primary_role($roles);
 
     $trustDays = 0;
 
@@ -404,7 +412,7 @@ if ($action === 'login_otp_verify') {
     unset($_SESSION['pending_login']);
     $_SESSION['user_id'] = $userId;
     $_SESSION['email'] = $user['email'];
-    $_SESSION['name'] = trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
+    $_SESSION['name'] = trim((string) ($pending['name'] ?? '')) ?: trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
     $_SESSION['role'] = $primaryRole;
     $_SESSION['roles'] = $roles;
     $_SESSION['permissions'] = $perms;
@@ -674,6 +682,10 @@ $_SESSION['pending_login'] = [
   'user_id' => $userId,
   'device_hash' => $deviceHash,
   'trust_days' => $trustDays,
+  'roles' => $roles,
+  'permissions' => $perms,
+  'primary_role' => $primaryRole,
+  'name' => $_SESSION['name'] ?? ($user['email'] ?? $email),
 ];
 $ttl = gsm_setting_int($db, 'otp_ttl_seconds', 120, 60, 900);
 $_SESSION['pending_login']['otp_ttl'] = $ttl;

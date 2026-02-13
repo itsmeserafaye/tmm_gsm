@@ -108,7 +108,7 @@ if ($params) {
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Routes & LPTRP</h1>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">List of Routes</h1>
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Define authorized routes, set capacity limits, and use route availability as the basis for franchise endorsement.</p>
     </div>
     <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">

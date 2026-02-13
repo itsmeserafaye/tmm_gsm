@@ -104,7 +104,10 @@ if ($operatorIds) {
 }
 
 $allPlates = [];
-$resP = $db->query("SELECT UPPER(v.plate_number) AS plate_number, COALESCE(NULLIF(v.status,''),'') AS status
+$resP = $db->query("SELECT
+                      UPPER(v.plate_number) AS plate_number,
+                      COALESCE(NULLIF(v.vehicle_type,''),'') AS vehicle_type,
+                      COALESCE(NULLIF(v.status,''),'') AS status
                     FROM vehicles v
                     LEFT JOIN operators o ON o.id=v.operator_id
                     WHERE COALESCE(v.plate_number,'')<>''
@@ -115,7 +118,11 @@ if ($resP) {
   while ($r = $resP->fetch_assoc()) {
     $p = strtoupper(trim((string)($r['plate_number'] ?? '')));
     if ($p === '') continue;
-    $allPlates[] = ['plate_number' => $p, 'status' => (string)($r['status'] ?? '')];
+    $allPlates[] = [
+      'plate_number' => $p,
+      'vehicle_type' => (string)($r['vehicle_type'] ?? ''),
+      'status' => (string)($r['status'] ?? '')
+    ];
   }
 }
 
@@ -333,7 +340,12 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const unlinkedPlates = <?php echo json_encode(array_values(array_map(function($v){ return (string)($v['plate_number'] ?? ''); }, $allPlates))); ?>;
+    const unlinkedPlates = <?php echo json_encode(array_values(array_map(function($v){
+      return [
+        'plate_number' => (string)($v['plate_number'] ?? ''),
+        'vehicle_type' => (string)($v['vehicle_type'] ?? ''),
+      ];
+    }, $allPlates))); ?>;
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -442,14 +454,22 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
 
       const render = (query) => {
         const q = (query || '').toString().trim().toUpperCase();
-        const filtered = unlinkedPlates.filter(p => !q || String(p).toUpperCase().includes(q));
+        const filtered = unlinkedPlates.filter((it) => {
+          const plate = String(it && it.plate_number ? it.plate_number : '').toUpperCase();
+          const type = String(it && it.vehicle_type ? it.vehicle_type : '').toUpperCase();
+          return !q || plate.includes(q) || type.includes(q);
+        });
         if (!filtered.length) {
           list.innerHTML = '<div class="p-3 text-sm text-slate-500 dark:text-slate-400 italic">No matches.</div>';
           return;
         }
-        list.innerHTML = filtered.map((p) => {
-          const safe = String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
-          return `<button type="button" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-plate-item="1" data-plate="${safe}">${safe}</button>`;
+        list.innerHTML = filtered.map((it) => {
+          const plate = String(it && it.plate_number ? it.plate_number : '');
+          const type = String(it && it.vehicle_type ? it.vehicle_type : '');
+          const label = type ? (plate + ' • ' + type) : plate;
+          const safePlate = plate.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+          const safeLabel = label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+          return `<button type="button" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-plate-item="1" data-plate="${safePlate}">${safeLabel}</button>`;
         }).join('');
         list.querySelectorAll('[data-plate-item="1"]').forEach((btn) => {
           btn.addEventListener('click', () => {

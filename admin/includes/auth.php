@@ -169,11 +169,11 @@ function require_login(bool $touch = true) {
 function require_role(array $allowed) {
   require_login();
   $role = current_user_role();
-  
-  // DEBUG: Log access attempts
-  $log = __DIR__ . '/../../debug_auth_access.log';
-  $data = date('Y-m-d H:i:s') . " - User: " . ($_SESSION['user_id'] ?? 'none') . " - Role: $role - Allowed: " . implode(',', $allowed) . "\n";
-  @file_put_contents($log, $data, FILE_APPEND);
+  if ((string) getenv('TMM_DEBUG_AUTH') === '1') {
+    $log = __DIR__ . '/../../debug_auth_access.log';
+    $data = date('Y-m-d H:i:s') . " - User: " . ($_SESSION['user_id'] ?? 'none') . " - Role: $role - Allowed: " . implode(',', $allowed) . "\n";
+    @file_put_contents($log, $data, FILE_APPEND);
+  }
 
   if (!in_array($role, $allowed, true)) {
     if (defined('TMM_TEST')) {

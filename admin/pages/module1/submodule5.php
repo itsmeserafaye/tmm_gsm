@@ -119,7 +119,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">LTO Reference No (optional)</label>
                 <input type="text" name="lto_reference_no" maxlength="64"
                   class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  placeholder="e.g., OR/CR / reference">
+                  placeholder="e.g., reference no.">
               </div>
             </div>
 
@@ -136,10 +136,15 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
                   class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-slate-700 dark:file:text-slate-100">
               </div>
               <div>
-                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">OR/CR (optional)</label>
-                <input type="file" name="orcr_doc" accept=".pdf,.jpg,.jpeg,.png"
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">OR Document (optional)</label>
+                <input type="file" name="or_doc" accept=".pdf,.jpg,.jpeg,.png"
                   class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:file:bg-slate-700 dark:file:text-slate-100">
               </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">CR Document (optional)</label>
+              <input type="file" name="cr_doc" accept=".pdf,.jpg,.jpeg,.png"
+                class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:file:bg-slate-700 dark:file:text-slate-100">
             </div>
 
             <button id="btnCreateTransfer" type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-black text-white px-4 py-3 text-sm font-bold shadow-lg transition-all active:scale-[0.98]">
@@ -248,7 +253,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
     }
 
-    function setupCombo(box, items, renderText) {
+    function setupCombo(box, items, renderText, onSelect) {
       const idInput = box.querySelector('[data-combo-id="1"]');
       const displayInput = box.querySelector('[data-combo-display="1"]');
       const toggleBtn = box.querySelector('[data-combo-toggle="1"]');
@@ -266,7 +271,8 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       const close = () => { panel.classList.add('hidden'); };
       const render = (q) => {
         const query = (q || '').toString().trim().toUpperCase();
-        const filtered = items.filter((it) => {
+        const src = (typeof items === 'function') ? items() : items;
+        const filtered = (Array.isArray(src) ? src : []).filter((it) => {
           const label = renderText(it);
           return !query || label.toUpperCase().includes(query);
         });
@@ -281,10 +287,15 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         }).join('');
         list.querySelectorAll('[data-item="1"]').forEach((btn) => {
           btn.addEventListener('click', () => {
-            idInput.value = btn.getAttribute('data-id') || '';
+            const selId = btn.getAttribute('data-id') || '';
+            idInput.value = selId;
             displayInput.value = (btn.textContent || '').trim();
             close();
             search.value = '';
+            if (typeof onSelect === 'function') {
+              const selected = filtered.find((it) => String(it.id || '') === String(selId)) || null;
+              onSelect(selected);
+            }
           });
         });
       };
@@ -296,15 +307,29 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
     }
 
+    let excludeOperatorId = 0;
+
     document.querySelectorAll('[data-combobox="1"]').forEach((box) => {
       const kind = box.getAttribute('data-kind');
       if (kind === 'vehicle') {
         setupCombo(box, vehicles, (v) => {
           const op = v.operator_name ? (' • ' + v.operator_name) : '';
           return (v.plate_number || '') + op;
+        }, (selected) => {
+          excludeOperatorId = Number(selected && selected.operator_id ? selected.operator_id : 0) || 0;
+          const opBox = document.querySelector('[data-combobox="1"][data-kind="operator"]');
+          if (opBox) {
+            const idInput = opBox.querySelector('[data-combo-id="1"]');
+            const displayInput = opBox.querySelector('[data-combo-display="1"]');
+            const cur = Number(idInput ? idInput.value : 0) || 0;
+            if (excludeOperatorId > 0 && cur === excludeOperatorId) {
+              if (idInput) idInput.value = '';
+              if (displayInput) displayInput.value = '';
+            }
+          }
         });
       } else if (kind === 'operator') {
-        setupCombo(box, operators, (o) => {
+        setupCombo(box, () => operators.filter((o) => Number(o.id || 0) !== (excludeOperatorId || 0)), (o) => {
           const t = o.operator_type ? (' • ' + o.operator_type) : '';
           return (o.display_name || ('Operator #' + (o.id || ''))) + t;
         });
@@ -347,6 +372,8 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         const dt = r.created_at ? new Date(r.created_at) : null;
         const when = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : '';
         const deed = r.deed_of_sale_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.deed_of_sale_path))) : '';
+        const orDoc = r.or_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.or_path))) : '';
+        const crDoc = r.cr_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.cr_path))) : '';
         const orcr = r.orcr_path ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(r.orcr_path))) : '';
         const actions = (canReview && st === 'Pending') ? `
           <div class="flex items-center gap-2">
@@ -367,7 +394,9 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
                 <div class="mt-1 text-xs text-slate-500 dark:text-slate-400">${escapeHtml(when)}${r.requested_by_name ? (' • Requested by ' + escapeHtml(String(r.requested_by_name))) : ''}</div>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   ${deed ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(deed)}" target="_blank">Deed</a>` : ``}
-                  ${orcr ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(orcr)}" target="_blank">OR/CR</a>` : ``}
+                  ${orDoc ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(orDoc)}" target="_blank">OR</a>` : ``}
+                  ${crDoc ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(crDoc)}" target="_blank">CR</a>` : ``}
+                  ${(!orDoc && !crDoc && orcr) ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${escapeHtml(orcr)}" target="_blank">OR/CR</a>` : ``}
                 </div>
               </div>
               ${actions}

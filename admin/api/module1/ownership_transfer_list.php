@@ -24,6 +24,8 @@ $sql = "SELECT
   t.lto_reference_no,
   t.deed_of_sale_path,
   t.orcr_path,
+  t.or_path,
+  t.cr_path,
   t.status,
   t.effective_date,
   t.reviewed_by,

@@ -149,16 +149,20 @@ try {
     echo json_encode(['ok' => false, 'error' => 'missing_deed_doc']);
     exit;
   }
+  $orPath = $saveUpload('or_doc', 'transfer_or_vehicle_' . $vehicleId);
+  $crPath = $saveUpload('cr_doc', 'transfer_cr_vehicle_' . $vehicleId);
   $orcrPath = $saveUpload('orcr_doc', 'transfer_orcr_vehicle_' . $vehicleId);
 
   $stmt = $db->prepare("INSERT INTO vehicle_ownership_transfers
-                        (vehicle_id, from_operator_id, to_operator_id, transfer_type, lto_reference_no, deed_of_sale_path, orcr_path, status, effective_date, remarks)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?, NULL)");
+                        (vehicle_id, from_operator_id, to_operator_id, transfer_type, lto_reference_no, deed_of_sale_path, orcr_path, or_path, cr_path, status, effective_date, remarks)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, NULL)");
   if (!$stmt) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
   $effBind = $effectiveDate !== '' ? $effectiveDate : null;
   $ltoBind = $ltoRef !== '' ? $ltoRef : null;
   $orcrBind = $orcrPath !== null ? $orcrPath : null;
-  $stmt->bind_param('iiisssss', $vehicleId, $fromOperatorId, $toOperatorId, $transferType, $ltoBind, $deedPath, $orcrBind, $effBind);
+  $orBind = $orPath !== null ? $orPath : null;
+  $crBind = $crPath !== null ? $crPath : null;
+  $stmt->bind_param('iiisssssss', $vehicleId, $fromOperatorId, $toOperatorId, $transferType, $ltoBind, $deedPath, $orcrBind, $orBind, $crBind, $effBind);
   $ok = $stmt->execute();
   if (!$ok) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_error']); exit; }
   $id = (int)$stmt->insert_id;

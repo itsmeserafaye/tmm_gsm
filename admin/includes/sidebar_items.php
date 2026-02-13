@@ -17,7 +17,7 @@ $sidebarItems = [
       ['id' => 'submodule2', 'label' => 'Vehicle Records', 'path' => '/puv-database/vehicle-encoding', 'page' => 'module1/submodule2', 'anyPermissions' => ['module1.read','module1.write']],
       ['id' => 'submodule4', 'label' => 'Link Vehicle to Operator', 'path' => '/puv-database/link-vehicle-to-operator', 'page' => 'module1/submodule4', 'anyPermissions' => ['module1.link_vehicle','module1.write']],
       ['id' => 'submodule5', 'label' => 'Ownership Transfer', 'path' => '/puv-database/ownership-transfer', 'page' => 'module1/submodule5', 'anyPermissions' => ['module1.write','module1.vehicles.write']],
-      ['id' => 'submodule6', 'label' => 'Routes & LPTRP', 'path' => '/puv-database/routes-lptrp', 'page' => 'module1/submodule6', 'anyPermissions' => ['module1.read','module1.write']],
+      ['id' => 'submodule6', 'label' => 'List of Routes', 'path' => '/puv-database/routes-lptrp', 'page' => 'module1/submodule6', 'anyPermissions' => ['module1.read','module1.write']],
     ],
   ],
   [

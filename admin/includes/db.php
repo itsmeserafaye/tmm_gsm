@@ -157,6 +157,21 @@ function db()
   if (!isset($vehCols['compliance_reason'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN compliance_reason VARCHAR(255) DEFAULT NULL");
   }
+  if (!isset($vehCols['risk_level'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN risk_level ENUM('Low','Medium','High') NOT NULL DEFAULT 'Low'");
+  }
+  if (!isset($vehCols['or_number'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(20) DEFAULT NULL");
+  }
+  if (!isset($vehCols['cr_number'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(20) DEFAULT NULL");
+  }
+  if (!isset($vehCols['cr_issue_date'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE DEFAULT NULL");
+  }
+  if (!isset($vehCols['registered_owner'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(120) DEFAULT NULL");
+  }
   if (!isset($vehCols['approved_by_user_id'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN approved_by_user_id INT DEFAULT NULL");
   }
@@ -186,6 +201,7 @@ function db()
   $colDocs = $conn->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='documents'");
   $haveVerifiedCol = false;
   $haveAppIdCol = false;
+  $haveExpiryCol = false;
   if ($colDocs) {
     while ($c = $colDocs->fetch_assoc()) {
       $colName = $c['COLUMN_NAME'] ?? '';
@@ -195,6 +211,9 @@ function db()
       if ($colName === 'application_id') {
         $haveAppIdCol = true;
       }
+      if ($colName === 'expiry_date') {
+        $haveExpiryCol = true;
+      }
     }
   }
   if (!$haveVerifiedCol) {
@@ -202,6 +221,9 @@ function db()
   }
   if (!$haveAppIdCol) {
     $conn->query("ALTER TABLE documents ADD COLUMN application_id INT NULL");
+  }
+  if (!$haveExpiryCol) {
+    $conn->query("ALTER TABLE documents ADD COLUMN expiry_date DATE DEFAULT NULL");
   }
   $conn->query("CREATE TABLE IF NOT EXISTS ownership_transfers (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -253,6 +275,12 @@ function db()
   }
   if (!isset($votCols['requested_at'])) {
     $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN requested_at DATETIME DEFAULT NULL");
+  }
+  if (!isset($votCols['or_path'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN or_path VARCHAR(255) DEFAULT NULL");
+  }
+  if (!isset($votCols['cr_path'])) {
+    $conn->query("ALTER TABLE vehicle_ownership_transfers ADD COLUMN cr_path VARCHAR(255) DEFAULT NULL");
   }
   $conn->query("CREATE TABLE IF NOT EXISTS terminal_assignments (
     id INT AUTO_INCREMENT PRIMARY KEY,

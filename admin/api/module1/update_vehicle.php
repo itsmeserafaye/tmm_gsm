@@ -37,15 +37,6 @@ if ($crIssueDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $crIssueDate))
 if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_or_number']); exit; }
 if ($crNumber !== '' && !preg_match('/^[A-Z0-9\-]{6,20}$/', $crNumber)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_cr_number']); exit; }
 
-$hasCols = function (string $col) use ($db): bool {
-  $res = $db->query("SHOW COLUMNS FROM vehicles LIKE '" . $db->real_escape_string($col) . "'");
-  return $res && ($res->num_rows ?? 0) > 0;
-};
-if (($orNumber !== '') && !$hasCols('or_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(12) NULL"); }
-if (($crNumber !== '' || $crIssueDate !== '' || $registeredOwner !== '') && !$hasCols('cr_number')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(64) NULL"); }
-if (($crNumber !== '' || $crIssueDate !== '' || $registeredOwner !== '') && !$hasCols('cr_issue_date')) { @$db->query("ALTER TABLE vehicles ADD COLUMN cr_issue_date DATE NULL"); }
-if (($crNumber !== '' || $crIssueDate !== '' || $registeredOwner !== '') && !$hasCols('registered_owner')) { @$db->query("ALTER TABLE vehicles ADD COLUMN registered_owner VARCHAR(120) NULL"); }
-
 $sets = [];
 $params = [];
 $types = '';

@@ -11,6 +11,7 @@ if ($plate !== '') {
                                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
                                v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner, v.color,
+                               v.submitted_by_portal_user_id, v.submitted_by_name, v.submitted_at,
                                v.status, v.created_at
                         FROM vehicles v
                         LEFT JOIN operators o ON o.id=v.operator_id
@@ -76,7 +77,17 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="text-xs text-slate-400 mt-2 flex items-center gap-2">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-            Registered on <?php echo date('F d, Y', strtotime($v['created_at'])); ?>
+            <?php
+              $encodedAt = (string)($v['submitted_at'] ?? '');
+              if ($encodedAt === '') $encodedAt = (string)($v['created_at'] ?? '');
+              $encodedBy = trim((string)($v['submitted_by_name'] ?? ''));
+              $via = ((int)($v['submitted_by_portal_user_id'] ?? 0) > 0) ? 'Operator Portal' : ($encodedBy !== '' ? 'Admin Dashboard (Vehicle Records)' : 'Unknown');
+            ?>
+            Encoded on <?php echo $encodedAt !== '' ? date('F d, Y h:i A', strtotime($encodedAt)) : '-'; ?> • <?php echo htmlspecialchars($via); ?>
+          </div>
+          <div class="text-xs text-slate-400 mt-1 flex items-center gap-2">
+            <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+            Encoded by <?php echo htmlspecialchars($encodedBy !== '' ? $encodedBy : ($via === 'Operator Portal' ? 'Portal User' : 'Unknown')); ?>
           </div>
         </div>
       </div>
