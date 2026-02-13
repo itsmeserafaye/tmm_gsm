@@ -135,12 +135,6 @@ $requiredCodes = [
   'RW_MIRRORS',
   'RW_LEAKS',
   'PS_DOORS',
-  'SE_EXT',
-  'SE_EWD',
-  'DOC_CR',
-  'DOC_OR',
-  'DOC_CMVI',
-  'DOC_CTPL',
 ];
 
 $normalized = [];

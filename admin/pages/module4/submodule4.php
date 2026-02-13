@@ -64,7 +64,7 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   </div>
 
-  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
@@ -294,26 +294,30 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">Certificate of Registration (CR)</div>
+              <div id="docStatusCr" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
               <div class="mt-2">
-                <input name="doc_cr" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+                <input name="doc_cr" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
               </div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">Official Receipt (OR)</div>
+              <div id="docStatusOr" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
               <div class="mt-2">
-                <input name="doc_or" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+                <input name="doc_or" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
               </div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">CMVI / PMVIC Certificate</div>
+              <div id="docStatusCmvi" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
               <div class="mt-2">
-                <input name="doc_cmvi" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+                <input name="doc_cmvi" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
               </div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">CTPL Insurance</div>
+              <div id="docStatusCtpl" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
               <div class="mt-2">
-                <input name="doc_ctpl" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+                <input name="doc_ctpl" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
               </div>
             </div>
           </div>
@@ -354,6 +358,13 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnOpen = document.getElementById('btnOpenConduct');
     const btnClose = document.getElementById('btnCloseConduct');
     const initialScheduleId = <?php echo json_encode($scheduleId); ?>;
+    const docStatus = {
+      cr: document.getElementById('docStatusCr'),
+      or: document.getElementById('docStatusOr'),
+      emission: document.getElementById('docStatusCmvi'),
+      insurance: document.getElementById('docStatusCtpl'),
+    };
+    window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
 
     function openModal() {
       if (!modal) return;
@@ -408,9 +419,51 @@ if ($rootUrl === '/') $rootUrl = '';
       if (btnDownloadReport) btnDownloadReport.disabled = !has;
     }
 
+    function setDocStatusText(key, onFile) {
+      const el = docStatus[key];
+      if (!el) return;
+      if (onFile) {
+        el.textContent = 'On file (vehicle records)';
+        el.className = 'mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300';
+      } else {
+        el.textContent = 'Required';
+        el.className = 'mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400';
+      }
+    }
+
+    async function loadDocStatus() {
+      const sid = getScheduleId();
+      if (!sid) {
+        window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
+        ['cr','or','emission','insurance'].forEach((k) => setDocStatusText(k, false));
+        return;
+      }
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module4/schedule_doc_status.php?schedule_id=' + encodeURIComponent(sid));
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error('load_failed');
+        const onFile = data.on_file || {};
+        window.__tmm_docOnFile = {
+          cr: !!onFile.cr,
+          or: !!onFile.or,
+          emission: !!onFile.emission,
+          insurance: !!onFile.insurance,
+        };
+        setDocStatusText('cr', window.__tmm_docOnFile.cr);
+        setDocStatusText('or', window.__tmm_docOnFile.or);
+        setDocStatusText('emission', window.__tmm_docOnFile.emission);
+        setDocStatusText('insurance', window.__tmm_docOnFile.insurance);
+      } catch (e) {
+        window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
+        ['cr','or','emission','insurance'].forEach((k) => setDocStatusText(k, false));
+      }
+    }
+
     if (scheduleSelect) {
       scheduleSelect.addEventListener('change', syncReportButtons);
+      scheduleSelect.addEventListener('change', loadDocStatus);
       syncReportButtons();
+      loadDocStatus();
     }
     if (btnViewReport) {
       btnViewReport.addEventListener('click', () => {
@@ -446,12 +499,19 @@ if ($rootUrl === '/') $rootUrl = '';
             'RW_WIPERS',
             'RW_MIRRORS',
             'RW_LEAKS',
-            'PS_DOORS',
-            'SE_EXT',
-            'SE_EWD'
+            'PS_DOORS'
           ]);
           const requiredMissing = [];
           const requiredNotPass = [];
+          const codeToLabel = {};
+          Array.from(form.querySelectorAll('input[type="hidden"][name^="labels["]')).forEach((inp) => {
+            const name = String(inp.getAttribute('name') || '');
+            const m = name.match(/^labels\[(.+)\]$/);
+            if (!m) return;
+            const code = String(m[1] || '');
+            const lbl = String(inp.value || '').trim();
+            if (code && lbl) codeToLabel[code] = lbl;
+          });
           Array.from(form.querySelectorAll('select[name^="items["]')).forEach((s) => {
             const name = String(s.getAttribute('name') || '');
             const m = name.match(/^items\[(.+)\]$/);
@@ -464,24 +524,34 @@ if ($rootUrl === '/') $rootUrl = '';
           });
           const anyFail = Array.from(form.querySelectorAll('select[name^="items["]')).some((s) => (s.value || '') === 'Fail');
           const allPassOrNA = Array.from(form.querySelectorAll('select[name^="items["]')).every((s) => (s.value || '') !== 'Fail');
+          const docOnFile = window.__tmm_docOnFile || {};
           const docMissing = [];
-          ['doc_cr','doc_or','doc_cmvi','doc_ctpl'].forEach((n) => {
-            const inp = form.querySelector('input[name="' + n + '"]');
-            const ok = !!(inp && inp.files && inp.files.length > 0);
-            if (!ok) docMissing.push(n);
+          const docMap = [
+            ['doc_cr', 'cr'],
+            ['doc_or', 'or'],
+            ['doc_cmvi', 'emission'],
+            ['doc_ctpl', 'insurance'],
+          ];
+          docMap.forEach(([field, key]) => {
+            const inp = form.querySelector('input[name="' + field + '"]');
+            const uploaded = !!(inp && inp.files && inp.files.length > 0);
+            const onFile = !!docOnFile[key];
+            if (!uploaded && !onFile) docMissing.push(field);
           });
           if (docMissing.length) {
-            showToast('Upload the required document presentation files before submitting.', 'error');
+            showToast('Upload the missing document(s) or use the already uploaded vehicle record documents.', 'error');
             btn.disabled = false; btn.textContent = 'Submit Result';
             return;
           }
           if (requiredMissing.length) {
-            showToast('Required checklist items cannot be N/A. Please complete: ' + requiredMissing.join(', '), 'error');
+            const names = requiredMissing.map((c) => codeToLabel[c] || c);
+            showToast('Required items cannot be N/A. Please complete: ' + names.join(', '), 'error');
             btn.disabled = false; btn.textContent = 'Submit Result';
             return;
           }
           if (overall === 'Passed' && requiredNotPass.length) {
-            showToast('Overall result is Passed but required items are not Pass: ' + requiredNotPass.join(', '), 'error');
+            const names = requiredNotPass.map((c) => codeToLabel[c] || c);
+            showToast('Overall result is Passed but required items are not Pass: ' + names.join(', '), 'error');
             btn.disabled = false; btn.textContent = 'Submit Result';
             return;
           }
@@ -504,13 +574,16 @@ if ($rootUrl === '/') $rootUrl = '';
 
           const docsUp = new FormData();
           docsUp.append('schedule_id', scheduleId);
+          let anyDocs = false;
           ['doc_cr','doc_or','doc_cmvi','doc_ctpl'].forEach((n) => {
             const inp = form.querySelector('input[name="' + n + '"]');
-            if (inp && inp.files && inp.files[0]) docsUp.append(n, inp.files[0]);
+            if (inp && inp.files && inp.files[0]) { docsUp.append(n, inp.files[0]); anyDocs = true; }
           });
-          const dRes = await fetch(rootUrl + '/admin/api/module4/upload_inspection_docs.php', { method: 'POST', body: docsUp });
-          const dData = await dRes.json().catch(() => null);
-          if (!dData || !dData.ok) throw new Error((dData && dData.error) ? dData.error : 'doc_upload_failed');
+          if (anyDocs) {
+            const dRes = await fetch(rootUrl + '/admin/api/module4/upload_inspection_docs.php', { method: 'POST', body: docsUp });
+            const dData = await dRes.json().catch(() => null);
+            if (!dData || !dData.ok) throw new Error((dData && dData.error) ? dData.error : 'doc_upload_failed');
+          }
 
           showToast('Inspection result saved.');
           setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 700);

@@ -172,7 +172,7 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   </div>
 
-  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">

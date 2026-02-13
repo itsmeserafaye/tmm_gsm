@@ -14,7 +14,7 @@ if ($scheduleId <= 0) {
   exit;
 }
 
-$sch = $db->prepare("SELECT plate_number FROM inspection_schedules WHERE schedule_id=?");
+$sch = $db->prepare("SELECT plate_number, vehicle_id FROM inspection_schedules WHERE schedule_id=?");
 if (!$sch) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
@@ -28,6 +28,19 @@ if (!$srow) {
   http_response_code(404);
   echo json_encode(['ok' => false, 'error' => 'schedule_not_found']);
   exit;
+}
+
+$plate = trim((string)($srow['plate_number'] ?? ''));
+$vehicleId = (int)($srow['vehicle_id'] ?? 0);
+if ($vehicleId <= 0 && $plate !== '') {
+  $stmtV = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
+  if ($stmtV) {
+    $stmtV->bind_param('s', $plate);
+    $stmtV->execute();
+    $vr = $stmtV->get_result()->fetch_assoc();
+    $stmtV->close();
+    $vehicleId = (int)($vr['id'] ?? 0);
+  }
 }
 
 $db->query("CREATE TABLE IF NOT EXISTS inspection_documents (
@@ -54,6 +67,17 @@ $map = [
 $allowedExt = ['jpg','jpeg','png','pdf'];
 $uploaded = [];
 $errors = [];
+
+$vehUploadsDir = __DIR__ . '/../../uploads/';
+if (!is_dir($vehUploadsDir)) {
+  @mkdir($vehUploadsDir, 0777, true);
+}
+$vehMap = [
+  'DOC_OR' => 'OR',
+  'DOC_CR' => 'CR',
+  'DOC_CMVI' => 'Emission',
+  'DOC_CTPL' => 'Insurance',
+];
 
 foreach ($map as $field => $code) {
   if (!isset($_FILES[$field])) continue;
@@ -118,6 +142,26 @@ foreach ($map as $field => $code) {
     if (is_file($oldFull)) @unlink($oldFull);
   }
   $uploaded[$code] = $dbPath;
+
+  if ($vehicleId > 0 && isset($vehMap[$code])) {
+    $vehType = (string)$vehMap[$code];
+    $vehFilename = 'VEH' . $vehicleId . '_' . $vehType . '_' . time() . '.' . $ext;
+    $vehDest = $vehUploadsDir . $vehFilename;
+    @copy($dest, $vehDest);
+    if (is_file($vehDest)) {
+      $safeVeh = tmm_scan_file_for_viruses($vehDest);
+      if (!$safeVeh) {
+        @unlink($vehDest);
+      } else {
+        $stmtVd = $db->prepare("INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, uploaded_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
+        if ($stmtVd) {
+          $stmtVd->bind_param('iss', $vehicleId, $vehType, $vehFilename);
+          $stmtVd->execute();
+          $stmtVd->close();
+        }
+      }
+    }
+  }
 }
 
 if (!$uploaded && !$errors) {
@@ -128,4 +172,3 @@ if (!$uploaded && !$errors) {
 
 echo json_encode(['ok' => empty($errors), 'uploaded' => $uploaded, 'errors' => $errors]);
 ?>
-
