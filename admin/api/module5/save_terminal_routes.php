@@ -59,7 +59,9 @@ if ($routeRefs) {
   $in = implode(',', array_map(function ($s) use ($db) {
     return "'" . $db->real_escape_string($s) . "'";
   }, $routeRefs));
-  $res = $db->query("SELECT DISTINCT COALESCE(NULLIF(route_code,''), route_id) AS ref FROM routes WHERE route_id IN ($in) OR route_code IN ($in)");
+  $hasRouteStatus = (bool)($db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME='status' LIMIT 1")?->fetch_row());
+  $statusCond = $hasRouteStatus ? " AND COALESCE(status,'Active')='Active'" : "";
+  $res = $db->query("SELECT DISTINCT COALESCE(NULLIF(route_code,''), route_id) AS ref FROM routes WHERE (route_id IN ($in) OR route_code IN ($in))" . $statusCond);
   if ($res) {
     while ($row = $res->fetch_assoc()) {
       $ref = trim((string)($row['ref'] ?? ''));

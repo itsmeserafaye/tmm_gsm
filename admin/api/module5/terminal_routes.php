@@ -23,6 +23,9 @@ if ($colRes) {
     if ($cn === 'fare_max') $hasFareMax = true;
   }
 }
+$hasRouteStatus = false;
+$stRes = $db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME='status' LIMIT 1");
+if ($stRes && $stRes->fetch_row()) $hasRouteStatus = true;
 $fareMinExpr = $hasFareMin ? "COALESCE(r.fare_min, r.fare)" : "r.fare";
 $fareMaxExpr = $hasFareMax ? "COALESCE(r.fare_max, r.fare)" : "r.fare";
 
@@ -46,7 +49,7 @@ $stmt = $db->prepare("SELECT
   r.status
 FROM terminals t
 JOIN terminal_routes tr ON tr.terminal_id=t.id
-LEFT JOIN routes r ON r.route_id=tr.route_id OR r.route_code=tr.route_id
+JOIN routes r ON (r.route_id=tr.route_id OR r.route_code=tr.route_id)" . ($hasRouteStatus ? " AND COALESCE(r.status,'Active')='Active'" : "") . "
 WHERE t.id=?
 ORDER BY COALESCE(NULLIF(r.route_name,''), tr.route_id) ASC");
 if (!$stmt) {

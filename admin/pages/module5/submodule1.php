@@ -31,7 +31,9 @@ $routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)
 $allRoutes = [];
 $hasRoutesTable = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' LIMIT 1");
 if ($hasRoutesTable && $hasRoutesTable->fetch_row()) {
-  $resRoutes = $db->query("SELECT route_id, route_code, route_name, vehicle_type, origin, destination FROM routes ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC LIMIT 2000");
+  $hasRouteStatus = (bool)($db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME='status' LIMIT 1")?->fetch_row());
+  $statusCond = $hasRouteStatus ? " WHERE COALESCE(status,'Active')='Active'" : "";
+  $resRoutes = $db->query("SELECT route_id, route_code, route_name, vehicle_type, origin, destination FROM routes" . $statusCond . " ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC LIMIT 2000");
   if ($resRoutes) {
     while ($r = $resRoutes->fetch_assoc()) {
       $rid = trim((string)($r['route_id'] ?? ''));
