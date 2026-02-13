@@ -28,6 +28,10 @@ $vdHasVehicleId = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'v
 $vdHasPlate = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'plate_number');
 $orcrCond = "LOWER(vd.doc_type) IN ('or','cr')";
 $docsHasExpiry = tmm_has_column_mod1_sub2($db, $schema, 'documents', 'expiry_date');
+$vdHasIsVerified = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'is_verified');
+$vdHasVerifiedLegacy = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'verified');
+$vdHasExpiry = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'expiry_date');
+$vdVerifiedCol = $vdHasIsVerified ? 'is_verified' : ($vdHasVerifiedLegacy ? 'verified' : '');
 
 $statTotalVeh = (int) ($db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0);
 $statLinkedVeh = (int) ($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NOT NULL AND operator_id>0")->fetch_assoc()['c'] ?? 0);
@@ -88,6 +92,34 @@ if ($vdHasVehicleId && $vdHasPlate) {
   $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.plate_number=v.plate_number AND $orcrCond) AS has_orcr";
 }
 
+$vdMatch = "1=0";
+if ($vdHasVehicleId && $vdHasPlate) {
+  $vdMatch = "(vd2.vehicle_id=v.id OR ((vd2.vehicle_id IS NULL OR vd2.vehicle_id=0) AND vd2.plate_number=v.plate_number))";
+} elseif ($vdHasVehicleId) {
+  $vdMatch = "vd2.vehicle_id=v.id";
+} elseif ($vdHasPlate) {
+  $vdMatch = "vd2.plate_number=v.plate_number";
+}
+$vdVerifiedExpr = $vdVerifiedCol !== '' ? "COALESCE(vd2.$vdVerifiedCol,0)" : "0";
+$expiredExpr = $vdHasExpiry ? "MAX(CASE WHEN UPPER(vd2.doc_type) IN ('OR','INSURANCE') AND vd2.expiry_date IS NOT NULL AND vd2.expiry_date < CURDATE() THEN 1 ELSE 0 END)" : "0";
+$docuStatusExpr = ($vdHasVehicleId || $vdHasPlate) ? "(SELECT
+  CASE
+    WHEN MAX(CASE WHEN UPPER(vd2.doc_type)='CR' THEN 1 ELSE 0 END)=0
+      OR MAX(CASE WHEN UPPER(vd2.doc_type)='OR' THEN 1 ELSE 0 END)=0
+      OR MAX(CASE WHEN UPPER(vd2.doc_type)='INSURANCE' THEN 1 ELSE 0 END)=0
+    THEN 'Pending Upload'
+    WHEN $expiredExpr=1 THEN 'Expired'
+    WHEN MAX(CASE WHEN UPPER(vd2.doc_type)='CR' THEN $vdVerifiedExpr ELSE 0 END)=1
+      AND MAX(CASE WHEN UPPER(vd2.doc_type)='OR' THEN $vdVerifiedExpr ELSE 0 END)=1
+      AND MAX(CASE WHEN UPPER(vd2.doc_type)='INSURANCE' THEN $vdVerifiedExpr ELSE 0 END)=1
+    THEN 'Verified'
+    ELSE 'For Review'
+  END
+  FROM vehicle_documents vd2
+  WHERE $vdMatch
+)" : "'-'";
+$docuStatusSql = $docuStatusExpr . " AS docu_status";
+
 $sql = "SELECT v.id AS vehicle_id,
                v.plate_number,
                v.vehicle_type,
@@ -106,7 +138,8 @@ $sql = "SELECT v.id AS vehicle_id,
                vr.orcr_no,
                vr.orcr_date,
                fa.status AS franchise_app_status,
-               $hasOrcrSql
+               $hasOrcrSql,
+               $docuStatusSql
         FROM vehicles v
         LEFT JOIN operators o ON o.id=v.operator_id";
 $sql .= " LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id";
@@ -140,7 +173,15 @@ if ($recordStatus !== '' && $recordStatus !== 'Record status') {
   }
 }
 if ($status !== '' && $status !== 'Status') {
-  if ($status === 'Linked') {
+  if (strncmp($status, 'DOCU ', 5) === 0) {
+    $want = trim(substr($status, 5));
+    $allowed = ['Pending Upload','For Review','Verified','Expired'];
+    if (in_array($want, $allowed, true)) {
+      $conds[] = $docuStatusExpr . "=?";
+      $params[] = $want;
+      $types .= 's';
+    }
+  } elseif ($status === 'Linked') {
     $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
   } elseif ($status === 'Unlinked') {
     $conds[] = "(v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
@@ -374,7 +415,7 @@ $typesList = vehicle_types();
           <select name="status"
             class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active','Archived'] as $s): ?>
+            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active','Archived','DOCU Pending Upload','DOCU For Review','DOCU Verified','DOCU Expired'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
@@ -409,7 +450,7 @@ $typesList = vehicle_types();
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Status</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Record</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Created</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">DOCU</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
         </thead>
@@ -458,6 +499,15 @@ $typesList = vehicle_types();
                 default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
               };
               $hasOrcr = (int) ($row['has_orcr'] ?? 0) > 0;
+              $docu = trim((string)($row['docu_status'] ?? ''));
+              if ($docu === '') $docu = '-';
+              $badgeDocu = match ($docu) {
+                'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                'For Review' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                'Expired' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                'Pending Upload' => 'bg-sky-100 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-500/20',
+                default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300'
+              };
               ?>
               <tr
                 class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>"
@@ -483,8 +533,8 @@ $typesList = vehicle_types();
                 <td class="py-4 px-4">
                   <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeRs; ?>"><?php echo htmlspecialchars($rs); ?></span>
                 </td>
-                <td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">
-                  <?php echo htmlspecialchars(date('M d, Y', strtotime((string) ($row['created_at'] ?? 'now')))); ?>
+                <td class="py-4 px-4 hidden sm:table-cell">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badgeDocu; ?>"><?php echo htmlspecialchars($docu); ?></span>
                 </td>
                 <td class="py-4 px-4 text-right">
                   <div
@@ -1138,7 +1188,7 @@ $typesList = vehicle_types();
                   </div>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
-                    <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123456">
+                    <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   </div>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
@@ -1146,12 +1196,12 @@ $typesList = vehicle_types();
                   </div>
                   <div class="sm:col-span-2">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
-                    <input name="registration_year" inputmode="numeric" maxlength="4" pattern="^\\d{4}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
+                    <input name="registration_year" inputmode="numeric" maxlength="4" pattern="^\\d{4}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
                   </div>
-                  <div class="sm:col-span-2 hidden" id="orExpiryWrap">
+                  <div class="sm:col-span-2" id="orExpiryWrap">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
-                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required when uploading an OR.</div>
+                    <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
+                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-generated: OR Date + 1 year.</div>
                   </div>
                 </div>
               </div>
@@ -1249,6 +1299,33 @@ $typesList = vehicle_types();
         const orInput = body.querySelector('input[name="or"]');
         const orExpiryWrap = body.querySelector('#orExpiryWrap');
         const orExpiryInput = body.querySelector('input[name="or_expiry_date"]');
+        const orDateInput = body.querySelector('input[name="or_date"]');
+        const regYearInput = body.querySelector('input[name="registration_year"]');
+
+        const toYmd = (d) => {
+          const yyyy = String(d.getFullYear()).padStart(4, '0');
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
+        const computeOrExpiry = () => {
+          if (!orExpiryInput) return;
+          const raw = (orDateInput ? orDateInput.value : '').toString().trim();
+          if (!raw) { orExpiryInput.value = ''; return; }
+          const base = new Date(raw + 'T00:00:00');
+          if (isNaN(base.getTime())) { orExpiryInput.value = ''; return; }
+          const exp = new Date(base.getTime());
+          exp.setFullYear(exp.getFullYear() + 1);
+          orExpiryInput.value = toYmd(exp);
+        };
+        const computeRegYear = () => {
+          if (!regYearInput) return;
+          const raw = (orDateInput ? orDateInput.value : '').toString().trim();
+          if (!raw) { regYearInput.value = ''; return; }
+          const base = new Date(raw + 'T00:00:00');
+          if (isNaN(base.getTime())) { regYearInput.value = ''; return; }
+          regYearInput.value = String(base.getFullYear());
+        };
         const syncOrExpiry = () => {
           const hasOr = !!(orInput && orInput.files && orInput.files.length > 0);
           if (orExpiryWrap) orExpiryWrap.classList.remove('hidden');
@@ -1258,11 +1335,16 @@ $typesList = vehicle_types();
               orExpiryInput.removeAttribute('required');
             }
           }
+          if (hasOr) {
+            computeOrExpiry();
+            computeRegYear();
+          }
         };
         if (orInput) orInput.addEventListener('change', syncOrExpiry);
         if (orExpiryInput) orExpiryInput.addEventListener('change', () => { try { orExpiryInput.blur(); } catch (_) {} });
+        if (orDateInput) orDateInput.addEventListener('change', () => { computeOrExpiry(); computeRegYear(); });
         syncOrExpiry();
-
+        computeRegYear();
         const insInput = body.querySelector('input[name="insurance"]');
         const insExpiryInput = body.querySelector('input[name="insurance_expiry_date"]');
         const syncInsExpiry = () => {

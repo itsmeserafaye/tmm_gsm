@@ -71,6 +71,13 @@ if ($insuranceExpiryMeta !== '' && !$isYmd($insuranceExpiryMeta)) {
     exit;
 }
 
+if ($orDate !== '' && $orExpiryMeta === '') {
+    $orExpiryMeta = date('Y-m-d', strtotime($orDate . ' +1 year'));
+}
+if ($regYear === '') {
+    $regYear = $orDate !== '' ? substr($orDate, 0, 4) : '';
+}
+
 $hasMeta = ($orNumber !== '' || $orDate !== '' || $orExpiryMeta !== '' || $regYear !== '' || $insuranceExpiryMeta !== '');
 
 $uploads_dir = __DIR__ . '/../../uploads';
@@ -316,7 +323,12 @@ foreach (['or', 'cr', 'insurance', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
         $expiryForDoc = null;
         if ($field === 'or') {
+            if ($orDate === '') {
+                $errors[] = "$field: or_date_required";
+                continue;
+            }
             $raw = trim((string) ($_POST['or_expiry_date'] ?? ''));
+            if ($raw === '') $raw = $orExpiryMeta;
             if ($raw === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $raw)) {
                 $errors[] = "$field: expiry_date_required";
                 continue;

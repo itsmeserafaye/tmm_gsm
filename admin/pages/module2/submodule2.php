@@ -50,15 +50,6 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-6">
       <form id="formSubmitApp" class="space-y-5" novalidate>
-        <div class="rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 p-4">
-          <label class="flex items-start gap-3">
-            <input id="assistedWalkin" type="checkbox" class="mt-1 w-4 h-4">
-            <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              Assisted encoding (walk-in)
-              <div class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">Enable when staff is encoding for a walk-in operator without device access.</div>
-            </div>
-          </label>
-        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
@@ -259,8 +250,7 @@ if ($rootUrl === '/') $rootUrl = '';
           else post.append('route_id', String(pickId));
           post.append('vehicle_count', String(vehicleCount));
           post.append('representative_name', (fd.get('representative_name') || '').toString());
-          const assisted = document.getElementById('assistedWalkin');
-          post.append('assisted', assisted && assisted.checked ? '1' : '0');
+          post.append('assisted', '1');
           const fleetFile = form.querySelector('input[name="declared_fleet_doc"]');
           if (fleetFile && fleetFile.files && fleetFile.files[0]) {
             post.append('declared_fleet_doc', fleetFile.files[0]);
