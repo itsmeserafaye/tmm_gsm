@@ -64,6 +64,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="flex items-center gap-2">
               <a id="vehCrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View CR</a>
               <a id="vehOrLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View OR</a>
+              <a id="vehInsLink" href="#" target="_blank" class="hidden px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold">View Insurance</a>
             </div>
           </div>
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -167,6 +168,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehOwner = document.getElementById('vehOwner');
     const vehCrLink = document.getElementById('vehCrLink');
     const vehOrLink = document.getElementById('vehOrLink');
+    const vehInsLink = document.getElementById('vehInsLink');
     const orNumber = document.getElementById('orNumber');
     const orDate = document.getElementById('orDate');
     const orExpiry = document.getElementById('orExpiry');
@@ -207,9 +209,12 @@ if ($rootUrl === '/') $rootUrl = '';
       return vehDropdownPanel && !vehDropdownPanel.classList.contains('hidden');
     }
 
+    let existingOrPath = '';
+    let existingInsPath = '';
+
     function computeStatus() {
       const exp = (orExpiry && orExpiry.value) ? String(orExpiry.value) : '';
-      const hasOrFile = !!(orFile && orFile.files && orFile.files.length > 0);
+      const hasOrFile = !!(orFile && orFile.files && orFile.files.length > 0) || !!existingOrPath;
       const hasMeta = !!((orNumber && orNumber.value && orNumber.value.trim() !== '') || (orDate && orDate.value && orDate.value.trim() !== ''));
       const today = new Date();
       const todayYmd = today.toISOString().slice(0, 10);
@@ -256,6 +261,7 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       if (vehOrLink) {
         const fp = String(r.or_file_path || '');
+        existingOrPath = fp;
         if (fp) {
           vehOrLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
           vehOrLink.classList.remove('hidden');
@@ -263,6 +269,23 @@ if ($rootUrl === '/') $rootUrl = '';
           vehOrLink.classList.add('hidden');
         }
       }
+      if (vehInsLink) {
+        const fp = String(r.insurance_file_path || '');
+        existingInsPath = fp;
+        if (fp) {
+          vehInsLink.href = rootUrl + '/admin/uploads/' + encodeURIComponent(fp);
+          vehInsLink.classList.remove('hidden');
+        } else {
+          vehInsLink.classList.add('hidden');
+        }
+      }
+      
+      const lblOr = document.querySelector('label[for="orFile"]');
+      if (lblOr) lblOr.innerHTML = existingOrPath ? 'Upload OR <span class="text-emerald-600 text-xs ml-1">(File exists)</span>' : 'Upload OR';
+      
+      const lblIns = document.querySelector('label[for="insFile"]');
+      if (lblIns) lblIns.innerHTML = existingInsPath ? 'Upload Insurance (CTPL) <span class="text-emerald-600 text-xs ml-1">(File exists)</span>' : 'Upload Insurance (CTPL)';
+
       if (orNumber) orNumber.value = String(r.or_number || '');
       if (orDate) orDate.value = String(r.or_date || '');
       if (orExpiry) orExpiry.value = String(r.or_expiry_date || '');

@@ -92,6 +92,7 @@ if (!$row) {
 $plate = (string)($row['plate_number'] ?? '');
 $crFile = '';
 $orFile = '';
+$insuranceFile = '';
 $hasDocs = $hasTable('documents');
 $hasExpiry = $hasDocs ? $hasCol('documents', 'expiry_date') : false;
 $hasUploadedAt = $hasDocs ? $hasCol('documents', 'uploaded_at') : false;
@@ -102,7 +103,7 @@ if ($hasUploadedAt) $orderParts[] = "uploaded_at DESC";
 if ($hasId) $orderParts[] = "id DESC";
 $orderSql = $orderParts ? (" ORDER BY " . implode(", ", $orderParts)) : "";
 
-$stmtDoc = $hasDocs ? $db->prepare("SELECT type, file_path" . ($hasExpiry ? ", expiry_date" : "") . " FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or')" . $orderSql) : null;
+$stmtDoc = $hasDocs ? $db->prepare("SELECT type, file_path" . ($hasExpiry ? ", expiry_date" : "") . " FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or','insurance')" . $orderSql) : null;
 if ($stmtDoc) {
   $stmtDoc->bind_param('s', $plate);
   $stmtDoc->execute();
@@ -111,9 +112,45 @@ if ($stmtDoc) {
     $t = strtolower((string)($d['type'] ?? ''));
     if ($t === 'cr' && $crFile === '') $crFile = (string)($d['file_path'] ?? '');
     if ($t === 'or' && $orFile === '') $orFile = (string)($d['file_path'] ?? '');
-    if ($crFile !== '' && $orFile !== '') break;
+    if ($t === 'insurance' && $insuranceFile === '') $insuranceFile = (string)($d['file_path'] ?? '');
   }
   $stmtDoc->close();
+}
+
+// Fallback to vehicle_documents if missing
+if (($crFile === '' || $orFile === '' || $insuranceFile === '') && $hasTable('vehicle_documents')) {
+    $vdCols = $db->query("SHOW COLUMNS FROM vehicle_documents");
+    $cols = [];
+    while ($vdCols && ($r = $vdCols->fetch_assoc())) {
+        $cols[strtolower((string)($r['Field'] ?? ''))] = true;
+    }
+    $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
+    $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
+    $pathCol = isset($cols['file_path']) ? 'file_path' : null;
+    $dateCol = isset($cols['uploaded_at']) ? 'uploaded_at' : null;
+    
+    if ($idCol && $typeCol && $pathCol) {
+        $orderSql2 = $dateCol ? " ORDER BY $dateCol DESC" : " ORDER BY $pathCol DESC";
+        $sql = "SELECT {$typeCol} AS t, {$pathCol} AS fp FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol}) IN ('CR','OR','INSURANCE') $orderSql2";
+        $stmt2 = $db->prepare($sql);
+        if ($stmt2) {
+            if ($idCol === 'vehicle_id') $stmt2->bind_param('i', $vehicleId);
+            else $stmt2->bind_param('s', $plate);
+            
+            $stmt2->execute();
+            $res2 = $stmt2->get_result();
+            while ($res2 && ($d = $res2->fetch_assoc())) {
+                $t = strtoupper(trim((string)($d['t'] ?? '')));
+                $fp = trim((string)($d['fp'] ?? ''));
+                if ($fp === '') continue;
+                
+                if ($t === 'CR' && $crFile === '') $crFile = $fp;
+                elseif ($t === 'OR' && $orFile === '') $orFile = $fp;
+                elseif ($t === 'INSURANCE' && $insuranceFile === '') $insuranceFile = $fp;
+            }
+            $stmt2->close();
+        }
+    }
 }
 
 $ownerFallback = trim((string)($row['registered_owner'] ?? ''));
@@ -146,5 +183,6 @@ echo json_encode(['ok' => true, 'data' => [
     'or_expiry_date' => (string)($row['or_expiry_date'] ?? ''),
     'registration_year' => (string)($row['registration_year'] ?? ''),
     'or_file_path' => $orFile,
+    'insurance_file_path' => $insuranceFile,
   ],
 ]]);
