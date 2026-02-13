@@ -10,7 +10,11 @@ $q = trim((string)($_GET['q'] ?? ''));
 $resultFilter = trim((string)($_GET['result'] ?? ''));
 
 $schedules = [];
-$resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at FROM inspection_schedules WHERE status IN ('Scheduled','Rescheduled','Completed') ORDER BY COALESCE(schedule_date, scheduled_at) DESC LIMIT 500");
+$resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at
+                    FROM inspection_schedules
+                    WHERE status IN ('Scheduled','Rescheduled','Pending Verification','Pending Assignment','Overdue','Overdue / No-Show','Completed')
+                    ORDER BY COALESCE(schedule_date, scheduled_at) DESC
+                    LIMIT 500");
 if ($resS) while ($r = $resS->fetch_assoc()) $schedules[] = $r;
 
 $conductedRows = [];
@@ -155,6 +159,8 @@ if ($rootUrl === '/') $rootUrl = '';
                   $dt = (string)($s['schedule_date'] ?? $s['scheduled_at'] ?? '');
                   $label = 'SCH-' . $sid . ' • ' . (string)($s['plate_number'] ?? '');
                   if ($dt !== '') $label .= ' • ' . date('M d, Y H:i', strtotime($dt));
+                  $st = (string)($s['status'] ?? '');
+                  if ($st !== '') $label .= ' • ' . $st;
                 ?>
                 <option value="<?php echo $sid; ?>" <?php echo ($scheduleId > 0 && $scheduleId === $sid) ? 'selected' : ''; ?>><?php echo htmlspecialchars($label); ?></option>
               <?php endforeach; ?>

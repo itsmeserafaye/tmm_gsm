@@ -48,7 +48,7 @@ if (!$srow) {
   exit;
 }
 $scheduleStatus = (string)($srow['status'] ?? '');
-$allowedScheduleStatuses = ['Scheduled','Rescheduled','Completed'];
+$allowedScheduleStatuses = ['Scheduled','Rescheduled','Pending Verification','Pending Assignment','Overdue','Overdue / No-Show','Completed'];
 if ($scheduleStatus !== '' && !in_array($scheduleStatus, $allowedScheduleStatuses, true)) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'schedule_not_ready']);

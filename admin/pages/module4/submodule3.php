@@ -205,10 +205,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
             <tr class="text-left text-slate-500 dark:text-slate-400">
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Schedule</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Date/Time</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Inspector</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Details</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Status</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
             </tr>
@@ -240,34 +237,49 @@ if ($rootUrl === '/') $rootUrl = '';
                         : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'));
                 ?>
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
-                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($plate); ?></td>
-                  <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold">
-                    <?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?>
+                  <td class="py-3 px-4">
+                    <div class="font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><?php echo htmlspecialchars($plate !== '' ? $plate : '-'); ?></div>
                   </td>
-                  <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
-                  <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insp !== '' ? $insp : '-'); ?></td>
+                  <td class="py-3 px-4">
+                    <div class="text-sm font-semibold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?></div>
+                    <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?>
+                      <?php if ($insp !== ''): ?>
+                        • <?php echo htmlspecialchars($insp); ?>
+                      <?php endif; ?>
+                    </div>
+                  </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $stBadge; ?>"><?php echo htmlspecialchars($st !== '' ? $st : '-'); ?></span>
+                    <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo $isReady ? 'Ready' : 'Upcoming'; ?></div>
                   </td>
                   <td class="py-3 px-4 text-right">
-                    <div class="flex flex-wrap items-center justify-end gap-2">
+                    <div class="flex items-center justify-end gap-2">
                       <?php if ($isOverdue): ?>
-                        <button type="button" data-open-overdue="1" data-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Needs Action</button>
+                        <button type="button" data-open-overdue="1" data-sid="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" title="Needs action">
+                          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                        </button>
                       <?php endif; ?>
                       <?php if ($isReady && in_array($st, ['Scheduled','Rescheduled'], true)): ?>
-                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">Conduct</a>
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" title="Conduct">
+                          <i data-lucide="check-square" class="w-4 h-4"></i>
+                        </a>
                       <?php endif; ?>
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
+                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
+                        <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                      </a>
                       <?php if (has_permission('module4.inspections.manage')): ?>
-                        <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars($st, ENT_QUOTES); ?>" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-semibold text-xs">Delete</button>
+                        <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars($st, ENT_QUOTES); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
+                          <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
                       <?php endif; ?>
                     </div>
                   </td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No schedules found.</td></tr>
+              <tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">No schedules found.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>
@@ -292,10 +304,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
               <tr class="text-left text-slate-500 dark:text-slate-400">
                 <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Schedule</th>
-                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
-                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Date/Time</th>
-                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Remarks</th>
+                <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Details</th>
                 <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
               </tr>
             </thead>
@@ -310,26 +319,36 @@ if ($rootUrl === '/') $rootUrl = '';
                     $rem = $schHasRemarks ? (string)($r['status_remarks'] ?? '') : '';
                   ?>
                   <tr data-overdue-row="<?php echo $sid; ?>" class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                    <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
-                    <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($plate); ?></td>
-                    <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold">
-                      <?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?>
+                    <td class="py-3 px-4">
+                      <div class="font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></div>
+                      <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><?php echo htmlspecialchars($plate !== '' ? $plate : '-'); ?></div>
                     </td>
-                    <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
-                    <td class="py-3 px-4 hidden lg:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($rem !== '' ? $rem : '-'); ?></td>
+                    <td class="py-3 px-4">
+                      <div class="text-sm font-semibold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?></div>
+                      <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></div>
+                      <?php if ($schHasRemarks && $rem !== ''): ?>
+                        <div class="mt-1 text-xs font-semibold text-rose-700 dark:text-rose-300"><?php echo htmlspecialchars($rem); ?></div>
+                      <?php endif; ?>
+                    </td>
                     <td class="py-3 px-4 text-right">
-                      <div class="flex flex-wrap items-center justify-end gap-2">
-                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">Reschedule</a>
+                      <div class="flex items-center justify-end gap-2">
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
+                          <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                        </a>
                         <?php if (has_permission('module4.inspections.manage')): ?>
-                          <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs">Cancel</button>
-                          <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars((string)($r['status'] ?? ''), ENT_QUOTES); ?>" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 font-semibold text-xs">Delete</button>
+                          <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" title="Cancel">
+                            <i data-lucide="x-circle" class="w-4 h-4"></i>
+                          </button>
+                          <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars((string)($r['status'] ?? ''), ENT_QUOTES); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                          </button>
                         <?php endif; ?>
                       </div>
                     </td>
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No overdue schedules found.</td></tr>
+                <tr><td colspan="3" class="py-10 text-center text-slate-500 font-medium italic">No overdue schedules found.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
@@ -713,8 +732,8 @@ if ($rootUrl === '/') $rootUrl = '';
       const st = (fd.get('list_status') || '').toString().trim();
       if (q) qs.set('q', q);
       if (st) qs.set('list_status', st);
-      scheduledTbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
-      overdueTbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      scheduledTbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
+      overdueTbody.innerHTML = `<tr><td colspan="3" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
       try {
         const res = await fetch(rootUrl + '/admin/api/module4/schedules_table.php?' + qs.toString());
         const data = await res.json().catch(() => null);
@@ -730,7 +749,7 @@ if ($rootUrl === '/') $rootUrl = '';
           history.replaceState(null, '', '?' + urlParams.toString());
         }
       } catch (e) {
-        scheduledTbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-rose-600 font-semibold">Failed to load schedules.</td></tr>`;
+        scheduledTbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-rose-600 font-semibold">Failed to load schedules.</td></tr>`;
       }
     }
 
@@ -796,7 +815,10 @@ if ($rootUrl === '/') $rootUrl = '';
             btn.textContent = 'Reschedule';
           } else {
             showToast('Inspection scheduled.');
-            setTimeout(() => { window.location.href = '?page=module4/submodule4&schedule_id=' + encodeURIComponent(data.schedule_id); }, 500);
+            closeScheduleModal();
+            await reloadSchedulesTable(false);
+            btn.disabled = false;
+            btn.textContent = 'Save';
           }
         } catch (err) {
           const msg = (err && err.message) ? String(err.message) : 'Failed';
