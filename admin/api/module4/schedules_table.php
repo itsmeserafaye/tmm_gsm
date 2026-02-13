@@ -16,11 +16,14 @@ $hasCol = function (string $table, string $col) use ($db): bool {
   return $r && $r->num_rows > 0;
 };
 $schHasRemarks = $hasCol('inspection_schedules', 'status_remarks');
+$resHasOverall = $hasCol('inspection_results', 'overall_status');
 
 $scheduleRows = [];
-$sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt,
+$sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt," .
+               ($resHasOverall ? " ir.overall_status AS inspection_result," : " '' AS inspection_result,") . "
                 COALESCE(NULLIF(s.inspector_label,''), COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''))) AS inspector_name
          FROM inspection_schedules s
+         LEFT JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
          LEFT JOIN officers o ON o.officer_id=s.inspector_id
          WHERE 1=1";
 if ($q !== '') {
@@ -44,7 +47,9 @@ $sqlOCols = [
   "COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt",
 ];
 if ($schHasRemarks) $sqlOCols[] = "s.status_remarks";
+$sqlOCols[] = $resHasOverall ? "ir.overall_status AS inspection_result" : "'' AS inspection_result";
 $sqlO = "SELECT " . implode(", ", $sqlOCols) . " FROM inspection_schedules s
+         LEFT JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
          WHERE s.status IN ('Overdue / No-Show','Overdue')";
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
@@ -69,6 +74,7 @@ if ($scheduleRows) {
     $loc = (string)($r['location'] ?? '');
     $insp = (string)($r['inspector_name'] ?? '');
     $st = (string)($r['status'] ?? '');
+    $insRes = (string)($r['inspection_result'] ?? '');
     $isOverdue = in_array($st, ['Overdue / No-Show','Overdue'], true);
     $isReady = false;
     if ($dt !== '') {
@@ -94,7 +100,9 @@ if ($scheduleRows) {
     if ($isReady && in_array($st, ['Scheduled','Rescheduled'], true)) {
       $scheduledHtml .= '<a href="?page=module4/submodule4&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" title="Conduct"><i data-lucide="check-square" class="w-4 h-4"></i></a>';
     }
-    $scheduledHtml .= '<a href="?page=module4/submodule3&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule"><i data-lucide="calendar-clock" class="w-4 h-4"></i></a>';
+    if (!($st === 'Completed' && $insRes === 'Passed')) {
+      $scheduledHtml .= '<a href="?page=module4/submodule3&schedule_id=' . rawurlencode((string)$sid) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule"><i data-lucide="calendar-clock" class="w-4 h-4"></i></a>';
+    }
     if ($canManage) {
       $scheduledHtml .= '<button type="button" data-delete-sid="' . (int)$sid . '" data-delete-plate="' . $esc($plate) . '" data-delete-status="' . $esc($st) . '" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
     }

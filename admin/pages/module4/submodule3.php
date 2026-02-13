@@ -20,6 +20,7 @@ $hasCol = function (string $table, string $col) use ($db): bool {
 $schHasCorrection = $hasCol('inspection_schedules', 'correction_due_date');
 $schHasRemarks = $hasCol('inspection_schedules', 'status_remarks');
 $schHasOverdueAt = $hasCol('inspection_schedules', 'overdue_marked_at');
+$resHasOverall = $hasCol('inspection_results', 'overall_status');
 
 $edit = null;
 $editVehiclePick = '';
@@ -110,9 +111,11 @@ if ($resI) while ($r = $resI->fetch_assoc()) $inspectors[] = $r;
 
 $listStatus = trim((string)($_GET['list_status'] ?? ''));
 $scheduleRows = [];
-$sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt,
+$sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt," .
+               ($resHasOverall ? " ir.overall_status AS inspection_result," : " '' AS inspection_result,") . "
                 COALESCE(NULLIF(s.inspector_label,''), COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''))) AS inspector_name
          FROM inspection_schedules s
+         LEFT JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
          LEFT JOIN officers o ON o.officer_id=s.inspector_id
          WHERE 1=1";
 if ($q !== '') {
@@ -137,7 +140,9 @@ $sqlOCols = [
 ];
 if ($schHasRemarks) $sqlOCols[] = "s.status_remarks";
 if ($schHasOverdueAt) $sqlOCols[] = "s.overdue_marked_at";
+$sqlOCols[] = $resHasOverall ? "ir.overall_status AS inspection_result" : "'' AS inspection_result";
 $sqlO = "SELECT " . implode(", ", $sqlOCols) . " FROM inspection_schedules s
+         LEFT JOIN inspection_results ir ON ir.schedule_id=s.schedule_id
          WHERE s.status IN ('Overdue / No-Show','Overdue')";
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
@@ -220,6 +225,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   $loc = (string)($r['location'] ?? '');
                   $insp = (string)($r['inspector_name'] ?? '');
                   $st = (string)($r['status'] ?? '');
+                  $insRes = (string)($r['inspection_result'] ?? '');
                   $isOverdue = in_array($st, ['Overdue / No-Show','Overdue'], true);
                   $isReady = false;
                   if ($dt !== '') {
@@ -266,9 +272,11 @@ if ($rootUrl === '/') $rootUrl = '';
                           <i data-lucide="check-square" class="w-4 h-4"></i>
                         </a>
                       <?php endif; ?>
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
-                        <i data-lucide="calendar-clock" class="w-4 h-4"></i>
-                      </a>
+                      <?php if (!($st === 'Completed' && $insRes === 'Passed')): ?>
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
+                          <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                        </a>
+                      <?php endif; ?>
                       <?php if (has_permission('module4.inspections.manage')): ?>
                         <button type="button" data-delete-sid="<?php echo $sid; ?>" data-delete-plate="<?php echo htmlspecialchars($plate, ENT_QUOTES); ?>" data-delete-status="<?php echo htmlspecialchars($st, ENT_QUOTES); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-700/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" title="Delete">
                           <i data-lucide="trash-2" class="w-4 h-4"></i>

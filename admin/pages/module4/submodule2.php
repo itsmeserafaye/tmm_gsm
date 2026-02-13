@@ -102,23 +102,22 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
-              <input name="or_number" id="orNumber" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123456">
+              <input name="or_number" id="orNumber" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
-              <input name="or_date" id="orDate" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <input name="or_date" id="orDate" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
-              <input name="or_expiry_date" id="orExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <input name="or_expiry_date" id="orExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
-              <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
+              <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
             </div>
             <div class="sm:col-span-2">
-              <label for="orFile" class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR</label>
-              <input name="or_file" id="orFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Document</label>
               <div id="orExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                 <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
                   <i data-lucide="file-check" class="w-4 h-4"></i>
@@ -129,11 +128,10 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Expiry Date (CTPL)</label>
-              <input name="insurance_expiry_date" id="insExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <input name="insurance_expiry_date" id="insExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
             </div>
             <div class="sm:col-span-1">
-              <label for="insFile" class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (CTPL)</label>
-              <input name="insurance_file" id="insFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Document (CTPL)</label>
               <div id="insExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                 <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
                   <i data-lucide="file-check" class="w-4 h-4"></i>
@@ -278,6 +276,7 @@ if ($rootUrl === '/') $rootUrl = '';
       if (orDate) orDate.value = String(r.or_date || '');
       if (orExpiry) orExpiry.value = String(r.or_expiry_date || '');
       if (regYear) regYear.value = String(r.registration_year || '');
+      if (insExpiry) insExpiry.value = String(r.insurance_expiry_date || '');
       if (vehInfo) vehInfo.classList.remove('hidden');
       if (regWrap) regWrap.classList.remove('hidden');
       updateStatusHint();

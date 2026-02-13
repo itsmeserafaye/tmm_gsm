@@ -33,6 +33,46 @@ if (!$exists) {
 $vehicleId = (int) ($exists['id'] ?? 0);
 $plate = (string) ($exists['plate_number'] ?? $plate);
 
+$orNumberRaw = (string)($_POST['or_number'] ?? '');
+$orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
+$orNumber = substr($orNumber, 0, 12);
+$orDate = trim((string)($_POST['or_date'] ?? ''));
+$orExpiryMeta = trim((string)($_POST['or_expiry_date'] ?? ''));
+$regYear = trim((string)($_POST['registration_year'] ?? ''));
+$insuranceExpiryMeta = trim((string)($_POST['insurance_expiry_date'] ?? ''));
+
+$isYmd = function (string $v): bool {
+    return $v !== '' && (bool)preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $v);
+};
+
+if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_or_number']);
+    exit;
+}
+if ($orDate !== '' && !$isYmd($orDate)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_or_date']);
+    exit;
+}
+if ($orExpiryMeta !== '' && !$isYmd($orExpiryMeta)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_or_expiry_date']);
+    exit;
+}
+if ($regYear !== '' && !preg_match('/^\d{4}$/', $regYear)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_registration_year']);
+    exit;
+}
+if ($insuranceExpiryMeta !== '' && !$isYmd($insuranceExpiryMeta)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_insurance_expiry_date']);
+    exit;
+}
+
+$hasMeta = ($orNumber !== '' || $orDate !== '' || $orExpiryMeta !== '' || $regYear !== '' || $insuranceExpiryMeta !== '');
+
 $uploads_dir = __DIR__ . '/../../uploads';
 if (!is_dir($uploads_dir)) {
     mkdir($uploads_dir, 0777, true);
@@ -156,7 +196,7 @@ function tmm_try_dedupe_vehicle_docs(mysqli $db, int $vehicleId, string $plate, 
     }
 }
 
-function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, array &$details, string $field): bool
+function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, ?string $expiryDate, array &$errors, array &$details, string $field): bool
 {
     $schema = tmm_vehicle_docs_schema($db);
     if (empty($schema['exists'])) {
@@ -199,16 +239,19 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
     $extraCols = [];
     $extraTypes = '';
     $extraParams = [];
-    if ($idCol === 'vehicle_id' && isset($cols['is_verified'])) {
+    if (($idCol === 'vehicle_id' || $idCol === 'plate_number') && isset($cols['is_verified'])) {
         $extraCols[] = 'is_verified';
-    } elseif ($idCol === 'plate_number' && isset($cols['is_verified'])) {
-        $extraCols[] = 'is_verified';
-    } elseif (isset($cols['verified'])) {
-        $extraCols[] = 'verified';
-    }
-    foreach ($extraCols as $c) {
         $extraTypes .= 'i';
         $extraParams[] = 0;
+    } elseif (isset($cols['verified'])) {
+        $extraCols[] = 'verified';
+        $extraTypes .= 'i';
+        $extraParams[] = 0;
+    }
+    if (isset($cols['expiry_date'])) {
+        $extraCols[] = 'expiry_date';
+        $extraTypes .= 's';
+        $extraParams[] = ($expiryDate !== null && trim($expiryDate) !== '') ? trim($expiryDate) : null;
     }
 
     $sql = "INSERT INTO vehicle_documents ($idCol, $typeCol, $pathCol" . ($extraCols ? (", " . implode(", ", $extraCols)) : "") . ") VALUES (?,?,?" . ($extraCols ? ("," . implode(",", array_fill(0, count($extraCols), "?"))) : "") . ")";
@@ -271,14 +314,22 @@ function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, s
 
 foreach (['or', 'cr', 'insurance', 'others'] as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
-        $orExpiry = null;
+        $expiryForDoc = null;
         if ($field === 'or') {
             $raw = trim((string) ($_POST['or_expiry_date'] ?? ''));
             if ($raw === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $raw)) {
                 $errors[] = "$field: expiry_date_required";
                 continue;
             }
-            $orExpiry = $raw;
+            $expiryForDoc = $raw;
+            tmm_docs_ensure_expiry($db);
+        } elseif ($field === 'insurance') {
+            $raw = trim((string) ($_POST['insurance_expiry_date'] ?? ''));
+            if ($raw === '' || !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $raw)) {
+                $errors[] = "$field: expiry_date_required";
+                continue;
+            }
+            $expiryForDoc = $raw;
             tmm_docs_ensure_expiry($db);
         }
 
@@ -320,7 +371,7 @@ foreach (['or', 'cr', 'insurance', 'others'] as $field) {
         }
 
         // Only insert into vehicle_documents table (not documents table to avoid duplicates)
-        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $errors, $details, $field);
+        $okInsert = tmm_try_insert_vehicle_doc($db, $vehicleId, $plate, $docType, $filename, $expiryForDoc, $errors, $details, $field);
         if (!$okInsert) {
             if (is_file($dest)) {
                 @unlink($dest);
@@ -331,9 +382,45 @@ foreach (['or', 'cr', 'insurance', 'others'] as $field) {
     }
 }
 
+if (empty($errors) && $hasMeta) {
+    $sql = "UPDATE vehicles SET
+              or_number=CASE WHEN ?<>'' THEN ? ELSE or_number END,
+              or_date=CASE WHEN ?<>'' THEN ? ELSE or_date END,
+              or_expiry_date=CASE WHEN ?<>'' THEN ? ELSE or_expiry_date END,
+              registration_year=CASE WHEN ?<>'' THEN ? ELSE registration_year END,
+              insurance_expiry_date=CASE WHEN ?<>'' THEN ? ELSE insurance_expiry_date END
+            WHERE id=?";
+    $stmtM = $db->prepare($sql);
+    if (!$stmtM) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
+        exit;
+    }
+    $stmtM->bind_param(
+        'ssssssssssi',
+        $orNumber, $orNumber,
+        $orDate, $orDate,
+        $orExpiryMeta, $orExpiryMeta,
+        $regYear, $regYear,
+        $insuranceExpiryMeta, $insuranceExpiryMeta,
+        $vehicleId
+    );
+    $ok = $stmtM->execute();
+    $stmtM->close();
+    if (!$ok) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'db_update_failed']);
+        exit;
+    }
+}
+
 if (empty($uploaded) && empty($errors)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'no_files_selected']);
+    if ($hasMeta) {
+        echo json_encode(['ok' => true, 'message' => 'metadata_saved', 'vehicle_id' => $vehicleId, 'plate_number' => $plate]);
+    } else {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'no_files_selected']);
+    }
 } elseif (!empty($errors)) {
     $errOut = [];
     foreach ($errors as $e) {

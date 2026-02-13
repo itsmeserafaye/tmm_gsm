@@ -163,6 +163,18 @@ function db()
   if (!isset($vehCols['or_number'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN or_number VARCHAR(20) DEFAULT NULL");
   }
+  if (!isset($vehCols['or_date'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN or_date DATE DEFAULT NULL");
+  }
+  if (!isset($vehCols['or_expiry_date'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN or_expiry_date DATE DEFAULT NULL");
+  }
+  if (!isset($vehCols['registration_year'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN registration_year VARCHAR(4) DEFAULT NULL");
+  }
+  if (!isset($vehCols['insurance_expiry_date'])) {
+    $conn->query("ALTER TABLE vehicles ADD COLUMN insurance_expiry_date DATE DEFAULT NULL");
+  }
   if (!isset($vehCols['cr_number'])) {
     $conn->query("ALTER TABLE vehicles ADD COLUMN cr_number VARCHAR(20) DEFAULT NULL");
   }
@@ -1527,6 +1539,7 @@ function db()
     vehicle_id INT NOT NULL,
     doc_type ENUM('OR','CR','Insurance','Emission','Others') DEFAULT 'Others',
     file_path VARCHAR(255) NOT NULL,
+    expiry_date DATE DEFAULT NULL,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_verified TINYINT(1) NOT NULL DEFAULT 0,
     verified_by INT DEFAULT NULL,
@@ -1543,6 +1556,9 @@ function db()
   }
   if (!isset($vehDocCols['doc_id']) && isset($vehDocCols['id'])) {
     $conn->query("ALTER TABLE vehicle_documents CHANGE COLUMN id doc_id INT NOT NULL AUTO_INCREMENT");
+  }
+  if (!isset($vehDocCols['expiry_date'])) {
+    $conn->query("ALTER TABLE vehicle_documents ADD COLUMN expiry_date DATE DEFAULT NULL");
   }
   if (isset($vehDocCols['doc_id'])) {
     $colDocId = $conn->query("SHOW COLUMNS FROM vehicle_documents LIKE 'doc_id'");

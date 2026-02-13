@@ -1136,6 +1136,18 @@ $typesList = vehicle_types();
                     <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="or">
                     <div class="file-indicator mt-2 hidden" data-indicator="or"></div>
                   </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
+                    <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123456">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
+                    <input name="or_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
+                    <input name="registration_year" inputmode="numeric" maxlength="4" pattern="^\\d{4}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026">
+                  </div>
                   <div class="sm:col-span-2 hidden" id="orExpiryWrap">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
                     <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
@@ -1153,9 +1165,18 @@ $typesList = vehicle_types();
 
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Insurance</div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (PDF/JPG/PNG)</label>
-                <input name="insurance" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="insurance">
-                <div class="file-indicator mt-2 hidden" data-indicator="insurance"></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Expiry Date</label>
+                    <input name="insurance_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required when uploading insurance.</div>
+                  </div>
+                  <div class="sm:col-span-1">
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Insurance (PDF/JPG/PNG)</label>
+                    <input name="insurance" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="insurance">
+                    <div class="file-indicator mt-2 hidden" data-indicator="insurance"></div>
+                  </div>
+                </div>
               </div>
 
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
@@ -1167,7 +1188,7 @@ $typesList = vehicle_types();
             </div>
             <div class="flex items-center justify-end gap-2 pt-2">
               <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-veh-docs-cancel="1">Close</button>
-              <button id="btnVehDocsSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
+              <button id="btnVehDocsSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
             </div>
           </form>
           <div class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-5">
@@ -1230,18 +1251,30 @@ $typesList = vehicle_types();
         const orExpiryInput = body.querySelector('input[name="or_expiry_date"]');
         const syncOrExpiry = () => {
           const hasOr = !!(orInput && orInput.files && orInput.files.length > 0);
-          if (orExpiryWrap) orExpiryWrap.classList.toggle('hidden', !hasOr);
+          if (orExpiryWrap) orExpiryWrap.classList.remove('hidden');
           if (orExpiryInput) {
             if (hasOr) orExpiryInput.setAttribute('required', 'required');
             else {
               orExpiryInput.removeAttribute('required');
-              orExpiryInput.value = '';
             }
           }
         };
         if (orInput) orInput.addEventListener('change', syncOrExpiry);
         if (orExpiryInput) orExpiryInput.addEventListener('change', () => { try { orExpiryInput.blur(); } catch (_) {} });
         syncOrExpiry();
+
+        const insInput = body.querySelector('input[name="insurance"]');
+        const insExpiryInput = body.querySelector('input[name="insurance_expiry_date"]');
+        const syncInsExpiry = () => {
+          const hasIns = !!(insInput && insInput.files && insInput.files.length > 0);
+          if (insExpiryInput) {
+            if (hasIns) insExpiryInput.setAttribute('required', 'required');
+            else insExpiryInput.removeAttribute('required');
+          }
+        };
+        if (insInput) insInput.addEventListener('change', syncInsExpiry);
+        if (insExpiryInput) insExpiryInput.addEventListener('change', () => { try { insExpiryInput.blur(); } catch (_) {} });
+        syncInsExpiry();
 
 
         async function loadDocs() {
@@ -1323,9 +1356,11 @@ $typesList = vehicle_types();
             e.preventDefault();
             const fd = new FormData(form);
             const hasFiles = ['or', 'cr', 'insurance', 'others'].some((k) => fd.get(k) && fd.get(k).name);
-            if (!hasFiles) { showToast('Select at least one file.', 'error'); return; }
+            const hasMeta = ['or_number','or_date','or_expiry_date','registration_year','insurance_expiry_date']
+              .some((k) => (fd.get(k) || '').toString().trim() !== '');
+            if (!hasFiles && !hasMeta) { showToast('Select at least one file or fill in registration details.', 'error'); return; }
             btnSave.disabled = true;
-            btnSave.textContent = 'Uploading...';
+            btnSave.textContent = 'Saving...';
             try {
               const res = await fetch(rootUrl + '/admin/api/module1/upload_docs.php', { method: 'POST', body: fd });
               const data = await res.json();
@@ -1336,20 +1371,14 @@ $typesList = vehicle_types();
                   : '';
                 throw new Error(extra ? (base + ' ' + extra) : base);
               }
-              showToast('Documents uploaded.');
+              showToast(hasFiles ? 'Documents saved.' : 'Registration details saved.');
               await loadDocs();
-              setTimeout(() => {
-                const params = new URLSearchParams(window.location.search || '');
-                params.set('page', 'puv-database/vehicle-encoding');
-                if (plate) params.set('highlight_plate', plate);
-                window.location.search = params.toString();
-              }, 400);
               btnSave.disabled = false;
-              btnSave.textContent = 'Upload';
+              btnSave.textContent = 'Save';
             } catch (err) {
-              showToast(err.message || 'Upload failed', 'error');
+              showToast(err.message || 'Save failed', 'error');
               btnSave.disabled = false;
-              btnSave.textContent = 'Upload';
+              btnSave.textContent = 'Save';
             }
           });
         }
