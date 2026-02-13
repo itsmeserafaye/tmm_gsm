@@ -2196,6 +2196,27 @@ function db()
     if (!$hasSubmittedAt) $conn->query("ALTER TABLE inspection_results ADD COLUMN submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   }
 
+  // Ensure result_id is Primary Key and AUTO_INCREMENT
+  $checkAI = $conn->query("SHOW COLUMNS FROM inspection_results LIKE 'result_id'");
+  if ($checkAI) {
+    $row = $checkAI->fetch_assoc();
+    $isKey = isset($row['Key']) && ($row['Key'] === 'PRI' || $row['Key'] === 'UNI');
+    $isAuto = isset($row['Extra']) && stripos($row['Extra'], 'auto_increment') !== false;
+
+    if (!$isKey) {
+      // If result_id is not a key, make it PRIMARY
+      // First ensure it's not null (required for PK)
+      $conn->query("ALTER TABLE inspection_results MODIFY COLUMN result_id INT NOT NULL");
+      // Add PK
+      $conn->query("ALTER TABLE inspection_results ADD PRIMARY KEY (result_id)");
+      // Now make it AUTO_INCREMENT
+      $conn->query("ALTER TABLE inspection_results MODIFY COLUMN result_id INT NOT NULL AUTO_INCREMENT");
+    } elseif (!$isAuto) {
+      // If it is a key but not auto_increment
+      $conn->query("ALTER TABLE inspection_results MODIFY COLUMN result_id INT NOT NULL AUTO_INCREMENT");
+    }
+  }
+
   $itemCols = $conn->query("SHOW COLUMNS FROM inspection_checklist_items");
   if ($itemCols) {
     $hasCode = false;
