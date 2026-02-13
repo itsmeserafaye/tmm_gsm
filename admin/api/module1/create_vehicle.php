@@ -265,20 +265,163 @@ try {
         return $filename;
     };
 
+    $vehicleDocsSchema = function () use ($db): array {
+        static $schema = null;
+        if (is_array($schema)) return $schema;
+        $schema = ['exists' => false, 'cols' => [], 'types' => []];
+        $check = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
+        if (!$check || !$check->fetch_row()) return $schema;
+        $schema['exists'] = true;
+        $res = $db->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='vehicle_documents'");
+        if ($res) {
+            while ($r = $res->fetch_assoc()) {
+                $col = (string)($r['COLUMN_NAME'] ?? '');
+                if ($col !== '') $schema['cols'][$col] = true;
+                if ($col !== '') $schema['types'][$col] = (string)($r['COLUMN_TYPE'] ?? '');
+            }
+        }
+        return $schema;
+    };
 
-    $insertDoc = function (string $typeLower, string $filePath, ?string $expiry) use ($db, $plate): void {
+    $tryInsertVehicleDoc = function (int $vehicleId, string $docType, string $filename, ?string $expiryDate) use ($db, $plate, $vehicleDocsSchema): bool {
+        $schema = $vehicleDocsSchema();
+        if (empty($schema['exists'])) return false;
+        $cols = (array)($schema['cols'] ?? []);
+
+        $idCol = null;
+        if (isset($cols['vehicle_id'])) $idCol = 'vehicle_id';
+        elseif (isset($cols['plate_number'])) $idCol = 'plate_number';
+
+        $typeCol = null;
+        if (isset($cols['doc_type'])) $typeCol = 'doc_type';
+        elseif (isset($cols['document_type'])) $typeCol = 'document_type';
+        elseif (isset($cols['type'])) $typeCol = 'type';
+
+        $pathCol = null;
+        if (isset($cols['file_path'])) $pathCol = 'file_path';
+        elseif (isset($cols['document_path'])) $pathCol = 'document_path';
+        elseif (isset($cols['doc_path'])) $pathCol = 'doc_path';
+        elseif (isset($cols['path'])) $pathCol = 'path';
+
+        if ($idCol === null || $typeCol === null || $pathCol === null) return false;
+
+        $extraCols = [];
+        $extraTypes = '';
+        $extraParams = [];
+        if (isset($cols['is_verified'])) {
+            $extraCols[] = 'is_verified';
+            $extraTypes .= 'i';
+            $extraParams[] = 0;
+        } elseif (isset($cols['verified'])) {
+            $extraCols[] = 'verified';
+            $extraTypes .= 'i';
+            $extraParams[] = 0;
+        }
+        if (isset($cols['expiry_date'])) {
+            $extraCols[] = 'expiry_date';
+            $extraTypes .= 's';
+            $extraParams[] = ($expiryDate !== null && trim($expiryDate) !== '') ? trim($expiryDate) : null;
+        }
+
+        $typeMeta = (string)(($schema['types'] ?? [])[$typeCol] ?? '');
+        $enumValues = [];
+        if ($typeMeta !== '' && stripos($typeMeta, "enum(") === 0) {
+            if (preg_match_all("/'([^']*)'/", $typeMeta, $m)) {
+                $enumValues = $m[1] ?? [];
+            }
+        }
+        $variant = $docType;
+        if ($enumValues) {
+            $matched = null;
+            foreach ($enumValues as $ev) {
+                if (strcasecmp($ev, $docType) === 0) { $matched = $ev; break; }
+            }
+            if ($matched !== null) $variant = $matched;
+        }
+
+        $sql = "INSERT INTO vehicle_documents ($idCol, $typeCol, $pathCol" . ($extraCols ? (", " . implode(", ", $extraCols)) : "") . ") VALUES (?,?,?" . ($extraCols ? ("," . implode(",", array_fill(0, count($extraCols), "?"))) : "") . ")";
+        $stmt = $db->prepare($sql);
+        if (!$stmt) throw new Exception('db_prepare_failed');
+
+        $typesBase = ($idCol === 'vehicle_id') ? 'iss' : 'sss';
+        $idVal = ($idCol === 'vehicle_id') ? $vehicleId : $plate;
+        $types = $typesBase . $extraTypes;
+        $params = array_merge([$idVal, $variant, $filename], $extraParams);
+        $stmt->bind_param($types, ...$params);
+        $ok = (bool)$stmt->execute();
+        $stmt->close();
+        if (!$ok) throw new Exception('db_insert_failed');
+        return true;
+    };
+
+    $dedupeVehicleDocs = function (int $vehicleId, string $docType, string $keepFilename) use ($db, $plate, $uploadsDir, $vehicleDocsSchema): void {
+        $schema = $vehicleDocsSchema();
+        if (empty($schema['exists'])) return;
+        $cols = (array)($schema['cols'] ?? []);
+
+        $idCol = null;
+        if (isset($cols['vehicle_id'])) $idCol = 'vehicle_id';
+        elseif (isset($cols['plate_number'])) $idCol = 'plate_number';
+
+        $typeCol = null;
+        if (isset($cols['doc_type'])) $typeCol = 'doc_type';
+        elseif (isset($cols['document_type'])) $typeCol = 'document_type';
+        elseif (isset($cols['type'])) $typeCol = 'type';
+
+        $pathCol = null;
+        if (isset($cols['file_path'])) $pathCol = 'file_path';
+        elseif (isset($cols['document_path'])) $pathCol = 'document_path';
+        elseif (isset($cols['doc_path'])) $pathCol = 'doc_path';
+        elseif (isset($cols['path'])) $pathCol = 'path';
+
+        if ($idCol === null || $typeCol === null || $pathCol === null) return;
+        $idVal = ($idCol === 'vehicle_id') ? $vehicleId : $plate;
+        $typesBase = ($idCol === 'vehicle_id') ? 'iss' : 'sss';
+
+        $paths = [];
+        $stmtS = $db->prepare("SELECT $pathCol AS file_path FROM vehicle_documents WHERE $idCol=? AND $typeCol=? AND $pathCol<>?");
+        if ($stmtS) {
+            $stmtS->bind_param($typesBase, $idVal, $docType, $keepFilename);
+            $stmtS->execute();
+            $res = $stmtS->get_result();
+            while ($res && ($r = $res->fetch_assoc())) {
+                $p = trim((string)($r['file_path'] ?? ''));
+                if ($p !== '') $paths[] = $p;
+            }
+            $stmtS->close();
+        }
+        $stmtD = $db->prepare("DELETE FROM vehicle_documents WHERE $idCol=? AND $typeCol=? AND $pathCol<>?");
+        if ($stmtD) {
+            $stmtD->bind_param($typesBase, $idVal, $docType, $keepFilename);
+            $stmtD->execute();
+            $stmtD->close();
+        }
+        foreach ($paths as $p) {
+            $full = rtrim($uploadsDir, '/\\') . '/' . basename($p);
+            if (is_file($full)) @unlink($full);
+        }
+    };
+
+    $insertDoc = function (int $vehicleId, string $docType, string $filePath, ?string $expiry) use ($db, $plate, $tryInsertVehicleDoc, $dedupeVehicleDocs): void {
+        $ok = $tryInsertVehicleDoc($vehicleId, $docType, $filePath, $expiry);
+        if ($ok) {
+            $dedupeVehicleDocs($vehicleId, $docType, $filePath);
+            return;
+        }
         $hasExpiry = false;
         $r = $db->query("SHOW COLUMNS FROM documents LIKE 'expiry_date'");
         if ($r && $r->num_rows > 0) $hasExpiry = true;
         if ($hasExpiry) {
             $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path, expiry_date) VALUES (?, ?, ?, ?)");
             if (!$stmtD) throw new Exception('db_prepare_failed');
+            $typeLower = strtolower($docType) === 'insurance' ? 'insurance' : strtolower($docType);
             $stmtD->bind_param('ssss', $plate, $typeLower, $filePath, $expiry);
             if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
             $stmtD->close();
         } else {
             $stmtD = $db->prepare("INSERT INTO documents (plate_number, type, file_path) VALUES (?, ?, ?)");
             if (!$stmtD) throw new Exception('db_prepare_failed');
+            $typeLower = strtolower($docType) === 'insurance' ? 'insurance' : strtolower($docType);
             $stmtD->bind_param('sss', $plate, $typeLower, $filePath);
             if (!$stmtD->execute()) { $stmtD->close(); throw new Exception('db_insert_failed'); }
             $stmtD->close();
@@ -286,11 +429,11 @@ try {
     };
 
     $crPath = $moveAndScan($crFile, 'cr');
-    $insertDoc('cr', $crPath, null);
+    $insertDoc($vehicleId, 'CR', $crPath, null);
 
     if ($hasOrUpload) {
         $orPath = $moveAndScan($orFile, 'or');
-        $insertDoc('or', $orPath, $orExpiry !== '' ? $orExpiry : null);
+        $insertDoc($vehicleId, 'OR', $orPath, $orExpiry !== '' ? $orExpiry : null);
     }
 
     $db->commit();

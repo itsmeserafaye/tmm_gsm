@@ -37,6 +37,10 @@ $hasCol = function (string $table, string $col) use ($db, $schema): bool {
 $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
 $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
 $orcrCond = "LOWER(vd.doc_type) IN ('or','cr')";
+$vdHasIsVerified = $hasCol('vehicle_documents', 'is_verified');
+$vdHasVerifiedLegacy = $hasCol('vehicle_documents', 'verified');
+$vdHasExpiry = $hasCol('vehicle_documents', 'expiry_date');
+$vdVerifiedCol = $vdHasIsVerified ? 'is_verified' : ($vdHasVerifiedLegacy ? 'verified' : '');
 $hasOrcrSql = "0 AS has_orcr";
 if ($vdHasVehicleId && $vdHasPlate) {
   $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE (vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number)) AND $orcrCond) AS has_orcr";
@@ -45,6 +49,33 @@ if ($vdHasVehicleId && $vdHasPlate) {
 } elseif ($vdHasPlate) {
   $hasOrcrSql = "(SELECT COUNT(*) FROM vehicle_documents vd WHERE vd.plate_number=v.plate_number AND $orcrCond) AS has_orcr";
 }
+
+$vdMatch = "1=0";
+if ($vdHasVehicleId && $vdHasPlate) {
+  $vdMatch = "(vd2.vehicle_id=v.id OR ((vd2.vehicle_id IS NULL OR vd2.vehicle_id=0) AND vd2.plate_number=v.plate_number))";
+} elseif ($vdHasVehicleId) {
+  $vdMatch = "vd2.vehicle_id=v.id";
+} elseif ($vdHasPlate) {
+  $vdMatch = "vd2.plate_number=v.plate_number";
+}
+$vdVerifiedExpr = $vdVerifiedCol !== '' ? "COALESCE(vd2.$vdVerifiedCol,0)" : "0";
+$expiredExpr = $vdHasExpiry ? "MAX(CASE WHEN UPPER(vd2.doc_type) IN ('OR','INSURANCE') AND vd2.expiry_date IS NOT NULL AND vd2.expiry_date < CURDATE() THEN 1 ELSE 0 END)" : "0";
+$docuStatusExpr = ($vdHasVehicleId || $vdHasPlate) ? "(SELECT
+  CASE
+    WHEN MAX(CASE WHEN UPPER(vd2.doc_type)='CR' THEN 1 ELSE 0 END)=0
+      OR MAX(CASE WHEN UPPER(vd2.doc_type)='OR' THEN 1 ELSE 0 END)=0
+      OR MAX(CASE WHEN UPPER(vd2.doc_type)='INSURANCE' THEN 1 ELSE 0 END)=0
+    THEN 'Pending Upload'
+    WHEN $expiredExpr=1 THEN 'Expired'
+    WHEN MAX(CASE WHEN UPPER(vd2.doc_type)='CR' THEN $vdVerifiedExpr ELSE 0 END)=1
+      AND MAX(CASE WHEN UPPER(vd2.doc_type)='OR' THEN $vdVerifiedExpr ELSE 0 END)=1
+      AND MAX(CASE WHEN UPPER(vd2.doc_type)='INSURANCE' THEN $vdVerifiedExpr ELSE 0 END)=1
+    THEN 'Verified'
+    ELSE 'For Review'
+  END
+  FROM vehicle_documents vd2
+  WHERE $vdMatch
+)" : "'-'";
 
 $sql = "SELECT v.id AS vehicle_id,
                v.plate_number,
@@ -56,7 +87,7 @@ $sql = "SELECT v.id AS vehicle_id,
                  WHEN v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL) THEN 'Encoded'
                  ELSE v.record_status
                END AS record_status_effective,
-               v.created_at,
+               $docuStatusExpr AS docu_status,
                v.inspection_status,
                v.franchise_id,
                vr.registration_status,
@@ -125,6 +156,12 @@ if ($status !== '' && $status !== 'Status') {
     $params[] = $status;
     $types .= 's';
   }
+}
+$docuStatus = trim((string)($_GET['docu_status'] ?? ''));
+if ($docuStatus !== '' && $docuStatus !== 'Docu status') {
+  $sql .= " AND $docuStatusExpr=?";
+  $params[] = $docuStatus;
+  $types .= 's';
 }
 $sql .= " ORDER BY v.created_at DESC LIMIT 300";
 
@@ -200,8 +237,15 @@ if ($res && ($res->num_rows ?? 0) > 0) {
 
     $vehicleId = (int)($row['vehicle_id'] ?? 0);
     $operatorDisplay = (string)($row['operator_display'] ?? '');
-    $createdAt = (string)($row['created_at'] ?? 'now');
-    $createdFmt = $createdAt ? date('M d, Y', strtotime($createdAt)) : '';
+    $docu = trim((string)($row['docu_status'] ?? ''));
+    if ($docu === '') $docu = '-';
+    $badgeDocu = match ($docu) {
+      'Verified' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+      'For Review' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+      'Expired' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+      'Pending Upload' => 'bg-sky-100 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-500/20',
+      default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300'
+    };
 
     $html .= '<tr class="' . $esc($rowClass) . '"' . $rowId . '>';
     $html .= '<td class="py-4 px-6"><div class="font-black text-slate-900 dark:text-white">' . $esc($plateUp) . '</div><div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: ' . (int)$vehicleId . '</div></td>';
@@ -212,7 +256,7 @@ if ($res && ($res->num_rows ?? 0) > 0) {
     $html .= '</td>';
     $html .= '<td class="py-4 px-4 hidden lg:table-cell"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ' . $esc($badgeSt) . '">' . $esc($st) . '</span></td>';
     $html .= '<td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ' . $esc($badgeRs) . '">' . $esc($rs) . '</span></td>';
-    $html .= '<td class="py-4 px-4 text-slate-500 font-medium text-xs hidden sm:table-cell">' . $esc($createdFmt) . '</td>';
+    $html .= '<td class="py-4 px-4 hidden sm:table-cell"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ' . $esc($badgeDocu) . '">' . $esc($docu) . '</span></td>';
     $html .= '<td class="py-4 px-4 text-right"><div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">';
     $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-veh-view="1" data-plate="' . $esc($plateUp) . '" title="View Details"><i data-lucide="eye" class="w-4 h-4"></i></button>';
     if ($canWrite) {

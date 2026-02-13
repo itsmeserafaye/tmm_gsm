@@ -98,7 +98,39 @@ if ($vehicleId > 0) {
       }
       $stmt->close();
     }
-    // Removed duplicate query to documents table to prevent showing documents multiple times
+    $seenPaths = [];
+    foreach ($rows as $r) {
+      $p = trim((string)($r['file_path'] ?? ''));
+      if ($p !== '') $seenPaths[$p] = true;
+    }
+    if (tmm_has_column($db, $schema, 'documents', 'plate_number')) {
+      $docsHasExpiry = tmm_has_column($db, $schema, 'documents', 'expiry_date');
+      $sql2 = "SELECT id, plate_number, type, file_path, uploaded_at, verified AS is_verified" . ($docsHasExpiry ? ", expiry_date" : ", NULL AS expiry_date") . " FROM documents WHERE plate_number=?";
+      $params2 = [$plate];
+      $types2 = 's';
+      if ($type !== '') {
+        $sql2 .= " AND type=?";
+        $params2[] = strtolower($type) === 'orcr' ? 'or' : strtolower($type);
+        $types2 .= 's';
+      }
+      $sql2 .= " ORDER BY uploaded_at DESC";
+      $stmt2 = $db->prepare($sql2);
+      if ($stmt2) {
+        $stmt2->bind_param($types2, ...$params2);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        while ($res2 && ($row = $res2->fetch_assoc())) {
+          $fp = trim((string)($row['file_path'] ?? ''));
+          if ($fp !== '' && isset($seenPaths[$fp])) continue;
+          $row['type'] = strtoupper((string)($row['type'] ?? ''));
+          $row['verified_by'] = null;
+          $row['verified_at'] = null;
+          $row['source'] = 'documents';
+          $rows[] = $row;
+        }
+        $stmt2->close();
+      }
+    }
   } else {
     $useLegacyVehDocs = tmm_has_column($db, $schema, 'vehicle_documents', 'plate_number') && tmm_has_column($db, $schema, 'vehicle_documents', 'file_path');
     if ($useLegacyVehDocs && $plate !== '') {

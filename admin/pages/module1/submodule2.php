@@ -27,6 +27,7 @@ function tmm_has_column_mod1_sub2(mysqli $db, string $schema, string $table, str
 $vdHasVehicleId = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'vehicle_id');
 $vdHasPlate = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'plate_number');
 $orcrCond = "LOWER(vd.doc_type) IN ('or','cr')";
+$orCond = "LOWER(vd.doc_type)='or'";
 $docsHasExpiry = tmm_has_column_mod1_sub2($db, $schema, 'documents', 'expiry_date');
 $vdHasIsVerified = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'is_verified');
 $vdHasVerifiedLegacy = tmm_has_column_mod1_sub2($db, $schema, 'vehicle_documents', 'verified');
@@ -36,21 +37,21 @@ $vdVerifiedCol = $vdHasIsVerified ? 'is_verified' : ($vdHasVerifiedLegacy ? 'ver
 $statTotalVeh = (int) ($db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0);
 $statLinkedVeh = (int) ($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NOT NULL AND operator_id>0")->fetch_assoc()['c'] ?? 0);
 $statUnlinkedVeh = (int) ($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE operator_id IS NULL OR operator_id=0")->fetch_assoc()['c'] ?? 0);
-$statWithOrcr = 0;
+$statWithOr = 0;
 if ($vdHasVehicleId && $vdHasPlate) {
-  $statWithOrcr = (int) ($db->query("SELECT COUNT(DISTINCT v.id) AS c
+  $statWithOr = (int) ($db->query("SELECT COUNT(DISTINCT v.id) AS c
                                     FROM vehicles v
                                     JOIN vehicle_documents vd ON (vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))
-                                    WHERE $orcrCond")->fetch_assoc()['c'] ?? 0);
+                                    WHERE $orCond")->fetch_assoc()['c'] ?? 0);
 } elseif ($vdHasVehicleId) {
-  $statWithOrcr = (int) ($db->query("SELECT COUNT(DISTINCT vehicle_id) AS c FROM vehicle_documents vd WHERE vd.vehicle_id IS NOT NULL AND vd.vehicle_id>0 AND $orcrCond")->fetch_assoc()['c'] ?? 0);
+  $statWithOr = (int) ($db->query("SELECT COUNT(DISTINCT vehicle_id) AS c FROM vehicle_documents vd WHERE vd.vehicle_id IS NOT NULL AND vd.vehicle_id>0 AND $orCond")->fetch_assoc()['c'] ?? 0);
 } elseif ($vdHasPlate) {
-  $statWithOrcr = (int) ($db->query("SELECT COUNT(DISTINCT v.id) AS c
+  $statWithOr = (int) ($db->query("SELECT COUNT(DISTINCT v.id) AS c
                                     FROM vehicles v
                                     JOIN vehicle_documents vd ON vd.plate_number=v.plate_number
-                                    WHERE $orcrCond")->fetch_assoc()['c'] ?? 0);
+                                    WHERE $orCond")->fetch_assoc()['c'] ?? 0);
 }
-$statMissingOrcr = max(0, $statTotalVeh - $statWithOrcr);
+$statMissingOr = max(0, $statTotalVeh - $statWithOr);
 
 $q = trim((string) ($_GET['q'] ?? ''));
 $vehicleType = trim((string) ($_GET['vehicle_type'] ?? ''));
@@ -248,14 +249,14 @@ $typesList = vehicle_types();
         <?php echo number_format($statUnlinkedVeh); ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">With OR/CR</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($statWithOrcr); ?>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">With OR</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo number_format($statWithOr); ?>
       </div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Missing OR/CR</div>
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Missing OR</div>
       <div class="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
-        <?php echo number_format($statMissingOrcr); ?></div>
+        <?php echo number_format($statMissingOr); ?></div>
     </div>
   </div>
 
@@ -1397,7 +1398,7 @@ $typesList = vehicle_types();
       try {
         const fd = new FormData(vehFilterForm);
         const qs = new URLSearchParams();
-        ['q','vehicle_type','record_status','status','highlight_plate'].forEach((k) => {
+        ['q','vehicle_type','record_status','status','docu_status','highlight_plate'].forEach((k) => {
           const v = (fd.get(k) || '').toString().trim();
           if (v !== '') qs.set(k, v);
         });
@@ -1411,7 +1412,7 @@ $typesList = vehicle_types();
         if (pushState) {
           const params = new URLSearchParams();
           params.set('page', 'puv-database/vehicle-encoding');
-          ['q','vehicle_type','record_status','status'].forEach((k) => {
+          ['q','vehicle_type','record_status','status','docu_status'].forEach((k) => {
             const v = (fd.get(k) || '').toString().trim();
             if (v !== '') params.set(k, v);
           });
