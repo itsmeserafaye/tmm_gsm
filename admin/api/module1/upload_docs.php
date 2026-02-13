@@ -89,6 +89,73 @@ function tmm_vehicle_docs_schema(mysqli $db): array
     return $schema;
 }
 
+function tmm_try_dedupe_vehicle_docs(mysqli $db, int $vehicleId, string $plate, string $docType, string $keepFilename, string $uploadsDir): void
+{
+    $schema = tmm_vehicle_docs_schema($db);
+    if (empty($schema['exists']))
+        return;
+    $cols = (array) ($schema['cols'] ?? []);
+
+    $idCol = null;
+    if (isset($cols['vehicle_id']))
+        $idCol = 'vehicle_id';
+    elseif (isset($cols['plate_number']))
+        $idCol = 'plate_number';
+
+    $typeCol = null;
+    if (isset($cols['doc_type']))
+        $typeCol = 'doc_type';
+    elseif (isset($cols['document_type']))
+        $typeCol = 'document_type';
+    elseif (isset($cols['type']))
+        $typeCol = 'type';
+
+    $pathCol = null;
+    if (isset($cols['file_path']))
+        $pathCol = 'file_path';
+    elseif (isset($cols['document_path']))
+        $pathCol = 'document_path';
+    elseif (isset($cols['doc_path']))
+        $pathCol = 'doc_path';
+    elseif (isset($cols['path']))
+        $pathCol = 'path';
+
+    if ($idCol === null || $typeCol === null || $pathCol === null)
+        return;
+
+    $idVal = ($idCol === 'vehicle_id') ? $vehicleId : $plate;
+    $typesBase = ($idCol === 'vehicle_id') ? 'iss' : 'sss';
+
+    $paths = [];
+    $sqlSel = "SELECT $pathCol AS file_path FROM vehicle_documents WHERE $idCol=? AND $typeCol=? AND $pathCol<>?";
+    $stmt = $db->prepare($sqlSel);
+    if ($stmt) {
+        $stmt->bind_param($typesBase, $idVal, $docType, $keepFilename);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($res && ($r = $res->fetch_assoc())) {
+            $p = trim((string) ($r['file_path'] ?? ''));
+            if ($p !== '')
+                $paths[] = $p;
+        }
+        $stmt->close();
+    }
+
+    $sqlDel = "DELETE FROM vehicle_documents WHERE $idCol=? AND $typeCol=? AND $pathCol<>?";
+    $stmtD = $db->prepare($sqlDel);
+    if ($stmtD) {
+        $stmtD->bind_param($typesBase, $idVal, $docType, $keepFilename);
+        $stmtD->execute();
+        $stmtD->close();
+    }
+
+    foreach ($paths as $p) {
+        $full = rtrim($uploadsDir, '/\\') . '/' . basename($p);
+        if (is_file($full))
+            @unlink($full);
+    }
+}
+
 function tmm_try_insert_vehicle_doc(mysqli $db, int $vehicleId, string $plate, string $docType, string $filename, array &$errors, array &$details, string $field): bool
 {
     $schema = tmm_vehicle_docs_schema($db);
@@ -260,6 +327,7 @@ foreach (['or', 'cr', 'insurance', 'others'] as $field) {
             }
             continue;
         }
+        tmm_try_dedupe_vehicle_docs($db, $vehicleId, $plate, $docType, $filename, $uploads_dir);
     }
 }
 

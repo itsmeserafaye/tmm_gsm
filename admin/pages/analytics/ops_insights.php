@@ -44,7 +44,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Declared Fleet (Operator ID)</label>
             <input id="pdfFleetOperatorId" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 12">
           </div>
-          <button type="button" id="btnPdfFleet" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Generate</button>
+          <button type="button" id="btnPdfFleet" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Open Uploaded</button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
@@ -211,18 +211,15 @@ if ($rootUrl === '/') $rootUrl = '';
         if (!opId) { toast('Enter Operator ID.', 'error'); return; }
         btnPdfFleet.disabled = true;
         const old = btnPdfFleet.textContent;
-        btnPdfFleet.textContent = 'Generating...';
+        btnPdfFleet.textContent = 'Opening...';
         try {
-          const fd = new FormData();
-          fd.append('operator_id', String(opId));
-          const res = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd });
+          const res = await fetch(rootUrl + '/admin/api/module1/operator_declared_fleet_latest.php?operator_id=' + encodeURIComponent(String(opId)));
           const data = await res.json().catch(() => null);
-          if (!data || !data.ok) throw new Error((data && (data.message || data.error)) ? String(data.message || data.error) : 'generate_failed');
-          const pdfFile = (data.files && data.files.pdf) ? String(data.files.pdf) : '';
-          if (!pdfFile) throw new Error('pdf_not_generated');
-          const pdfUrl = rootUrl + '/admin/uploads/' + encodeURIComponent(pdfFile);
-          window.open(pdfUrl, '_blank', 'noopener');
-          toast('Declared fleet PDF generated.');
+          if (!data || !data.ok) throw new Error((data && (data.message || data.error)) ? String(data.message || data.error) : 'not_found');
+          const filePath = data.data && data.data.file_path ? String(data.data.file_path) : '';
+          if (!filePath) throw new Error('file_missing');
+          window.open(rootUrl + '/admin/uploads/' + encodeURIComponent(filePath), '_blank', 'noopener');
+          toast('Opened uploaded declared fleet.');
         } catch (e) {
           toast(e.message || 'Failed', 'error');
         } finally {
@@ -375,4 +372,3 @@ if ($rootUrl === '/') $rootUrl = '';
     loadPeakHours();
   })();
 </script>
-

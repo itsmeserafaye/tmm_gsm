@@ -33,7 +33,20 @@ $sql = "SELECT
   MAX(CASE WHEN d.doc_type='SEC' THEN d.is_verified ELSE 0 END) AS sec_verified,
   MAX(CASE WHEN d.doc_type='BarangayCert' THEN d.is_verified ELSE 0 END) AS brgy_verified,
   MAX(CASE WHEN d.doc_type='Others' THEN d.is_verified ELSE 0 END) AS others_verified,
-  GROUP_CONCAT(DISTINCT d.doc_type ORDER BY d.doc_type SEPARATOR ',') AS uploaded_types,
+  GROUP_CONCAT(
+    DISTINCT
+    CASE
+      WHEN TRIM(SUBSTRING_INDEX(COALESCE(d.remarks,''), '|', 1)) <> '' THEN TRIM(SUBSTRING_INDEX(COALESCE(d.remarks,''), '|', 1))
+      WHEN d.doc_type='GovID' THEN 'Valid Government ID'
+      WHEN d.doc_type='BarangayCert' THEN 'Proof of Address'
+      WHEN d.doc_type='CDA' THEN 'CDA'
+      WHEN d.doc_type='SEC' THEN 'SEC'
+      WHEN d.doc_type='Others' THEN 'Others'
+      ELSE d.doc_type
+    END
+    ORDER BY d.doc_type
+    SEPARATOR ', '
+  ) AS uploaded_labels,
   SUM(CASE WHEN d.doc_id IS NULL THEN 0 ELSE 1 END) AS doc_count
 FROM operators o
 LEFT JOIN operator_documents d ON d.operator_id=o.id
@@ -191,17 +204,8 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
                 $govIdKind = $opType === 'Individual' ? tmm_extract_gov_id_kind((string)($row['govid_remarks'] ?? '')) : '';
-                $uploadedRaw = trim((string)($row['uploaded_types'] ?? ''));
-                $uploaded = $uploadedRaw !== '' ? array_values(array_filter(array_map('trim', explode(',', $uploadedRaw)))) : [];
-                $map = function (string $code) use ($govIdKind): string {
-                  if ($code === 'GovID') return $govIdKind !== '' ? ('Government ID (' . $govIdKind . ')') : 'Government ID';
-                  if ($code === 'BarangayCert') return 'Barangay Certificate';
-                  if ($code === 'CDA') return 'CDA';
-                  if ($code === 'SEC') return 'SEC';
-                  if ($code === 'Others') return 'Others';
-                  return $code;
-                };
-                $uploadedText = $uploaded ? implode(', ', array_map($map, $uploaded)) : '-';
+                $uploadedText = trim((string)($row['uploaded_labels'] ?? ''));
+                $uploadedText = $uploadedText !== '' ? $uploadedText : '-';
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="py-4 px-6">
@@ -428,7 +432,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
         Individual: {
           required: [
             { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
           ],
           optional: [
             { name: 'proof_address', docType: 'BarangayCert', label: 'Proof of Address', hint: 'Barangay Clearance or Utility Bill' },
@@ -441,7 +445,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             { name: 'cda_registration', docType: 'CDA', label: 'CDA Registration Certificate', hint: '' },
             { name: 'cda_good_standing', docType: 'CDA', label: 'CDA Certificate of Good Standing', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing application + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
           ],
           optional: [
             { name: 'members_list', docType: 'Others', label: 'List of Members', hint: '' },
@@ -453,7 +457,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             { name: 'sec_certificate', docType: 'SEC', label: 'SEC Certificate of Registration', hint: '' },
             { name: 'corp_articles_bylaws', docType: 'SEC', label: 'Articles of Incorporation / By-laws', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing operation + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Generate from linked vehicles (system-generated report)' },
+            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
           ],
           optional: [
             { name: 'mayors_permit', docType: 'Others', label: "Mayor’s Permit", hint: '' },
@@ -496,22 +500,6 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             : (st === 'Pending Upload'
               ? 'bg-sky-100 text-sky-700 ring-sky-600/20 dark:bg-sky-900/30 dark:text-sky-300 dark:ring-sky-500/20'
               : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20'));
-        if (nm === 'declared_fleet') {
-          return `
-          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-            <label class="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
-              <span>${String(f.label || '')}</span>
-              <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black ring-1 ring-inset ${badge}">${st}</span>
-            </label>
-            <div class="flex items-center gap-2">
-              <button type="button" data-generate-fleet="1" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">Generate Declared Fleet</button>
-              ${docHref ? `<a href="${docHref}" target="_blank" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm">Open Latest</a>` : ``}
-            </div>
-            ${f.hint ? `<div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">${String(f.hint)}</div>` : ``}
-            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Includes linked vehicles, OR/CR & insurance attachments (if uploaded).</div>
-          </div>
-        `;
-        }
         const inputClass = isRequired
           ? 'w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800'
           : 'w-full text-sm';
@@ -630,6 +618,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
       const tabs = Array.from(body.querySelectorAll('[data-doc-tab]'));
       const panes = Array.from(body.querySelectorAll('[data-doc-pane]'));
       const setTab = (key) => {
+        try { body.setAttribute('data-doc-active-tab', key); } catch (_) {}
         tabs.forEach((t) => {
           const k = t.getAttribute('data-doc-tab');
           const active = k === key;
@@ -644,7 +633,8 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
         });
       };
       tabs.forEach((t) => t.addEventListener('click', () => setTab(t.getAttribute('data-doc-tab') || 'uploaded')));
-      setTab(requiredVerified < requiredTotal ? 'upload' : 'uploaded');
+      const preferredTab = (body.getAttribute('data-doc-active-tab') || '').toString();
+      setTab(preferredTab !== '' ? preferredTab : (requiredVerified < requiredTotal ? 'upload' : 'uploaded'));
 
       const govKindSel = body.querySelector('select[name="gov_id_kind"]');
       const govKindOther = body.querySelector('input[name="gov_id_kind_other"]');
@@ -679,6 +669,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
               showToast(next === 'Verified' ? 'Document verified.' : 'Document marked for review.');
               const latest = await loadOperatorDocs(operatorId);
+              try { body.setAttribute('data-doc-active-tab', 'uploaded'); } catch (_) {}
               renderDocs(operatorId, operatorName, latest);
             } catch (err) {
               showToast(err.message || 'Failed', 'error');
@@ -710,182 +701,12 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'reject_failed');
               showToast('Document rejected.');
               const latest = await loadOperatorDocs(operatorId);
+              try { body.setAttribute('data-doc-active-tab', 'uploaded'); } catch (_) {}
               renderDocs(operatorId, operatorName, latest);
             } catch (err) {
               showToast(err.message || 'Failed', 'error');
             }
           });
-        });
-      });
-
-      body.querySelectorAll('[data-generate-fleet="1"]').forEach((b) => {
-        b.addEventListener('click', async () => {
-          const orig = b.textContent;
-          b.disabled = true;
-          b.textContent = 'Generating...';
-          try {
-            const fd = new FormData();
-            fd.append('operator_id', String(operatorId || ''));
-            const res = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (!data || !data.ok) {
-              const code = (data && data.error) ? String(data.error) : 'generate_failed';
-              if (code === 'no_linked_vehicles') throw new Error('No linked vehicles found for this operator.');
-              throw new Error((data && data.message) ? String(data.message) : code);
-            }
-
-            const files = data.files || {};
-            const pdfFile = files.pdf || '';
-            const excelFile = files.excel || '';
-            const token = data.token || '';
-            const rows = Array.isArray(data.rows) ? data.rows : [];
-            const count = rows.length;
-            const previewRows = rows.slice(0, 25);
-            const op = data.operator || {};
-            const sys = data.system || {};
-            const fa = data.franchise_application || {};
-            const summary = data.summary || {};
-            const breakdown = summary.breakdown || {};
-
-            const pdfUrl = pdfFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(pdfFile))) : '';
-            const excelUrl = excelFile ? (rootUrl + '/admin/uploads/' + encodeURIComponent(String(excelFile))) : '';
-
-            const breakdownLines = Object.keys(breakdown).sort((a, b) => {
-              const av = Number(breakdown[a] || 0);
-              const bv = Number(breakdown[b] || 0);
-              if (bv !== av) return bv - av;
-              return String(a).localeCompare(String(b));
-            }).map((k) => `<div class="text-xs font-semibold text-slate-700 dark:text-slate-200">- ${esc(k)}: ${esc(breakdown[k])}</div>`).join('');
-
-            const previewHtml = `
-              <div class="space-y-4">
-                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <div class="text-sm font-black text-slate-900 dark:text-white">Declared Fleet Preview</div>
-                  <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Review the generated file first. Upload is only enabled after preview.</div>
-                  <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                      <div class="font-black text-slate-700 dark:text-slate-200">${esc((sys.lgu_name || sys.name || '').toString()) || 'LGU PUV Management System'}</div>
-                      <div class="mt-1 font-semibold text-slate-600 dark:text-slate-300">DECLARED FLEET REPORT</div>
-                      <div class="mt-2 text-slate-600 dark:text-slate-300">
-                        <div><span class="font-bold">Operator:</span> ${esc(operatorName || op.name || '')}</div>
-                        <div><span class="font-bold">Operator Type:</span> ${esc(op.type || '')}</div>
-                        <div><span class="font-bold">Operator ID:</span> ${esc(op.code || op.id || '')}</div>
-                        ${fa.franchise_ref_number ? `<div><span class="font-bold">Franchise Application ID:</span> ${esc(fa.franchise_ref_number)}</div>` : ``}
-                      </div>
-                    </div>
-                    <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                      <div class="font-black text-slate-700 dark:text-slate-200">Fleet Summary</div>
-                      <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Total Vehicles: ${esc(summary.total_vehicles || count)}</div>
-                      <div class="mt-2 space-y-1">${breakdownLines || `<div class="text-xs font-semibold text-slate-600 dark:text-slate-300">No breakdown data.</div>`}</div>
-                    </div>
-                  </div>
-                  <label class="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    <input type="checkbox" class="mt-0.5 w-4 h-4" data-fleet-confirm="1">
-                    <span>I reviewed the generated file and confirm it is correct.</span>
-                  </label>
-                  <div class="mt-3 flex flex-wrap gap-2">
-                    ${pdfUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${esc(pdfUrl)}" target="_blank">Open PDF</a>` : ``}
-                    ${excelUrl ? `<a class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="${esc(excelUrl)}" target="_blank">Open Excel (CSV)</a>` : ``}
-                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-blue-700 hover:bg-blue-800 text-white transition-colors" data-fleet-upload="pdf" data-fleet-token="${esc(token)}" disabled>Upload PDF to Documents</button>
-                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors" data-fleet-upload="excel" data-fleet-token="${esc(token)}" disabled>Upload Excel to Documents</button>
-                    <button type="button" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" data-fleet-back="1">Back</button>
-                  </div>
-                </div>
-
-                <div class="text-xs font-bold text-slate-600 dark:text-slate-300">Previewing ${esc(previewRows.length)} of ${esc(count)} vehicles</div>
-                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-                  <table class="min-w-full text-xs">
-                    <thead class="bg-slate-50 dark:bg-slate-800/50">
-                      <tr class="text-left">
-                        <th class="px-3 py-2 font-black">Plate</th>
-                        <th class="px-3 py-2 font-black">Type</th>
-                        <th class="px-3 py-2 font-black">Make</th>
-                        <th class="px-3 py-2 font-black">Model</th>
-                        <th class="px-3 py-2 font-black">Year</th>
-                        <th class="px-3 py-2 font-black">Engine</th>
-                        <th class="px-3 py-2 font-black">Chassis</th>
-                        <th class="px-3 py-2 font-black">OR No</th>
-                        <th class="px-3 py-2 font-black">CR No</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
-                      ${previewRows.map((r) => `
-                        <tr>
-                          <td class="px-3 py-2 font-bold">${esc(r.plate_number || '')}</td>
-                          <td class="px-3 py-2">${esc(r.vehicle_type || '')}</td>
-                          <td class="px-3 py-2">${esc(r.make || '')}</td>
-                          <td class="px-3 py-2">${esc(r.model || '')}</td>
-                          <td class="px-3 py-2">${esc(r.year_model || '')}</td>
-                          <td class="px-3 py-2">${esc(r.engine_no || '')}</td>
-                          <td class="px-3 py-2">${esc(r.chassis_no || '')}</td>
-                          <td class="px-3 py-2">${esc(r.or_number || '')}</td>
-                          <td class="px-3 py-2">${esc(r.cr_number || '')}</td>
-                        </tr>
-                      `).join('')}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            `;
-
-            openModal(previewHtml, 'Declared Fleet • ' + operatorName);
-            const confirmEl = body.querySelector('[data-fleet-confirm="1"]');
-            const uploadBtns = Array.from(body.querySelectorAll('[data-fleet-upload]'));
-            const setUploadEnabled = (enabled) => {
-              uploadBtns.forEach((x) => {
-                const fmt = x.getAttribute('data-fleet-upload') || '';
-                if (fmt === 'pdf' && !pdfFile) { x.disabled = true; return; }
-                if (fmt === 'excel' && !excelFile) { x.disabled = true; return; }
-                x.disabled = !enabled;
-              });
-            };
-            setUploadEnabled(false);
-            if (confirmEl) confirmEl.addEventListener('change', () => setUploadEnabled(!!confirmEl.checked));
-            body.querySelectorAll('[data-fleet-upload]').forEach((btnUp) => {
-              btnUp.addEventListener('click', async () => {
-                const fmt = btnUp.getAttribute('data-fleet-upload') || 'pdf';
-                const tok = btnUp.getAttribute('data-fleet-token') || '';
-                const origTxt = btnUp.textContent;
-                btnUp.disabled = true;
-                btnUp.textContent = 'Uploading...';
-                try {
-                  const fd2 = new FormData();
-                  fd2.append('operator_id', String(operatorId || ''));
-                  fd2.append('commit', '1');
-                  fd2.append('token', String(tok || ''));
-                  fd2.append('format', String(fmt || 'pdf'));
-                  const res2 = await fetch(rootUrl + '/admin/api/module1/generate_declared_fleet.php', { method: 'POST', body: fd2 });
-                  const data2 = await res2.json();
-                  if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
-                  showToast('Declared Fleet uploaded (For Review).');
-                  const latest = await loadOperatorDocs(operatorId);
-                  renderDocs(operatorId, operatorName, latest);
-                  if (data2.file_path) {
-                    window.open(rootUrl + '/admin/uploads/' + encodeURIComponent(String(data2.file_path)), '_blank');
-                  }
-                } catch (err2) {
-                  showToast(err2.message || 'Failed', 'error');
-                  btnUp.disabled = false;
-                  btnUp.textContent = origTxt;
-                }
-              });
-            });
-            const backBtn = body.querySelector('[data-fleet-back="1"]');
-            if (backBtn) {
-              backBtn.addEventListener('click', async () => {
-                try {
-                  const latest = await loadOperatorDocs(operatorId);
-                  renderDocs(operatorId, operatorName, latest);
-                } catch (e) {
-                  showToast('Failed to reload documents', 'error');
-                }
-              });
-            }
-          } catch (err) {
-            showToast(err.message || 'Failed', 'error');
-            b.disabled = false;
-            b.textContent = orig;
-          }
         });
       });
 

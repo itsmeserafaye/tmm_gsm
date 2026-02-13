@@ -46,6 +46,74 @@ if (!is_dir($uploadsDir)) {
 $uploaded = [];
 $errors = [];
 
+$deleteExisting = function (string $docType, ?string $label) use ($db, $operatorId, $uploadsDir): void {
+  $docType = (string)$docType;
+  $label = $label !== null ? trim((string)$label) : null;
+
+  $paths = [];
+  if ($docType === 'GovID') {
+    $stmt = $db->prepare("SELECT file_path FROM operator_documents WHERE operator_id=? AND doc_type='GovID'");
+    if ($stmt) {
+      $stmt->bind_param('i', $operatorId);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $p = trim((string)($r['file_path'] ?? ''));
+        if ($p !== '') $paths[] = $p;
+      }
+      $stmt->close();
+    }
+    $stmtD = $db->prepare("DELETE FROM operator_documents WHERE operator_id=? AND doc_type='GovID'");
+    if ($stmtD) {
+      $stmtD->bind_param('i', $operatorId);
+      $stmtD->execute();
+      $stmtD->close();
+    }
+  } elseif ($label !== null && $label !== '') {
+    $like = $label . '%';
+    $stmt = $db->prepare("SELECT file_path FROM operator_documents WHERE operator_id=? AND doc_type=? AND COALESCE(remarks,'') LIKE ?");
+    if ($stmt) {
+      $stmt->bind_param('iss', $operatorId, $docType, $like);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $p = trim((string)($r['file_path'] ?? ''));
+        if ($p !== '') $paths[] = $p;
+      }
+      $stmt->close();
+    }
+    $stmtD = $db->prepare("DELETE FROM operator_documents WHERE operator_id=? AND doc_type=? AND COALESCE(remarks,'') LIKE ?");
+    if ($stmtD) {
+      $stmtD->bind_param('iss', $operatorId, $docType, $like);
+      $stmtD->execute();
+      $stmtD->close();
+    }
+  } elseif ($docType === 'BarangayCert') {
+    $stmt = $db->prepare("SELECT file_path FROM operator_documents WHERE operator_id=? AND doc_type='BarangayCert'");
+    if ($stmt) {
+      $stmt->bind_param('i', $operatorId);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($r = $res->fetch_assoc())) {
+        $p = trim((string)($r['file_path'] ?? ''));
+        if ($p !== '') $paths[] = $p;
+      }
+      $stmt->close();
+    }
+    $stmtD = $db->prepare("DELETE FROM operator_documents WHERE operator_id=? AND doc_type='BarangayCert'");
+    if ($stmtD) {
+      $stmtD->bind_param('i', $operatorId);
+      $stmtD->execute();
+      $stmtD->close();
+    }
+  }
+
+  foreach ($paths as $p) {
+    $full = $uploadsDir . '/' . basename($p);
+    if (is_file($full)) { @unlink($full); }
+  }
+};
+
 $govIdKind = trim((string)($_POST['gov_id_kind'] ?? ''));
 $govIdKindOther = trim((string)($_POST['gov_id_kind_other'] ?? ''));
 $govIdKindOther = preg_replace('/\s+/', ' ', $govIdKindOther);
@@ -66,7 +134,7 @@ $fields = [
   'sec_certificate' => ['type' => 'SEC', 'label' => 'SEC Certificate of Registration'],
   'corp_articles_bylaws' => ['type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws'],
   'board_resolution' => ['type' => 'Others', 'label' => 'Board Resolution'],
-  'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet'],
+  'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet (Planned / Owned Vehicles)'],
   'nbi_clearance' => ['type' => 'Others', 'label' => 'NBI Clearance'],
   'authorization_letter' => ['type' => 'Others', 'label' => 'Authorization Letter'],
   'members_list' => ['type' => 'Others', 'label' => 'List of Members'],
@@ -96,6 +164,8 @@ foreach ($fields as $field => $cfg) {
     $errors[] = "$field: invalid_file_type";
     continue;
   }
+
+  $deleteExisting($docType, $label);
 
   $fieldSlug = preg_replace('/[^a-z0-9]+/i', '_', (string)$field);
   $fieldSlug = trim((string)$fieldSlug, '_');

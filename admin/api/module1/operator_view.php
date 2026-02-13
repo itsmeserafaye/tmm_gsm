@@ -116,59 +116,105 @@ if ($stmtV) {
         </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center justify-between gap-3">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Contact</div>
-              <div id="opInlineMsg" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden"></div>
-            </div>
-            <div id="opInlineEdit" class="mt-3 space-y-3" data-operator-id="<?php echo (int)$operatorId; ?>" data-root-url="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>" data-can-edit="<?php echo $canEdit ? '1' : '0'; ?>">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                  <input data-op-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., 09171234567" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
-                  <input data-op-field="email" data-initial="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="sm:col-span-2">
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
-                  <input data-op-field="address_street" data-initial="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="House / Building / Street" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
-                  <input data-op-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Barangay" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
-                  <input data-op-field="address_city" data-initial="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="City / Municipality" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
-                  <input data-op-field="address_province" data-initial="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Province" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
-                  <input data-op-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Postal Code" <?php echo $canEdit ? '' : 'disabled'; ?>>
-                </div>
-              </div>
-              <?php if (!$canEdit): ?>
-                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Read-only: you don’t have permission to edit this operator.</div>
-              <?php endif; ?>
-              <div class="flex items-center justify-end gap-2 pt-1">
-                <button type="button" id="opInlineCancel" class="hidden px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
-                <button type="button" id="opInlineSave" class="hidden px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Save Changes</button>
-              </div>
-            </div>
+    <details open class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+      <summary class="cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-3">
+        <div class="text-sm font-black text-slate-900 dark:text-white">Contact & Address</div>
+        <div id="opInlineMsg" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden"></div>
+      </summary>
+      <div id="opInlineEdit" class="p-4 pt-0 space-y-4" data-operator-id="<?php echo (int)$operatorId; ?>" data-root-url="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>" data-can-edit="<?php echo $canEdit ? '1' : '0'; ?>">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
+            <input data-op-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., 09171234567" <?php echo $canEdit ? '' : 'disabled'; ?>>
+          </div>
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
+            <input data-op-field="email" data-initial="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com" <?php echo $canEdit ? '' : 'disabled'; ?>>
+          </div>
         </div>
-        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Created</div>
-            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string) ($op['created_at'] ?? '')); ?></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
+            <input data-op-field="address_street" data-initial="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="House / Building / Street" <?php echo $canEdit ? '' : 'disabled'; ?>>
+          </div>
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
+            <input list="opProvList" id="opProv" data-op-field="address_province" data-initial="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type province" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <datalist id="opProvList"></datalist>
+          </div>
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
+            <input list="opCityList" id="opCity" data-op-field="address_city" data-initial="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type city" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <datalist id="opCityList"></datalist>
+          </div>
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+            <input list="opBrgyList" id="opBrgy" data-op-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type barangay" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <datalist id="opBrgyList"></datalist>
+          </div>
+          <div>
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
+            <input list="opPostalList" id="opPostal" data-op-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Postal code" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <datalist id="opPostalList"></datalist>
+          </div>
         </div>
-    </div>
+
+        <?php if (!$canEdit): ?>
+          <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Read-only: you don’t have permission to edit this operator.</div>
+        <?php endif; ?>
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" id="opInlineCancel" class="hidden px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <button type="button" id="opInlineSave" class="hidden px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Save Changes</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+      <summary class="cursor-pointer select-none px-4 py-3">
+        <div class="text-sm font-black text-slate-900 dark:text-white">Record & Approval</div>
+      </summary>
+      <div class="p-4 pt-0 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Record Source</div>
+              <div class="flex flex-wrap items-center gap-2">
+                  <span class="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ring-inset <?php echo $sourceLabel === 'Operator Portal' ? 'bg-indigo-100 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-900/30 dark:text-indigo-400 dark:ring-indigo-500/20' : ($sourceLabel === 'Walk-in' ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20' : 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'); ?>"><?php echo htmlspecialchars($sourceLabel); ?></span>
+                  <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/10"><?php echo htmlspecialchars($whereLabel); ?></span>
+              </div>
+              <div class="mt-3 grid grid-cols-1 gap-2 text-sm">
+                  <div class="flex items-center justify-between gap-3">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Encoded By</div>
+                      <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($submittedBy !== '' ? $submittedBy : '-'); ?></div>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Encoded Time</div>
+                      <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($whenLabel !== '' ? $whenLabel : '-'); ?></div>
+                  </div>
+              </div>
+          </div>
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Approval</div>
+              <div class="grid grid-cols-1 gap-2 text-sm">
+                  <div class="flex items-center justify-between gap-3">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved By</div>
+                      <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($approvedBy !== '' ? $approvedBy : '-'); ?></div>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved At</div>
+                      <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($approvedAt !== '' ? $approvedAt : '-'); ?></div>
+                  </div>
+              </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Created</div>
+              <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string) ($op['created_at'] ?? '')); ?></div>
+          </div>
+        </div>
+      </div>
+    </details>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
@@ -203,7 +249,13 @@ if ($stmtV) {
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <details open class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+      <summary class="cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-3">
+        <div class="text-sm font-black text-slate-900 dark:text-white">Documents & Vehicles</div>
+        <div class="text-xs font-bold text-slate-500"><?php echo (int) count($docs); ?> docs • <?php echo (int) count($vehicles); ?> vehicles</div>
+      </summary>
+      <div class="p-4 pt-0">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
             <div class="flex items-center justify-between mb-3">
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Documents</div>
@@ -270,6 +322,8 @@ if ($stmtV) {
             <?php endif; ?>
         </div>
     </div>
+      </div>
+    </details>
 </div>
 <script>
   (function(){
@@ -303,6 +357,85 @@ if ($stmtV) {
     const reset = () => {
       inputs.forEach((i) => { i.value = i.getAttribute('data-initial') || ''; });
       refresh();
+    };
+
+    const provInput = document.getElementById('opProv');
+    const cityInput = document.getElementById('opCity');
+    const brgyInput = document.getElementById('opBrgy');
+    const postalInput = document.getElementById('opPostal');
+    const provList = document.getElementById('opProvList');
+    const cityList = document.getElementById('opCityList');
+    const brgyList = document.getElementById('opBrgyList');
+    const postalList = document.getElementById('opPostalList');
+
+    const fillList = (dl, items) => {
+      if (!dl) return;
+      dl.innerHTML = (Array.isArray(items) ? items : []).map((x) => `<option value="${String(x || '').replace(/\"/g,'&quot;')}"></option>`).join('');
+    };
+
+    const loadOpts = async (mode, params) => {
+      const qs = new URLSearchParams();
+      qs.set('mode', mode);
+      Object.keys(params || {}).forEach((k) => { if (params[k]) qs.set(k, params[k]); });
+      const res = await fetch(rootUrl + '/admin/api/geo/address_options.php?' + qs.toString());
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) return [];
+      return Array.isArray(data.data) ? data.data : [];
+    };
+
+    const initLocationLists = async () => {
+      try {
+        const provs = await loadOpts('provinces', {});
+        fillList(provList, provs);
+        const p = (provInput && provInput.value) ? provInput.value.trim() : '';
+        if (p) {
+          const cities = await loadOpts('cities', { province: p });
+          fillList(cityList, cities);
+        }
+        const c = (cityInput && cityInput.value) ? cityInput.value.trim() : '';
+        if (p && c) {
+          const brgys = await loadOpts('barangays', { province: p, city: c });
+          fillList(brgyList, brgys);
+          const posts = await loadOpts('postals', { province: p, city: c });
+          fillList(postalList, posts);
+          if (postalInput && (!postalInput.value || postalInput.value.trim() === '') && posts.length === 1) {
+            postalInput.value = posts[0];
+            refresh();
+          }
+        }
+      } catch (_) {}
+    };
+
+    const onProvinceChange = async () => {
+      if (!provInput) return;
+      const p = provInput.value.trim();
+      try {
+        const cities = p ? await loadOpts('cities', { province: p }) : [];
+        fillList(cityList, cities);
+        if (cityInput) cityInput.value = '';
+        if (brgyInput) brgyInput.value = '';
+        if (postalInput) postalInput.value = '';
+        fillList(brgyList, []);
+        fillList(postalList, []);
+        refresh();
+      } catch (_) {}
+    };
+
+    const onCityChange = async () => {
+      const p = provInput ? provInput.value.trim() : '';
+      const c = cityInput ? cityInput.value.trim() : '';
+      try {
+        const brgys = (p && c) ? await loadOpts('barangays', { province: p, city: c }) : [];
+        fillList(brgyList, brgys);
+        const posts = (p && c) ? await loadOpts('postals', { province: p, city: c }) : [];
+        fillList(postalList, posts);
+        if (brgyInput) brgyInput.value = '';
+        if (postalInput) {
+          if (posts.length === 1) postalInput.value = posts[0];
+          else postalInput.value = '';
+        }
+        refresh();
+      } catch (_) {}
     };
 
     inputs.forEach((inp) => {
@@ -344,6 +477,16 @@ if ($stmtV) {
       });
     }
 
+    if (provInput) {
+      provInput.addEventListener('change', onProvinceChange);
+      provInput.addEventListener('blur', onProvinceChange);
+    }
+    if (cityInput) {
+      cityInput.addEventListener('change', onCityChange);
+      cityInput.addEventListener('blur', onCityChange);
+    }
+
+    initLocationLists();
     refresh();
   })();
 </script>
