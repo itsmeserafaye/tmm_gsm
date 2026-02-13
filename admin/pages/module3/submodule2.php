@@ -87,16 +87,11 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Linked Violation (optional)</label>
-                <div class="flex flex-col sm:flex-row gap-2">
-                  <input id="linkedViolationId" name="linked_violation_id" inputmode="numeric" pattern="^[0-9]{0,10}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Violation ID">
-                  <button type="button" id="btnFindViolation" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Find</button>
-                </div>
-                <div id="violationPickPanel" class="mt-2 hidden rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div class="p-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
-                    <input id="violationPickSearch" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search plate/type/location…">
-                  </div>
-                  <div id="violationPickList" class="max-h-64 overflow-y-auto"></div>
-                </div>
+                <input id="linkedViolationSearch" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold mb-2" placeholder="Search violations (plate/type/location)…">
+                <select id="linkedViolationSelect" name="linked_violation_id" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                  <option value="">None</option>
+                </select>
+                <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Only violations not yet recorded in STS are listed. Selecting one auto-fills Fine Amount and Date Issued.</div>
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Verification Notes</label>
@@ -187,11 +182,10 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
     const filterTo = document.getElementById('filterTo');
     const filterQ = document.getElementById('filterQ');
     const btnReload = document.getElementById('btnReload');
-    const linkedViolationId = document.getElementById('linkedViolationId');
-    const btnFindViolation = document.getElementById('btnFindViolation');
-    const pickPanel = document.getElementById('violationPickPanel');
-    const pickSearch = document.getElementById('violationPickSearch');
-    const pickList = document.getElementById('violationPickList');
+    const linkedViolationSearch = document.getElementById('linkedViolationSearch');
+    const linkedViolationSelect = document.getElementById('linkedViolationSelect');
+    const fineAmountEl = formCreate ? formCreate.querySelector('input[name="fine_amount"]') : null;
+    const dateIssuedEl = formCreate ? formCreate.querySelector('input[name="date_issued"]') : null;
  
     function openModal() {
       if (!modal) return;
@@ -201,7 +195,6 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
     function closeModal() {
       if (!modal) return;
       modal.classList.add('hidden');
-      if (pickPanel) pickPanel.classList.add('hidden');
     }
     if (btnOpenModal) btnOpenModal.addEventListener('click', openModal);
     if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
@@ -269,48 +262,54 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
       });
     }
 
-    async function renderViolationPick(q) {
-      if (!pickList) return;
-      pickList.innerHTML = `<div class="p-4 text-sm text-slate-500">Loading…</div>`;
-      const qs = new URLSearchParams();
-      qs.set('workflow_status', 'Pending');
-      if (q && q.trim() !== '') qs.set('q', q.trim());
-      qs.set('limit', '50');
-      const res = await fetch(rootUrl + '/admin/api/module3/violations_list.php?' + qs.toString());
-      const data = await res.json().catch(() => null);
-      if (!data || !data.ok) { pickList.innerHTML = `<div class="p-4 text-sm text-rose-600 font-semibold">Failed.</div>`; return; }
-      const rows = Array.isArray(data.data) ? data.data : [];
-      if (!rows.length) { pickList.innerHTML = `<div class="p-4 text-sm text-slate-500">No pending violations.</div>`; return; }
-      pickList.innerHTML = rows.map((r) => {
-        const id = r.id;
-        const plate = (r.plate_number || '').toString();
-        const type = (r.violation_type || '').toString();
-        const desc = (r.violation_desc || '').toString();
-        const loc = (r.location || '').toString();
-        const dt = (r.violation_date || '').toString();
-        return `<button type="button" data-pick="${esc(id)}" class="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
-          <div class="flex items-center justify-between gap-3">
-            <div class="font-black">${esc(plate)} <span class="text-xs font-semibold text-slate-500">${esc(type)}${desc ? (' • ' + esc(desc)) : ''}</span></div>
-            <div class="text-xs font-semibold text-slate-500">${esc(dt)}</div>
-          </div>
-          <div class="mt-1 text-xs font-semibold text-slate-500">${esc(loc || '-')}</div>
-        </button>`;
-      }).join('');
-      pickList.querySelectorAll('[data-pick]').forEach((b) => {
-        b.addEventListener('click', () => {
-          if (linkedViolationId) linkedViolationId.value = String(b.getAttribute('data-pick') || '');
-          if (pickPanel) pickPanel.classList.add('hidden');
-        });
-      });
+    function formatViolationOption(v) {
+      const id = Number(v.id || 0) || 0;
+      const plate = (v.plate_number || '').toString().toUpperCase();
+      const code = (v.violation_type || '').toString();
+      const desc = (v.violation_desc || '').toString();
+      const loc = (v.location || '').toString();
+      const rawDt = (v.violation_date || '').toString();
+      const date = rawDt ? rawDt.slice(0, 10) : '';
+      const parts = [];
+      if (plate) parts.push(plate);
+      if (code) parts.push(code);
+      if (desc) parts.push(desc);
+      if (loc) parts.push(loc);
+      if (date) parts.push(date);
+      const label = parts.join(' • ');
+      return { id, label, fine: Number(v.fine_amount || 0) || 0, date };
     }
 
-    if (btnFindViolation && pickPanel) {
-      btnFindViolation.addEventListener('click', () => {
-        pickPanel.classList.toggle('hidden');
-        if (!pickPanel.classList.contains('hidden')) renderViolationPick(pickSearch ? pickSearch.value : '');
-      });
+    async function loadUnlinkedViolations(q) {
+      if (!linkedViolationSelect) return;
+      const qs = new URLSearchParams();
+      if ((q || '').toString().trim() !== '') qs.set('q', (q || '').toString().trim());
+      qs.set('limit', '200');
+      const res = await fetch(rootUrl + '/admin/api/module3/unlinked_violations.php?' + qs.toString());
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? String(data.error) : 'violations_load_failed');
+      const rows = Array.isArray(data.data) ? data.data : [];
+      const current = (linkedViolationSelect.value || '').toString();
+      const opts = ['<option value="">None</option>'].concat(rows.map((v) => {
+        const o = formatViolationOption(v);
+        const fine = o.fine ? o.fine.toFixed(2) : '0.00';
+        return `<option value="${esc(o.id)}" data-fine="${esc(fine)}" data-date="${esc(o.date)}">${esc(o.id + ' • ' + o.label)}</option>`;
+      }));
+      linkedViolationSelect.innerHTML = opts.join('');
+      if (current) linkedViolationSelect.value = current;
     }
-    if (pickSearch) pickSearch.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renderViolationPick(pickSearch.value); } });
+
+    function applySelectedViolationMeta() {
+      if (!linkedViolationSelect) return;
+      const opt = linkedViolationSelect.options[linkedViolationSelect.selectedIndex];
+      if (!opt) return;
+      const val = (linkedViolationSelect.value || '').toString().trim();
+      if (val === '') return;
+      const fine = (opt.getAttribute('data-fine') || '').toString();
+      const date = (opt.getAttribute('data-date') || '').toString();
+      if (fineAmountEl && fine) fineAmountEl.value = String(fine);
+      if (dateIssuedEl && date) dateIssuedEl.value = String(date);
+    }
 
     if (btnReload) btnReload.addEventListener('click', loadTickets);
     if (filterStatus) filterStatus.addEventListener('change', loadTickets);
@@ -330,7 +329,9 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
           if (!data || !data.ok) throw new Error((data && data.error) ? String(data.error) : 'save_failed');
           showToast('Saved.');
           formCreate.reset();
-          if (pickPanel) pickPanel.classList.add('hidden');
+          if (linkedViolationSelect) linkedViolationSelect.value = '';
+          if (linkedViolationSearch) linkedViolationSearch.value = '';
+          loadUnlinkedViolations('').catch(() => {});
           loadTickets();
           closeModal();
         } catch (err) {
@@ -341,6 +342,24 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
       });
     }
 
-    loadTickets();
+    let vioDebounce = null;
+    if (linkedViolationSearch) {
+      linkedViolationSearch.addEventListener('input', () => {
+        if (vioDebounce) clearTimeout(vioDebounce);
+        vioDebounce = setTimeout(() => {
+          loadUnlinkedViolations(linkedViolationSearch.value || '').catch(() => {});
+        }, 220);
+      });
+    }
+    if (linkedViolationSelect) {
+      linkedViolationSelect.addEventListener('change', () => {
+        applySelectedViolationMeta();
+      });
+    }
+
+    Promise.resolve()
+      .then(loadTickets)
+      .then(() => loadUnlinkedViolations(''))
+      .catch(() => { showToast('Failed to initialize.', 'error'); });
   })();
 </script>

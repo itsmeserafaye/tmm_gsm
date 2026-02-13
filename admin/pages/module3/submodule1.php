@@ -133,7 +133,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
             <th class="px-5 py-3">Type</th>
             <th class="px-5 py-3">Location</th>
             <th class="px-5 py-3">Status</th>
-            <th class="px-5 py-3">Action</th>
+            <th class="px-5 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="violationsTbody" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
@@ -265,7 +265,13 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
         const loc = (r.location || '').toString();
         const wf = (r.workflow_status || '').toString();
         const ev = (r.evidence_path || '').toString();
-        const evLink = ev ? `<a class="text-blue-700 hover:underline font-bold" target="_blank" href="${esc(rootUrl + '/admin/uploads/' + encodeURIComponent(ev))}">Evidence</a>` : `<span class="text-slate-400">—</span>`;
+        const evLink = ev
+          ? `<a class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="View evidence" target="_blank" href="${esc(rootUrl + '/admin/uploads/' + encodeURIComponent(ev))}">
+               <i data-lucide="paperclip" class="w-4 h-4"></i>
+             </a>`
+          : `<span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-slate-400" title="No evidence">
+               <i data-lucide="paperclip" class="w-4 h-4"></i>
+             </span>`;
         return `<tr>
           <td class="px-5 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${esc(dt)}</td>
           <td class="px-5 py-3 font-black">${esc(plate)}</td>
@@ -274,19 +280,29 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
           <td class="px-5 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${esc(loc || '-')}</td>
           <td class="px-5 py-3 text-xs font-black">${esc(wf)}</td>
           <td class="px-5 py-3">
-            <div class="flex flex-wrap items-center gap-2">
-              ${evLink}
-              <button data-wf="Pending" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">Pending</button>
-              <button data-wf="Verified" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Verify</button>
-              <button data-wf="Closed" data-id="${esc(id)}" class="px-3 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-xs font-bold">Close</button>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+              <div class="flex items-center gap-2">
+                ${evLink}
+              </div>
+              <div class="flex items-center gap-2">
+                <select data-wf-select="1" data-id="${esc(id)}" class="w-full sm:w-44 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                  <option value="Pending" ${wf === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="Verified" ${wf === 'Verified' ? 'selected' : ''}>Verified</option>
+                  <option value="Closed" ${wf === 'Closed' ? 'selected' : ''}>Closed</option>
+                </select>
+                <button data-wf-save="1" data-id="${esc(id)}" class="px-3 py-2 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold whitespace-nowrap">Update</button>
+              </div>
             </div>
           </td>
         </tr>`;
       }).join('');
-      tbody.querySelectorAll('button[data-wf][data-id]').forEach((b) => {
+      if (window.lucide) window.lucide.createIcons();
+      tbody.querySelectorAll('button[data-wf-save="1"][data-id]').forEach((b) => {
         b.addEventListener('click', async () => {
-          const wf = b.getAttribute('data-wf');
           const id = b.getAttribute('data-id');
+          const sel = tbody.querySelector(`select[data-wf-select="1"][data-id="${CSS && CSS.escape ? CSS.escape(String(id)) : String(id)}"]`);
+          const wf = sel ? (sel.value || '') : '';
+          if (!wf) return;
           const remarks = prompt('Remarks (optional):', '');
           const fd = new FormData();
           fd.append('violation_id', String(id));

@@ -651,8 +651,19 @@ if ($rootUrl === '/') $rootUrl = '';
       async function loadRoutes() {
         if (cachedRoutes) return cachedRoutes;
         const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
-        const data = await res.json().catch(() => null);
-        if (!data || !data.ok) throw new Error('routes_load_failed');
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        let data = null;
+        if (ct.includes('application/json')) {
+          data = await res.json().catch(() => null);
+        } else {
+          const txt = await res.text().catch(() => '');
+          const hint = txt ? 'non_json_response' : 'empty_response';
+          throw new Error(hint + (res.status ? (' (HTTP ' + res.status + ')') : ''));
+        }
+        if (!res.ok || !data || !data.ok) {
+          const code = (data && data.error) ? String(data.error) : ('http_' + String(res.status || '0'));
+          throw new Error(code);
+        }
         cachedRoutes = Array.isArray(data.data) ? data.data : [];
         return cachedRoutes;
       }
@@ -690,8 +701,12 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadRoutes();
           const curRouteId = Number((window.__currentRouteId || 0)) || 0;
           renderRoutesList(curRouteId > 0 ? [curRouteId] : []);
-        } catch (_) {
-          if (finalRoutesBox) finalRoutesBox.innerHTML = `<div class="text-sm text-rose-600 font-semibold">Failed to load routes.</div>`;
+        } catch (e) {
+          const msg = (e && e.message) ? String(e.message) : 'routes_load_failed';
+          const pretty = msg === 'forbidden' ? 'No access to routes list (forbidden).'
+            : msg === 'unauthorized' ? 'Session expired. Please reload and log in again.'
+              : msg;
+          if (finalRoutesBox) finalRoutesBox.innerHTML = `<div class="text-sm text-rose-600 font-semibold">Failed to load routes: ${escapeHtml(pretty)}</div>`;
         }
         openFinalizeModal();
       }
