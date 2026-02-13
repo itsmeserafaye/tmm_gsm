@@ -216,7 +216,10 @@ try {
     }
     $resStmt->bind_param('iss', $scheduleId, $overall, $remarks);
     if (!$resStmt->execute()) {
-      throw new Exception('insert_failed');
+      $dbErr = $resStmt->error;
+      $dbErrNo = $resStmt->errno;
+      file_put_contents('c:/xampp/htdocs/tmm/debug_submit.txt', date('Y-m-d H:i:s') . " - Insert Failed: [$dbErrNo] $dbErr\nParams: $scheduleId, $overall, $remarks\n", FILE_APPEND);
+      throw new Exception("insert_failed: [$dbErrNo] $dbErr");
     }
     $resultId = (int)$db->insert_id;
   }
