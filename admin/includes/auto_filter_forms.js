@@ -52,6 +52,7 @@
 
   function trySubmit(form) {
     try {
+      try { sessionStorage.setItem('tmm_scroll_y', String(window.scrollY || 0)); } catch (e0) { }
       if (typeof form.requestSubmit === 'function') {
         form.requestSubmit();
       } else {
@@ -95,6 +96,16 @@
   }
 
   function init() {
+    try {
+      var y = sessionStorage.getItem('tmm_scroll_y');
+      if (y !== null && y !== '') {
+        sessionStorage.removeItem('tmm_scroll_y');
+        var ny = Number(y);
+        if (!isNaN(ny) && ny > 0) {
+          requestAnimationFrame(function () { window.scrollTo(0, ny); });
+        }
+      }
+    } catch (e) { }
     var forms = document.querySelectorAll('form');
     for (var i = 0; i < forms.length; i++) {
       var f = forms[i];

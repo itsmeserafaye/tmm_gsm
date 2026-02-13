@@ -202,12 +202,6 @@ if ($rootUrl === '/') $rootUrl = '';
                 'LGU_CAP' => 'Capacity Label / No Excess Seats',
                 'LGU_CLEAN' => 'Cleanliness / Passenger Area Condition',
               ],
-              'Document Presentation (For Verification Only)' => [
-                'DOC_CR' => 'CR/OR-CR Presented (Ownership Proof)',
-                'DOC_OR' => 'OR Presented (Registration Payment Proof)',
-                'DOC_CMVI' => 'CMVI/PMVIC Certificate Presented (Roadworthiness Test)',
-                'DOC_CTPL' => 'CTPL Insurance Presented (Valid Coverage)',
-              ],
             ];
 
             $legacy = [];
@@ -233,6 +227,7 @@ if ($rootUrl === '/') $rootUrl = '';
             }
             $legacyExtra = [];
             foreach ($legacy as $code => $label) {
+              if (in_array($code, ['DOC_CR','DOC_OR','DOC_CMVI','DOC_CTPL'], true)) continue;
               if (!isset($flat[$code])) $legacyExtra[$code] = $label;
             }
             if ($legacyExtra) {
@@ -286,6 +281,37 @@ if ($rootUrl === '/') $rootUrl = '';
               </div>
             </div>
           <?php endforeach; ?>
+        </div>
+
+        <div class="mt-6">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Document Presentation (Upload)</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-sm font-black text-slate-900 dark:text-white">Certificate of Registration (CR)</div>
+              <div class="mt-2">
+                <input name="doc_cr" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+              </div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-sm font-black text-slate-900 dark:text-white">Official Receipt (OR)</div>
+              <div class="mt-2">
+                <input name="doc_or" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+              </div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-sm font-black text-slate-900 dark:text-white">CMVI / PMVIC Certificate</div>
+              <div class="mt-2">
+                <input name="doc_cmvi" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+              </div>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-sm font-black text-slate-900 dark:text-white">CTPL Insurance</div>
+              <div class="mt-2">
+                <input name="doc_ctpl" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm" required>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-2">Documents are uploaded after the checklist is saved.</div>
         </div>
 
         <div>
@@ -416,11 +442,7 @@ if ($rootUrl === '/') $rootUrl = '';
             'RW_LEAKS',
             'PS_DOORS',
             'SE_EXT',
-            'SE_EWD',
-            'DOC_CR',
-            'DOC_OR',
-            'DOC_CMVI',
-            'DOC_CTPL'
+            'SE_EWD'
           ]);
           const requiredMissing = [];
           const requiredNotPass = [];
@@ -436,6 +458,17 @@ if ($rootUrl === '/') $rootUrl = '';
           });
           const anyFail = Array.from(form.querySelectorAll('select[name^="items["]')).some((s) => (s.value || '') === 'Fail');
           const allPassOrNA = Array.from(form.querySelectorAll('select[name^="items["]')).every((s) => (s.value || '') !== 'Fail');
+          const docMissing = [];
+          ['doc_cr','doc_or','doc_cmvi','doc_ctpl'].forEach((n) => {
+            const inp = form.querySelector('input[name="' + n + '"]');
+            const ok = !!(inp && inp.files && inp.files.length > 0);
+            if (!ok) docMissing.push(n);
+          });
+          if (docMissing.length) {
+            showToast('Upload the required document presentation files before submitting.', 'error');
+            btn.disabled = false; btn.textContent = 'Submit Result';
+            return;
+          }
           if (requiredMissing.length) {
             showToast('Required checklist items cannot be N/A. Please complete: ' + requiredMissing.join(', '), 'error');
             btn.disabled = false; btn.textContent = 'Submit Result';
@@ -462,6 +495,16 @@ if ($rootUrl === '/') $rootUrl = '';
             const data2 = await res2.json();
             if (!data2 || !data2.ok) throw new Error((data2 && data2.error) ? data2.error : 'upload_failed');
           }
+
+          const docsUp = new FormData();
+          docsUp.append('schedule_id', scheduleId);
+          ['doc_cr','doc_or','doc_cmvi','doc_ctpl'].forEach((n) => {
+            const inp = form.querySelector('input[name="' + n + '"]');
+            if (inp && inp.files && inp.files[0]) docsUp.append(n, inp.files[0]);
+          });
+          const dRes = await fetch(rootUrl + '/admin/api/module4/upload_inspection_docs.php', { method: 'POST', body: docsUp });
+          const dData = await dRes.json().catch(() => null);
+          if (!dData || !dData.ok) throw new Error((dData && dData.error) ? dData.error : 'doc_upload_failed');
 
           showToast('Inspection result saved.');
           setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 700);
