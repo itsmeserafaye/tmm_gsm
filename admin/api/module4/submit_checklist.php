@@ -417,7 +417,8 @@ if ($itemStmt) {
   echo json_encode(['ok' => true, 'overall_status' => $overall, 'result_id' => $resultId, 'vehicle_requirements' => $docsOk ?? null]);
 } catch (Throwable $e) {
   $db->rollback();
+  file_put_contents(__DIR__ . '/db_errors.log', date('Y-m-d H:i:s') . " - " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n", FILE_APPEND);
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error']);
+  echo json_encode(['ok' => false, 'error' => 'db_error: ' . $e->getMessage()]);
 }
 ?> 

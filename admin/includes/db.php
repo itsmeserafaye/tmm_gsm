@@ -2179,6 +2179,39 @@ function db()
     INDEX (result_id),
     FOREIGN KEY (result_id) REFERENCES inspection_results(result_id) ON DELETE CASCADE
   ) ENGINE=InnoDB");
+
+  $resCols = $conn->query("SHOW COLUMNS FROM inspection_results");
+  if ($resCols) {
+    $hasOverall = false;
+    $hasRemarks = false;
+    $hasSubmittedAt = false;
+    while ($r = $resCols->fetch_assoc()) {
+      $f = strtolower((string)$r['Field']);
+      if ($f === 'overall_status') $hasOverall = true;
+      if ($f === 'remarks') $hasRemarks = true;
+      if ($f === 'submitted_at') $hasSubmittedAt = true;
+    }
+    if (!$hasOverall) $conn->query("ALTER TABLE inspection_results ADD COLUMN overall_status ENUM('Passed','Failed','Pending','For Reinspection') DEFAULT 'Pending'");
+    if (!$hasRemarks) $conn->query("ALTER TABLE inspection_results ADD COLUMN remarks VARCHAR(255) DEFAULT NULL");
+    if (!$hasSubmittedAt) $conn->query("ALTER TABLE inspection_results ADD COLUMN submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  }
+
+  $itemCols = $conn->query("SHOW COLUMNS FROM inspection_checklist_items");
+  if ($itemCols) {
+    $hasCode = false;
+    $hasLabel = false;
+    $hasStatus = false;
+    while ($r = $itemCols->fetch_assoc()) {
+      $f = strtolower((string)$r['Field']);
+      if ($f === 'item_code') $hasCode = true;
+      if ($f === 'item_label') $hasLabel = true;
+      if ($f === 'status') $hasStatus = true;
+    }
+    if (!$hasCode) $conn->query("ALTER TABLE inspection_checklist_items ADD COLUMN item_code VARCHAR(32)");
+    if (!$hasLabel) $conn->query("ALTER TABLE inspection_checklist_items ADD COLUMN item_label VARCHAR(128)");
+    if (!$hasStatus) $conn->query("ALTER TABLE inspection_checklist_items ADD COLUMN status ENUM('Pass','Fail','NA') DEFAULT 'NA'");
+  }
+
   $conn->query("CREATE TABLE IF NOT EXISTS inspection_certificates (
     cert_id INT AUTO_INCREMENT PRIMARY KEY,
     certificate_number VARCHAR(32) UNIQUE,
