@@ -1,8 +1,12 @@
 <?php
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 header('Content-Type: application/json');
+
+try {
 require_permission('module4.inspect');
 $tmm_norm_plate = function (string $plate): string {
   $p = strtoupper(trim($plate));
@@ -218,7 +222,7 @@ try {
     if (!$resStmt->execute()) {
       $dbErr = $resStmt->error;
       $dbErrNo = $resStmt->errno;
-      file_put_contents('c:/xampp/htdocs/tmm/debug_submit.txt', date('Y-m-d H:i:s') . " - Insert Failed: [$dbErrNo] $dbErr\nParams: $scheduleId, $overall, $remarks\n", FILE_APPEND);
+      @file_put_contents('c:/xampp/htdocs/tmm/debug_submit.txt', date('Y-m-d H:i:s') . " - Insert Failed: [$dbErrNo] $dbErr\nParams: $scheduleId, $overall, $remarks\n", FILE_APPEND);
       throw new Exception("insert_failed: [$dbErrNo] $dbErr");
     }
     $resultId = (int)$db->insert_id;
@@ -419,9 +423,13 @@ if ($itemStmt) {
   $db->commit();
   echo json_encode(['ok' => true, 'overall_status' => $overall, 'result_id' => $resultId, 'vehicle_requirements' => $docsOk ?? null]);
 } catch (Throwable $e) {
-  $db->rollback();
-  file_put_contents(__DIR__ . '/db_errors.log', date('Y-m-d H:i:s') . " - " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n", FILE_APPEND);
+  if (isset($db) && $db instanceof mysqli) {
+      try { $db->rollback(); } catch (Throwable $ex) {}
+  }
+  $msg = $e->getMessage();
+  $trace = $e->getTraceAsString();
+  @file_put_contents('c:/xampp/htdocs/tmm/debug_fatal.txt', date('Y-m-d H:i:s') . " - Error: $msg\n$trace\n", FILE_APPEND);
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error: ' . $e->getMessage()]);
+  echo json_encode(['ok' => false, 'error' => 'db_error: ' . $msg]);
 }
 ?> 
