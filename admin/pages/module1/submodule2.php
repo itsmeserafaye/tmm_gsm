@@ -482,11 +482,13 @@ $typesList = vehicle_types();
                         data-plate="<?php echo htmlspecialchars($plateUp, ENT_QUOTES); ?>" title="Upload / View Docs">
                         <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                       </button>
-                      <a href="?page=puv-database/link-vehicle-to-operator&plate=<?php echo urlencode($plateUp); ?>"
-                        class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center"
-                        title="Link Operator">
-                        <i data-lucide="link-2" class="w-4 h-4"></i>
-                      </a>
+                      <?php if ($st === 'Pending Inspection' && has_permission('module4.schedule')): ?>
+                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'vehicle_id' => (int)($row['vehicle_id'] ?? 0)]); ?>"
+                          class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all inline-flex items-center justify-center"
+                          title="Schedule Inspection">
+                          <i data-lucide="calendar-check" class="w-4 h-4"></i>
+                        </a>
+                      <?php endif; ?>
                     <?php endif; ?>
                   </div>
                 </td>

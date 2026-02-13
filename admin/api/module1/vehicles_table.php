@@ -124,6 +124,7 @@ if ($params) {
 }
 
 $canWrite = has_permission('module1.vehicles.write');
+$canSchedule = has_permission('module4.schedule');
 
 $esc = function ($s): string {
   return htmlspecialchars((string)($s ?? ''), ENT_QUOTES);
@@ -196,7 +197,9 @@ if ($res && ($res->num_rows ?? 0) > 0) {
     $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-veh-view="1" data-plate="' . $esc($plateUp) . '" title="View Details"><i data-lucide="eye" class="w-4 h-4"></i></button>';
     if ($canWrite) {
       $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-veh-docs="1" data-vehicle-id="' . (int)$vehicleId . '" data-plate="' . $esc($plateUp) . '" title="Upload / View Docs"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>';
-      $html .= '<a href="?page=puv-database/link-vehicle-to-operator&plate=' . rawurlencode($plateUp) . '" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all inline-flex items-center justify-center" title="Link Operator"><i data-lucide="link-2" class="w-4 h-4"></i></a>';
+      if ($canSchedule && $st === 'Pending Inspection' && $vehicleId > 0) {
+        $html .= '<a href="?page=module4/submodule3&vehicle_id=' . rawurlencode((string)$vehicleId) . '" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all inline-flex items-center justify-center" title="Schedule Inspection"><i data-lucide="calendar-check" class="w-4 h-4"></i></a>';
+      }
     }
     $html .= '</div></td>';
     $html .= '</tr>';
@@ -207,4 +210,3 @@ if ($res && ($res->num_rows ?? 0) > 0) {
 
 echo json_encode(['ok' => true, 'html' => $html]);
 ?>
-

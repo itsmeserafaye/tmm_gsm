@@ -79,6 +79,47 @@ $inputClass = "block w-full rounded-lg bg-white dark:bg-slate-800 border border-
 $btnClass = "rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
 $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide";
 
+$hasTable = function (string $table) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $r = $db->query("SHOW TABLES LIKE '$t'");
+  return $r && $r->fetch_row();
+};
+$transferRows = [];
+if ($hasTable('vehicle_ownership_transfers')) {
+  $vid = (int)($v['vehicle_id'] ?? 0);
+  if ($vid > 0) {
+    $stmtT = $db->prepare("SELECT
+                             t.transfer_id,
+                             t.status,
+                             t.transfer_type,
+                             t.lto_reference_no,
+                             t.effective_date,
+                             t.reviewed_at,
+                             t.requested_at,
+                             t.created_at,
+                             COALESCE(NULLIF(ofr.registered_name,''), NULLIF(ofr.name,''), ofr.full_name, '') AS from_operator_name,
+                             COALESCE(NULLIF(t.to_operator_name,''), COALESCE(NULLIF(oto.registered_name,''), NULLIF(oto.name,''), oto.full_name), '') AS to_operator_name,
+                             t.deed_of_sale_path,
+                             t.orcr_path,
+                             t.or_path,
+                             t.cr_path,
+                             COALESCE(NULLIF(t.remarks,''), '') AS remarks
+                           FROM vehicle_ownership_transfers t
+                           LEFT JOIN operators ofr ON ofr.id=t.from_operator_id
+                           LEFT JOIN operators oto ON oto.id=t.to_operator_id
+                           WHERE t.vehicle_id=?
+                           ORDER BY COALESCE(t.reviewed_at, t.requested_at, t.created_at) DESC, t.transfer_id DESC
+                           LIMIT 15");
+    if ($stmtT) {
+      $stmtT->bind_param('i', $vid);
+      $stmtT->execute();
+      $resT = $stmtT->get_result();
+      while ($resT && ($r = $resT->fetch_assoc())) $transferRows[] = $r;
+      $stmtT->close();
+    }
+  }
+}
+
 ?>
 
 <div class="space-y-6 animate-in fade-in zoom-in-95 duration-300">
@@ -249,6 +290,84 @@ $labelClass = "block text-xs font-semibold text-slate-500 dark:text-slate-400 mb
                         </form>
                     </div>
                 </div>
+            </div>
+
+            <div class="<?php echo $cardClass; ?>">
+              <div class="<?php echo $cardHeaderClass; ?>">
+                <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <i data-lucide="repeat" class="w-4 h-4 text-blue-500"></i> Ownership Transfer History
+                </h3>
+                <div class="text-xs font-bold text-slate-500 dark:text-slate-400"><?php echo (int)count($transferRows); ?> record(s)</div>
+              </div>
+              <div class="<?php echo $cardBodyClass; ?>">
+                <?php if (!$transferRows): ?>
+                  <div class="text-sm text-slate-500 dark:text-slate-400 italic">No ownership transfer records found for this vehicle.</div>
+                <?php else: ?>
+                  <div class="space-y-3">
+                    <?php foreach ($transferRows as $tr): ?>
+                      <?php
+                        $tst = (string)($tr['status'] ?? '');
+                        if ($tst === '') $tst = 'Pending';
+                        $tBadge = $tst === 'Approved'
+                          ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+                          : ($tst === 'Rejected'
+                            ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20'
+                            : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20');
+                        $fromName = trim((string)($tr['from_operator_name'] ?? ''));
+                        $toName = trim((string)($tr['to_operator_name'] ?? ''));
+                        $ref = trim((string)($tr['lto_reference_no'] ?? ''));
+                        $eff = trim((string)($tr['effective_date'] ?? ''));
+                        $when = trim((string)($tr['reviewed_at'] ?? $tr['requested_at'] ?? $tr['created_at'] ?? ''));
+                        $whenFmt = $when !== '' ? date('M d, Y H:i', strtotime($when)) : '-';
+                        $type = trim((string)($tr['transfer_type'] ?? ''));
+                        $remarks = trim((string)($tr['remarks'] ?? ''));
+                        $files = [
+                          'Deed' => (string)($tr['deed_of_sale_path'] ?? ''),
+                          'OR/CR' => (string)($tr['orcr_path'] ?? ''),
+                          'OR' => (string)($tr['or_path'] ?? ''),
+                          'CR' => (string)($tr['cr_path'] ?? ''),
+                        ];
+                      ?>
+                      <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                              <div class="text-sm font-black text-slate-900 dark:text-white">TR-<?php echo (int)($tr['transfer_id'] ?? 0); ?></div>
+                              <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $tBadge; ?>"><?php echo htmlspecialchars($tst); ?></span>
+                              <?php if ($type !== ''): ?>
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 ring-1 ring-inset ring-slate-200 dark:ring-slate-700 text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($type); ?></span>
+                              <?php endif; ?>
+                            </div>
+                            <div class="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              <span class="text-slate-500 dark:text-slate-400">From:</span> <?php echo htmlspecialchars($fromName !== '' ? $fromName : '-'); ?>
+                            </div>
+                            <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              <span class="text-slate-500 dark:text-slate-400">To:</span> <?php echo htmlspecialchars($toName !== '' ? $toName : '-'); ?>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              <div><span class="font-black uppercase tracking-widest text-[10px] text-slate-500 dark:text-slate-400">When</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($whenFmt); ?></div></div>
+                              <div><span class="font-black uppercase tracking-widest text-[10px] text-slate-500 dark:text-slate-400">Effective</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($eff !== '' ? $eff : '-'); ?></div></div>
+                            </div>
+                            <?php if ($ref !== ''): ?>
+                              <div class="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-300">LTO Ref: <span class="font-bold"><?php echo htmlspecialchars($ref); ?></span></div>
+                            <?php endif; ?>
+                            <?php if ($remarks !== ''): ?>
+                              <div class="mt-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Remarks: <span class="font-bold"><?php echo htmlspecialchars($remarks); ?></span></div>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                          <?php foreach ($files as $lbl => $fp): ?>
+                            <?php if (trim($fp) !== ''): ?>
+                              <a href="<?php echo htmlspecialchars($rootUrl . '/admin/uploads/' . rawurlencode(basename($fp)), ENT_QUOTES); ?>" target="_blank" class="px-3 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><?php echo htmlspecialchars($lbl); ?></a>
+                            <?php endif; ?>
+                          <?php endforeach; ?>
+                        </div>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                <?php endif; ?>
+              </div>
             </div>
 
         </div>
