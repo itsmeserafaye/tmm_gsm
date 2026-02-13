@@ -18,10 +18,10 @@ $resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, sch
 if ($resS) while ($r = $resS->fetch_assoc()) $schedules[] = $r;
 
 $conductedRows = [];
-$sqlC = "SELECT i.inspection_id, i.schedule_id, i.vehicle_id, i.result, i.remarks, i.inspected_at,
-                s.plate_number, s.status AS schedule_status, s.location, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt
-         FROM inspections i
-         JOIN inspection_schedules s ON s.schedule_id=i.schedule_id
+$sqlC = "SELECT r.result_id, r.schedule_id, r.overall_status AS result, r.remarks, r.submitted_at AS inspected_at,
+                s.plate_number, s.status AS schedule_status, s.location, s.vehicle_id, COALESCE(s.schedule_date, s.scheduled_at) AS sched_dt
+         FROM inspection_results r
+         JOIN inspection_schedules s ON s.schedule_id=r.schedule_id
          WHERE 1=1";
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
@@ -29,9 +29,9 @@ if ($q !== '') {
 }
 if ($resultFilter !== '' && in_array($resultFilter, ['Passed','Failed'], true)) {
   $rv = $db->real_escape_string($resultFilter);
-  $sqlC .= " AND i.result='$rv'";
+  $sqlC .= " AND r.overall_status='$rv'";
 }
-$sqlC .= " ORDER BY i.inspected_at DESC, i.inspection_id DESC LIMIT 500";
+$sqlC .= " ORDER BY r.submitted_at DESC, r.result_id DESC LIMIT 500";
 $resC = $db->query($sqlC);
 if ($resC) while ($r = $resC->fetch_assoc()) $conductedRows[] = $r;
 
@@ -107,6 +107,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   $loc = (string)($r['location'] ?? '');
                   $res = (string)($r['result'] ?? '');
                   $insAt = (string)($r['inspected_at'] ?? '');
+                  $vid = (int)($r['vehicle_id'] ?? 0);
                   $badge = $res === 'Passed'
                     ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
                     : 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
@@ -122,6 +123,9 @@ if ($rootUrl === '/') $rootUrl = '';
                   <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-'); ?></td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex flex-wrap items-center justify-end gap-2">
+                      <?php if ($res === 'Passed' && $vid > 0): ?>
+                        <a href="?page=module4/submodule2&vehicle_id=<?php echo $vid; ?>" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">Register</a>
+                      <?php endif; ?>
                       <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">New Result</a>
                       <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">View</a>
                       <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">PDF</a>
@@ -592,9 +596,9 @@ if ($rootUrl === '/') $rootUrl = '';
             const dData = await dRes.json().catch(() => null);
             if (!dData || !dData.ok) throw new Error((dData && dData.error) ? dData.error : 'doc_upload_failed');
           }
-
+          
           showToast('Inspection result saved.');
-          setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 700);
+          setTimeout(() => { window.location.href = '?page=module4/submodule4'; }, 700);
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
           btn.disabled = false;
