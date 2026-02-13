@@ -238,6 +238,8 @@ if ($rootUrl === '/') $rootUrl = '';
     if (regYear) regYear.addEventListener('input', () => { regYear.value = String(regYear.value || '').replace(/\D+/g,'').slice(0,4); });
 
     async function loadVehicleInfo(vehicleId) {
+      existingOrPath = '';
+      existingInsPath = '';
       const res = await fetch(rootUrl + '/admin/api/module4/vehicle_info.php?vehicle_id=' + encodeURIComponent(String(vehicleId)));
       const data = await res.json().catch(() => null);
       if (!data || !data.ok || !data.data) throw new Error((data && data.error) ? data.error : 'load_failed');
@@ -281,10 +283,22 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       
       const lblOr = document.querySelector('label[for="orFile"]');
-      if (lblOr) lblOr.innerHTML = existingOrPath ? 'Upload OR <span class="text-emerald-600 text-xs ml-1">(File exists)</span>' : 'Upload OR';
+      if (lblOr) {
+        if (existingOrPath) {
+          lblOr.innerHTML = 'Upload OR <span class="text-emerald-600 text-xs ml-1">(File exists)</span> <a href="' + rootUrl + '/admin/uploads/' + encodeURIComponent(existingOrPath) + '" target="_blank" class="text-blue-600 hover:underline text-xs ml-2">View</a>';
+        } else {
+          lblOr.innerHTML = 'Upload OR';
+        }
+      }
       
       const lblIns = document.querySelector('label[for="insFile"]');
-      if (lblIns) lblIns.innerHTML = existingInsPath ? 'Upload Insurance (CTPL) <span class="text-emerald-600 text-xs ml-1">(File exists)</span>' : 'Upload Insurance (CTPL)';
+      if (lblIns) {
+        if (existingInsPath) {
+          lblIns.innerHTML = 'Upload Insurance (CTPL) <span class="text-emerald-600 text-xs ml-1">(File exists)</span> <a href="' + rootUrl + '/admin/uploads/' + encodeURIComponent(existingInsPath) + '" target="_blank" class="text-blue-600 hover:underline text-xs ml-2">View</a>';
+        } else {
+          lblIns.innerHTML = 'Upload Insurance (CTPL)';
+        }
+      }
 
       if (orNumber) orNumber.value = String(r.or_number || '');
       if (orDate) orDate.value = String(r.or_date || '');
