@@ -221,6 +221,22 @@ if ($format !== 'pdf') {
               if (!isset($grouped[$cat])) $grouped[$cat] = [];
               $grouped[$cat][] = $c;
             }
+            $order = [
+              'Roadworthiness (Visual Check)',
+              'Passenger Safety',
+              'Safety Equipment (LGU Check)',
+              'Operational Compliance (LGU)',
+              'Document Presentation (For Verification Only)'
+            ];
+            // Sort grouped keys based on $order, putting others at the end
+            uksort($grouped, function($a, $b) use ($order) {
+              $ia = array_search($a, $order);
+              $ib = array_search($b, $order);
+              if ($ia !== false && $ib !== false) return $ia - $ib;
+              if ($ia !== false) return -1;
+              if ($ib !== false) return 1;
+              return strcasecmp($a, $b);
+            });
           ?>
           <?php foreach ($grouped as $cat => $rows): ?>
             <tr><th colspan="2" style="background:#f8fafc"><?php echo htmlspecialchars($cat); ?></th></tr>
@@ -286,6 +302,22 @@ if ($checklist) {
     if (!isset($grouped[$cat])) $grouped[$cat] = [];
     $grouped[$cat][] = $c;
   }
+  $order = [
+    'Roadworthiness (Visual Check)',
+    'Passenger Safety',
+    'Safety Equipment (LGU Check)',
+    'Operational Compliance (LGU)',
+    'Document Presentation (For Verification Only)'
+  ];
+  uksort($grouped, function($a, $b) use ($order) {
+    $ia = array_search($a, $order);
+    $ib = array_search($b, $order);
+    if ($ia !== false && $ib !== false) return $ia - $ib;
+    if ($ia !== false) return -1;
+    if ($ib !== false) return 1;
+    return strcasecmp($a, $b);
+  });
+
   foreach ($grouped as $cat => $rows) {
     $lines[] = strtoupper($cat);
     foreach ($rows as $c) {

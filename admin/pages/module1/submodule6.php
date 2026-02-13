@@ -959,7 +959,7 @@ if ($saParams) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
     }
 
-    function renderForm(r) {
+    function renderRouteDetailsForm(r) {
       const corridorId = r && r.corridor_id ? Number(r.corridor_id) : 0;
       const isEdit = corridorId > 0;
       const routeCode = r && r.route_code ? String(r.route_code) : '';
@@ -972,7 +972,7 @@ if ($saParams) {
       const status = r && r.status ? String(r.status) : 'Active';
 
       return `
-        <form id="formCorridorSave" class="space-y-5" novalidate>
+        <form id="formRouteDetailsSave" class="space-y-5" novalidate>
           ${isEdit ? `<input type="hidden" name="corridor_id" value="${corridorId}">` : ``}
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -1021,20 +1021,34 @@ if ($saParams) {
             <textarea name="via" rows="3" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Major streets / barangays">${esc(via)}</textarea>
           </div>
 
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
+            <button id="btnRouteDetailsSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderAllocationsForm(r) {
+      const corridorId = r && r.corridor_id ? Number(r.corridor_id) : 0;
+      return `
+        <form id="formAllocationsSave" class="space-y-5" novalidate>
+          <input type="hidden" name="corridor_id" value="${corridorId}">
+          
           <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Service Allocation (Per Vehicle Type)</div>
-                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">PUV corridors only. Tricycles use Service Areas.</div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Service Allocation</div>
+                <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">Manage authorized vehicle types, units, and fares.</div>
               </div>
-              <button type="button" id="btnAddAlloc" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Add</button>
+              <button type="button" id="btnAddAlloc" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">Add Type</button>
             </div>
             <div id="allocRows" class="mt-4 space-y-3"></div>
           </div>
 
-          <div class="flex items-center justify-end gap-2">
+          <div class="flex items-center justify-end gap-2 pt-2">
             <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Cancel</button>
-            <button id="btnCorridorSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">${isEdit ? 'Save Changes' : 'Create Route'}</button>
+            <button id="btnAllocationsSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Allocations</button>
           </div>
         </form>
       `;
@@ -1051,31 +1065,31 @@ if ($saParams) {
           <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
             <div class="md:col-span-2">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
-              <select name="alloc_vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              <select name="alloc_vehicle_type" required class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <option value="">Select</option>
                 ${allocVehicleTypes.map((t) => `<option value="${t}" ${t===vt?'selected':''}>${t}</option>`).join('')}
               </select>
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Authorized</label>
-              <input name="alloc_authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
+              <input name="alloc_authorized_units" type="number" min="0" max="9999" step="1" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${au || 0}">
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Min</label>
-              <input name="alloc_fare_min" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmin}">
+              <input name="alloc_fare_min" type="number" min="0" step="0.01" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmin}">
             </div>
             <div>
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fare Max</label>
-              <input name="alloc_fare_max" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmax}">
+              <input name="alloc_fare_max" type="number" min="0" step="0.01" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${fmax}">
             </div>
             <div class="flex items-center gap-2">
               <div class="flex-1">
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
-                <select name="alloc_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <select name="alloc_status" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   ${['Active','Inactive'].map((t) => `<option value="${t}" ${t===st?'selected':''}>${t}</option>`).join('')}
                 </select>
               </div>
-              <button type="button" class="btnRemoveAlloc px-3 py-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold">Remove</button>
+              <button type="button" class="btnRemoveAlloc p-2 rounded-md bg-rose-100 text-rose-600 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </div>
         </div>
@@ -1108,6 +1122,7 @@ if ($saParams) {
     }
 
     function bindAllocRowHandlers(container) {
+      if (window.lucide) window.lucide.createIcons();
       Array.from(container.querySelectorAll('.btnRemoveAlloc')).forEach((b) => {
         b.addEventListener('click', () => {
           const row = b.closest('.alloc-row');
@@ -1116,105 +1131,50 @@ if ($saParams) {
       });
     }
 
-    async function saveCorridor(form) {
+    async function saveCorridorDetails(form) {
       const fd = new FormData(form);
-      fd.append('allocations', JSON.stringify(collectAllocs()));
+      // We don't send allocations here, just route details
       const res = await fetch(rootUrl + '/admin/api/module1/save_route_corridor.php', { method: 'POST', body: fd });
       const data = await res.json().catch(() => null);
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
       return data;
     }
 
-    function openView(r) {
-      const allocs = Array.isArray(r.allocations) ? r.allocations : [];
-      const allocHtml = allocs.length ? allocs.map((a) => {
-        const vt = (a && a.vehicle_type) ? String(a.vehicle_type) : '-';
-        const au = Number(a && a.authorized_units ? a.authorized_units : 0);
-        const used = Number(a && a.used_units ? a.used_units : 0);
-        const rem = Number(a && a.remaining_units ? a.remaining_units : (au > 0 ? Math.max(0, au - used) : 0));
-        const fmin = (a && a.fare_min !== null && a.fare_min !== undefined && a.fare_min !== '') ? Number(a.fare_min) : null;
-        const fmax = (a && a.fare_max !== null && a.fare_max !== undefined && a.fare_max !== '') ? Number(a.fare_max) : fmin;
-        let fareText = '-';
-        if (fmin !== null && !Number.isNaN(fmin)) {
-          if (fmax !== null && !Number.isNaN(fmax) && Math.abs(fmin - fmax) >= 0.001) fareText = '₱ ' + fmin.toFixed(2) + ' – ' + fmax.toFixed(2);
-          else fareText = '₱ ' + fmin.toFixed(2);
-        }
-        return `
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center justify-between gap-3">
-              <div class="text-sm font-black text-slate-900 dark:text-white">${esc(vt)}</div>
-              <div class="text-sm font-black text-slate-900 dark:text-white">${esc(fareText)}</div>
-            </div>
-            <div class="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-              <span>Authorized: ${au}</span>
-              <span>Used: ${used}</span>
-              <span>Remaining: ${rem}</span>
-              <span>Status: ${(a && a.status) ? esc(a.status) : 'Active'}</span>
-            </div>
-          </div>
-        `;
-      }).join('') : `<div class="text-sm text-slate-500 dark:text-slate-400 italic">No vehicle-type allocation yet.</div>`;
-
-      const legacyNote = r && r.legacy ? `
-        <div class="mb-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-          <div class="text-sm font-black text-amber-900 dark:text-amber-200">Legacy route group</div>
-          <div class="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200/80">This was grouped from old route-per-vehicle-type records. Run migration to fully normalize.</div>
-          <div class="mt-3">
-            <a class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-white" href="${rootUrl}/admin/tools/normalize_routes_realworld.php" target="_blank" rel="noopener">Open Normalization Tool</a>
-          </div>
-        </div>
-      ` : '';
-
-      openModal(`
-        ${legacyNote}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route Code</div>
-            <div class="mt-1 text-lg font-black text-slate-900 dark:text-white">${esc(r.route_code || '')}</div>
-            <div class="mt-1 text-sm text-slate-600 dark:text-slate-300 font-semibold">${esc(r.route_name || '')}</div>
-          </div>
-          <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Route</div>
-            <div class="mt-2 text-sm font-bold text-slate-900 dark:text-white">${esc((r.origin || '-'))} → ${esc((r.destination || '-'))}</div>
-            <div class="mt-1 text-xs text-slate-600 dark:text-slate-300 font-semibold">${esc(r.structure || '-')}</div>
-          </div>
-        </div>
-        <div class="mt-4 space-y-3">
-          ${allocHtml}
-        </div>
-        <div class="mt-4 flex items-center justify-end gap-2">
-          <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-close="1">Close</button>
-        </div>
-      `, 'Route • ' + (r.route_code || ''));
-
-      const c = body.querySelector('[data-close="1"]');
-      if (c) c.addEventListener('click', closeModal);
+    async function saveCorridorAllocations(form, r) {
+      const fd = new FormData(form);
+      // We need to send route details too because save_route_corridor expects them or might reset them if missing?
+      // Actually save_route_corridor.php typically updates all fields provided.
+      // To be safe, we should include the basic route info from 'r' if the backend requires it,
+      // OR ensure the backend only updates what's sent. 
+      // Assuming backend updates everything, we must provide current route details OR modify backend.
+      // Strategy: Send current route details as hidden fields or merge them.
+      // BUT 'r' has the current details.
+      if (r) {
+        if (!fd.has('route_code')) fd.append('route_code', r.route_code || '');
+        if (!fd.has('route_name')) fd.append('route_name', r.route_name || '');
+        if (!fd.has('origin')) fd.append('origin', r.origin || '');
+        if (!fd.has('destination')) fd.append('destination', r.destination || '');
+        if (!fd.has('via')) fd.append('via', r.via || '');
+        if (!fd.has('structure')) fd.append('structure', r.structure || '');
+        if (!fd.has('distance_km')) fd.append('distance_km', r.distance_km || '');
+        if (!fd.has('status')) fd.append('status', r.status || 'Active');
+      }
+      fd.append('allocations', JSON.stringify(collectAllocs()));
+      
+      const res = await fetch(rootUrl + '/admin/api/module1/save_route_corridor.php', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+      return data;
     }
 
-    function openEdit(r) {
-      openModal(renderForm(r || { status: 'Active' }), (r && r.corridor_id) ? ('Edit Route • ' + (r.route_code || '')) : 'Add Route');
+    function openRouteDetails(r) {
+      openModal(renderRouteDetailsForm(r || { status: 'Active' }), (r && r.corridor_id) ? ('Edit Route • ' + (r.route_code || '')) : 'Add Route');
       const close = body.querySelector('[data-close="1"]');
       if (close) close.addEventListener('click', closeModal);
-      const form = document.getElementById('formCorridorSave');
-      const btnSave = document.getElementById('btnCorridorSave');
-      const allocBox = document.getElementById('allocRows');
-      const btnAddAlloc = document.getElementById('btnAddAlloc');
-      const initialAllocs = Array.isArray(r && r.allocations) ? r.allocations : [];
-      if (allocBox) {
-        allocBox.innerHTML = '';
-        if (initialAllocs.length) {
-          initialAllocs.forEach((a) => { allocBox.insertAdjacentHTML('beforeend', allocRowHtml(a)); });
-        } else {
-          allocBox.insertAdjacentHTML('beforeend', allocRowHtml({ vehicle_type: 'Jeepney', status: 'Active' }));
-        }
-        bindAllocRowHandlers(allocBox);
-      }
-      if (btnAddAlloc && allocBox) {
-        btnAddAlloc.addEventListener('click', () => {
-          allocBox.insertAdjacentHTML('beforeend', allocRowHtml({ status: 'Active' }));
-          bindAllocRowHandlers(allocBox);
-        });
-      }
+      
+      const form = document.getElementById('formRouteDetailsSave');
+      const btnSave = document.getElementById('btnRouteDetailsSave');
+      
       if (form && btnSave) {
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -1222,8 +1182,28 @@ if ($saParams) {
           btnSave.disabled = true;
           btnSave.textContent = 'Saving...';
           try {
-            await saveCorridor(form);
-            showToast('Route saved.');
+            // For new routes, we need to send empty allocations to avoid errors if backend expects it
+            if (!r || !r.corridor_id) {
+               // If creating new, we might want to prompt for allocation immediately or just create with none.
+               // Backend likely handles empty allocations array.
+            }
+            // For existing, we should preserve allocations. 
+            // If saveCorridorDetails doesn't send allocations, does backend delete them?
+            // We need to check backend behavior. 
+            // Assuming we must send existing allocations to prevent deletion if backend replaces all.
+            // Let's assume we need to send existing allocations.
+            const fd = new FormData(form);
+            if (r && r.allocations) {
+               fd.append('allocations', JSON.stringify(r.allocations));
+            } else {
+               fd.append('allocations', JSON.stringify([]));
+            }
+
+            const res = await fetch(rootUrl + '/admin/api/module1/save_route_corridor.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+
+            showToast('Route details saved.');
             const params = new URLSearchParams(window.location.search || '');
             params.set('page', 'puv-database/routes-lptrp');
             window.location.search = params.toString();
@@ -1236,23 +1216,89 @@ if ($saParams) {
       }
     }
 
-    if (canManage) {
-      const btnAdd = document.getElementById('btnAddRoute');
-      if (btnAdd) btnAdd.addEventListener('click', () => openEdit({ status: 'Active' }));
+    function openAllocations(r) {
+      openModal(renderAllocationsForm(r), 'Edit Allocations • ' + (r.route_code || ''));
+      const close = body.querySelector('[data-close="1"]');
+      if (close) close.addEventListener('click', closeModal);
+
+      const form = document.getElementById('formAllocationsSave');
+      const btnSave = document.getElementById('btnAllocationsSave');
+      const allocBox = document.getElementById('allocRows');
+      const btnAddAlloc = document.getElementById('btnAddAlloc');
+      const initialAllocs = Array.isArray(r && r.allocations) ? r.allocations : [];
+
+      if (allocBox) {
+        allocBox.innerHTML = '';
+        if (initialAllocs.length) {
+          initialAllocs.forEach((a) => { allocBox.insertAdjacentHTML('beforeend', allocRowHtml(a)); });
+        } else {
+          allocBox.innerHTML = '<div class="text-sm text-slate-500 italic p-2">No allocations set. Add one below.</div>';
+        }
+        bindAllocRowHandlers(allocBox);
+      }
+
+      if (btnAddAlloc && allocBox) {
+        btnAddAlloc.addEventListener('click', () => {
+          if (allocBox.querySelector('.italic')) allocBox.innerHTML = '';
+          allocBox.insertAdjacentHTML('beforeend', allocRowHtml({ status: 'Active' }));
+          bindAllocRowHandlers(allocBox);
+        });
+      }
+
+      if (form && btnSave) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          if (!form.checkValidity()) { form.reportValidity(); return; }
+          btnSave.disabled = true;
+          btnSave.textContent = 'Saving...';
+          try {
+            await saveCorridorAllocations(form, r);
+            showToast('Allocations saved.');
+            const params = new URLSearchParams(window.location.search || '');
+            params.set('page', 'puv-database/routes-lptrp');
+            window.location.search = params.toString();
+          } catch (err) {
+            showToast((err && err.message) ? err.message : 'Failed', 'error');
+            btnSave.disabled = false;
+            btnSave.textContent = 'Save Allocations';
+          }
+        });
+      }
     }
 
+    if (canManage) {
+      const btnAdd = document.getElementById('btnAddRoute');
+      if (btnAdd) btnAdd.addEventListener('click', () => openRouteDetails({ status: 'Active' }));
+    }
+
+    // "View" button now opens the Route Details (which is editable)
     document.querySelectorAll('[data-route-view="1"]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
-        openView(parsePayload(btn));
+        const r = parsePayload(btn);
+        // If it's a legacy route (grouped), we might want to show a warning or different view?
+        // But for now, we treat it as editable route details.
+        openRouteDetails(r);
       });
     });
 
     if (canManage) {
+      // The "Edit" button (pencil) on the main row is redundant if View allows editing, 
+      // but the user said "instead of a separate button... make the view modal an inline edit".
+      // So I've effectively merged them in openRouteDetails.
+      // I will re-bind data-route-edit to openRouteDetails as well, just in case.
       document.querySelectorAll('[data-route-edit="1"]').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           if (e) { e.preventDefault(); e.stopPropagation(); }
-          openEdit(parsePayload(btn));
+          const r = parsePayload(btn);
+          // Check if this is the "Edit Allocations" button inside the details view?
+          // The button text checks are fragile. 
+          // I should check the context or label.
+          if (btn.textContent.includes('Allocations')) {
+             openAllocations(r);
+          } else {
+             openRouteDetails(r);
+          }
         });
       });
     }

@@ -122,13 +122,21 @@ if ($rootUrl === '/') $rootUrl = '';
                   </td>
                   <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-'); ?></td>
                   <td class="py-3 px-4 text-right">
-                    <div class="flex flex-wrap items-center justify-end gap-2">
+                    <div class="flex items-center justify-end gap-1">
                       <?php if ($res === 'Passed' && $vid > 0): ?>
-                        <a href="?page=module4/submodule2&vehicle_id=<?php echo $vid; ?>" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">Register</a>
+                        <a href="?page=module4/submodule2&vehicle_id=<?php echo $vid; ?>" class="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors" title="Register Vehicle">
+                          <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+                        </a>
                       <?php endif; ?>
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs">New Result</a>
-                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">View</a>
-                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">PDF</a>
+                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors" title="New Result">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                      </a>
+                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="View Report">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                      </a>
+                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="Download PDF">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                      </a>
                     </div>
                   </td>
                 </tr>
