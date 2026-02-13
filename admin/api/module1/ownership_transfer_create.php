@@ -80,6 +80,85 @@ $hasUpload = function (string $field): bool {
 $hasOrProof = $hasUpload('or_doc') || $hasUpload('orcr_doc');
 $hasCrProof = $hasUpload('cr_doc') || $hasUpload('orcr_doc');
 
+$hasCol = function (string $table, string $col) use ($db): bool {
+  $table = trim($table);
+  $col = trim($col);
+  if ($table === '' || $col === '') return false;
+  $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+  return $res && ($res->num_rows ?? 0) > 0;
+};
+
+$hasVerifiedOrcr = function () use ($db, $vehicleId, $plate, $hasCol): bool {
+  $vdExists = (bool)($db->query("SHOW TABLES LIKE 'vehicle_documents'")?->fetch_row());
+  $docsExists = (bool)($db->query("SHOW TABLES LIKE 'documents'")?->fetch_row());
+
+  $vdOrcrOk = 0;
+  $vdOrOk = 0;
+  $vdCrOk = 0;
+  if ($vdExists) {
+    $vdTypeCol = $hasCol('vehicle_documents', 'doc_type') ? 'doc_type'
+      : ($hasCol('vehicle_documents', 'document_type') ? 'document_type'
+      : ($hasCol('vehicle_documents', 'type') ? 'type' : ''));
+    $vdVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified'
+      : ($hasCol('vehicle_documents', 'verified') ? 'verified'
+      : ($hasCol('vehicle_documents', 'isApproved') ? 'isApproved' : ''));
+    $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
+    $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
+    if ($vdTypeCol !== '' && $vdVerifiedCol !== '' && ($vdHasVehicleId || $vdHasPlate)) {
+      $where = $vdHasVehicleId ? "vehicle_id=?" : "plate_number=?";
+      $types = $vdHasVehicleId ? 'i' : 's';
+      $val = $vdHasVehicleId ? $vehicleId : $plate;
+      $orcrCond = "LOWER(`{$vdTypeCol}`) IN ('orcr','or/cr')";
+      $orCond = "LOWER(`{$vdTypeCol}`)='or'";
+      $crCond = "LOWER(`{$vdTypeCol}`)='cr'";
+      $verCond = "COALESCE(`{$vdVerifiedCol}`,0)=1";
+      $sql = "SELECT MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok,
+                     MAX(CASE WHEN {$orCond} AND {$verCond} THEN 1 ELSE 0 END) AS or_ok,
+                     MAX(CASE WHEN {$crCond} AND {$verCond} THEN 1 ELSE 0 END) AS cr_ok
+              FROM vehicle_documents WHERE {$where}";
+      $stmt = $db->prepare($sql);
+      if ($stmt) {
+        $stmt->bind_param($types, $val);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $vdOrcrOk = (int)($row['orcr_ok'] ?? 0);
+        $vdOrOk = (int)($row['or_ok'] ?? 0);
+        $vdCrOk = (int)($row['cr_ok'] ?? 0);
+      }
+    }
+  }
+
+  $legacyOrOk = 0;
+  $legacyCrOk = 0;
+  $legacyOrcrOk = 0;
+  if ($docsExists && $plate !== '' && $hasCol('documents', 'plate_number')) {
+    $docsHasExpiry = $hasCol('documents', 'expiry_date');
+    $legacyOrValidCond = $docsHasExpiry ? "(expiry_date IS NULL OR expiry_date >= CURDATE())" : "1=1";
+    $sql = "SELECT MAX(CASE WHEN LOWER(type)='or' AND COALESCE(verified,0)=1 AND {$legacyOrValidCond} THEN 1 ELSE 0 END) AS or_ok,
+                   MAX(CASE WHEN LOWER(type)='cr' AND COALESCE(verified,0)=1 THEN 1 ELSE 0 END) AS cr_ok,
+                   MAX(CASE WHEN LOWER(type) IN ('orcr','or/cr') AND COALESCE(verified,0)=1 THEN 1 ELSE 0 END) AS orcr_ok
+            FROM documents WHERE plate_number=?";
+    $stmt = $db->prepare($sql);
+    if ($stmt) {
+      $stmt->bind_param('s', $plate);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+      $legacyOrOk = (int)($row['or_ok'] ?? 0);
+      $legacyCrOk = (int)($row['cr_ok'] ?? 0);
+      $legacyOrcrOk = (int)($row['orcr_ok'] ?? 0);
+    }
+  }
+
+  $orcrOk = ($vdOrcrOk === 1) || ($legacyOrcrOk === 1);
+  $orOk = ($vdOrOk === 1) || ($legacyOrOk === 1);
+  $crOk = ($vdCrOk === 1) || ($legacyCrOk === 1);
+  return $orcrOk || ($orOk && $crOk);
+};
+
+$hasExistingVerifiedOrcr = $hasVerifiedOrcr();
+
 $stmtReg = $db->prepare("SELECT registration_status FROM vehicle_registrations WHERE vehicle_id=? ORDER BY registration_id DESC LIMIT 1");
 if ($stmtReg) {
   $stmtReg->bind_param('i', $vehicleId);
@@ -88,7 +167,7 @@ if ($stmtReg) {
   $stmtReg->close();
   $rs = (string)($reg['registration_status'] ?? '');
   if ($rs === '' || strcasecmp($rs, 'Expired') === 0 || strcasecmp($rs, 'Pending') === 0) {
-    if ($hasOrProof && $hasCrProof) {
+    if ($hasExistingVerifiedOrcr || ($hasOrProof && $hasCrProof)) {
       $rs = 'Provided';
     } else {
       http_response_code(400);
@@ -97,7 +176,7 @@ if ($stmtReg) {
     }
   }
 } else {
-  if (!($hasOrProof && $hasCrProof)) {
+  if (!($hasExistingVerifiedOrcr || ($hasOrProof && $hasCrProof))) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
     exit;

@@ -468,7 +468,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
       } catch (err) {
         const raw = (err && err.message) ? String(err.message) : '';
         const msg = raw === 'active_violations' ? 'Cannot approve: vehicle has active violations.'
-          : raw === 'orcr_not_valid' ? 'Cannot approve: OR/CR is not valid.'
+          : raw === 'orcr_not_valid' ? 'Cannot approve: upload OR+CR (or verify existing OR/CR in vehicle documents).'
           : raw === 'missing_to_operator_id' ? 'Select the new operator before approving.'
           : (raw || 'Failed');
         showToast(msg, 'error');
@@ -534,7 +534,7 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
         } catch (err) {
           const raw = (err && err.message) ? String(err.message) : '';
           const msg = raw === 'active_violations' ? 'Cannot create: vehicle has active violations.'
-            : raw === 'orcr_not_valid' ? 'Cannot create: OR/CR is not valid.'
+            : raw === 'orcr_not_valid' ? 'Cannot create: upload OR+CR (or verify existing OR/CR in vehicle documents).'
             : raw === 'franchise_active' ? 'Cannot create: franchise is still active under current operator.'
             : raw === 'missing_deed_doc' ? 'Deed/authorization document is required.'
             : (raw || 'Failed');

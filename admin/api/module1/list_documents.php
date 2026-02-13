@@ -75,34 +75,74 @@ if ($vehRow && isset($vehRow['id'])) {
 
 $rows = [];
 if ($vehicleId > 0) {
-  $useNew = tmm_has_column($db, $schema, 'vehicle_documents', 'vehicle_id') && tmm_has_column($db, $schema, 'vehicle_documents', 'doc_type');
-  if ($useNew) {
-    $vdHasExpiry = tmm_has_column($db, $schema, 'vehicle_documents', 'expiry_date');
-    $sql = "SELECT doc_id AS id, ? AS plate_number, doc_type AS type, file_path, uploaded_at, is_verified, verified_by, verified_at, " . ($vdHasExpiry ? "expiry_date" : "NULL") . " AS expiry_date FROM vehicle_documents WHERE vehicle_id=?";
-    $params = [$plate, $vehicleId];
-    $types = 'si';
-    if ($type !== '') {
-      $sql .= " AND doc_type=?";
-      $params[] = $type;
+  $vdHasVehicleId = tmm_has_column($db, $schema, 'vehicle_documents', 'vehicle_id');
+  $vdHasPlate = tmm_has_column($db, $schema, 'vehicle_documents', 'plate_number');
+  $vdHasFilePath = tmm_has_column($db, $schema, 'vehicle_documents', 'file_path')
+    || tmm_has_column($db, $schema, 'vehicle_documents', 'document_path')
+    || tmm_has_column($db, $schema, 'vehicle_documents', 'doc_path')
+    || tmm_has_column($db, $schema, 'vehicle_documents', 'path');
+  $vdTypeCol = tmm_has_column($db, $schema, 'vehicle_documents', 'doc_type') ? 'doc_type'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'document_type') ? 'document_type'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'type') ? 'type' : ''));
+  $vdIdCol = tmm_has_column($db, $schema, 'vehicle_documents', 'doc_id') ? 'doc_id'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'id') ? 'id' : '');
+  $vdPathCol = tmm_has_column($db, $schema, 'vehicle_documents', 'file_path') ? 'file_path'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'document_path') ? 'document_path'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'doc_path') ? 'doc_path'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'path') ? 'path' : '')));
+  $vdUploadedCol = tmm_has_column($db, $schema, 'vehicle_documents', 'uploaded_at') ? 'uploaded_at'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'created_at') ? 'created_at'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'date_uploaded') ? 'date_uploaded' : 'uploaded_at'));
+  $vdVerifiedCol = tmm_has_column($db, $schema, 'vehicle_documents', 'is_verified') ? 'is_verified'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'verified') ? 'verified'
+    : (tmm_has_column($db, $schema, 'vehicle_documents', 'isApproved') ? 'isApproved' : ''));
+  $vdHasVerifiedBy = tmm_has_column($db, $schema, 'vehicle_documents', 'verified_by');
+  $vdHasVerifiedAt = tmm_has_column($db, $schema, 'vehicle_documents', 'verified_at');
+  $vdHasExpiry = tmm_has_column($db, $schema, 'vehicle_documents', 'expiry_date');
+
+  $useVehicleDocs = $vdIdCol !== '' && $vdTypeCol !== '' && $vdPathCol !== '' && ($vdHasVehicleId || $vdHasPlate) && $vdHasFilePath;
+  if ($useVehicleDocs) {
+    $where = $vdHasVehicleId ? "vehicle_id=?" : "plate_number=?";
+    $params = [$plate, $vdHasVehicleId ? $vehicleId : $plate];
+    $types = $vdHasVehicleId ? 'si' : 'ss';
+
+    $sql = "SELECT {$vdIdCol} AS id,
+                   ? AS plate_number,
+                   UPPER({$vdTypeCol}) AS type,
+                   {$vdPathCol} AS file_path,
+                   {$vdUploadedCol} AS uploaded_at,
+                   " . ($vdVerifiedCol !== '' ? "COALESCE({$vdVerifiedCol},0)" : "0") . " AS is_verified,
+                   " . ($vdHasVerifiedBy ? "verified_by" : "NULL") . " AS verified_by,
+                   " . ($vdHasVerifiedAt ? "verified_at" : "NULL") . " AS verified_at,
+                   " . ($vdHasExpiry ? "expiry_date" : "NULL") . " AS expiry_date
+            FROM vehicle_documents
+            WHERE {$where}";
+
+    if ($type !== '' && $vdTypeCol !== '') {
+      $sql .= " AND UPPER({$vdTypeCol})=?";
+      $params[] = strtoupper($type);
       $types .= 's';
     }
-    $sql .= " ORDER BY uploaded_at DESC";
+    $sql .= " ORDER BY {$vdUploadedCol} DESC";
+
     $stmt = $db->prepare($sql);
     if ($stmt) {
       $stmt->bind_param($types, ...$params);
       $stmt->execute();
       $res = $stmt->get_result();
-      while ($row = $res->fetch_assoc()) {
+      while ($res && ($row = $res->fetch_assoc())) {
         $row['source'] = 'vehicle_documents';
         $rows[] = $row;
       }
       $stmt->close();
     }
+
     $seenPaths = [];
     foreach ($rows as $r) {
       $p = trim((string)($r['file_path'] ?? ''));
       if ($p !== '') $seenPaths[$p] = true;
     }
+
     if (tmm_has_column($db, $schema, 'documents', 'plate_number')) {
       $docsHasExpiry = tmm_has_column($db, $schema, 'documents', 'expiry_date');
       $sql2 = "SELECT id, plate_number, type, file_path, uploaded_at, verified AS is_verified" . ($docsHasExpiry ? ", expiry_date" : ", NULL AS expiry_date") . " FROM documents WHERE plate_number=?";
@@ -153,6 +193,8 @@ if ($vehicleId > 0) {
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
+          $row['type'] = strtoupper((string)($row['type'] ?? ''));
+          $row['source'] = 'vehicle_documents';
           $rows[] = $row;
         }
         $stmt->close();
@@ -173,6 +215,8 @@ if ($vehicleId > 0) {
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
+          $row['type'] = strtoupper((string)($row['type'] ?? ''));
+          $row['source'] = 'documents';
           $rows[] = $row;
         }
         $stmt->close();

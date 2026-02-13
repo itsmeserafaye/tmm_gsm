@@ -55,10 +55,50 @@ if ($st === 'LTFRB-Approved' || $st === 'Approved' || $st === 'LGU-Endorsed' || 
     }
     if ($st === 'LTFRB-Approved' || $st === 'Approved') {
       if ($operatorId > 0) {
-        $stmtVeh = $db->prepare("SELECT COUNT(DISTINCT v.id) AS c
-                                 FROM vehicles v
-                                 JOIN vehicle_documents vd ON vd.vehicle_id=v.id AND vd.doc_type='ORCR' AND COALESCE(vd.is_verified,0)=1
-                                 WHERE v.operator_id=? AND (COALESCE(v.record_status,'') <> 'Archived')");
+        $hasCol = function (string $table, string $col) use ($db): bool {
+          $table = trim($table);
+          $col = trim($col);
+          if ($table === '' || $col === '') return false;
+          $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '" . $db->real_escape_string($col) . "'");
+          return $res && ($res->num_rows ?? 0) > 0;
+        };
+
+        $vdTypeCol = $hasCol('vehicle_documents', 'doc_type') ? 'doc_type'
+          : ($hasCol('vehicle_documents', 'document_type') ? 'document_type'
+          : ($hasCol('vehicle_documents', 'type') ? 'type' : 'doc_type'));
+        $vdVerifiedCol = $hasCol('vehicle_documents', 'is_verified') ? 'is_verified'
+          : ($hasCol('vehicle_documents', 'verified') ? 'verified'
+          : ($hasCol('vehicle_documents', 'isApproved') ? 'isApproved' : 'is_verified'));
+        $vdHasVehicleId = $hasCol('vehicle_documents', 'vehicle_id');
+        $vdHasPlate = $hasCol('vehicle_documents', 'plate_number');
+        $docsHasExpiry = $hasCol('documents', 'expiry_date');
+        $legacyOrValidCond = $docsHasExpiry ? "(d.expiry_date IS NULL OR d.expiry_date >= CURDATE())" : "1=1";
+        $join = $vdHasVehicleId && $vdHasPlate
+          ? "(vd.vehicle_id=v.id OR ((vd.vehicle_id IS NULL OR vd.vehicle_id=0) AND vd.plate_number=v.plate_number))"
+          : ($vdHasVehicleId ? "vd.vehicle_id=v.id" : ($vdHasPlate ? "vd.plate_number=v.plate_number" : "0=1"));
+
+        $orcrCond = "LOWER(vd.`{$vdTypeCol}`) IN ('orcr','or/cr')";
+        $orCond = "LOWER(vd.`{$vdTypeCol}`)='or'";
+        $crCond = "LOWER(vd.`{$vdTypeCol}`)='cr'";
+        $verCond = "COALESCE(vd.`{$vdVerifiedCol}`,0)=1";
+
+        $sql = "SELECT COUNT(*) AS c
+                FROM (
+                  SELECT v.id,
+                         MAX(CASE WHEN {$orcrCond} AND {$verCond} THEN 1 ELSE 0 END) AS orcr_ok,
+                         MAX(CASE WHEN {$orCond} AND {$verCond} THEN 1 ELSE 0 END) AS or_ok,
+                         MAX(CASE WHEN {$crCond} AND {$verCond} THEN 1 ELSE 0 END) AS cr_ok,
+                         MAX(CASE WHEN LOWER(d.type)='or' AND COALESCE(d.verified,0)=1 AND {$legacyOrValidCond} THEN 1 ELSE 0 END) AS legacy_or_ok,
+                         MAX(CASE WHEN LOWER(d.type)='cr' AND COALESCE(d.verified,0)=1 THEN 1 ELSE 0 END) AS legacy_cr_ok,
+                         MAX(CASE WHEN LOWER(d.type) IN ('orcr','or/cr') AND COALESCE(d.verified,0)=1 THEN 1 ELSE 0 END) AS legacy_orcr_ok
+                  FROM vehicles v
+                  LEFT JOIN vehicle_documents vd ON {$join}
+                  LEFT JOIN documents d ON d.plate_number=v.plate_number
+                  WHERE v.operator_id=? AND (COALESCE(v.record_status,'') <> 'Archived')
+                  GROUP BY v.id
+                ) x
+                WHERE (x.orcr_ok=1 OR x.legacy_orcr_ok=1 OR ((x.or_ok=1 OR x.legacy_or_ok=1) AND (x.cr_ok=1 OR x.legacy_cr_ok=1)))";
+        $stmtVeh = $db->prepare($sql);
         if ($stmtVeh) {
           $stmtVeh->bind_param('i', $operatorId);
           $stmtVeh->execute();
