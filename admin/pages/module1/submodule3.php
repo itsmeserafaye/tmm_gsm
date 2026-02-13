@@ -78,11 +78,8 @@ if ($type !== '' && $type !== 'Type') {
   $types .= 's';
 }
 if ($status !== '' && $status !== 'Status') {
-  if ($status === 'Incomplete') {
-    $sql .= " AND o.workflow_status IN ('Incomplete','Pending Validation')";
-  } elseif ($status === 'Returned') {
-    $sql .= " AND o.workflow_status IN ('Returned','Rejected')";
-  } else {
+  $allowedWorkflow = ['Draft','Incomplete','Pending Validation','Returned','Rejected','Active','Inactive'];
+  if (in_array($status, $allowedWorkflow, true)) {
     $sql .= " AND o.workflow_status=?";
     $params[] = $status;
     $types .= 's';
@@ -163,7 +160,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
         <div class="relative w-full sm:w-56">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Draft','Incomplete','Returned','Active','Inactive'] as $s): ?>
+            <?php foreach (['Draft','Incomplete','Pending Validation','Returned','Rejected','Active','Inactive'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -203,14 +200,14 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
               <?php
                 $rid = (int)($row['id'] ?? 0);
                 $opType = (string)($row['operator_type'] ?? 'Individual');
-                $stRaw = (string)($row['workflow_status'] ?? 'Draft');
-                $st = $stRaw === 'Rejected' ? 'Returned' : $stRaw;
+                $st = (string)($row['workflow_status'] ?? 'Draft');
                 $badge = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
                   'Pending Validation' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   'Draft' => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400',
                   'Incomplete' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
                   'Returned' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
+                  'Rejected' => 'bg-orange-100 text-orange-700 ring-orange-600/20 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500/20',
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };

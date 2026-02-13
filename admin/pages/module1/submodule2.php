@@ -144,6 +144,26 @@ if ($status !== '' && $status !== 'Status') {
     $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
   } elseif ($status === 'Unlinked') {
     $conds[] = "(v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
+  } elseif ($status === 'Archived') {
+    $conds[] = "v.record_status='Archived'";
+  } elseif ($status === 'Declared') {
+    $conds[] = "(CASE WHEN v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL) THEN 'Encoded' ELSE v.record_status END)='Encoded' AND v.record_status<>'Archived'";
+  } elseif ($status === 'Pending Inspection') {
+    $conds[] = "v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL AND COALESCE(v.inspection_status,'')<>'Passed' AND v.record_status<>'Archived'";
+  } elseif ($status === 'Inspected') {
+    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
+                AND NOT (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+                AND v.record_status<>'Archived'";
+  } elseif ($status === 'Registered') {
+    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
+                AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+                AND NOT (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
+                AND v.record_status<>'Archived'";
+  } elseif ($status === 'Active') {
+    $conds[] = "COALESCE(v.inspection_status,'')='Passed'
+                AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+                AND (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
+                AND v.record_status<>'Archived'";
   } else {
     $conds[] = "v.status=?";
     $params[] = $status;
@@ -354,11 +374,10 @@ $typesList = vehicle_types();
           <select name="status"
             class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active'] as $s): ?>
+            <?php foreach (['Unlinked','Linked','Declared','Pending Inspection','Inspected','Registered','Active','Archived'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
-          </select>
           <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
             <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
           </span>

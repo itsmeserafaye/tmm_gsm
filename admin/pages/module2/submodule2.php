@@ -344,6 +344,20 @@ if ($rootUrl === '/') $rootUrl = '';
       try {
         const payload = await loadOperatorVerifiedDocs(operatorId);
         renderOperatorDocs(payload);
+        const vtEl = document.querySelector('#formSubmitApp select[name="vehicle_type"]');
+        if (vtEl && (!vtEl.value || vtEl.value === '')) {
+          const opType = (payload && payload.operator && payload.operator.operator_type) ? String(payload.operator.operator_type) : '';
+          const t = opType.toLowerCase();
+          let guess = '';
+          if (t.includes('toda') || t.includes('tricycle')) guess = 'Tricycle';
+          else if (t.includes('jeep')) guess = 'Jeepney';
+          else if (t.includes('uv')) guess = 'UV';
+          else if (t.includes('bus')) guess = 'Bus';
+          if (guess) {
+            vtEl.value = guess;
+            vtEl.dispatchEvent(new Event('change'));
+          }
+        }
       } catch (e) {
         opDocsBox.innerHTML = '<div class="text-sm text-rose-600">Failed to load operator documents.</div>';
       }

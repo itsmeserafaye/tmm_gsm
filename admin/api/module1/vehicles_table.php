@@ -100,6 +100,26 @@ if ($status !== '' && $status !== 'Status') {
     $sql .= " AND v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL";
   } elseif ($status === 'Unlinked') {
     $sql .= " AND (v.record_status='Encoded' OR (v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL)))";
+  } elseif ($status === 'Archived') {
+    $sql .= " AND v.record_status='Archived'";
+  } elseif ($status === 'Declared') {
+    $sql .= " AND (CASE WHEN v.record_status='Linked' AND (COALESCE(v.operator_id,0)=0 OR o.id IS NULL) THEN 'Encoded' ELSE v.record_status END)='Encoded' AND v.record_status<>'Archived'";
+  } elseif ($status === 'Pending Inspection') {
+    $sql .= " AND v.record_status='Linked' AND COALESCE(v.operator_id,0)<>0 AND o.id IS NOT NULL AND COALESCE(v.inspection_status,'')<>'Passed' AND v.record_status<>'Archived'";
+  } elseif ($status === 'Inspected') {
+    $sql .= " AND COALESCE(v.inspection_status,'')='Passed'
+              AND NOT (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+              AND v.record_status<>'Archived'";
+  } elseif ($status === 'Registered') {
+    $sql .= " AND COALESCE(v.inspection_status,'')='Passed'
+              AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+              AND NOT (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
+              AND v.record_status<>'Archived'";
+  } elseif ($status === 'Active') {
+    $sql .= " AND COALESCE(v.inspection_status,'')='Passed'
+              AND (COALESCE(vr.registration_status,'') IN ('Registered','Recorded') AND COALESCE(NULLIF(vr.orcr_no,''),'')<>'' AND vr.orcr_date IS NOT NULL)
+              AND (COALESCE(fa.status,'') IN ('Approved','LTFRB-Approved'))
+              AND v.record_status<>'Archived'";
   } else {
     $sql .= " AND v.status=?";
     $params[] = $status;

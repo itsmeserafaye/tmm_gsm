@@ -138,7 +138,7 @@ if (!$hasVerifiedDocs) {
 }
 
 $vehIdDb = (int)$vehicleId;
-$inspectorIdDb = (int)$inspectorId;
+$inspectorIdDb = $inspectorId > 0 ? (int)$inspectorId : null;
 
 $hasCol = function (string $table, string $col) use ($db): bool {
   $t = $db->real_escape_string($table);
@@ -275,6 +275,7 @@ if ($scheduleId > 0) {
 
   $stmtU = $db->prepare("UPDATE inspection_schedules
                          SET plate_number=?, vehicle_id=?, scheduled_at=?, schedule_date=?, location=?, inspection_type=?,
+                             inspector_id=?, inspector_label=?,
                              status=?, cr_verified=?, or_verified=?, status_remarks=?, overdue_marked_at=NULL
                          WHERE schedule_id=?");
   if (!$stmtU) {
@@ -282,12 +283,13 @@ if ($scheduleId > 0) {
     echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
     exit;
   }
-  $stmtU->bind_param('sisssssiisi', $plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType, $status, $crVerified, $orVerified, $statusRemarks, $scheduleId);
+  $stmtU->bind_param('sissssissiisi', $plateDb, $vehIdDb, $scheduledAt, $scheduleDate, $location, $inspectionType, $inspectorIdDb, $inspectorLabel, $status, $crVerified, $orVerified, $statusRemarks, $scheduleId);
   $okU = $stmtU->execute();
+  $uErr = $stmtU->error;
   $stmtU->close();
   if (!$okU) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'update_failed']);
+    echo json_encode(['ok' => false, 'error' => 'update_failed', 'db_error' => $uErr]);
     exit;
   }
   echo json_encode(['ok' => true, 'schedule_id' => $scheduleId, 'updated' => true]);
@@ -317,7 +319,7 @@ $stmt->bind_param($typesStr, ...$vals);
 $ok = $stmt->execute();
 if (!$ok) {
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'insert_failed']);
+  echo json_encode(['ok' => false, 'error' => 'insert_failed', 'db_error' => $stmt->error]);
   exit;
 }
 $scheduleId = (int)$stmt->insert_id;
