@@ -541,8 +541,10 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
           showToast('Endorsement saved.');
-          const a = await loadApp(currentAppId);
-          render(a);
+          const params = new URLSearchParams(window.location.search || '');
+          params.set('page', 'module2/submodule3');
+          params.set('highlight_application_id', String(currentAppId));
+          window.location.href = '?' + params.toString();
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
         } finally {

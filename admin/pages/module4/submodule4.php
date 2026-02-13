@@ -12,8 +12,9 @@ $resultFilter = trim((string)($_GET['result'] ?? ''));
 $schedules = [];
 $resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at
                     FROM inspection_schedules
-                    WHERE status IN ('Scheduled','Rescheduled','Pending Verification','Pending Assignment','Overdue','Overdue / No-Show','Completed')
-                    ORDER BY COALESCE(schedule_date, scheduled_at) DESC
+                    WHERE DATE(COALESCE(schedule_date, scheduled_at))=CURDATE()
+                      AND status IN ('Scheduled','Rescheduled','Pending Verification','Pending Assignment')
+                    ORDER BY COALESCE(schedule_date, scheduled_at) ASC
                     LIMIT 500");
 if ($resS) while ($r = $resS->fetch_assoc()) $schedules[] = $r;
 
@@ -350,6 +351,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="flex items-center justify-end gap-2 pt-2 flex-wrap">
           <button type="button" id="btnViewReport" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">View Checklist + Result</button>
           <button type="button" id="btnDownloadReport" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Download Checklist + Result (PDF)</button>
+          <button type="button" id="btnAllPass" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold">Mark All Pass</button>
           <button id="btnSubmit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit Result</button>
         </div>
       </form>
@@ -365,6 +367,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const btn = document.getElementById('btnSubmit');
     const btnViewReport = document.getElementById('btnViewReport');
     const btnDownloadReport = document.getElementById('btnDownloadReport');
+    const btnAllPass = document.getElementById('btnAllPass');
     const scheduleSelect = form ? form.querySelector('select[name="schedule_id"]') : null;
     const modal = document.getElementById('modalConduct');
     const btnOpen = document.getElementById('btnOpenConduct');
@@ -489,6 +492,19 @@ if ($rootUrl === '/') $rootUrl = '';
         const sid = getScheduleId();
         if (!sid) { showToast('Select a schedule first.', 'error'); return; }
         window.open(rootUrl + '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' + encodeURIComponent(sid), '_blank', 'noopener');
+      });
+    }
+    if (btnAllPass && form) {
+      btnAllPass.addEventListener('click', () => {
+        const list = Array.from(form.querySelectorAll('select[name^="items["]'));
+        list.forEach((s) => {
+          const opts = Array.from(s.options || []);
+          const hasPass = opts.some((o) => (o.value || '') === 'Pass');
+          if (hasPass) s.value = 'Pass';
+        });
+        const overall = form.querySelector('select[name="overall_status"]');
+        if (overall) overall.value = 'Passed';
+        showToast('All checklist items set to Pass.');
       });
     }
 

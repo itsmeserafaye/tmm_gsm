@@ -41,8 +41,9 @@ $totalPaymentsToday = $parkingPaymentsToday + $ticketPaymentsToday;
 // KPI Data for System Overview
 $totalVehicles = $db->query("SELECT COUNT(*) AS c FROM vehicles")->fetch_assoc()['c'] ?? 0;
 $totalOperators = $db->query("SELECT COUNT(*) AS c FROM operators")->fetch_assoc()['c'] ?? 0;
-$activeFranchises = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Endorsed'")->fetch_assoc()['c'] ?? 0;
-$pendingFranchises = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending'")->fetch_assoc()['c'] ?? 0;
+$franchiseSubmitted = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Submitted'")->fetch_assoc()['c'] ?? 0;
+$franchiseLguEndorsed = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='LGU-Endorsed'")->fetch_assoc()['c'] ?? 0;
+$franchiseForLtfrb = $db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')")->fetch_assoc()['c'] ?? 0;
 $totalViolations = $db->query("SELECT COUNT(*) AS c FROM tickets")->fetch_assoc()['c'] ?? 0;
 $unpaidFines = $db->query("SELECT COUNT(*) AS c FROM tickets WHERE status IN ('Pending','Validated','Escalated')")->fetch_assoc()['c'] ?? 0;
 $slotRevenueTotal = 0.0;
@@ -73,6 +74,23 @@ $revenueTodayVsAvg = $revenue7DayAvg ? (($totalPaymentsToday - $revenue7DayAvg) 
 
 $unpaidRate = $totalViolations ? ($unpaidFines / $totalViolations * 100) : 0;
 $vehiclesPerTerminal = $terminalsCount ? ($totalVehicles / $terminalsCount) : 0;
+
+$inspectionsTodayScheduled = 0;
+$inspectionsTodayCompleted = 0;
+if (tmm_table_exists($db, 'inspection_schedules')) {
+  $r = $db->query("SELECT COUNT(*) AS c FROM inspection_schedules WHERE DATE(COALESCE(schedule_date, scheduled_at))=CURDATE() AND status IN ('Scheduled','Rescheduled','Pending Verification','Pending Assignment')");
+  if ($r && ($row = $r->fetch_assoc())) $inspectionsTodayScheduled = (int)($row['c'] ?? 0);
+}
+if (tmm_table_exists($db, 'inspection_results')) {
+  $r = $db->query("SELECT COUNT(*) AS c FROM inspection_results WHERE DATE(submitted_at)=CURDATE()");
+  if ($r && ($row = $r->fetch_assoc())) $inspectionsTodayCompleted = (int)($row['c'] ?? 0);
+}
+
+$stsTicketsPending = 0;
+if (tmm_table_exists($db, 'sts_tickets')) {
+  $r = $db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE COALESCE(status,'Pending')='Pending'");
+  if ($r && ($row = $r->fetch_assoc())) $stsTicketsPending = (int)($row['c'] ?? 0);
+}
 
 function tmm_table_exists(mysqli $db, string $name): bool {
   $nameEsc = $db->real_escape_string($name);
@@ -231,6 +249,105 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           <?php echo number_format($totalOperators); ?>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="mb-10">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="p-2 rounded-lg bg-emerald-600 shadow-lg shadow-emerald-500/20">
+        <i data-lucide="layers" class="w-5 h-5 text-white"></i>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Module Overview</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Quick status across key workflows</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
+      <a href="?page=module2/submodule1" class="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+          <i data-lucide="file-check" class="w-24 h-24 text-emerald-500 transform translate-x-4 -translate-y-4"></i>
+        </div>
+        <div class="flex items-center justify-between mb-4 relative z-10">
+          <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+            <i data-lucide="file-check" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <h3 class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider relative z-10">Franchise Applications</h3>
+        <div class="mt-3 grid grid-cols-3 gap-2 relative z-10">
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Submitted</div>
+            <div class="text-lg font-black text-slate-900 dark:text-white"><?php echo number_format($franchiseSubmitted); ?></div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">LGU</div>
+            <div class="text-lg font-black text-slate-900 dark:text-white"><?php echo number_format($franchiseLguEndorsed); ?></div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">LTFRB</div>
+            <div class="text-lg font-black text-slate-900 dark:text-white"><?php echo number_format($franchiseForLtfrb); ?></div>
+          </div>
+        </div>
+      </a>
+
+      <a href="?page=module4/submodule3" class="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+          <i data-lucide="clipboard-check" class="w-24 h-24 text-blue-500 transform translate-x-4 -translate-y-4"></i>
+        </div>
+        <div class="flex items-center justify-between mb-4 relative z-10">
+          <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <h3 class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider relative z-10">Inspections Today</h3>
+        <div class="mt-3 grid grid-cols-2 gap-2 relative z-10">
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Scheduled</div>
+            <div class="text-2xl font-black text-slate-900 dark:text-white"><?php echo number_format($inspectionsTodayScheduled); ?></div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Completed</div>
+            <div class="text-2xl font-black text-slate-900 dark:text-white"><?php echo number_format($inspectionsTodayCompleted); ?></div>
+          </div>
+        </div>
+      </a>
+
+      <a href="?page=module3/submodule2" class="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+          <i data-lucide="receipt" class="w-24 h-24 text-amber-500 transform translate-x-4 -translate-y-4"></i>
+        </div>
+        <div class="flex items-center justify-between mb-4 relative z-10">
+          <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+            <i data-lucide="receipt" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <h3 class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider relative z-10">STS Tickets Pending</h3>
+        <div class="text-3xl font-black text-slate-900 dark:text-white mt-2 relative z-10">
+          <?php echo number_format($stsTicketsPending); ?>
+        </div>
+      </a>
+
+      <a href="?page=module5/submodule1" class="group bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+          <i data-lucide="parking-circle" class="w-24 h-24 text-violet-500 transform translate-x-4 -translate-y-4"></i>
+        </div>
+        <div class="flex items-center justify-between mb-4 relative z-10">
+          <div class="p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
+            <i data-lucide="parking-circle" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <h3 class="text-slate-500 dark:text-slate-400 text-sm font-semibold uppercase tracking-wider relative z-10">Terminals / Parking</h3>
+        <div class="mt-3 grid grid-cols-2 gap-2 relative z-10">
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Terminals</div>
+            <div class="text-2xl font-black text-slate-900 dark:text-white"><?php echo number_format($terminalsCount); ?></div>
+          </div>
+          <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Areas</div>
+            <div class="text-2xl font-black text-slate-900 dark:text-white"><?php echo number_format($parkingAreasCount); ?></div>
+          </div>
+        </div>
+      </a>
     </div>
   </div>
 

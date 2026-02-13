@@ -272,12 +272,22 @@ if ($rootUrl === '/') $rootUrl = '';
           }
 
           const res = await fetch(rootUrl + '/admin/api/module2/save_application.php', { method: 'POST', body: post });
-          const data = await res.json();
-          if (!data || !data.ok || !data.application_id) {
-            const raw = (data && data.error) ? String(data.error) : 'submit_failed';
+          const ct = (res.headers.get('content-type') || '').toLowerCase();
+          let data = null;
+          if (ct.includes('application/json')) {
+            data = await res.json().catch(() => null);
+          } else {
+            const txt = await res.text().catch(() => '');
+            const hint = txt ? 'non_json_response' : 'empty_response';
+            throw new Error(hint + (res.status ? (' (HTTP ' + res.status + ')') : ''));
+          }
+          if (!res.ok || !data || !data.ok || !data.application_id) {
+            const raw = (data && data.error) ? String(data.error) : (res.status ? ('http_' + res.status) : 'submit_failed');
             const msg = raw === 'operator_inactive'
               ? 'Cannot submit: operator is inactive.'
-              : raw;
+              : raw === 'unauthorized'
+                ? 'Session expired. Please reload and log in again.'
+                : raw;
             throw new Error(msg);
           }
 

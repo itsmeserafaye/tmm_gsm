@@ -1,4 +1,13 @@
 <?php
+if (!function_exists('str_contains')) {
+    function str_contains($haystack, $needle): bool {
+        $haystack = (string)$haystack;
+        $needle = (string)$needle;
+        if ($needle === '') return true;
+        return strpos($haystack, $needle) !== false;
+    }
+}
+
 function log_msg($msg) {
     if (php_sapi_name() === 'cli') {
         echo $msg;
