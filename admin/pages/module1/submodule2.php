@@ -1456,6 +1456,9 @@ $typesList = vehicle_types();
                 <div>
                   <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">CR (Required)</label>
                   <input name="cr" type="file" required accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm">
+                  <div class="mt-2 flex items-center gap-2">
+                    <button type="button" id="btnClearCrFile" class="px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold">Clear CR</button>
+                  </div>
                   <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">CR missing → Cannot encode.</div>
                 </div>
                 <div>
@@ -1482,6 +1485,7 @@ $typesList = vehicle_types();
                 </div>
                 <div class="flex items-center gap-2">
                   <button type="button" id="btnScanCr" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-sm font-bold">Scan CR & Auto-fill</button>
+                  <button type="button" id="btnCancelCrScan" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-bold" disabled>Cancel Scan</button>
                 </div>
               </div>
               <div id="ocrMsg" class="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300 hidden"></div>
@@ -1795,6 +1799,8 @@ $typesList = vehicle_types();
 
         const crFileInput = form.querySelector('input[name="cr"]');
         const btnScanCr = document.getElementById('btnScanCr');
+        const btnCancelCrScan = document.getElementById('btnCancelCrScan');
+        const btnClearCrFile = document.getElementById('btnClearCrFile');
         const ocrMsg = document.getElementById('ocrMsg');
         const ocrResult = document.getElementById('ocrResult');
         const ocrFieldsGrid = document.getElementById('ocrFieldsGrid');
@@ -1803,6 +1809,7 @@ $typesList = vehicle_types();
         const ocrConfirm = document.getElementById('ocrConfirm');
         const ocrUsedInput = document.getElementById('ocrUsedInput');
         const ocrConfirmedInput = document.getElementById('ocrConfirmedInput');
+        let ocrAbort = null;
 
         const setOcrMsg = (text, kind) => {
           if (!ocrMsg) return;
@@ -1891,6 +1898,46 @@ $typesList = vehicle_types();
           }).join('');
         };
 
+        const resetOcrUi = (msg) => {
+          setOcrUsed(false);
+          if (ocrMsg) ocrMsg.classList.add('hidden');
+          if (ocrMsg && msg) setOcrMsg(msg, 'info');
+          if (ocrResult) ocrResult.classList.add('hidden');
+          if (ocrFieldsGrid) ocrFieldsGrid.innerHTML = '';
+          if (ocrRawPreview) ocrRawPreview.textContent = '';
+          if (ocrConfirm) ocrConfirm.checked = false;
+          if (ocrConfirmedInput) ocrConfirmedInput.value = '0';
+          if (ocrConfirmWrap) ocrConfirmWrap.classList.add('hidden');
+        };
+
+        if (btnClearCrFile && crFileInput) {
+          btnClearCrFile.addEventListener('click', () => {
+            crFileInput.value = '';
+            resetOcrUi('CR file cleared.');
+          });
+        }
+        if (crFileInput) {
+          crFileInput.addEventListener('change', () => {
+            const has = !!(crFileInput.files && crFileInput.files.length > 0);
+            if (!has) resetOcrUi();
+          });
+        }
+
+        if (btnCancelCrScan) {
+          btnCancelCrScan.addEventListener('click', () => {
+            if (ocrAbort) {
+              try { ocrAbort.abort(); } catch (_) {}
+              ocrAbort = null;
+            }
+            resetOcrUi('Scan cancelled.');
+            if (btnScanCr) {
+              btnScanCr.disabled = false;
+              btnScanCr.textContent = 'Scan CR & Auto-fill';
+            }
+            btnCancelCrScan.disabled = true;
+          });
+        }
+
         if (ocrConfirm) {
           ocrConfirm.addEventListener('change', () => {
             if (ocrConfirmedInput) ocrConfirmedInput.value = ocrConfirm.checked ? '1' : '0';
@@ -1903,12 +1950,14 @@ $typesList = vehicle_types();
             if (!f) { setOcrMsg('Select a CR file first.', 'error'); return; }
             btnScanCr.disabled = true;
             btnScanCr.textContent = 'Scanning...';
+            if (btnCancelCrScan) btnCancelCrScan.disabled = false;
             setOcrMsg('Scanning CR and extracting fields...', 'info');
             if (ocrResult) ocrResult.classList.add('hidden');
             try {
+              ocrAbort = new AbortController();
               const fd = new FormData();
               fd.append('cr', f);
-              const res = await fetch(rootUrl + '/admin/api/module1/ocr_scan_cr.php', { method: 'POST', body: fd });
+              const res = await fetch(rootUrl + '/admin/api/module1/ocr_scan_cr.php', { method: 'POST', body: fd, signal: ocrAbort.signal });
               const data = await res.json().catch(() => null);
               if (!data || !data.ok) {
                 const msg = (data && data.message) ? String(data.message) : 'OCR failed';
@@ -1926,10 +1975,13 @@ $typesList = vehicle_types();
               setOcrMsg('Scan complete. Review auto-filled fields and confirm before saving.', 'success');
             } catch (e) {
               setOcrUsed(false);
-              setOcrMsg((e && e.message) ? String(e.message) : 'OCR failed', 'error');
+              if (e && (e.name === 'AbortError')) setOcrMsg('Scan cancelled.', 'info');
+              else setOcrMsg((e && e.message) ? String(e.message) : 'OCR failed', 'error');
             } finally {
+              ocrAbort = null;
               btnScanCr.disabled = false;
               btnScanCr.textContent = 'Scan CR & Auto-fill';
+              if (btnCancelCrScan) btnCancelCrScan.disabled = true;
             }
           });
         }

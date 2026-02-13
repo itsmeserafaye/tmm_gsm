@@ -289,19 +289,11 @@ if ($rootUrl === '/') $rootUrl = '';
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: <?php echo (int)$rid; ?></div>
                 </td>
                 <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium hidden md:table-cell">
-                  <div class="space-y-2">
-                    <input data-op-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold">
-                    <input data-op-field="email" data-initial="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold">
-                  </div>
+                  <div class="text-sm font-bold text-slate-900 dark:text-white" data-op-contact="1"><?php echo htmlspecialchars($contactLine !== '' ? $contactLine : '-'); ?></div>
+                  <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400" data-op-email="1"><?php echo htmlspecialchars($emailLine !== '' ? $emailLine : '-'); ?></div>
                 </td>
                 <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium hidden lg:table-cell">
-                  <div class="grid grid-cols-2 gap-2">
-                    <input data-op-field="address_street" data-initial="<?php echo htmlspecialchars((string)($row['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="col-span-2 w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold" placeholder="House / Building / Street">
-                    <input data-op-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($row['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold" placeholder="Barangay">
-                    <input data-op-field="address_city" data-initial="<?php echo htmlspecialchars((string)($row['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold" placeholder="City / Municipality">
-                    <input data-op-field="address_province" data-initial="<?php echo htmlspecialchars((string)($row['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold" placeholder="Province">
-                    <input data-op-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($row['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs font-bold" placeholder="Postal Code">
-                  </div>
+                  <div class="text-sm font-bold text-slate-900 dark:text-white" data-op-address-line="1"><?php echo htmlspecialchars($addrLine); ?></div>
                   <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold"><?php echo htmlspecialchars((string)($row['operator_type'] ?? '')); ?></div>
                 </td>
                 <td class="py-4 px-4">
@@ -312,12 +304,11 @@ if ($rootUrl === '/') $rootUrl = '';
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-view="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" title="View Operator">
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
-                    <button type="button" class="hidden p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all" data-op-save="1" title="Save">
-                      <i data-lucide="save" class="w-4 h-4"></i>
-                    </button>
-                    <button type="button" class="hidden p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-all" data-op-revert="1" title="Cancel">
-                      <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
+                    <?php if (has_any_permission(['module1.write','module1.vehicles.write'])): ?>
+                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-op-edit-toggle="1" title="Edit Contact/Address">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                      </button>
+                    <?php endif; ?>
                     <?php if (has_permission('module1.write')): ?>
                       <a href="?page=module1/submodule3&review_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all inline-flex items-center justify-center" title="Validate Documents">
                         <i data-lucide="clipboard-check" class="w-4 h-4"></i>
@@ -326,6 +317,58 @@ if ($rootUrl === '/') $rootUrl = '';
                   </div>
                 </td>
               </tr>
+              <?php if (has_any_permission(['module1.write','module1.vehicles.write'])): ?>
+                <tr class="hidden" data-op-edit-row="1" data-operator-id="<?php echo (int)$rid; ?>">
+                  <td colspan="5" class="px-6 pb-4">
+                    <div class="rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 p-4">
+                      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="space-y-3">
+                          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Contact</div>
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Contact No</label>
+                              <input data-op-edit-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., 09171234567">
+                            </div>
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Email</label>
+                              <input data-op-edit-field="email" data-initial="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com">
+                            </div>
+                          </div>
+                        </div>
+                        <div class="space-y-3">
+                          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Address</div>
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="sm:col-span-2">
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">House / Building / Street</label>
+                              <input data-op-edit-field="address_street" data-initial="<?php echo htmlspecialchars((string)($row['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="House / Building / Street">
+                            </div>
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Barangay</label>
+                              <input data-op-edit-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($row['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Barangay">
+                            </div>
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">City / Municipality</label>
+                              <input data-op-edit-field="address_city" data-initial="<?php echo htmlspecialchars((string)($row['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="City / Municipality">
+                            </div>
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Province</label>
+                              <input data-op-edit-field="address_province" data-initial="<?php echo htmlspecialchars((string)($row['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Province">
+                            </div>
+                            <div>
+                              <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Postal Code</label>
+                              <input data-op-edit-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($row['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($row['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Postal Code">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="mt-4 flex items-center justify-end gap-2">
+                        <button type="button" class="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-op-edit-cancel="1">Cancel</button>
+                        <button type="button" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold" data-op-edit-save="1" disabled>Save</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              <?php endif; ?>
             <?php endwhile; ?>
           <?php else: ?>
             <tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">No operators found.</td></tr>
@@ -660,45 +703,96 @@ if ($rootUrl === '/') $rootUrl = '';
     const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
     document.querySelectorAll('tr[data-op-row="1"]').forEach((row) => {
       const operatorId = row.getAttribute('data-operator-id') || '';
-      const btnSave = row.querySelector('[data-op-save="1"]');
-      const btnRevert = row.querySelector('[data-op-revert="1"]');
-      const inputs = Array.from(row.querySelectorAll('[data-op-field]'));
+      const btnEdit = row.querySelector('[data-op-edit-toggle="1"]');
+      const editRow = row.nextElementSibling && row.nextElementSibling.getAttribute('data-op-edit-row') === '1'
+        ? row.nextElementSibling
+        : null;
+      if (!btnEdit || !editRow) return;
 
+      const inputs = Array.from(editRow.querySelectorAll('[data-op-edit-field]'));
+      const btnSave = editRow.querySelector('[data-op-edit-save="1"]');
+      const btnCancel = editRow.querySelector('[data-op-edit-cancel="1"]');
+
+      const getVal = (k) => {
+        const el = inputs.find((x) => (x.getAttribute('data-op-edit-field') || '') === k);
+        return el ? (el.value || '').toString().trim() : '';
+      };
+      const setVal = (k, v) => {
+        const el = inputs.find((x) => (x.getAttribute('data-op-edit-field') || '') === k);
+        if (el) el.value = v || '';
+      };
+      const resetToInitial = () => {
+        inputs.forEach((i) => { i.value = i.getAttribute('data-initial') || ''; });
+      };
       const isDirty = () => inputs.some((i) => (i.value || '') !== (i.getAttribute('data-initial') || ''));
-      const refreshButtons = () => {
-        const dirty = isDirty();
-        if (btnSave) btnSave.classList.toggle('hidden', !dirty);
-        if (btnRevert) btnRevert.classList.toggle('hidden', !dirty);
+      const refresh = () => {
+        if (btnSave) btnSave.disabled = !isDirty();
       };
 
-      inputs.forEach((inp) => {
-        const field = inp.getAttribute('data-op-field') || '';
-        if (field === 'contact_no') {
-          inp.addEventListener('input', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refreshButtons(); });
-          inp.addEventListener('blur', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refreshButtons(); });
-        } else {
-          inp.addEventListener('input', refreshButtons);
-        }
-        inp.addEventListener('change', refreshButtons);
+      const updateDisplay = () => {
+        const cNo = getVal('contact_no');
+        const em = getVal('email');
+        const street = getVal('address_street');
+        const brgy = getVal('address_barangay');
+        const city = getVal('address_city');
+        const prov = getVal('address_province');
+        const postal = getVal('address_postal_code');
+
+        const contactEl = row.querySelector('[data-op-contact="1"]');
+        const emailEl = row.querySelector('[data-op-email="1"]');
+        if (contactEl) contactEl.textContent = cNo !== '' ? cNo : '-';
+        if (emailEl) emailEl.textContent = em !== '' ? em : '-';
+
+        const parts = [street, brgy, city, prov].filter((x) => (x || '').toString().trim() !== '');
+        let addrLine = parts.length ? parts.join(', ') : '';
+        if (postal) addrLine = (addrLine ? (addrLine + ' ') : '') + postal;
+        if (!addrLine) addrLine = '-';
+        const addrEl = row.querySelector('[data-op-address-line="1"]');
+        if (addrEl) addrEl.textContent = addrLine;
+      };
+
+      const open = () => {
+        editRow.classList.remove('hidden');
+        refresh();
+        if (window.lucide) window.lucide.createIcons();
+      };
+      const close = () => {
+        editRow.classList.add('hidden');
+      };
+
+      btnEdit.addEventListener('click', () => {
+        if (editRow.classList.contains('hidden')) open();
+        else { resetToInitial(); close(); refresh(); }
       });
 
-      if (btnRevert) {
-        btnRevert.addEventListener('click', () => {
-          inputs.forEach((inp) => { inp.value = inp.getAttribute('data-initial') || ''; });
-          refreshButtons();
+      if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+          resetToInitial();
+          close();
+          refresh();
         });
       }
+
+      inputs.forEach((inp) => {
+        const field = inp.getAttribute('data-op-edit-field') || '';
+        if (field === 'contact_no') {
+          inp.addEventListener('input', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
+          inp.addEventListener('blur', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
+        } else {
+          inp.addEventListener('input', refresh);
+        }
+        inp.addEventListener('change', refresh);
+      });
 
       if (btnSave) {
         btnSave.addEventListener('click', async () => {
           if (!operatorId) return;
-          const origDisabled = btnSave.disabled;
           btnSave.disabled = true;
           try {
             const fd = new FormData();
             fd.append('operator_id', operatorId);
             inputs.forEach((inp) => {
-              const k = inp.getAttribute('data-op-field') || '';
+              const k = inp.getAttribute('data-op-edit-field') || '';
               if (!k) return;
               fd.append(k, inp.value || '');
             });
@@ -707,17 +801,18 @@ if ($rootUrl === '/') $rootUrl = '';
             const data = await res.json().catch(() => null);
             if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
             inputs.forEach((inp) => { inp.setAttribute('data-initial', inp.value || ''); });
-            refreshButtons();
+            updateDisplay();
+            close();
+            refresh();
             showToast('Operator updated successfully.');
           } catch (err) {
             showToast((err && err.message) ? err.message : 'Failed', 'error');
-          } finally {
-            btnSave.disabled = origDisabled;
+            refresh();
           }
         });
       }
 
-      refreshButtons();
+      refresh();
     });
 
     const highlight = document.getElementById('op-row-highlight');
