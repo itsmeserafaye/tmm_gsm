@@ -49,7 +49,18 @@ $sql = "SELECT
   ) AS uploaded_labels,
   SUM(CASE WHEN d.doc_id IS NULL THEN 0 ELSE 1 END) AS doc_count
 FROM operators o
-LEFT JOIN operator_documents d ON d.operator_id=o.id
+LEFT JOIN (
+  SELECT od.*
+  FROM operator_documents od
+  JOIN (
+    SELECT operator_id,
+           doc_type,
+           TRIM(SUBSTRING_INDEX(COALESCE(remarks,''), '|', 1)) AS head_label,
+           MAX(doc_id) AS doc_id
+    FROM operator_documents
+    GROUP BY operator_id, doc_type, head_label
+  ) x ON x.doc_id=od.doc_id
+) d ON d.operator_id=o.id
 WHERE 1=1";
 
 $params = [];

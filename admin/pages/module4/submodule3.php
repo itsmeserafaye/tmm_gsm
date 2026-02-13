@@ -70,13 +70,6 @@ if ($scheduleId > 0) {
   }
 }
 
-$vehicles = [];
-$resV = $db->query("SELECT v.id, v.plate_number
-                    FROM vehicles v
-                    JOIN vehicle_registrations vr ON vr.vehicle_id=v.id AND vr.registration_status IN ('Registered','Recorded')
-                    ORDER BY v.plate_number ASC LIMIT 1200");
-if ($resV) while ($r = $resV->fetch_assoc()) $vehicles[] = $r;
-
 $prefillVehicleText = '';
 if ($prefillVehicleId > 0) {
   $stmtPV = $db->prepare("SELECT id, plate_number FROM vehicles WHERE id=? LIMIT 1");
@@ -347,12 +340,19 @@ if ($rootUrl === '/') $rootUrl = '';
         <?php endif; ?>
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
-          <input name="vehicle_pick" list="vehiclePickList" required minlength="1" value="<?php echo htmlspecialchars(($editVehiclePick !== '' ? $editVehiclePick : ($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : '')))); ?>" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate or select from list">
-          <datalist id="vehiclePickList">
-            <?php foreach ($vehicles as $v): ?>
-              <option value="<?php echo htmlspecialchars($v['id'] . ' - ' . $v['plate_number'], ENT_QUOTES); ?>"></option>
-            <?php endforeach; ?>
-          </datalist>
+          <input type="hidden" name="vehicle_id" id="vehicleIdHidden" value="">
+          <div class="relative">
+            <input id="vehiclePick" name="vehicle_pick" required minlength="1" readonly value="<?php echo htmlspecialchars(($editVehiclePick !== '' ? $editVehiclePick : ($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : '')))); ?>" data-tmm-uppercase="1" class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase cursor-pointer" placeholder="Select a vehicle (uninspected)">
+            <button type="button" id="vehiclePickToggle" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </button>
+            <div id="vehiclePickPanel" class="hidden absolute z-[120] mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+              <div class="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
+                <input id="vehiclePickSearch" class="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search plate/type...">
+              </div>
+              <div id="vehiclePickList" class="max-h-72 overflow-auto"></div>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -411,6 +411,12 @@ if ($rootUrl === '/') $rootUrl = '';
     const correctionWrap = document.getElementById('correctionWrap');
     const correctionDue = document.getElementById('correctionDue');
     const scheduleIdEl = document.getElementById('scheduleId');
+    const vehiclePick = document.getElementById('vehiclePick');
+    const vehiclePickToggle = document.getElementById('vehiclePickToggle');
+    const vehiclePickPanel = document.getElementById('vehiclePickPanel');
+    const vehiclePickSearch = document.getElementById('vehiclePickSearch');
+    const vehiclePickList = document.getElementById('vehiclePickList');
+    const vehicleIdHidden = document.getElementById('vehicleIdHidden');
 
     if (scheduleDate && !scheduleDate.value) {
       const d = new Date();
@@ -449,6 +455,71 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
+    let vehiclePickOpen = false;
+    let vehiclePickTimer = null;
+    let vehiclePickInflight = null;
+
+    function openVehiclePick() {
+      if (!vehiclePickPanel) return;
+      vehiclePickPanel.classList.remove('hidden');
+      vehiclePickOpen = true;
+      if (vehiclePickSearch) {
+        try { vehiclePickSearch.focus(); } catch (_) {}
+      }
+      loadVehiclePick((vehiclePickSearch && vehiclePickSearch.value) ? vehiclePickSearch.value : '');
+    }
+
+    function closeVehiclePick() {
+      if (!vehiclePickPanel) return;
+      vehiclePickPanel.classList.add('hidden');
+      vehiclePickOpen = false;
+    }
+
+    async function loadVehiclePick(query) {
+      if (!vehiclePickList) return;
+      if (vehiclePickInflight) try { vehiclePickInflight.abort(); } catch (_) {}
+      vehiclePickInflight = new AbortController();
+      const qs = new URLSearchParams();
+      if (query && query.trim() !== '') qs.set('q', query.trim());
+      qs.set('limit', '200');
+      vehiclePickList.innerHTML = `<div class="p-3 text-sm text-slate-500 dark:text-slate-400">Loading...</div>`;
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module4/search_uninspected_vehicles.php?' + qs.toString(), { signal: vehiclePickInflight.signal });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const rows = Array.isArray(data.data) ? data.data : [];
+        if (!rows.length) {
+          vehiclePickList.innerHTML = `<div class="p-3 text-sm text-slate-500 dark:text-slate-400 italic">No vehicles found.</div>`;
+          return;
+        }
+        vehiclePickList.innerHTML = rows.map((r) => {
+          const id = Number(r.id) || 0;
+          const plate = (r.plate_number || '').toString().trim().toUpperCase();
+          const type = (r.vehicle_type || '').toString().trim();
+          const sub = type ? ('<div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">' + esc(type) + '</div>') : '';
+          return `
+            <button type="button" class="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors border-b border-slate-100 dark:border-slate-800" data-pick-veh="1" data-veh-id="${esc(id)}" data-veh-plate="${esc(plate)}">
+              <div class="text-sm font-bold text-slate-800 dark:text-slate-100">${esc(plate)}</div>
+              ${sub}
+            </button>
+          `;
+        }).join('');
+        vehiclePickList.querySelectorAll('[data-pick-veh="1"]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = Number(btn.getAttribute('data-veh-id') || 0);
+            const plate = (btn.getAttribute('data-veh-plate') || '').toString().trim();
+            if (vehicleIdHidden) vehicleIdHidden.value = id ? String(id) : '';
+            if (vehiclePick) vehiclePick.value = (id ? (String(id) + ' - ') : '') + plate;
+            if (vehiclePickSearch) vehiclePickSearch.value = '';
+            closeVehiclePick();
+          });
+        });
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+        vehiclePickList.innerHTML = `<div class="p-3 text-sm text-rose-600 font-semibold">Failed to load vehicles.</div>`;
+      }
+    }
 
     function closeOverlay(id) {
       const el = document.getElementById(id);
@@ -558,13 +629,42 @@ if ($rootUrl === '/') $rootUrl = '';
       return 0;
     }
 
+    if (vehiclePickToggle) vehiclePickToggle.addEventListener('click', () => { vehiclePickOpen ? closeVehiclePick() : openVehiclePick(); });
+    if (vehiclePick) vehiclePick.addEventListener('click', () => { vehiclePickOpen ? closeVehiclePick() : openVehiclePick(); });
+    if (vehiclePickSearch) {
+      vehiclePickSearch.addEventListener('input', () => {
+        if (vehiclePickTimer) clearTimeout(vehiclePickTimer);
+        vehiclePickTimer = setTimeout(() => {
+          loadVehiclePick(vehiclePickSearch.value || '');
+        }, 150);
+      });
+    }
+    document.addEventListener('click', (e) => {
+      if (!vehiclePickOpen) return;
+      const t = e && e.target ? e.target : null;
+      if (!t) return;
+      if (vehiclePickPanel && vehiclePickPanel.contains(t)) return;
+      if (vehiclePick && vehiclePick.contains(t)) return;
+      if (vehiclePickToggle && vehiclePickToggle.contains(t)) return;
+      closeVehiclePick();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (!vehiclePickOpen) return;
+      if (e && e.key === 'Escape') closeVehiclePick();
+    });
+    if (vehiclePick && vehicleIdHidden) {
+      const parsed = parseId(vehiclePick.value || '');
+      if (parsed) vehicleIdHidden.value = String(parsed);
+    }
+
     if (form && btn) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const fd = new FormData(form);
         const pick = (fd.get('vehicle_pick') || '').toString().trim();
-        const vehicleId = parseId(pick);
+        const hid = Number((fd.get('vehicle_id') || '').toString().trim() || 0);
+        const vehicleId = hid > 0 ? hid : parseId(pick);
         const plate = pick;
         if (!vehicleId && !plate) { showToast('Select a vehicle or type a plate.', 'error'); return; }
         const post = new FormData();
