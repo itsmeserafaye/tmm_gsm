@@ -74,6 +74,12 @@ if ($stmtTix) {
   }
 }
 
+$hasUpload = function (string $field): bool {
+  return isset($_FILES[$field]) && is_array($_FILES[$field]) && (int)($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+};
+$hasOrProof = $hasUpload('or_doc') || $hasUpload('orcr_doc');
+$hasCrProof = $hasUpload('cr_doc') || $hasUpload('orcr_doc');
+
 $stmtReg = $db->prepare("SELECT registration_status FROM vehicle_registrations WHERE vehicle_id=? ORDER BY registration_id DESC LIMIT 1");
 if ($stmtReg) {
   $stmtReg->bind_param('i', $vehicleId);
@@ -82,14 +88,20 @@ if ($stmtReg) {
   $stmtReg->close();
   $rs = (string)($reg['registration_status'] ?? '');
   if ($rs === '' || strcasecmp($rs, 'Expired') === 0 || strcasecmp($rs, 'Pending') === 0) {
+    if ($hasOrProof && $hasCrProof) {
+      $rs = 'Provided';
+    } else {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
+      exit;
+    }
+  }
+} else {
+  if (!($hasOrProof && $hasCrProof)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
     exit;
   }
-} else {
-  http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'orcr_not_valid']);
-  exit;
 }
 
   $frStatusCol = '';

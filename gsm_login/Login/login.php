@@ -416,6 +416,8 @@ if ($action === 'login_otp_verify') {
     $_SESSION['role'] = $primaryRole;
     $_SESSION['roles'] = $roles;
     $_SESSION['permissions'] = $perms;
+    $_SESSION['last_activity'] = time();
+    if ($primaryRole === 'Commuter') $_SESSION['commuter_last_activity'] = $_SESSION['last_activity'];
 
     $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW() WHERE id=?");
     if ($stmt) {
@@ -613,6 +615,8 @@ if (!$mustOtp) {
   $_SESSION['role'] = $primaryRole;
   $_SESSION['roles'] = $roles;
   $_SESSION['permissions'] = $perms;
+  $_SESSION['last_activity'] = time();
+  if ($primaryRole === 'Commuter') $_SESSION['commuter_last_activity'] = $_SESSION['last_activity'];
 
   $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
   if ($stmt) {
@@ -648,6 +652,8 @@ if ($trustDays > 0 && td_is_trusted($db, 'rbac', $userId, $deviceHash, $trustDay
   $_SESSION['role'] = $primaryRole;
   $_SESSION['roles'] = $roles;
   $_SESSION['permissions'] = $perms;
+  $_SESSION['last_activity'] = time();
+  if ($primaryRole === 'Commuter') $_SESSION['commuter_last_activity'] = $_SESSION['last_activity'];
 
   $stmt = $db->prepare("UPDATE rbac_users SET last_login_at=NOW(), status='Active', locked_until=NULL WHERE id=?");
   if ($stmt) {

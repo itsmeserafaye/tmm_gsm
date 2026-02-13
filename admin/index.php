@@ -3,18 +3,14 @@ ob_start();
 $baseUrl = str_replace('\\', '/', (string) dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/admin/index.php')));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');
 $rootUrl = preg_replace('#/admin$#', '', $baseUrl);
-if (php_sapi_name() !== 'cli' && function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE) {
-  @session_start();
-}
-if (php_sapi_name() !== 'cli' && empty($_SESSION['user_id'])) {
-  header('Location: ' . $rootUrl . '/index.php');
-  exit;
-}
-
 $baseDir = __DIR__;
 require_once $baseDir . '/includes/auth.php';
 require_once $baseDir . '/includes/sidebar_items.php';
 require_once $baseDir . '/includes/export_toolbar.php';
+
+if (php_sapi_name() !== 'cli') {
+  require_login();
+}
 
 if (php_sapi_name() !== 'cli') {
   $role = current_user_role();

@@ -1363,8 +1363,20 @@ $typesList = vehicle_types();
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Make</label>
-                <input id="vehMakeSearch" class="w-full mb-2 px-4 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search make...">
-                <select id="vehMakeSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                <div id="vehMakeBox" class="relative">
+                  <div class="relative">
+                    <input id="vehMakeDisplay" type="text" readonly class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select make">
+                    <button id="vehMakeToggle" type="button" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                      <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                  <div id="vehMakePanel" class="hidden absolute z-50 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+                    <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                      <input id="vehMakeSearch" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search make...">
+                    </div>
+                    <div id="vehMakeList" class="max-h-60 overflow-auto"></div>
+                  </div>
+                </div>
                 <div id="vehMakeOtherWrap" class="hidden mt-2">
                   <input id="vehMakeOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type make">
                 </div>
@@ -1372,8 +1384,20 @@ $typesList = vehicle_types();
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Model</label>
-                <input id="vehModelSearch" class="w-full mb-2 px-4 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search model...">
-                <select id="vehModelSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
+                <div id="vehModelBox" class="relative">
+                  <div class="relative">
+                    <input id="vehModelDisplay" type="text" readonly class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select model">
+                    <button id="vehModelToggle" type="button" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                      <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                  <div id="vehModelPanel" class="hidden absolute z-50 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+                    <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                      <input id="vehModelSearch" class="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Search model...">
+                    </div>
+                    <div id="vehModelList" class="max-h-60 overflow-auto"></div>
+                  </div>
+                </div>
                 <div id="vehModelOtherWrap" class="hidden mt-2">
                   <input id="vehModelOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type model">
                 </div>
@@ -1557,13 +1581,21 @@ $typesList = vehicle_types();
           vinInput.addEventListener('blur', () => { vinInput.value = normalizeVin(vinInput.value); validate(); });
         }
 
-        const makeSelect = document.getElementById('vehMakeSelect');
+        const makeBox = document.getElementById('vehMakeBox');
+        const makeDisplay = document.getElementById('vehMakeDisplay');
+        const makeToggle = document.getElementById('vehMakeToggle');
+        const makePanel = document.getElementById('vehMakePanel');
         const makeSearch = document.getElementById('vehMakeSearch');
+        const makeList = document.getElementById('vehMakeList');
         const makeOtherInput = document.getElementById('vehMakeOtherInput');
         const makeHidden = document.getElementById('vehMakeHidden');
         const makeOtherWrap = document.getElementById('vehMakeOtherWrap');
-        const modelSelect = document.getElementById('vehModelSelect');
+        const modelBox = document.getElementById('vehModelBox');
+        const modelDisplay = document.getElementById('vehModelDisplay');
+        const modelToggle = document.getElementById('vehModelToggle');
+        const modelPanel = document.getElementById('vehModelPanel');
         const modelSearch = document.getElementById('vehModelSearch');
+        const modelList = document.getElementById('vehModelList');
         const modelOtherInput = document.getElementById('vehModelOtherInput');
         const modelHidden = document.getElementById('vehModelHidden');
         const modelOtherWrap = document.getElementById('vehModelOtherWrap');
@@ -1574,17 +1606,60 @@ $typesList = vehicle_types();
 
         function setWrapVisible(wrap, visible) { if (!wrap) return; wrap.classList.toggle('hidden', !visible); }
 
-        function fillMakeOptions(filterQ) {
-          if (!makeSelect) return;
-          const q = (filterQ || '').toString().trim().toUpperCase();
-          const list = q ? makeOptions.filter((m) => String(m).toUpperCase().includes(q)) : makeOptions;
-          const cur = makeSelect.value || '';
-          makeSelect.innerHTML =
-            `<option value="">Select</option>` +
-            list.map((m) => `<option value="${m}">${m}</option>`).join('') +
-            `<option value="__OTHER__">Other</option>`;
-          if (cur && Array.from(makeSelect.options).some((o) => o.value === cur)) makeSelect.value = cur;
+        function escapeHtml(s) {
+          return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
         }
+
+        function setupStringCombo({ box, display, toggle, panel, search, list, getItems, onPick }) {
+          if (!box || !display || !panel || !search || !list) return null;
+
+          const close = () => { panel.classList.add('hidden'); };
+          const render = (q) => {
+            const query = (q || '').toString().trim().toUpperCase();
+            const src = (typeof getItems === 'function') ? (getItems() || []) : [];
+            const items = Array.isArray(src) ? src : [];
+            const filtered = items.filter((x) => !query || String(x).toUpperCase().includes(query));
+            const btnClass = "w-full text-left px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors";
+            const rows = [];
+            if (!filtered.length) {
+              rows.push('<div class="p-3 text-sm text-slate-500 dark:text-slate-400 italic">No matches.</div>');
+            } else {
+              rows.push(filtered.map((x) => `<button type="button" class="${btnClass}" data-combo-item="1" data-val="${escapeHtml(x)}">${escapeHtml(x)}</button>`).join(''));
+            }
+            rows.push(`<div class="border-t border-slate-200 dark:border-slate-700"></div>`);
+            rows.push(`<button type="button" class="${btnClass}" data-combo-item="1" data-val="__OTHER__">Other</button>`);
+            list.innerHTML = rows.join('');
+            list.querySelectorAll('[data-combo-item="1"]').forEach((b) => {
+              b.addEventListener('click', () => {
+                const v = b.getAttribute('data-val') || '';
+                close();
+                search.value = '';
+                if (typeof onPick === 'function') onPick(v);
+              });
+            });
+          };
+
+          const open = () => {
+            panel.classList.remove('hidden');
+            render(search.value);
+            setTimeout(() => { search.focus(); }, 0);
+            if (window.lucide) window.lucide.createIcons();
+          };
+
+          display.addEventListener('click', () => { panel.classList.contains('hidden') ? open() : close(); });
+          if (toggle) toggle.addEventListener('click', () => { panel.classList.contains('hidden') ? open() : close(); });
+          search.addEventListener('input', () => render(search.value));
+          document.addEventListener('click', (e) => { if (!box.contains(e.target)) close(); });
+          document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+          return { open, close, render };
+        }
+
         function fillFuelOptions() {
           if (!fuelSelect) return;
           fuelSelect.innerHTML =
@@ -1592,62 +1667,88 @@ $typesList = vehicle_types();
             fuelOptions.map((f) => `<option value="${f}">${f}</option>`).join('') +
             `<option value="__OTHER__">Other</option>`;
         }
-        function fillModelOptions(makeValue, filterQ) {
-          if (!modelSelect) return;
-          const models = modelOptionsByMake[makeValue] || [];
-          const q = (filterQ || '').toString().trim().toUpperCase();
-          const list = q ? models.filter((m) => String(m).toUpperCase().includes(q)) : models;
-          const cur = modelSelect.value || '';
-          modelSelect.innerHTML =
-            `<option value="">Select</option>` +
-            list.map((m) => `<option value="${m}">${m}</option>`).join('') +
-            `<option value="__OTHER__">Other</option>`;
-          if (cur && Array.from(modelSelect.options).some((o) => o.value === cur)) modelSelect.value = cur;
-        }
 
-        fillMakeOptions('');
         fillFuelOptions();
-        fillModelOptions('', '');
+        const modelCombo = setupStringCombo({
+          box: modelBox,
+          display: modelDisplay,
+          toggle: modelToggle,
+          panel: modelPanel,
+          search: modelSearch,
+          list: modelList,
+          getItems: () => {
+            const mk = makeHidden ? (makeHidden.value || '') : '';
+            return (mk && modelOptionsByMake[mk]) ? modelOptionsByMake[mk] : [];
+          },
+          onPick: (v) => {
+            if (!modelHidden || !modelDisplay) return;
+            if (v === '__OTHER__') {
+              if (modelOtherInput) modelOtherInput.value = '';
+              modelHidden.value = '';
+              modelDisplay.value = 'Other';
+              setWrapVisible(modelOtherWrap, true);
+              if (modelOtherInput) modelOtherInput.focus();
+              return;
+            }
+            modelHidden.value = v;
+            modelDisplay.value = v;
+            setWrapVisible(modelOtherWrap, false);
+          }
+        });
 
-        if (makeSearch) makeSearch.addEventListener('input', () => fillMakeOptions(makeSearch.value));
-        if (modelSearch) modelSearch.addEventListener('input', () => fillModelOptions(makeHidden ? (makeHidden.value || '') : '', modelSearch.value));
-
-        if (makeSelect && makeHidden) {
-          makeSelect.addEventListener('change', () => {
-            const v = makeSelect.value || '';
+        const makeCombo = setupStringCombo({
+          box: makeBox,
+          display: makeDisplay,
+          toggle: makeToggle,
+          panel: makePanel,
+          search: makeSearch,
+          list: makeList,
+          getItems: () => makeOptions,
+          onPick: (v) => {
+            if (!makeHidden || !makeDisplay) return;
             if (v === '__OTHER__') {
               if (makeOtherInput) makeOtherInput.value = '';
               makeHidden.value = '';
+              makeDisplay.value = 'Other';
               setWrapVisible(makeOtherWrap, true);
               if (makeOtherInput) makeOtherInput.focus();
             } else {
               makeHidden.value = v;
+              makeDisplay.value = v;
               setWrapVisible(makeOtherWrap, false);
             }
+            if (modelHidden) modelHidden.value = '';
+            if (modelDisplay) modelDisplay.value = '';
+            if (modelOtherInput) modelOtherInput.value = '';
+            setWrapVisible(modelOtherWrap, false);
             if (modelSearch) modelSearch.value = '';
-            fillModelOptions(v, '');
-            if (modelSelect && modelHidden) {
-              modelSelect.value = '';
-              modelHidden.value = '';
-              if (modelOtherInput) modelOtherInput.value = '';
-              setWrapVisible(modelOtherWrap, false);
-            }
-          });
+            if (modelCombo) modelCombo.render('');
+          }
+        });
+
+        if (makeDisplay && makeHidden) makeDisplay.value = makeHidden.value || '';
+        if (modelDisplay && modelHidden) modelDisplay.value = modelHidden.value || '';
+
+        if (makeOtherInput && makeHidden && makeDisplay) {
+          const sync = () => {
+            makeHidden.value = makeOtherInput.value || '';
+            makeDisplay.value = makeOtherInput.value || 'Other';
+          };
+          makeOtherInput.addEventListener('input', sync);
+          makeOtherInput.addEventListener('blur', sync);
         }
-        if (modelSelect && modelHidden) {
-          modelSelect.addEventListener('change', () => {
-            const v = modelSelect.value || '';
-            if (v === '__OTHER__') {
-              if (modelOtherInput) modelOtherInput.value = '';
-              modelHidden.value = '';
-              setWrapVisible(modelOtherWrap, true);
-              if (modelOtherInput) modelOtherInput.focus();
-            } else {
-              modelHidden.value = v;
-              setWrapVisible(modelOtherWrap, false);
-            }
-          });
+        if (modelOtherInput && modelHidden && modelDisplay) {
+          const sync = () => {
+            modelHidden.value = modelOtherInput.value || '';
+            modelDisplay.value = modelOtherInput.value || 'Other';
+          };
+          modelOtherInput.addEventListener('input', sync);
+          modelOtherInput.addEventListener('blur', sync);
         }
+
+        if (makeCombo && makeSearch) makeCombo.render(makeSearch.value);
+        if (modelCombo && modelSearch) modelCombo.render(modelSearch.value);
+
         if (fuelSelect && fuelHidden) {
           fuelSelect.addEventListener('change', () => {
             const v = fuelSelect.value || '';

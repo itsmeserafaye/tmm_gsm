@@ -7,6 +7,32 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 
+require_once __DIR__ . '/../../includes/db.php';
+$db = db();
+
+if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'Commuter') {
+    $min = 30;
+    $stmt = $db->prepare("SELECT setting_value FROM app_settings WHERE setting_key='session_timeout' LIMIT 1");
+    if ($stmt) {
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $v = (int) trim((string) ($row['setting_value'] ?? ''));
+        if ($v > 0) $min = $v;
+    }
+    if ($min > 1440) $min = 1440;
+    $ttl = $min * 60;
+    $now = time();
+    $last = (int) ($_SESSION['commuter_last_activity'] ?? 0);
+    if ($last > 0 && ($now - $last) > $ttl) {
+        $_SESSION = [];
+        @session_unset();
+        @session_destroy();
+    } else {
+        $_SESSION['commuter_last_activity'] = $now;
+    }
+}
+
 // No login required for public portal
 $baseUrl = str_replace('\\', '/', (string) dirname(dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/citizen/commuter/index.php')))));
 $baseUrl = $baseUrl === '/' ? '' : rtrim($baseUrl, '/');

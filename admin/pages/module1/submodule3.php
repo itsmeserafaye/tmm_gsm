@@ -33,6 +33,7 @@ $sql = "SELECT
   MAX(CASE WHEN d.doc_type='SEC' THEN d.is_verified ELSE 0 END) AS sec_verified,
   MAX(CASE WHEN d.doc_type='BarangayCert' THEN d.is_verified ELSE 0 END) AS brgy_verified,
   MAX(CASE WHEN d.doc_type='Others' THEN d.is_verified ELSE 0 END) AS others_verified,
+  GROUP_CONCAT(DISTINCT d.doc_type ORDER BY d.doc_type SEPARATOR ',') AS uploaded_types,
   SUM(CASE WHEN d.doc_id IS NULL THEN 0 ELSE 1 END) AS doc_count
 FROM operators o
 LEFT JOIN operator_documents d ON d.operator_id=o.id
@@ -166,7 +167,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
           <tr class="text-left text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6">Operator</th>
             <th class="py-4 px-4 hidden md:table-cell">Type</th>
-            <th class="py-4 px-4">Required</th>
+            <th class="py-4 px-4">Uploaded</th>
             <th class="py-4 px-4">Docs</th>
             <th class="py-4 px-4">Status</th>
             <th class="py-4 px-4 text-right">Action</th>
@@ -189,13 +190,18 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                   'Inactive' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
-                $required = tmm_required_doc_list($opType);
                 $govIdKind = $opType === 'Individual' ? tmm_extract_gov_id_kind((string)($row['govid_remarks'] ?? '')) : '';
-                $requiredText = implode(', ', array_map(function ($x) use ($govIdKind) {
-                  $t = (string)$x;
-                  if ($t === 'Government ID' && $govIdKind !== '') return 'Government ID (' . $govIdKind . ')';
-                  return $t;
-                }, $required));
+                $uploadedRaw = trim((string)($row['uploaded_types'] ?? ''));
+                $uploaded = $uploadedRaw !== '' ? array_values(array_filter(array_map('trim', explode(',', $uploadedRaw)))) : [];
+                $map = function (string $code) use ($govIdKind): string {
+                  if ($code === 'GovID') return $govIdKind !== '' ? ('Government ID (' . $govIdKind . ')') : 'Government ID';
+                  if ($code === 'BarangayCert') return 'Barangay Certificate';
+                  if ($code === 'CDA') return 'CDA';
+                  if ($code === 'SEC') return 'SEC';
+                  if ($code === 'Others') return 'Others';
+                  return $code;
+                };
+                $uploadedText = $uploaded ? implode(', ', array_map($map, $uploaded)) : '-';
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 <td class="py-4 px-6">
@@ -205,7 +211,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
                 <td class="py-4 px-4 hidden md:table-cell">
                   <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 ring-1 ring-inset ring-slate-500/10"><?php echo htmlspecialchars($opType); ?></span>
                 </td>
-                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm"><?php echo htmlspecialchars($requiredText); ?></td>
+                <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm"><?php echo htmlspecialchars($uploadedText); ?></td>
                 <td class="py-4 px-4 text-slate-600 dark:text-slate-300 font-semibold text-sm"><?php echo (int)($row['doc_count'] ?? 0); ?></td>
                 <td class="py-4 px-4">
                   <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span>
