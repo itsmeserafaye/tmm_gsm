@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 require_login();
 require_any_permission(['module1.read', 'module1.view', 'module1.write', 'module1.vehicles.write']);
+$canEdit = has_any_permission(['module1.write', 'module1.vehicles.write']);
 
 $operatorId = isset($_GET['operator_id']) ? (int) $_GET['operator_id'] : 0;
 header('Content-Type: text/html; charset=utf-8');
@@ -117,8 +118,51 @@ if ($stmtV) {
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact</div>
-            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($displayContact); ?></div>
+            <div class="flex items-center justify-between gap-3">
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Contact</div>
+              <div id="opInlineMsg" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden"></div>
+            </div>
+            <div id="opInlineEdit" class="mt-3 space-y-3" data-operator-id="<?php echo (int)$operatorId; ?>" data-root-url="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>" data-can-edit="<?php echo $canEdit ? '1' : '0'; ?>">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
+                  <input data-op-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., 09171234567" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
+                  <input data-op-field="email" data-initial="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="sm:col-span-2">
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
+                  <input data-op-field="address_street" data-initial="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="House / Building / Street" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+                  <input data-op-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Barangay" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
+                  <input data-op-field="address_city" data-initial="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="City / Municipality" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
+                  <input data-op-field="address_province" data-initial="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Province" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
+                  <input data-op-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Postal Code" <?php echo $canEdit ? '' : 'disabled'; ?>>
+                </div>
+              </div>
+              <?php if (!$canEdit): ?>
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Read-only: you don’t have permission to edit this operator.</div>
+              <?php endif; ?>
+              <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" id="opInlineCancel" class="hidden px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+                <button type="button" id="opInlineSave" class="hidden px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Save Changes</button>
+              </div>
+            </div>
         </div>
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Created</div>
@@ -157,32 +201,6 @@ if ($stmtV) {
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-        <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Address</div>
-        <?php
-          $street = trim((string)($op['address_street'] ?? ''));
-          $brgy = trim((string)($op['address_barangay'] ?? ''));
-          $city = trim((string)($op['address_city'] ?? ''));
-          $prov = trim((string)($op['address_province'] ?? ''));
-          $postal = trim((string)($op['address_postal_code'] ?? ''));
-          $legacy = trim((string)($op['address'] ?? ''));
-          $hasParts = ($street !== '' || $brgy !== '' || $city !== '' || $prov !== '' || $postal !== '');
-        ?>
-        <?php if ($hasParts): ?>
-          <div class="grid grid-cols-1 gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <?php if ($street !== ''): ?><div><?php echo htmlspecialchars($street); ?></div><?php endif; ?>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Barangay</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($brgy !== '' ? $brgy : '-'); ?></div></div>
-              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">City / Municipality</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($city !== '' ? $city : '-'); ?></div></div>
-              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Province</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($prov !== '' ? $prov : '-'); ?></div></div>
-              <div><span class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Postal Code</span><div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($postal !== '' ? $postal : '-'); ?></div></div>
-            </div>
-          </div>
-        <?php else: ?>
-          <div class="text-sm font-semibold text-slate-700 dark:text-slate-200"><?php echo htmlspecialchars($legacy !== '' ? $legacy : '-'); ?></div>
-        <?php endif; ?>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -253,3 +271,79 @@ if ($stmtV) {
         </div>
     </div>
 </div>
+<script>
+  (function(){
+    const wrap = document.getElementById('opInlineEdit');
+    const msg = document.getElementById('opInlineMsg');
+    const btnSave = document.getElementById('opInlineSave');
+    const btnCancel = document.getElementById('opInlineCancel');
+    if (!wrap) return;
+    const canEdit = wrap.getAttribute('data-can-edit') === '1';
+    if (!canEdit) return;
+
+    const operatorId = wrap.getAttribute('data-operator-id') || '';
+    const rootUrl = wrap.getAttribute('data-root-url') || '';
+    const inputs = Array.from(wrap.querySelectorAll('[data-op-field]'));
+    const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
+
+    const showMsg = (text, kind) => {
+      if (!msg) return;
+      msg.textContent = text || '';
+      msg.classList.remove('hidden');
+      msg.className = 'text-[11px] font-black ' + (kind === 'error' ? 'text-rose-600 dark:text-rose-300' : (kind === 'success' ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'));
+      if (text) setTimeout(() => { msg.classList.add('hidden'); }, 2500);
+    };
+
+    const isDirty = () => inputs.some((i) => (i.value || '') !== (i.getAttribute('data-initial') || ''));
+    const refresh = () => {
+      const dirty = isDirty();
+      if (btnSave) btnSave.classList.toggle('hidden', !dirty);
+      if (btnCancel) btnCancel.classList.toggle('hidden', !dirty);
+    };
+    const reset = () => {
+      inputs.forEach((i) => { i.value = i.getAttribute('data-initial') || ''; });
+      refresh();
+    };
+
+    inputs.forEach((inp) => {
+      const field = inp.getAttribute('data-op-field') || '';
+      if (field === 'contact_no') {
+        inp.addEventListener('input', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
+        inp.addEventListener('blur', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
+      } else {
+        inp.addEventListener('input', refresh);
+      }
+      inp.addEventListener('change', refresh);
+    });
+
+    if (btnCancel) btnCancel.addEventListener('click', reset);
+
+    if (btnSave) {
+      btnSave.addEventListener('click', async () => {
+        if (!operatorId) return;
+        btnSave.disabled = true;
+        try {
+          const fd = new FormData();
+          fd.append('operator_id', operatorId);
+          inputs.forEach((inp) => {
+            const k = inp.getAttribute('data-op-field') || '';
+            if (!k) return;
+            fd.append(k, inp.value || '');
+          });
+          const res = await fetch(rootUrl + '/admin/api/module1/update_operator.php', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
+          inputs.forEach((inp) => { inp.setAttribute('data-initial', inp.value || ''); });
+          refresh();
+          showMsg('Saved.', 'success');
+        } catch (e) {
+          showMsg((e && e.message) ? e.message : 'Failed', 'error');
+        } finally {
+          btnSave.disabled = false;
+        }
+      });
+    }
+
+    refresh();
+  })();
+</script>
