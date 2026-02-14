@@ -147,7 +147,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LTFRB Reference No</label>
-                  <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][0-9/-]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
+                  <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9][-0-9/]{2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Decision Order No</label>
