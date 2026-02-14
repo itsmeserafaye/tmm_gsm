@@ -85,14 +85,8 @@ $schRes = $db->query("SELECT DATABASE() AS db");
 if ($schRes) $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: '');
 
 $ensureParkingTransactions = function () use ($db, $schema): bool {
-  if ($schema === '') return false;
-  $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_NAME='parking_transactions' LIMIT 1");
-  if (!$stmt) return false;
-  $stmt->bind_param('s', $schema);
-  $stmt->execute();
-  $row = $stmt->get_result()->fetch_row();
-  $stmt->close();
-  if ($row) return true;
+  $res = $db->query("SHOW TABLES LIKE 'parking_transactions'");
+  if ($res && $res->fetch_row()) return true;
 
   $sql = "CREATE TABLE IF NOT EXISTS parking_transactions (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -123,22 +117,20 @@ if (!$ensureParkingTransactions()) {
   exit;
 }
 
-$colMeta = function (string $table, string $col) use ($db, $schema): array {
-  if ($schema === '') return ['exists' => false];
-  $stmt = $db->prepare("SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
-                        FROM information_schema.COLUMNS
-                        WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
-  if (!$stmt) return ['exists' => false];
-  $stmt->bind_param('sss', $schema, $table, $col);
-  $stmt->execute();
-  $row = $stmt->get_result()->fetch_assoc();
-  $stmt->close();
+$colMeta = function (string $table, string $col) use ($db): array {
+  $table = trim($table);
+  $col = trim($col);
+  if ($table === '' || $col === '') return ['exists' => false];
+  $safeCol = $db->real_escape_string($col);
+  $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '{$safeCol}'");
+  if (!$res) return ['exists' => false];
+  $row = $res->fetch_assoc();
   if (!$row) return ['exists' => false];
   return [
     'exists' => true,
-    'type' => (string)($row['COLUMN_TYPE'] ?? ''),
-    'nullable' => (string)($row['IS_NULLABLE'] ?? ''),
-    'default' => $row['COLUMN_DEFAULT'] ?? null,
+    'type' => (string)($row['Type'] ?? ''),
+    'nullable' => (string)($row['Null'] ?? ''),
+    'default' => $row['Default'] ?? null,
   ];
 };
 

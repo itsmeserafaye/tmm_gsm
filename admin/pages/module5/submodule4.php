@@ -963,6 +963,13 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPayTreasury.disabled = true;
         const originalText = btnPayTreasury.textContent;
         btnPayTreasury.textContent = 'Opening...';
+        const payWindow = window.open('about:blank', '_blank', 'noopener');
+        if (!payWindow) {
+          showToast('Popup blocked. Allow popups for this site to open Treasury.', 'error');
+          btnPayTreasury.disabled = false;
+          btnPayTreasury.textContent = originalText;
+          return;
+        }
         try {
           const fd = new FormData();
           fd.append('terminal_id', String(terminalId));
@@ -984,12 +991,13 @@ if ($rootUrl === '/') $rootUrl = '';
           }
           const txId = String(d.transaction_id);
           const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
-          window.open(url, '_blank', 'noopener');
+          try { payWindow.location.href = url; } catch (_) {}
           setTreasuryPendingParkingTx(txId);
           setPaymentButtons('record');
           pollTreasuryReceipt(txId);
           showToast('Opening Treasury payment...');
         } catch (e) {
+          try { payWindow.close(); } catch (_) {}
           showToast(e.message || 'Failed', 'error');
         } finally {
           btnPayTreasury.disabled = false;
