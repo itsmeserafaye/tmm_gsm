@@ -81,6 +81,57 @@ if (isset($stmt) && $stmt instanceof mysqli_stmt) {
   try { $stmt->close(); } catch (Throwable $_) { }
 }
 
+$useMock = !$appRows && $q === '' && ($status === '' || $status === 'Status') && $highlightAppId <= 0;
+if ($useMock) {
+  $now = date('Y-m-d H:i:s');
+  $appRows = [
+    [
+      'application_id' => 90001,
+      'franchise_ref_number' => 'FR-2026-0001',
+      'operator_id' => 101,
+      'operator_name' => 'UV Express Operators Cooperative',
+      'route_id' => 0,
+      'route_ids' => '1,2',
+      'approved_route_ids' => '1,2',
+      'route_code' => 'R-001',
+      'origin' => 'Bagumbong',
+      'destination' => 'Novaliches Bayan',
+      'vehicle_count' => 15,
+      'representative_name' => 'Maria Santos',
+      'status' => 'PA Issued',
+      'submitted_at' => date('Y-m-d H:i:s', strtotime('-9 days')),
+      'endorsed_at' => date('Y-m-d H:i:s', strtotime('-7 days')),
+      'approved_at' => date('Y-m-d H:i:s', strtotime('-5 days')),
+      'routes_display' => 'R-001 • Bagumbong → Novaliches Bayan | R-002 • Bagumbong → Deparo',
+    ],
+    [
+      'application_id' => 90002,
+      'franchise_ref_number' => 'FR-2026-0002',
+      'operator_id' => 102,
+      'operator_name' => 'Bagumbong Jeepney Operators Association',
+      'route_id' => 0,
+      'route_ids' => '3',
+      'approved_route_ids' => '3',
+      'route_code' => 'R-003',
+      'origin' => 'Bagumbong',
+      'destination' => 'Deparo',
+      'vehicle_count' => 12,
+      'representative_name' => 'Juan Dela Cruz',
+      'status' => 'CPC Issued',
+      'submitted_at' => date('Y-m-d H:i:s', strtotime('-20 days')),
+      'endorsed_at' => date('Y-m-d H:i:s', strtotime('-18 days')),
+      'approved_at' => date('Y-m-d H:i:s', strtotime('-16 days')),
+      'routes_display' => 'R-003 • Bagumbong → Deparo',
+    ],
+  ];
+  $statTotal = 2;
+  $statSubmitted = 0;
+  $statEndorsed = 0;
+  $statApproved = 2;
+  $statExpired = 0;
+  $statRevoked = 0;
+}
+
 $routeIds = [];
 $tmmExtractRouteIds = function (string $csv): array {
   $out = [];
@@ -366,6 +417,53 @@ if ($rootUrl === '/') $rootUrl = '';
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
     const canManage = <?php echo json_encode(has_permission('module2.franchises.manage')); ?>;
+    const useMock = <?php echo json_encode($useMock); ?>;
+    const mockApps = useMock ? ({
+      90001: {
+        application_id: 90001,
+        franchise_ref_number: 'FR-2026-0001',
+        operator_id: 101,
+        operator_name: 'UV Express Operators Cooperative',
+        operator_type: 'Cooperative',
+        operator_status: 'Active',
+        route_id: 1,
+        route_code: 'R-001',
+        route_name: 'Bagumbong - Novaliches Bayan',
+        origin: 'Bagumbong',
+        destination: 'Novaliches Bayan',
+        route_status: 'Active',
+        vehicle_count: 15,
+        status: 'PA Issued',
+        submitted_at: <?php echo json_encode(date('c', strtotime('-9 days'))); ?>,
+        endorsed_at: <?php echo json_encode(date('c', strtotime('-7 days'))); ?>,
+        approved_at: <?php echo json_encode(date('c', strtotime('-5 days'))); ?>,
+        ltfrb_ref_no: '2026-0001',
+        remarks: 'Approved for operations subject to standard compliance requirements.',
+        routes_display: 'R-001 • Bagumbong → Novaliches Bayan | R-002 • Bagumbong → Deparo',
+      },
+      90002: {
+        application_id: 90002,
+        franchise_ref_number: 'FR-2026-0002',
+        operator_id: 102,
+        operator_name: 'Bagumbong Jeepney Operators Association',
+        operator_type: 'Association',
+        operator_status: 'Active',
+        route_id: 3,
+        route_code: 'R-003',
+        route_name: 'Bagumbong - Deparo',
+        origin: 'Bagumbong',
+        destination: 'Deparo',
+        route_status: 'Active',
+        vehicle_count: 12,
+        status: 'CPC Issued',
+        submitted_at: <?php echo json_encode(date('c', strtotime('-20 days'))); ?>,
+        endorsed_at: <?php echo json_encode(date('c', strtotime('-18 days'))); ?>,
+        approved_at: <?php echo json_encode(date('c', strtotime('-16 days'))); ?>,
+        ltfrb_ref_no: '2026-0002',
+        remarks: 'Approved for operations subject to standard compliance requirements.',
+        routes_display: 'R-003 • Bagumbong → Deparo',
+      }
+    }) : ({});
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -422,10 +520,16 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     async function loadApp(appId) {
-      const res = await fetch(rootUrl + '/admin/api/module2/get_application.php?application_id=' + encodeURIComponent(appId));
-      const data = await res.json();
-      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-      return data.data;
+      const id = Number(appId || 0);
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module2/get_application.php?application_id=' + encodeURIComponent(appId));
+        const data = await res.json();
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        return data.data;
+      } catch (e) {
+        if (mockApps && mockApps[id]) return mockApps[id];
+        throw e;
+      }
     }
 
     async function loadOperatorDocs(operatorId) {
