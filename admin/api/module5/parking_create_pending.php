@@ -84,6 +84,45 @@ $schema = '';
 $schRes = $db->query("SELECT DATABASE() AS db");
 if ($schRes) $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: '');
 
+$ensureParkingTransactions = function () use ($db, $schema): bool {
+  if ($schema === '') return false;
+  $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_NAME='parking_transactions' LIMIT 1");
+  if (!$stmt) return false;
+  $stmt->bind_param('s', $schema);
+  $stmt->execute();
+  $row = $stmt->get_result()->fetch_row();
+  $stmt->close();
+  if ($row) return true;
+
+  $sql = "CREATE TABLE IF NOT EXISTS parking_transactions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            parking_area_id INT NULL,
+            terminal_id INT NULL,
+            vehicle_plate VARCHAR(32) DEFAULT NULL,
+            amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+            transaction_type VARCHAR(64) NOT NULL DEFAULT 'Usage Fee',
+            status VARCHAR(64) DEFAULT 'Pending Payment',
+            receipt_ref VARCHAR(64) DEFAULT NULL,
+            payment_channel VARCHAR(64) DEFAULT NULL,
+            external_payment_id VARCHAR(128) DEFAULT NULL,
+            paid_at DATETIME DEFAULT NULL,
+            duration_hours INT DEFAULT NULL,
+            payment_method VARCHAR(64) DEFAULT NULL,
+            reference_no VARCHAR(64) DEFAULT NULL,
+            exported_to_treasury TINYINT(1) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_terminal_status (terminal_id, status),
+            INDEX idx_plate (vehicle_plate)
+          ) ENGINE=InnoDB";
+  return (bool)$db->query($sql);
+};
+
+if (!$ensureParkingTransactions()) {
+  http_response_code(500);
+  echo json_encode(['ok' => false, 'error' => 'parking_transactions_missing', 'db_errno' => (int)($db->errno ?? 0), 'db_error' => (string)($db->error ?? '')]);
+  exit;
+}
+
 $colMeta = function (string $table, string $col) use ($db, $schema): array {
   if ($schema === '') return ['exists' => false];
   $stmt = $db->prepare("SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
@@ -197,7 +236,7 @@ $sql = "INSERT INTO parking_transactions (" . implode(',', $cols) . ") VALUES ("
 $stmt = $db->prepare($sql);
 if (!$stmt) {
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_prepare_failed']);
+  echo json_encode(['ok' => false, 'error' => 'db_prepare_failed', 'db_errno' => (int)($db->errno ?? 0), 'db_error' => (string)($db->error ?? '')]);
   exit;
 }
 

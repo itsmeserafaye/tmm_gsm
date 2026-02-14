@@ -971,7 +971,12 @@ if ($rootUrl === '/') $rootUrl = '';
           fd.append('charge_type', 'Terminal Fee');
           fd.append('payment_method', 'GCash');
           const res = await fetch(rootUrl + '/admin/api/module5/parking_create_pending.php', { method: 'POST', body: fd });
-          const d = await res.json();
+          let d = null;
+          try { d = await res.json(); } catch (_) { d = null; }
+          if (!d && !res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(('http_' + String(res.status)) + (text ? (': ' + text.slice(0, 180)) : ''));
+          }
           if (!d || !d.ok || !d.transaction_id) {
             const base = (d && d.error) ? String(d.error) : 'create_pending_failed';
             const extras = [];
