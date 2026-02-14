@@ -867,7 +867,47 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error('load_failed');
       const rows = Array.isArray(data.data) ? data.data : [];
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No payments yet.</td></tr>';
+        const now = new Date();
+        const demoRows = [
+          {
+            paid_at: now.toISOString(),
+            plate_number: 'ABC-1234',
+            slot_no: '1',
+            or_no: 'OR-2026-000001',
+            amount: 20,
+            exported_to_treasury: 0,
+            exported_at: null,
+            slot_id: 0,
+            payment_id: 0,
+          },
+          {
+            paid_at: new Date(now.getTime() - 3600 * 1000).toISOString(),
+            plate_number: 'UVX-3105',
+            slot_no: '2',
+            or_no: 'OR-2026-000002',
+            amount: 20,
+            exported_to_treasury: 1,
+            exported_at: new Date(now.getTime() - 3400 * 1000).toISOString(),
+            slot_id: 0,
+            payment_id: 0,
+          },
+        ];
+        body.innerHTML = demoRows.map(r => {
+          const exported = Number(r.exported_to_treasury || 0) === 1;
+          const badge = exported ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
+          const bText = exported ? ('Demo Exported ' + (r.exported_at ? fmtDate(r.exported_at) : '')) : 'Demo Pending';
+          return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+              <td class="py-4 px-6 text-slate-700 dark:text-slate-200 font-semibold">${fmtDate(r.paid_at)}</td>
+              <td class="py-4 px-4 font-black text-slate-900 dark:text-white">${(r.plate_number || '-')}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.slot_no || '-')}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.or_no || '-')}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">₱${Number(r.amount || 0).toFixed(2)}</td>
+              <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${bText}</span></td>
+              <td class="py-4 px-4 text-right"><span class="text-xs font-semibold text-slate-400">Demo</span></td>
+            </tr>
+          `;
+        }).join('');
         return;
       }
       body.innerHTML = rows.map(r => {
