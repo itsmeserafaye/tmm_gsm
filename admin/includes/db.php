@@ -1275,14 +1275,27 @@ function db()
   ) ENGINE=InnoDB");
 
   $frCols = [
+    'ltfrb_ref_no' => "VARCHAR(80) DEFAULT NULL",
+    'decision_order_no' => "VARCHAR(80) DEFAULT NULL",
     'authority_type' => "ENUM('PA','CPC') DEFAULT NULL",
     'issue_date' => "DATE DEFAULT NULL",
+    'expiry_date' => "DATE DEFAULT NULL",
+    'status' => "ENUM('Active','Expired','Revoked') DEFAULT 'Active'",
   ];
   foreach ($frCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchises LIKE '$col'");
     if ($check && $check->num_rows == 0) {
       $conn->query("ALTER TABLE franchises ADD COLUMN $col $def");
     }
+  }
+
+  $idxFrUniq = $conn->query("SHOW INDEX FROM franchises WHERE Key_name='uniq_franchise_app'");
+  if (!$idxFrUniq || $idxFrUniq->num_rows == 0) {
+    $conn->query("ALTER TABLE franchises ADD UNIQUE KEY uniq_franchise_app (application_id)");
+  }
+  $idxFrRef = $conn->query("SHOW INDEX FROM franchises WHERE Key_name='idx_ltfrb_ref'");
+  if (!$idxFrRef || $idxFrRef->num_rows == 0) {
+    $conn->query("ALTER TABLE franchises ADD INDEX idx_ltfrb_ref (ltfrb_ref_no)");
   }
 
   $conn->query("CREATE TABLE IF NOT EXISTS franchise_vehicles (
