@@ -205,7 +205,13 @@ if ($terminalId !== null && $terminalId > 0 && $hasTerminalIdCol) {
 }
 
 $cols[] = 'amount'; $placeholders[] = '?'; $types .= 'd'; $params[] = $amount;
-$cols[] = 'transaction_type'; $placeholders[] = '?'; $types .= 's'; $params[] = $chargeType !== '' ? $chargeType : 'Usage Fee';
+$txnMeta = $colMeta('parking_transactions', 'transaction_type');
+$txnAllowed = ($txnMeta['exists'] ?? false) ? $parseEnum((string)($txnMeta['type'] ?? '')) : [];
+$txn = $chargeType !== '' ? $chargeType : 'Usage Fee';
+if ($txnAllowed) {
+  $txn = $pickEnum($txnAllowed, [$txn, 'Terminal Fee', 'Parking Fee', 'Usage Fee'], $txn);
+}
+$cols[] = 'transaction_type'; $placeholders[] = '?'; $types .= 's'; $params[] = $txn;
 $cols[] = 'vehicle_plate'; $placeholders[] = '?'; $types .= 's'; $params[] = $plate;
 
 $pmMeta = $colMeta('parking_transactions', 'payment_method');
