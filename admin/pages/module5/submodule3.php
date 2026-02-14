@@ -646,7 +646,13 @@ if ($rootUrl === '/') $rootUrl = '';
           fd.append('payment_method', 'GCash');
           const res = await fetch(rootUrl + '/admin/api/module5/parking_create_pending.php', { method: 'POST', body: fd });
           const d = await res.json();
-          if (!d || !d.ok || !d.transaction_id) throw new Error((d && d.error) ? d.error : 'create_pending_failed');
+          if (!d || !d.ok || !d.transaction_id) {
+            const base = (d && d.error) ? String(d.error) : 'create_pending_failed';
+            const extras = [];
+            if (d && d.db_errno) extras.push('errno ' + String(d.db_errno));
+            if (d && d.db_error) extras.push(String(d.db_error).slice(0, 160));
+            throw new Error(extras.length ? (base + ' (' + extras.join(' • ') + ')') : base);
+          }
           const txId = String(d.transaction_id);
           const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
           window.open(url, '_blank', 'noopener');
