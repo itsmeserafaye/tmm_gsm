@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -1122,6 +1122,22 @@ if (!empty($_SESSION['user_id'])) {
                     if (!el) return;
                     if (on) el.setAttribute('required', 'required'); else el.removeAttribute('required');
                 }
+                function setOptionalBadge(wrapper, optional) {
+                    if (!wrapper) return;
+                    const lbl = wrapper.querySelector('label');
+                    if (!lbl) return;
+                    let chip = lbl.querySelector('.op-opt-chip');
+                    if (optional) {
+                        if (!chip) {
+                            chip = document.createElement('span');
+                            chip.className = 'op-opt-chip text-[11px] text-gray-500 ml-2';
+                            chip.textContent = '(Optional)';
+                            lbl.appendChild(chip);
+                        }
+                    } else {
+                        if (chip) chip.remove();
+                    }
+                }
                 function updateDocVisibility() {
                     const t = opTypeSelect ? String(opTypeSelect.value || 'Individual') : 'Individual';
                     const reqMap = {
@@ -1146,6 +1162,7 @@ if (!empty($_SESSION['user_id'])) {
                             if (req.includes(k)) setRequired(input, true); else setRequired(input, false);
                             if (!show) clearInputFile(input);
                         }
+                        if (wrap) setOptionalBadge(wrap, opt.includes(k));
                     });
                     if (opDocHint) {
                         if (t === 'Individual') opDocHint.textContent = 'Required: Valid Government ID, Declared Fleet. Optional: Proof of Address, NBI Clearance, Authorization Letter.';
