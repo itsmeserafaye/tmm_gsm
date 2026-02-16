@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/enforcement.php';
+require_once __DIR__ . '/../../includes/security.php';
 
 $db = db();
 header('Content-Type: application/json');
@@ -266,6 +267,98 @@ if (!$hasPlate) {
 
 $db->begin_transaction();
 try {
+  // Ensure terminal has at least one legal permit; if not, require upload now
+  $hasPermit = null;
+  try {
+    $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+    if ($chkPerm && $chkPerm->fetch_row()) {
+      $stmtPc = $db->prepare("SELECT COUNT(*) AS c FROM terminal_permits WHERE terminal_id=?");
+      if ($stmtPc) {
+        $stmtPc->bind_param('i', $terminalId);
+        $stmtPc->execute();
+        $rowPc = $stmtPc->get_result()->fetch_assoc();
+        $stmtPc->close();
+        $hasPermit = ((int)($rowPc['c'] ?? 0)) > 0;
+      }
+    }
+  } catch (Throwable $e) {
+    $hasPermit = null;
+  }
+  $uploadProvided = isset($_FILES['permit_file']) && is_array($_FILES['permit_file']) && ($_FILES['permit_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+  if ($hasPermit === false && !$uploadProvided) {
+    $db->rollback();
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'permit_required']);
+    exit;
+  }
+  if ($uploadProvided) {
+    $ext = strtolower(pathinfo($_FILES['permit_file']['name'], PATHINFO_EXTENSION));
+    if (in_array($ext, ['jpg','jpeg','png','pdf'], true)) {
+      $uploads_dir = __DIR__ . '/../../uploads';
+      if (!is_dir($uploads_dir)) @mkdir($uploads_dir, 0777, true);
+      $fname = 'terminal_' . $terminalId . '_permit_' . time() . '.' . $ext;
+      $dest = rtrim($uploads_dir, '/\\') . DIRECTORY_SEPARATOR . $fname;
+      if (move_uploaded_file($_FILES['permit_file']['tmp_name'], $dest) && tmm_scan_file_for_viruses($dest)) {
+        $chk = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+        if ($chk && $chk->fetch_row()) {
+          $cols = [];
+          $types = [];
+          $colRes = $db->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+          if ($colRes) {
+            while ($r = $colRes->fetch_assoc()) {
+              $cn = (string)($r['COLUMN_NAME'] ?? '');
+              $ct = (string)($r['COLUMN_TYPE'] ?? '');
+              if ($cn !== '') $cols[$cn] = true;
+              if ($cn !== '') $types[$cn] = $ct;
+            }
+          }
+          $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : '';
+          $pathCol = isset($cols['file_path']) ? 'file_path' : (isset($cols['document_path']) ? 'document_path' : (isset($cols['doc_path']) ? 'doc_path' : (isset($cols['path']) ? 'path' : '')));
+          if ($tidCol !== '' && $pathCol !== '') {
+            $extraCols = [];
+            $extraTypes = '';
+            $extraBind = [];
+            $docTypeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : ''));
+            if ($docTypeCol !== '') {
+              $extraCols[] = $docTypeCol;
+              $extraTypes .= 's';
+              $dtMeta = (string)($types[$docTypeCol] ?? '');
+              $val = 'MOA';
+              if ($dtMeta !== '' && stripos($dtMeta, 'enum(') === 0) {
+                if (preg_match_all("/'([^']*)'/", $dtMeta, $m) && !empty($m[1])) {
+                  $match = null;
+                  foreach ($m[1] as $ev) {
+                    if (strcasecmp($ev, 'MOA') === 0) { $match = $ev; break; }
+                  }
+                  if ($match === null) $match = $m[1][0];
+                  $val = $match;
+                }
+              }
+              $extraBind[] = $val;
+            }
+            if (isset($cols['status'])) {
+              $extraCols[] = 'status';
+              $extraTypes .= 's';
+              $extraBind[] = 'Pending';
+            }
+            $placeholders = '?,?';
+            if ($extraCols) $placeholders .= ',' . implode(',', array_fill(0, count($extraCols), '?'));
+            $sqlIns = "INSERT INTO terminal_permits ($tidCol, $pathCol" . ($extraCols ? (", " . implode(", ", $extraCols)) : "") . ") VALUES ($placeholders)";
+            $stmtP = $db->prepare($sqlIns);
+            if ($stmtP) {
+              $bindTypes = 'is' . $extraTypes;
+              $bind = array_merge([$terminalId, $fname], $extraBind);
+              $stmtP->bind_param($bindTypes, ...$bind);
+              $stmtP->execute();
+              $stmtP->close();
+            }
+          }
+        }
+      } else {
+        if (is_file($dest ?? '')) @unlink($dest);
+      }
+    }
+  }
   $termName = (string)($term['name'] ?? '');
   $assignmentIdValue = null;
   if ($assignmentIdCol !== '') {
