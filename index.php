@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -1226,10 +1226,10 @@ if (!empty($_SESSION['user_id'])) {
                     fd.set('agree_terms', '1');
                     fd.set('device_id', getOrCreateDeviceId());
                     if (captchaToken) fd.set('recaptcha_token', captchaToken);
-                    const fileFields = ['valid_id','cda_registration','board_resolution','sec_registration','authority_to_operate'];
-                    fileFields.forEach((name) => {
-                        if (f[name] && f[name].files && f[name].files[0]) {
-                            fd.append(name, f[name].files[0]);
+                    const fileInputs = operatorRegisterForm.querySelectorAll('input[type="file"][name]');
+                    fileInputs.forEach((inp) => {
+                        if (inp && inp.files && inp.files[0] && inp.name) {
+                            fd.append(inp.name, inp.files[0]);
                         }
                     });
                     try {
