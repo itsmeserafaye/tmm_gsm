@@ -134,42 +134,9 @@ if (!$ok) {
 
 $userId = (int)$db->insert_id;
 
-if ($deviceId === '' || strlen($deviceId) < 12) {
-  $db->query("DELETE FROM operator_portal_users WHERE id=" . (int)$userId . " LIMIT 1");
-  opreg_send(false, 'Device verification failed. Please refresh and try again.', null, 400);
-}
-
-$deviceHash = hash('sha256', $deviceId);
-$ttl = (int)trim($setting('otp_ttl_seconds', '120'));
-if ($ttl < 60) $ttl = 60;
-if ($ttl > 900) $ttl = 900;
-$trustDays = (int)trim($setting('mfa_trust_days', '10'));
-if ($trustDays < 0) $trustDays = 0;
-if ($trustDays > 30) $trustDays = 30;
-
-$_SESSION['pending_login'] = [
-  'created_at' => time(),
-  'user_type' => 'operator_register',
-  'purpose' => 'register_operator',
-  'email' => $email,
-  'operator_user_id' => $userId,
-  'plate_number' => '',
-  'device_hash' => $deviceHash,
-  'trust_days' => $trustDays,
-  'otp_ttl' => $ttl,
-];
-
-$sent = otp_send($db, $email, 'register_operator', $ttl);
-if (!($sent['ok'] ?? false)) {
-  unset($_SESSION['pending_login']);
-  $db->query("DELETE FROM operator_portal_users WHERE id=" . (int)$userId . " LIMIT 1");
-  opreg_send(false, (string)($sent['message'] ?? 'Failed to send OTP.'), null, 500);
-}
-
-opreg_send(true, 'OTP sent. Please verify to activate your operator account.', [
+opreg_send(true, 'Registration successful. Please login to continue.', [
   'registered' => true,
-  'otp_required' => true,
-  'expires_in' => (int)(($sent['data']['expires_in'] ?? $ttl)),
-  'otp_trust_days' => $trustDays,
+  'otp_required' => false,
   'recaptcha_configured' => $recaptchaConfigured,
+  'redirect' => (string)(rtrim((string)dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/gsm_login/Login/operator_register.php'))), '/') . '/gsm_login/index.php?mode=operator')
 ]);

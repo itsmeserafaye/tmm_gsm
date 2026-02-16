@@ -41,7 +41,8 @@ function operator_portal_login(mysqli $db, string $plateNumber, string $email, s
   $stmt->close();
 
   if (!$user) return ['ok' => false, 'message' => 'Invalid operator credentials.'];
-  if (($user['status'] ?? '') !== 'Active') return ['ok' => false, 'message' => 'Operator account is not active.'];
+  $st = (string)($user['status'] ?? '');
+  if ($st !== 'Active' && $st !== 'Inactive') return ['ok' => false, 'message' => 'Operator account is not active.'];
   if (!password_verify($password, (string)($user['password_hash'] ?? ''))) return ['ok' => false, 'message' => 'Invalid operator credentials.'];
 
   $userId = (int)$user['id'];
