@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../../includes/mailer.php';
 
 header('Content-Type: application/json');
 
@@ -12,9 +11,9 @@ function ov_send(bool $ok, array $payload = [], int $code = 200): void {
 }
 
 function ov_required_doc_keys(string $operatorType): array {
-  if ($operatorType === 'Coop') return ['cda_registration','cda_good_standing','board_resolution','declared_fleet'];
-  if ($operatorType === 'Corp') return ['sec_registration','articles_incorporation','board_resolution','declared_fleet'];
-  return ['valid_id','declared_fleet'];
+  if ($operatorType === 'Coop') return ['cda_registration', 'board_resolution'];
+  if ($operatorType === 'Corp') return ['sec_registration', 'authority_to_operate'];
+  return ['valid_id'];
 }
 
 try {
@@ -204,7 +203,7 @@ try {
 
     $now = date('Y-m-d H:i:s');
     if ($approval === 'Approved') {
-      $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=?, status='Active' WHERE id=?");
+      $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=? WHERE id=?");
       if (!$stmt) ov_send(false, ['error' => 'db_prepare_failed'], 500);
       $stmt->bind_param('ssii', $remarks, $now, $adminId, $userId);
     } else if ($approval === 'Rejected') {
@@ -231,42 +230,6 @@ try {
       $stmtN->bind_param('isss', $userId, $title, $msg, $type);
       $stmtN->execute();
       $stmtN->close();
-    }
-
-    // Send email on approval
-    if ($approval === 'Approved') {
-      try {
-        $stmtInfo = $db->prepare("SELECT email, full_name FROM operator_portal_users WHERE id=? LIMIT 1");
-        if ($stmtInfo) {
-          $stmtInfo->bind_param('i', $userId);
-          $stmtInfo->execute();
-          $urow = $stmtInfo->get_result()->fetch_assoc();
-          $stmtInfo->close();
-        } else {
-          $urow = null;
-        }
-        if ($urow) {
-          $to = (string)($urow['email'] ?? '');
-          if ($to !== '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
-            $name = (string)($urow['full_name'] ?? '');
-            $portalUrl = rtrim(dirname(dirname(dirname($_SERVER['SCRIPT_NAME'] ?? '/admin/api/users/operator_verification.php'))), '/') . '/citizen/operator/index.php';
-            $mail = tmm_mailer($db);
-            $mail->clearAllRecipients();
-            $mail->addAddress($to, $name ?: $to);
-            $mail->Subject = 'Your TMM Operator Account is Approved and Active';
-            $mail->Body = '<div style="font-family:Arial,sans-serif;font-size:14px;color:#111">'
-              . '<p>Hello ' . htmlspecialchars($name ?: 'Operator') . ',</p>'
-              . '<p>Your operator account has been approved and activated. You can now sign in and use the Operator Portal.</p>'
-              . '<p><a href="' . htmlspecialchars($portalUrl) . '" style="display:inline-block;padding:10px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px">Open Operator Portal</a></p>'
-              . '<p>Thank you.</p>'
-              . '</div>';
-            $mail->AltBody = "Your operator account has been approved and activated.\nOpen Operator Portal: " . $portalUrl . "\n";
-            $mail->send();
-          }
-        }
-      } catch (Throwable $e) {
-        // ignore mail failures
-      }
     }
 
     ov_send(true, ['message' => 'Approval status updated']);

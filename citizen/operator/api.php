@@ -1041,9 +1041,9 @@ if ($action === 'upload_verification_docs') {
 
   $operatorType = (string) ($u['operator_type'] ?? 'Individual');
   $allowedDocKeysByType = [
-    'Individual' => ['valid_id','declared_fleet','proof_of_address','nbi_clearance','authorization_letter'],
-    'Coop' => ['cda_registration','cda_good_standing','board_resolution','declared_fleet','list_of_members','articles_of_cooperation'],
-    'Corp' => ['sec_registration','articles_incorporation','board_resolution','declared_fleet','mayors_permit','business_permit'],
+    'Individual' => ['valid_id'],
+    'Coop' => ['cda_registration', 'board_resolution'],
+    'Corp' => ['sec_registration', 'authority_to_operate'],
   ];
   $allowedKeys = $allowedDocKeysByType[$operatorType] ?? ['valid_id'];
 
@@ -1067,7 +1067,7 @@ if ($action === 'upload_verification_docs') {
       continue;
     $original = (string) ($file['name'] ?? '');
     $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
-    $allowedExt = ['jpg', 'jpeg', 'png', 'pdf', 'csv', 'xlsx', 'xls'];
+    $allowedExt = ['jpg', 'jpeg', 'png', 'pdf'];
     if ($ext === '' || !in_array($ext, $allowedExt, true))
       continue;
     $tmp = (string) ($file['tmp_name'] ?? '');
@@ -1077,7 +1077,7 @@ if ($action === 'upload_verification_docs') {
     $mime = $finfo ? finfo_file($finfo, $tmp) : null;
     if ($finfo)
       finfo_close($finfo);
-    $allowedMime = ['image/jpeg', 'image/png', 'application/pdf', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    $allowedMime = ['image/jpeg', 'image/png', 'application/pdf'];
     if ($mime && !in_array($mime, $allowedMime, true))
       continue;
 

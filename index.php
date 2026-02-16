@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -538,11 +538,11 @@ if (!empty($_SESSION['user_id'])) {
                 <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Operator Registration</h2>
                 <button type="button" id="btnOperatorRegisterClose" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
             </div>
-            <form id="operatorRegisterForm" class="space-y-5 pt-4" enctype="multipart/form-data">
+            <form id="operatorRegisterForm" class="space-y-5 pt-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm mb-1">Operator Type<span class="required-asterisk">*</span></label>
-                        <select name="operator_type" id="opTypeSelect" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <select name="operator_type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                             <option value="Individual">Individual</option>
                             <option value="Coop">Coop</option>
                             <option value="Corp">Corp</option>
@@ -559,71 +559,6 @@ if (!empty($_SESSION['user_id'])) {
                     <div class="md:col-span-2">
                         <label class="block text-sm mb-1">Contact Number<span class="required-asterisk">*</span></label>
                         <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold mb-1">Required Documents</label>
-                        <div id="opDocHint" class="text-xs text-gray-600 mb-2"></div>
-                        <div class="space-y-3">
-                            <div data-doc-key="valid_id" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Valid Government ID / Driver’s License</label>
-                                <input type="file" name="valid_id" id="doc_valid_id" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="declared_fleet" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Declared Fleet (Planned / Owned Vehicles)</label>
-                                <input type="file" name="declared_fleet" id="doc_declared_fleet" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="proof_of_address" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Proof of Address</label>
-                                <input type="file" name="proof_of_address" id="doc_proof_of_address" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="nbi_clearance" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">NBI Clearance</label>
-                                <input type="file" name="nbi_clearance" id="doc_nbi_clearance" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="authorization_letter" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Authorization Letter</label>
-                                <input type="file" name="authorization_letter" id="doc_authorization_letter" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">CDA Registration Certificate</label>
-                                <input type="file" name="cda_registration" id="doc_cda_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_good_standing" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">CDA Certificate of Good Standing</label>
-                                <input type="file" name="cda_good_standing" id="doc_cda_good_standing" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="board_resolution" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Board Resolution</label>
-                                <input type="file" name="board_resolution" id="doc_board_resolution" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="list_of_members" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">List of Members</label>
-                                <input type="file" name="list_of_members" id="doc_list_of_members" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_of_cooperation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Articles of Cooperation / By‑laws</label>
-                                <input type="file" name="articles_of_cooperation" id="doc_articles_of_cooperation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="sec_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">SEC Certificate of Registration</label>
-                                <input type="file" name="sec_registration" id="doc_sec_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_incorporation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Articles of Incorporation / By‑laws</label>
-                                <input type="file" name="articles_incorporation" id="doc_articles_incorporation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="mayors_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Mayor’s Permit</label>
-                                <input type="file" name="mayors_permit" id="doc_mayors_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="business_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">Business Permit</label>
-                                <input type="file" name="business_permit" id="doc_business_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <p class="text-[11px] text-gray-500">
-                                File types allowed: PDF/JPG/PNG; Declared Fleet and List of Members also allow CSV/XLS/XLSX. Max 5 MB per file.
-                            </p>
-                        </div>
                     </div>
                     <div>
                         <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
@@ -1113,66 +1048,6 @@ if (!empty($_SESSION['user_id'])) {
                     pwdEl.addEventListener('input', e => evalPwdRules(String(e.target.value || '')));
                 }
 
-                const opTypeSelect = document.getElementById('opTypeSelect');
-                const opDocHint = document.getElementById('opDocHint');
-                function clearInputFile(el) {
-                    try { el.value = ''; } catch (e) {}
-                }
-                function setRequired(el, on) {
-                    if (!el) return;
-                    if (on) el.setAttribute('required', 'required'); else el.removeAttribute('required');
-                }
-                function setOptionalBadge(wrapper, optional) {
-                    if (!wrapper) return;
-                    const lbl = wrapper.querySelector('label');
-                    if (!lbl) return;
-                    let chip = lbl.querySelector('.op-opt-chip');
-                    if (optional) {
-                        if (!chip) {
-                            chip = document.createElement('span');
-                            chip.className = 'op-opt-chip text-[11px] text-gray-500 ml-2';
-                            chip.textContent = '(Optional)';
-                            lbl.appendChild(chip);
-                        }
-                    } else {
-                        if (chip) chip.remove();
-                    }
-                }
-                function updateDocVisibility() {
-                    const t = opTypeSelect ? String(opTypeSelect.value || 'Individual') : 'Individual';
-                    const reqMap = {
-                        'Individual': ['valid_id','declared_fleet'],
-                        'Coop': ['cda_registration','cda_good_standing','board_resolution','declared_fleet'],
-                        'Corp': ['sec_registration','articles_incorporation','board_resolution','declared_fleet']
-                    };
-                    const optMap = {
-                        'Individual': ['proof_of_address','nbi_clearance','authorization_letter'],
-                        'Coop': ['list_of_members','articles_of_cooperation'],
-                        'Corp': ['mayors_permit','business_permit']
-                    };
-                    const all = ['valid_id','declared_fleet','proof_of_address','nbi_clearance','authorization_letter','cda_registration','cda_good_standing','board_resolution','list_of_members','articles_of_cooperation','sec_registration','articles_incorporation','mayors_permit','business_permit'];
-                    const req = reqMap[t] || [];
-                    const opt = optMap[t] || [];
-                    all.forEach(k => {
-                        const wrap = operatorRegisterForm.querySelector('[data-doc-key="'+k+'"]');
-                        const input = operatorRegisterForm.querySelector('input[name="'+k+'"]');
-                        const show = req.includes(k) || opt.includes(k);
-                        if (wrap) wrap.classList.toggle('hidden', !show);
-                        if (input) {
-                            if (req.includes(k)) setRequired(input, true); else setRequired(input, false);
-                            if (!show) clearInputFile(input);
-                        }
-                        if (wrap) setOptionalBadge(wrap, opt.includes(k));
-                    });
-                    if (opDocHint) {
-                        if (t === 'Individual') opDocHint.textContent = 'Required: Valid Government ID, Declared Fleet. Optional: Proof of Address, NBI Clearance, Authorization Letter.';
-                        else if (t === 'Coop') opDocHint.textContent = 'Required: CDA Registration, CDA Good Standing, Board Resolution, Declared Fleet. Optional: List of Members, Articles of Cooperation/By‑laws.';
-                        else opDocHint.textContent = 'Required: SEC Registration, Articles of Incorporation/By‑laws, Board Resolution, Declared Fleet. Optional: Mayor’s Permit, Business Permit.';
-                    }
-                }
-                updateDocVisibility();
-                if (opTypeSelect) opTypeSelect.addEventListener('change', updateDocVisibility);
-
                 // Device ID helper (mirrors gsm_login/Login/script.js minimal behavior)
                 function getOrCreateDeviceId() {
                     try {
@@ -1232,25 +1107,24 @@ if (!empty($_SESSION['user_id'])) {
                         alert('You must agree to the Terms to register.');
                         return;
                     }
+                    const payload = {
+                        operator_type: (f.operator_type ? String(f.operator_type.value || '') : '').trim(),
+                        operator_name: (f.operator_name ? String(f.operator_name.value || '') : '').trim(),
+                        contact_number: (f.contact_number ? String(f.contact_number.value || '') : '').trim(),
+                        email: (f.email ? String(f.email.value || '') : '').trim(),
+                        password: pwd,
+                        confirm_password: confirmPwd,
+                        recaptcha_token: captchaToken,
+                        agree_terms: true,
+                        device_id: getOrCreateDeviceId()
+                    };
                     const url = (BASE_URL || '') + '/gsm_login/Login/operator_register.php';
-                    const fd = new FormData();
-                    fd.set('operator_type', (f.operator_type ? String(f.operator_type.value || '') : '').trim());
-                    fd.set('operator_name', (f.operator_name ? String(f.operator_name.value || '') : '').trim());
-                    fd.set('contact_number', (f.contact_number ? String(f.contact_number.value || '') : '').trim());
-                    fd.set('email', (f.email ? String(f.email.value || '') : '').trim());
-                    fd.set('password', pwd);
-                    fd.set('confirm_password', confirmPwd);
-                    fd.set('agree_terms', '1');
-                    fd.set('device_id', getOrCreateDeviceId());
-                    if (captchaToken) fd.set('recaptcha_token', captchaToken);
-                    const fileInputs = operatorRegisterForm.querySelectorAll('input[type="file"][name]');
-                    fileInputs.forEach((inp) => {
-                        if (inp && inp.files && inp.files[0] && inp.name) {
-                            fd.append(inp.name, inp.files[0]);
-                        }
-                    });
                     try {
-                        const res = await fetch(url, { method: 'POST', body: fd });
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
                         const data = await res.json().catch(() => null);
                         if (!data || !data.ok) {
                             alert((data && data.message) ? data.message : 'Registration failed.');
@@ -1265,7 +1139,7 @@ if (!empty($_SESSION['user_id'])) {
                             }
                             return;
                         }
-                        alert(data.message || 'Registration submitted. We will notify you via email once approved.');
+                        alert(data.message || 'Registration successful. Please login as operator.');
                         opRegModal && opRegModal.classList.add('hidden');
                         opRegModal && opRegModal.classList.remove('flex');
                         document.body.style.overflow = '';

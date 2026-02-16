@@ -245,11 +245,9 @@ function setupEventListeners() {
             opConfirm.addEventListener('input', function(){ validateConfirmPasswordFor('opRegPassword', 'opRegConfirmPassword', true, 'op-confirm-error'); });
             opConfirm.addEventListener('blur', function(){ validateConfirmPasswordFor('opRegPassword', 'opRegConfirmPassword', true, 'op-confirm-error'); });
         }
-        opRegForm.addEventListener('submit', (e) => {
+        opRegForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = serializeForm(opRegForm);
-            const pwd = String(data.password || '');
-            const cpwd = String(data.confirm_password || '');
             const pwdEl = document.getElementById('opRegPassword');
             if (!validateRegPassword(pwdEl, true)) { showNotification('Password does not meet requirements.', 'warning'); return; }
             if (!validateConfirmPasswordFor('opRegPassword', 'opRegConfirmPassword', true, 'op-confirm-error')) { return; }
@@ -260,38 +258,88 @@ function setupEventListeners() {
             const agree = !!(document.getElementById('opAgreeTerms') && document.getElementById('opAgreeTerms').checked);
             if (!agree) { showNotification('You must agree to the Terms and Privacy Policy.', 'warning'); return; }
             if (opRegSubmit) showLoadingState(opRegSubmit);
-            makeAPICall('operator_register.php', {
-                plate_number: String(data.plate_number || ''),
-                full_name: String(data.full_name || ''),
-                email: String(data.email || ''),
-                password: pwd,
-                confirm_password: cpwd,
-                recaptcha_token: captchaResponse || '',
-                device_id: getOrCreateDeviceId(),
-                agree_terms: true
-            }, 'POST')
-            .then((res) => {
-                if (!res || !res.ok) { showNotification((res && res.message) ? res.message : 'Operator registration failed', 'error'); return; }
-                const otpRequired = !!(res.data && res.data.otp_required);
-                if (otpRequired) {
-                    const expiresIn = res.data && res.data.expires_in ? parseInt(res.data.expires_in, 10) : 180;
-                    const trustDays = res.data && res.data.otp_trust_days ? parseInt(res.data.otp_trust_days, 10) : 10;
-                    window.__otpLoginContext = { trust_days: trustDays };
-                    showNotification(res.message || 'OTP sent. Please verify to continue.', 'info');
-                    close();
-                    openOtpModal(expiresIn, trustDays);
-                    return;
-                }
-                showNotification(res.message || 'Operator registration successful!', 'success');
-                const redirect = res.data && res.data.redirect ? res.data.redirect : null;
+            try {
+                const fd = new FormData();
+                fd.set('operator_type', String(data.operator_type || 'Individual'));
+                fd.set('operator_name', String(data.operator_name || ''));
+                fd.set('contact_number', String(data.contact_number || ''));
+                fd.set('email', String(data.email || ''));
+                fd.set('password', String(data.password || ''));
+                fd.set('confirm_password', String(data.confirm_password || ''));
+                fd.set('agree_terms', '1');
+                fd.set('device_id', getOrCreateDeviceId());
+                if (captchaResponse) fd.set('recaptcha_token', captchaResponse);
+                const fileInputs = opRegForm.querySelectorAll('input[type="file"][name]');
+                fileInputs.forEach(inp => { if (inp.files && inp.files[0] && inp.name) fd.append(inp.name, inp.files[0]); });
+                const res = await fetch('Login/operator_register.php', { method: 'POST', body: fd });
+                const json = await res.json().catch(() => null);
+                if (!json || !json.ok) { showNotification((json && json.message) ? json.message : 'Operator registration failed', 'error'); return; }
+                showNotification(json.message || 'Registration submitted.', 'success');
+                const redirect = json.data && json.data.redirect ? json.data.redirect : null;
                 close();
                 if (redirect) window.location.href = redirect;
-            })
-            .catch(() => {})
-            .finally(() => {
+            } catch (err) {
+                showNotification('Network error. Please try again.', 'error');
+            } finally {
                 if (opRegSubmit) { opRegSubmit.innerHTML = 'Register'; opRegSubmit.disabled = false; }
-            });
+            }
         });
+
+        // Operator type — document visibility and required toggles
+        const opTypeSelect = document.getElementById('opTypeSelect');
+        const opDocHint = document.getElementById('opDocHint');
+        const clearInputFile = (el) => { try { el.value = ''; } catch (e) {} };
+        const setRequired = (el, on) => { if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); };
+        const setOptionalBadge = (wrap, optional) => {
+            if (!wrap) return;
+            const lbl = wrap.querySelector('label');
+            if (!lbl) return;
+            let chip = lbl.querySelector('.op-opt-chip');
+            if (optional) {
+                if (!chip) {
+                    chip = document.createElement('span');
+                    chip.className = 'op-opt-chip text-[11px] text-gray-500 ml-2';
+                    chip.textContent = '(Optional)';
+                    lbl.appendChild(chip);
+                }
+            } else if (chip) {
+                chip.remove();
+            }
+        };
+        const updateDocVisibility = () => {
+            const t = opTypeSelect ? String(opTypeSelect.value || 'Individual') : 'Individual';
+            const reqMap = {
+                'Individual': ['valid_id','declared_fleet'],
+                'Coop': ['cda_registration','cda_good_standing','board_resolution','declared_fleet'],
+                'Corp': ['sec_registration','articles_incorporation','board_resolution','declared_fleet']
+            };
+            const optMap = {
+                'Individual': ['proof_of_address','nbi_clearance','authorization_letter'],
+                'Coop': ['list_of_members','articles_of_cooperation'],
+                'Corp': ['mayors_permit','business_permit']
+            };
+            const all = ['valid_id','declared_fleet','proof_of_address','nbi_clearance','authorization_letter','cda_registration','cda_good_standing','board_resolution','list_of_members','articles_of_cooperation','sec_registration','articles_incorporation','mayors_permit','business_permit'];
+            const req = reqMap[t] || [];
+            const opt = optMap[t] || [];
+            all.forEach(k => {
+                const wrap = opRegForm.querySelector('[data-doc-key=\"'+k+'\"]');
+                const input = opRegForm.querySelector('input[name=\"'+k+'\"]');
+                const show = req.includes(k) || opt.includes(k);
+                if (wrap) wrap.classList.toggle('hidden', !show);
+                if (input) {
+                    if (req.includes(k)) setRequired(input, true); else setRequired(input, false);
+                    if (!show) clearInputFile(input);
+                }
+                if (wrap) setOptionalBadge(wrap, opt.includes(k));
+            });
+            if (opDocHint) {
+                if (t === 'Individual') opDocHint.textContent = 'Required: Valid Government ID, Declared Fleet. Optional: Proof of Address, NBI Clearance, Authorization Letter.';
+                else if (t === 'Coop') opDocHint.textContent = 'Required: CDA Registration, CDA Good Standing, Board Resolution, Declared Fleet. Optional: List of Members, Articles of Cooperation/By‑laws.';
+                else opDocHint.textContent = 'Required: SEC Registration, Articles of Incorporation/By‑laws, Board Resolution, Declared Fleet. Optional: Mayor’s Permit, Business Permit.';
+            }
+        };
+        updateDocVisibility();
+        if (opTypeSelect) opTypeSelect.addEventListener('change', updateDocVisibility);
     }
 
     const opFromCitizen = document.getElementById('openOperatorRegisterFromCitizen');
