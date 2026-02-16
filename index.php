@@ -80,6 +80,11 @@ if (!empty($_SESSION['user_id'])) {
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+        /* Password checklist */
+        #opPwdChecklist .req-item { display:flex; align-items:center; gap:8px; }
+        #opPwdChecklist .req-dot { display:inline-block; width:8px; height:8px; border-radius:9999px; background:#cbd5e1; }
+        #opPwdChecklist .req-item.ok, #opPwdChecklist .req-item.met { color:#059669; font-weight:600; }
+        #opPwdChecklist .req-item.ok .req-dot, #opPwdChecklist .req-item.met .req-dot { background:#10b981; }
     </style>
 </head>
 
@@ -1018,6 +1023,62 @@ if (!empty($_SESSION['user_id'])) {
 
             const operatorRegisterForm = document.getElementById('operatorRegisterForm');
             if (operatorRegisterForm) {
+                // Live password checklist
+                const pwdEl = document.getElementById('opRegPassword');
+                const checklist = document.getElementById('opPwdChecklist');
+                function evalPwdRules(v) {
+                    const rules = {
+                        length: v.length >= 10,
+                        upper: /[A-Z]/.test(v),
+                        lower: /[a-z]/.test(v),
+                        number: /\d/.test(v),
+                        special: /[^A-Za-z0-9]/.test(v),
+                    };
+                    if (checklist) {
+                        const items = checklist.querySelectorAll('.req-item');
+                        items.forEach(li => {
+                            const key = String(li.getAttribute('data-check') || '');
+                            const ok = !!rules[key];
+                            li.classList.toggle('ok', ok);
+                        });
+                    }
+                }
+                if (pwdEl) {
+                    evalPwdRules(pwdEl.value || '');
+                    pwdEl.addEventListener('input', e => evalPwdRules(String(e.target.value || '')));
+                }
+
+                // Device ID helper (mirrors gsm_login/Login/script.js minimal behavior)
+                function getOrCreateDeviceId() {
+                    try {
+                        const cookieMatch = document.cookie.match(/(?:^|;\s*)gsm_device_id=([^;]+)/);
+                        const cookieVal = cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
+                        if (cookieVal && cookieVal.length >= 12) {
+                            try { localStorage.setItem('gsm_device_id', cookieVal); } catch (e) {}
+                            return cookieVal;
+                        }
+                        const existing = localStorage.getItem('gsm_device_id');
+                        if (existing && existing.length >= 12) {
+                            try {
+                                const exp = new Date(); exp.setFullYear(exp.getFullYear() + 10);
+                                document.cookie = 'gsm_device_id=' + encodeURIComponent(existing) + '; expires=' + exp.toUTCString() + '; path=/; SameSite=Lax';
+                            } catch (e) {}
+                            return existing;
+                        }
+                        const id = (window.crypto && typeof window.crypto.randomUUID === 'function')
+                            ? window.crypto.randomUUID()
+                            : (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2) + '-' + Math.random().toString(16).slice(2));
+                        try { localStorage.setItem('gsm_device_id', id); } catch (e) {}
+                        try {
+                            const exp = new Date(); exp.setFullYear(exp.getFullYear() + 10);
+                            document.cookie = 'gsm_device_id=' + encodeURIComponent(id) + '; expires=' + exp.toUTCString() + '; path=/; SameSite=Lax';
+                        } catch (e) {}
+                        return id;
+                    } catch (e) {
+                        return (Date.now().toString(16) + '-' + Math.random().toString(16).slice(2));
+                    }
+                }
+
                 operatorRegisterForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const f = e.target;
@@ -1054,7 +1115,8 @@ if (!empty($_SESSION['user_id'])) {
                         password: pwd,
                         confirm_password: confirmPwd,
                         recaptcha_token: captchaToken,
-                        agree_terms: true
+                        agree_terms: true,
+                        device_id: getOrCreateDeviceId()
                     };
                     const url = (BASE_URL || '') + '/gsm_login/Login/operator_register.php';
                     try {
