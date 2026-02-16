@@ -3,6 +3,7 @@ if (function_exists('session_status') && session_status() !== PHP_SESSION_ACTIVE
 
 require_once __DIR__ . '/../../admin/includes/db.php';
 require_once __DIR__ . '/../../includes/recaptcha.php';
+require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/operator_portal.php';
 require_once __DIR__ . '/../../includes/otp.php';
 
@@ -43,21 +44,25 @@ $setting = function(string $key, string $default = '') use ($db): string {
   return $v !== '' ? $v : $default;
 };
 
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-if (!is_array($input)) {
-  opreg_send(false, 'Invalid JSON input', null, 400);
+// Support both JSON and multipart/form-data
+$ctype = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
+$input = [];
+if (strpos($ctype, 'application/json') !== false) {
+  $raw = file_get_contents('php://input');
+  $input = json_decode($raw, true);
+  if (!is_array($input)) $input = [];
 }
 
-$operatorType = trim((string)($input['operator_type'] ?? ''));
-$fullName = trim((string)($input['operator_name'] ?? ($input['full_name'] ?? '')));
-$email = strtolower(trim((string)($input['email'] ?? '')));
-$password = (string)($input['password'] ?? '');
-$confirmPassword = (string)($input['confirm_password'] ?? ($input['confirmPassword'] ?? ''));
-$contactInfo = trim((string)($input['contact_number'] ?? ($input['contact_info'] ?? '')));
-$association = trim((string)($input['association_name'] ?? ''));
-$agreeTerms = (bool)($input['agree_terms'] ?? false);
-$deviceId = trim((string)($input['device_id'] ?? ''));
+// Prefer POST when multipart is used
+$operatorType = trim((string)($_POST['operator_type'] ?? ($input['operator_type'] ?? '')));
+$fullName = trim((string)($_POST['operator_name'] ?? ($input['operator_name'] ?? ($input['full_name'] ?? ''))));
+$email = strtolower(trim((string)($_POST['email'] ?? ($input['email'] ?? ''))));
+$password = (string)($_POST['password'] ?? ($input['password'] ?? ''));
+$confirmPassword = (string)($_POST['confirm_password'] ?? ($input['confirm_password'] ?? ($input['confirmPassword'] ?? '')));
+$contactInfo = trim((string)($_POST['contact_number'] ?? ($input['contact_number'] ?? ($input['contact_info'] ?? ''))));
+$association = trim((string)($_POST['association_name'] ?? ($input['association_name'] ?? '')));
+$agreeTerms = (isset($_POST['agree_terms']) ? true : (bool)($input['agree_terms'] ?? false));
+$deviceId = trim((string)($_POST['device_id'] ?? ($input['device_id'] ?? '')));
 
 if ($email === '' || $password === '' || $confirmPassword === '') {
   opreg_send(false, 'Please complete email and password.', null, 400);
@@ -101,7 +106,7 @@ $secretKey = (string)($cfg['secret_key'] ?? '');
 $recaptchaConfigured = ($siteKey !== '');
 if ($recaptchaConfigured) {
   if ($secretKey === '') opreg_send(false, 'reCAPTCHA is not fully configured on the server.', null, 500);
-  $token = trim((string)($input['recaptcha_token'] ?? ''));
+$token = trim((string)($_POST['recaptcha_token'] ?? ($input['recaptcha_token'] ?? '')));
   if ($token === '') opreg_send(false, 'Please complete the reCAPTCHA.', null, 400);
   $verify = recaptcha_verify($secretKey, $token, (string)($_SERVER['REMOTE_ADDR'] ?? ''));
   if (!($verify['ok'] ?? false)) opreg_send(false, 'reCAPTCHA verification failed.', ['recaptcha' => $verify], 400);
@@ -134,7 +139,61 @@ if (!$ok) {
 
 $userId = (int)$db->insert_id;
 
-opreg_send(true, 'Registration successful. Please login to continue.', [
+// Optional: handle document uploads during registration
+try {
+  $allowedDocKeysByType = [
+    'Individual' => ['valid_id','declared_fleet','proof_of_address','nbi_clearance','authorization_letter'],
+    'Coop' => ['cda_registration','cda_good_standing','board_resolution','declared_fleet','list_of_members','articles_of_cooperation'],
+    'Corp' => ['sec_registration','articles_incorporation','board_resolution','declared_fleet','mayors_permit','business_permit'],
+  ];
+  $allowedKeys = $allowedDocKeysByType[$operatorType] ?? ['valid_id'];
+  $targetDir = __DIR__ . '/../../citizen/operator/uploads/';
+  if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
+  $saved = [];
+  foreach ($_FILES as $docKey => $file) {
+    $docKey = (string)$docKey;
+    if (!in_array($docKey, $allowedKeys, true)) continue;
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+    if ((int)($file['size'] ?? 0) > (5 * 1024 * 1024)) continue;
+    $original = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($original, PATHINFO_EXTENSION));
+    $allowedExt = ['jpg','jpeg','png','pdf','csv','xlsx','xls'];
+    if ($ext === '' || !in_array($ext, $allowedExt, true)) continue;
+    $tmp = (string)($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) continue;
+    $filename = 'reg_' . $docKey . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $dest = $targetDir . $filename;
+    if (!@move_uploaded_file($tmp, $dest)) continue;
+    // optional security scan
+    if (function_exists('tmm_scan_file_for_viruses') && !tmm_scan_file_for_viruses($dest)) {
+      @unlink($dest);
+      continue;
+    }
+    $relPath = 'uploads/' . $filename;
+    $stmt = $db->prepare("INSERT INTO operator_portal_documents(user_id, doc_key, file_path, status, remarks, reviewed_at, reviewed_by)
+                          VALUES(?, ?, ?, 'Pending', NULL, NULL, NULL)
+                          ON DUPLICATE KEY UPDATE file_path=VALUES(file_path), status='Pending', remarks=NULL, reviewed_at=NULL, reviewed_by=NULL");
+    if ($stmt) {
+      $stmt->bind_param('iss', $userId, $docKey, $relPath);
+      $stmt->execute();
+      $stmt->close();
+      $saved[] = $docKey;
+    }
+  }
+  if ($saved) {
+    $now = date('Y-m-d H:i:s');
+    $stmtU = $db->prepare("UPDATE operator_portal_users SET verification_submitted_at=? WHERE id=?");
+    if ($stmtU) {
+      $stmtU->bind_param('si', $now, $userId);
+      $stmtU->execute();
+      $stmtU->close();
+    }
+  }
+} catch (Throwable $e) {
+  // ignore upload errors during registration
+}
+
+opreg_send(true, 'Registration submitted. An admin will review and activate your account. You will receive an email once approved.', [
   'registered' => true,
   'otp_required' => false,
   'recaptcha_configured' => $recaptchaConfigured,
