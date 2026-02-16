@@ -108,6 +108,21 @@ $parkingRows = [];
 $resP = $db->query("SELECT id, name, location, capacity FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
 
+$permCountByTerminal = [];
+try {
+  $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+  if ($chkPerm && $chkPerm->fetch_row()) {
+    $resPerm = $db->query("SELECT terminal_id, COUNT(*) AS c FROM terminal_permits GROUP BY terminal_id");
+    if ($resPerm) {
+      while ($row = $resPerm->fetch_assoc()) {
+        $tid = (int)($row['terminal_id'] ?? 0);
+        $c = (int)($row['c'] ?? 0);
+        if ($tid > 0) $permCountByTerminal[$tid] = $c;
+      }
+    }
+  }
+} catch (Throwable $e) {}
+
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -246,13 +261,22 @@ if ($rootUrl === '/') $rootUrl = '';
                       </td>
                     </tr>
                   <?php endif; ?>
-                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
+                      <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
+                      <?php
+                        $tidBadge = (int)($t['id'] ?? 0);
+                        $pc = (int)($permCountByTerminal[$tidBadge] ?? 0);
+                        $hasPermit = $pc > 0;
+                      ?>
+                      <span class="ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black <?php echo $hasPermit ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300'; ?>">
+                        <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
+                      </span>
+                    </td>
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
                       <?php $rc = (int)($t['route_count'] ?? 0); ?>
                       <?php if ($rc > 0): ?>
-                        <div class="flex items-center gap-2">
                           <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
                           <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
                             class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
@@ -554,6 +578,11 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="md:col-span-4">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
             <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+          <div class="md:col-span-8">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
+            <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Optional on create; upload here when editing to attach legal proof for this terminal.</div>
           </div>
           <div class="md:col-span-8 flex items-center justify-end gap-2">
             <button type="button" id="btnCancelCreateTerminal" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>

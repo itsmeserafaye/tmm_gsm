@@ -149,6 +149,11 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
           </div>
         </div>
+        <div>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
+          <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+          <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required if the terminal has no permit on file.</div>
+        </div>
         <div class="flex items-center justify-end gap-2 pt-2">
           <button id="btnAssign" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Assign</button>
         </div>
