@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../../includes/edit_permission.php';
 
 header('Content-Type: application/json');
 
@@ -17,6 +18,12 @@ try {
 
   $id = (int)($_POST['id'] ?? 0);
   if ($id <= 0) json_out(400, ['ok' => false, 'error' => 'missing_id']);
+
+  $editorId = (int)($_SESSION['user_id'] ?? 0);
+  $ep = ep_authorized($db, $editorId, $id);
+  if (!($ep['authorized'] ?? false)) {
+    json_out(403, ['ok' => false, 'error' => 'permission_required']);
+  }
 
   $roleIds = [];
   

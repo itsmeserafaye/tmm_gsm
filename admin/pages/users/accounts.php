@@ -101,6 +101,21 @@ if ($rootUrl === '/') $rootUrl = '';
                 </div>
 
                 <!-- Modal Body -->
+                <div id="perm-status" class="px-6 pt-6 hidden">
+                    <div id="perm-banner" class="flex items-start gap-3 p-3 rounded-xl border text-sm font-medium">
+                        <div id="perm-icon" class="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+                            <i data-lucide="shield" class="w-4 h-4"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div id="perm-title" class="font-bold">View Mode - Permission Required</div>
+                            <div id="perm-desc" class="text-slate-500 mt-0.5">An authorization email has been sent. Waiting for approval...</div>
+                            <div id="perm-extra" class="text-xs text-slate-400 mt-1"></div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="perm-resend" class="text-indigo-600 font-bold disabled:opacity-50">Resend</button>
+                        </div>
+                    </div>
+                </div>
                 <form id="user-form" class="px-6 py-6 space-y-6">
                     <input type="hidden" name="id" id="user-id">
                     
@@ -209,6 +224,7 @@ if ($rootUrl === '/') $rootUrl = '';
 <script>
 let allRoles = [];
 let allUsers = [];
+let editPerm = { targetId: 0, authorized: false, statusTimer: null, countdownTimer: null, resendAt: 0, expiresAt: null, grantedAt: null, lastAction: 0, pingTimer: null };
 
 document.addEventListener('DOMContentLoaded', () => {
     if(window.lucide) window.lucide.createIcons();
@@ -225,6 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('user-status-filter').addEventListener('change', (e) => {
         fetchUsers(document.getElementById('user-search').value, e.target.value);
     });
+
+    const resendBtn = document.getElementById('perm-resend');
+    if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+            if (Date.now() < editPerm.resendAt || !editPerm.targetId) return;
+            await requestEditPermission(editPerm.targetId, true);
+        });
+    }
 });
 
 async function fetchRoles() {
@@ -352,6 +376,8 @@ function openUserModal(isEdit = false) {
     } else {
         pwdContainer.style.display = 'block';
     }
+
+    document.getElementById('perm-status').classList.toggle('hidden', !isEdit);
 }
 
 function closeUserModal() {
@@ -360,6 +386,8 @@ function closeUserModal() {
     document.getElementById('user-id').value = '';
     // Uncheck all roles
     document.querySelectorAll('input[name="role_ids[]"]').forEach(cb => cb.checked = false);
+    setFormReadOnly(false);
+    clearPermissionTimers();
 }
 
 function editUser(id) {
@@ -387,6 +415,9 @@ function editUser(id) {
         });
 
         openUserModal(true);
+        setFormReadOnly(true);
+        updatePermBanner('pending', 'Permission Required', 'An authorization email has been sent. Waiting for approval...');
+        requestEditPermission(id);
     });
 }
 
@@ -460,5 +491,148 @@ async function saveUser() {
         btn.disabled = false;
         if(window.lucide) window.lucide.createIcons();
     }
+}
+
+function setFormReadOnly(readonly) {
+    const form = document.getElementById('user-form');
+    const saveBtn = document.getElementById('btn-save-user');
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(el => {
+        if (el.id === 'user-email') {
+            el.disabled = true;
+            return;
+        }
+        el.disabled = !!readonly;
+        if (readonly) {
+            el.classList.add('opacity-60', 'cursor-not-allowed');
+        } else {
+            el.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+    });
+    saveBtn.disabled = !!readonly;
+    saveBtn.classList.toggle('opacity-50', !!readonly);
+}
+
+function updatePermBanner(state, title, desc, extra) {
+    const banner = document.getElementById('perm-banner');
+    const icon = document.getElementById('perm-icon');
+    const titleEl = document.getElementById('perm-title');
+    const descEl = document.getElementById('perm-desc');
+    const extraEl = document.getElementById('perm-extra');
+    const resendBtn = document.getElementById('perm-resend');
+    titleEl.textContent = (state === 'granted' ? 'Edit Mode - Authorized' : 'View Mode - ' + (title || 'Permission Required'));
+    descEl.textContent = desc || '';
+    extraEl.textContent = extra || '';
+    if (state === 'granted') {
+        banner.className = 'flex items-start gap-3 p-3 rounded-xl border text-sm font-medium border-emerald-200 bg-emerald-50';
+        icon.className = 'p-1.5 rounded-lg bg-emerald-100 text-emerald-700';
+        resendBtn.disabled = true;
+    } else {
+        banner.className = 'flex items-start gap-3 p-3 rounded-xl border text-sm font-medium border-amber-200 bg-amber-50';
+        icon.className = 'p-1.5 rounded-lg bg-amber-100 text-amber-700';
+        const allow = Date.now() >= editPerm.resendAt;
+        resendBtn.disabled = !allow;
+        resendBtn.textContent = allow ? 'Resend' : 'Resend (' + Math.max(0, Math.ceil((editPerm.resendAt - Date.now())/1000)) + 's)';
+    }
+    if(window.lucide) window.lucide.createIcons();
+}
+
+function clearPermissionTimers() {
+    if (editPerm.statusTimer) { clearInterval(editPerm.statusTimer); editPerm.statusTimer = null; }
+    if (editPerm.countdownTimer) { clearInterval(editPerm.countdownTimer); editPerm.countdownTimer = null; }
+    if (editPerm.pingTimer) { clearTimeout(editPerm.pingTimer); editPerm.pingTimer = null; }
+    editPerm = { targetId: 0, authorized: false, statusTimer: null, countdownTimer: null, resendAt: 0, expiresAt: null, grantedAt: null, lastAction: 0, pingTimer: null };
+}
+
+async function requestEditPermission(targetId, isResend = false) {
+    try {
+        editPerm.targetId = targetId;
+        const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/request_edit_permission.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({target_user_id: String(targetId)})
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            let msg = 'Failed to send permission request.';
+            if (data.error === 'rate_limit') msg = 'Daily limit reached (3/day).';
+            if (data.error === 'cooldown') msg = 'Please wait before resending.';
+            updatePermBanner('pending', 'Permission Required', msg);
+            return;
+        }
+        const email = data.email || '';
+        editPerm.expiresAt = data.expires_at ? new Date(data.expires_at) : null;
+        editPerm.resendAt = Date.now() + ((data.resend_after_seconds || 300) * 1000);
+        updatePermBanner('pending', 'Permission Required', `Permission request sent to ${email}.`, countdownText());
+        startStatusPolling();
+        startCountdown();
+        attachActivityListeners();
+    } catch (e) {
+        updatePermBanner('pending', 'Permission Required', 'Error sending permission request.');
+        console.error(e);
+    }
+}
+
+function countdownText() {
+    if (!editPerm.expiresAt) return '';
+    const ms = editPerm.expiresAt.getTime() - Date.now();
+    const mins = Math.max(0, Math.floor(ms / 60000));
+    return `Authorization link valid for ${mins} min`;
+}
+
+function startCountdown() {
+    if (editPerm.countdownTimer) clearInterval(editPerm.countdownTimer);
+    editPerm.countdownTimer = setInterval(() => {
+        const extra = (editPerm.authorized && editPerm.grantedAt) ? (`Granted at ${editPerm.grantedAt}`) : countdownText();
+        updatePermBanner(editPerm.authorized ? 'granted' : 'pending', null, editPerm.authorized ? 'You can now edit this account.' : 'Awaiting authorization...', extra);
+        if (Date.now() >= editPerm.resendAt && !editPerm.authorized) updatePermBanner('pending', 'Permission Required', 'You may resend the request.', countdownText());
+    }, 1000);
+}
+
+function startStatusPolling() {
+    if (editPerm.statusTimer) clearInterval(editPerm.statusTimer);
+    const check = async () => {
+        if (!editPerm.targetId) return;
+        try {
+            const res = await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/edit_permission_status.php?target_user_id=' + encodeURIComponent(editPerm.targetId));
+            const data = await res.json();
+            if (data && data.ok) {
+                const wasAuth = editPerm.authorized;
+                editPerm.authorized = !!data.authorized;
+                if (editPerm.authorized) {
+                    setFormReadOnly(false);
+                    editPerm.grantedAt = data.granted_at || editPerm.grantedAt;
+                    updatePermBanner('granted', 'Authorized', 'You can now make changes.', `Granted at ${editPerm.grantedAt || ''}`);
+                } else if (wasAuth) {
+                    setFormReadOnly(true);
+                    updatePermBanner('pending', 'Permission Required', 'Authorization expired due to inactivity. Please resend.');
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+    };
+    check();
+    editPerm.statusTimer = setInterval(check, 5000);
+}
+
+function attachActivityListeners() {
+    const form = document.getElementById('user-form');
+    const onAct = () => {
+        if (!editPerm.authorized) return;
+        editPerm.lastAction = Date.now();
+        if (editPerm.pingTimer) return;
+        editPerm.pingTimer = setTimeout(async () => {
+            editPerm.pingTimer = null;
+            try {
+                await fetch((window.TMM_ROOT_URL || '') + '/admin/api/settings/edit_permission_ping.php', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({target_user_id: String(editPerm.targetId)})
+                });
+            } catch (e) {}
+        }, 1500);
+    };
+    ['input','change','keydown','click'].forEach(ev => form.addEventListener(ev, onAct, { passive:true }));
 }
 </script>
