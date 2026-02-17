@@ -560,6 +560,10 @@ if (!empty($_SESSION['user_id'])) {
                         <label class="block text-sm mb-1">Contact Number<span class="required-asterisk">*</span></label>
                         <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm mb-1">Operator Address<span class="required-asterisk">*</span></label>
+                        <input type="text" name="address" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="House / Building / Street, Barangay, City / Municipality, Province, Postal Code">
+                    </div>
                     <div>
                         <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
                         <div class="relative">
@@ -1111,6 +1115,7 @@ if (!empty($_SESSION['user_id'])) {
                         operator_type: (f.operator_type ? String(f.operator_type.value || '') : '').trim(),
                         operator_name: (f.operator_name ? String(f.operator_name.value || '') : '').trim(),
                         contact_number: (f.contact_number ? String(f.contact_number.value || '') : '').trim(),
+                        address: (f.address ? String(f.address.value || '') : '').trim(),
                         email: (f.email ? String(f.email.value || '') : '').trim(),
                         password: pwd,
                         confirm_password: confirmPwd,

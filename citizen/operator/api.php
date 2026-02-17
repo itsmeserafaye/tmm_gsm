@@ -947,7 +947,7 @@ if ($action === 'get_routes') {
 
 if ($action === 'get_profile') {
   $selectPuv = op_has_col($db, 'operator_portal_users', 'puv_operator_id') ? ", puv_operator_id" : "";
-  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks{$selectPuv} FROM operator_portal_users WHERE id=? LIMIT 1");
+  $stmt = $db->prepare("SELECT email, full_name, contact_info, association_name, operator_type, address, approval_status, verification_submitted_at, approval_remarks{$selectPuv} FROM operator_portal_users WHERE id=? LIMIT 1");
   if (!$stmt)
     op_send(false, ['error' => 'Query failed'], 500);
   $stmt->bind_param('i', $userId);
@@ -987,6 +987,7 @@ if ($action === 'get_profile') {
       'contact_info' => $row['contact_info'] ?? '',
       'association_name' => $row['association_name'] ?? '',
       'operator_type' => $row['operator_type'] ?? 'Individual',
+      'address' => $row['address'] ?? '',
       'approval_status' => $row['approval_status'] ?? 'Pending',
       'verification_submitted_at' => $row['verification_submitted_at'] ?? null,
       'approval_remarks' => $row['approval_remarks'] ?? null,

@@ -1031,6 +1031,7 @@ function db()
     contact_info VARCHAR(64) DEFAULT NULL,
     association_name VARCHAR(128) DEFAULT NULL,
     operator_type VARCHAR(16) DEFAULT 'Individual',
+    address VARCHAR(255) DEFAULT NULL,
     approval_status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
     verification_submitted_at DATETIME DEFAULT NULL,
     approval_remarks TEXT DEFAULT NULL,
@@ -1048,6 +1049,7 @@ function db()
 
   $opUserCols = [
     'operator_type' => "VARCHAR(16) DEFAULT 'Individual'",
+    'address' => "VARCHAR(255) DEFAULT NULL",
     'puv_operator_id' => "INT DEFAULT NULL",
     'approval_status' => "ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending'",
     'verification_submitted_at' => "DATETIME DEFAULT NULL",

@@ -2492,6 +2492,7 @@ $typesList = vehicle_types();
                 if (t && currentProfileData && currentProfileData.operator_type) t.value = currentProfileData.operator_type;
                 if (rn && currentProfileData && currentProfileData.association_name && !rn.value) rn.value = currentProfileData.association_name;
                 if (n && currentProfileData && currentProfileData.name && !n.value) n.value = currentProfileData.name;
+                if (a && currentProfileData && currentProfileData.address && !a.value) a.value = currentProfileData.address;
                 if (c && currentProfileData && currentProfileData.contact_info && !c.value) c.value = digitsOnly(currentProfileData.contact_info);
                 if (coop && currentProfileData && currentProfileData.association_name && !coop.value) coop.value = currentProfileData.association_name;
             }
