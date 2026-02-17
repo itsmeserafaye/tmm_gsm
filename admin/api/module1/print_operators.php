@@ -57,7 +57,7 @@ $year = date('Y');
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Operators Summary</title>
+  <title>Operators Report</title>
   <style>
     *{box-sizing:border-box}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
@@ -69,8 +69,7 @@ $year = date('Y');
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{border:1px solid #e2e8f0;padding:8px;font-size:12px}
     th{background:#f8fafc;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#334155}
-    tfoot{position:fixed;bottom:0;left:0;right:0}
-    .footer{display:flex;justify-content:space-between;align-items:center;border-top:2px solid #e2e8f0;padding:8px 24px;font-size:12px;color:#475569}
+    .footer{border-top:2px solid #e2e8f0;padding:8px 24px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0}
     .logo{width:40px;height:40px;border-radius:8px;object-fit:cover}
     @media print{.wrap{padding:0 0 48px 0}.footer{position:fixed}}
   </style>
@@ -81,7 +80,7 @@ $year = date('Y');
       <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
       <div>
         <h1>Transport & Mobility Management</h1>
-        <div class="sub">Operators Summary</div>
+        <div class="sub">Operators Report</div>
         <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Type: <?php echo htmlspecialchars($type ?: 'All'); ?> • Status: <?php echo htmlspecialchars($status ?: 'All'); ?></div>
       </div>
     </div>
@@ -125,11 +124,28 @@ $year = date('Y');
       </tbody>
     </table>
   </div>
-  <div class="footer">
-    <div>Transport & Mobility Management</div>
-    <div>LGU Permitted • © <?php echo $year; ?></div>
-  </div>
-  <script>window.print()</script>
+  <div class="footer">Transport & Mobility Management • LGU Permitted • © <?php echo $year; ?></div>
+  <script>
+    (function() {
+      function backToReferrer() {
+        var ref = document.referrer || '';
+        if (ref && ref !== location.href) {
+          try { location.replace(ref); } catch (e) { history.back(); }
+        } else {
+          try { window.close(); } catch (e) { history.back(); }
+        }
+      }
+      function onAfter() { setTimeout(backToReferrer, 50); }
+      if ('onafterprint' in window) window.addEventListener('afterprint', onAfter);
+      if (window.matchMedia) {
+        var mql = window.matchMedia('print');
+        if (mql) {
+          if (mql.addEventListener) mql.addEventListener('change', function(e){ if (!e.matches) onAfter(); });
+          else if (mql.addListener) mql.addListener(function(m){ if (!m.matches) onAfter(); });
+        }
+      }
+      setTimeout(function(){ try { window.print(); } catch(e) {} }, 100);
+    })();
+  </script>
 </body>
 </html>
-

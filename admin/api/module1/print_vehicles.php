@@ -120,7 +120,7 @@ $now = date('M d, Y H:i');
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Vehicles Summary</title>
+  <title>Vehicles Report</title>
   <style>
     *{box-sizing:border-box}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
@@ -143,7 +143,7 @@ $now = date('M d, Y H:i');
       <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
       <div>
         <h1>Transport & Mobility Management</h1>
-        <div class="sub">Vehicles Summary</div>
+        <div class="sub">Vehicles Report</div>
         <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Type: <?php echo htmlspecialchars($vehicleType ?: 'All'); ?> • Record Status: <?php echo htmlspecialchars($recordStatus ?: 'All'); ?> • DOCU: <?php echo htmlspecialchars($docuStatus ?: 'All'); ?></div>
       </div>
     </div>
@@ -197,10 +197,29 @@ $now = date('M d, Y H:i');
     </table>
   </div>
   <div class="footer">
-    <div>Transport & Mobility Management</div>
-    <div>LGU Permitted • © <?php echo date('Y'); ?></div>
+    <div>Transport & Mobility Management • LGU Permitted • © <?php echo date('Y'); ?></div>
   </div>
-  <script>window.print()</script>
+  <script>
+    (function() {
+      function backToReferrer() {
+        var ref = document.referrer || '';
+        if (ref && ref !== location.href) {
+          try { location.replace(ref); } catch (e) { history.back(); }
+        } else {
+          try { window.close(); } catch (e) { history.back(); }
+        }
+      }
+      function onAfter() { setTimeout(backToReferrer, 50); }
+      if ('onafterprint' in window) window.addEventListener('afterprint', onAfter);
+      if (window.matchMedia) {
+        var mql = window.matchMedia('print');
+        if (mql) {
+          if (mql.addEventListener) mql.addEventListener('change', function(e){ if (!e.matches) onAfter(); });
+          else if (mql.addListener) mql.addListener(function(m){ if (!m.matches) onAfter(); });
+        }
+      }
+      setTimeout(function(){ try { window.print(); } catch(e) {} }, 100);
+    })();
+  </script>
 </body>
 </html>
-
