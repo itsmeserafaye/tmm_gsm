@@ -45,20 +45,39 @@ $setting = function(string $key, string $default = '') use ($db): string {
 
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true);
-if (!is_array($input)) {
-  opreg_send(false, 'Invalid JSON input', null, 400);
+if (!is_array($input)) $input = [];
+
+if (!isset($_POST['operator_type']) && $raw === '' && empty($_FILES)) {
+  opreg_send(false, 'Invalid registration payload', null, 400);
 }
 
-$operatorType = trim((string)($input['operator_type'] ?? ''));
-$fullName = trim((string)($input['operator_name'] ?? ($input['full_name'] ?? '')));
-$email = strtolower(trim((string)($input['email'] ?? '')));
-$password = (string)($input['password'] ?? '');
-$confirmPassword = (string)($input['confirm_password'] ?? ($input['confirmPassword'] ?? ''));
-$contactInfo = trim((string)($input['contact_number'] ?? ($input['contact_info'] ?? '')));
-$association = trim((string)($input['association_name'] ?? ''));
-$address = trim((string)($input['address'] ?? ''));
-$agreeTerms = (bool)($input['agree_terms'] ?? false);
-$deviceId = trim((string)($input['device_id'] ?? ''));
+$fromForm = isset($_POST['operator_type']) || isset($_POST['operator_name']) || isset($_POST['email']);
+
+if ($fromForm) {
+  $operatorType = trim((string)($_POST['operator_type'] ?? ''));
+  $fullName = trim((string)($_POST['operator_name'] ?? ($_POST['full_name'] ?? '')));
+  $email = strtolower(trim((string)($_POST['email'] ?? '')));
+  $password = (string)($_POST['password'] ?? '');
+  $confirmPassword = (string)($_POST['confirm_password'] ?? ($_POST['confirmPassword'] ?? ''));
+  $contactInfo = trim((string)($_POST['contact_number'] ?? ($_POST['contact_info'] ?? '')));
+  $association = trim((string)($_POST['association_name'] ?? ''));
+  $address = trim((string)($_POST['address'] ?? ''));
+  $agreeTerms = isset($_POST['agree_terms']) && ($_POST['agree_terms'] === '1' || strtolower((string)$_POST['agree_terms']) === 'true' || $_POST['agree_terms'] === 'on');
+  $deviceId = trim((string)($_POST['device_id'] ?? ''));
+  $recaptchaToken = trim((string)($_POST['recaptcha_token'] ?? ''));
+} else {
+  $operatorType = trim((string)($input['operator_type'] ?? ''));
+  $fullName = trim((string)($input['operator_name'] ?? ($input['full_name'] ?? '')));
+  $email = strtolower(trim((string)($input['email'] ?? '')));
+  $password = (string)($input['password'] ?? '');
+  $confirmPassword = (string)($input['confirm_password'] ?? ($input['confirmPassword'] ?? ''));
+  $contactInfo = trim((string)($input['contact_number'] ?? ($input['contact_info'] ?? '')));
+  $association = trim((string)($input['association_name'] ?? ''));
+  $address = trim((string)($input['address'] ?? ''));
+  $agreeTerms = (bool)($input['agree_terms'] ?? false);
+  $deviceId = trim((string)($input['device_id'] ?? ''));
+  $recaptchaToken = trim((string)($input['recaptcha_token'] ?? ''));
+}
 
 if ($email === '' || $password === '' || $confirmPassword === '') {
   opreg_send(false, 'Please complete email and password.', null, 400);
@@ -102,7 +121,7 @@ $secretKey = (string)($cfg['secret_key'] ?? '');
 $recaptchaConfigured = ($siteKey !== '');
 if ($recaptchaConfigured) {
   if ($secretKey === '') opreg_send(false, 'reCAPTCHA is not fully configured on the server.', null, 500);
-  $token = trim((string)($input['recaptcha_token'] ?? ''));
+  $token = trim((string)$recaptchaToken);
   if ($token === '') opreg_send(false, 'Please complete the reCAPTCHA.', null, 400);
   $verify = recaptcha_verify($secretKey, $token, (string)($_SERVER['REMOTE_ADDR'] ?? ''));
   if (!($verify['ok'] ?? false)) opreg_send(false, 'reCAPTCHA verification failed.', ['recaptcha' => $verify], 400);
@@ -134,6 +153,77 @@ if (!$ok) {
 }
 
 $userId = (int)$db->insert_id;
+
+if (!empty($_FILES)) {
+  $baseDir = dirname(__DIR__, 1);
+  $uploadDir = rtrim($baseDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR;
+  if (!is_dir($uploadDir)) {
+    @mkdir($uploadDir, 0775, true);
+  }
+  $docMap = [
+    'valid_id',
+    'declared_fleet',
+    'proof_of_address',
+    'nbi_clearance',
+    'authorization_letter',
+    'cda_registration',
+    'cda_good_standing',
+    'board_resolution',
+    'list_of_members',
+    'articles_of_cooperation',
+    'sec_registration',
+    'articles_incorporation',
+    'mayors_permit',
+    'business_permit',
+  ];
+  $saved = [];
+  foreach ($docMap as $docKey) {
+    if (!isset($_FILES[$docKey])) continue;
+    $file = $_FILES[$docKey];
+    if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+    $size = (int)($file['size'] ?? 0);
+    if ($size <= 0 || $size > (5 * 1024 * 1024)) continue;
+    $name = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $allowedExt = ['jpg', 'jpeg', 'png', 'pdf', 'csv', 'xlsx', 'xls'];
+    if ($ext === '' || !in_array($ext, $allowedExt, true)) continue;
+    $tmp = (string)($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) continue;
+    $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
+    $mime = $finfo ? finfo_file($finfo, $tmp) : null;
+    if ($finfo) finfo_close($finfo);
+    $allowedMime = [
+      'image/jpeg',
+      'image/png',
+      'application/pdf',
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    if ($mime && !in_array($mime, $allowedMime, true)) continue;
+    $filename = 'reg_' . $docKey . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $targetPath = $uploadDir . $filename;
+    if (!@move_uploaded_file($tmp, $targetPath)) continue;
+    $relPath = 'uploads/' . $filename;
+    $stmtD = $db->prepare("INSERT INTO operator_portal_documents(user_id, doc_key, file_path, status, remarks, reviewed_at, reviewed_by) VALUES(?, ?, ?, 'Pending', NULL, NULL, NULL)
+      ON DUPLICATE KEY UPDATE file_path=VALUES(file_path), status='Pending', remarks=NULL, reviewed_at=NULL, reviewed_by=NULL");
+    if ($stmtD) {
+      $stmtD->bind_param('iss', $userId, $docKey, $relPath);
+      $stmtD->execute();
+      $stmtD->close();
+      $saved[] = $docKey;
+    }
+  }
+  if ($saved) {
+    $now = date('Y-m-d H:i:s');
+    $stmtU = $db->prepare("UPDATE operator_portal_users SET verification_submitted_at=?, approval_status=IF(approval_status='Approved','Approved','Pending') WHERE id=?");
+    if ($stmtU) {
+      $stmtU->bind_param('si', $now, $userId);
+      $stmtU->execute();
+      $stmtU->close();
+    }
+  }
+}
 
 opreg_send(true, 'Registration successful. Please login to continue.', [
   'registered' => true,
