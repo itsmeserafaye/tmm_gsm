@@ -12,9 +12,9 @@ function ov_send(bool $ok, array $payload = [], int $code = 200): void {
 }
 
 function ov_required_doc_keys(string $operatorType): array {
-  if ($operatorType === 'Coop') return ['cda_registration', 'board_resolution'];
-  if ($operatorType === 'Corp') return ['sec_registration', 'authority_to_operate'];
-  return ['valid_id'];
+  if ($operatorType === 'Coop') return ['cda_registration', 'cda_good_standing', 'board_resolution', 'declared_fleet'];
+  if ($operatorType === 'Corp') return ['sec_registration', 'articles_incorporation', 'board_resolution', 'declared_fleet'];
+  return ['valid_id', 'declared_fleet'];
 }
 
 try {
