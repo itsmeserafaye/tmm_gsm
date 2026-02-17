@@ -274,6 +274,12 @@ if ($rootUrl === '/') $rootUrl = '';
           'href' => $rootUrl . '/admin/api/module2/export_applications_csv.php?' . http_build_query(['q' => $q, 'status' => $status, 'format' => 'excel']),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
+        ],
+        [
+          'href' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status]),
+          'label' => 'Print',
+          'icon' => 'printer',
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status])]
         ]
       ]); ?>
     <?php endif; ?>

@@ -197,6 +197,12 @@ if ($rootUrl === '/') $rootUrl = '';
                 'label' => 'Excel',
                 'icon' => 'file-spreadsheet'
               ];
+              $exportItems[] = [
+                'href' => $rootUrl . '/admin/api/module5/print_terminals.php',
+                'label' => 'Print',
+                'icon' => 'printer',
+                'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php']
+              ];
             }
             $exportItems[] = [
               'tag' => 'button',

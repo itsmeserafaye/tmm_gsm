@@ -111,6 +111,17 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
         <div class="text-sm text-slate-500 dark:text-slate-400">Monitor and update workflow status.</div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+        <?php if (has_permission('reports.export')): ?>
+          <?php
+            $qs = http_build_query(['workflow_status' => '', 'from' => '', 'to' => '', 'q' => '']);
+            tmm_render_export_toolbar([[
+              'href' => ($rootUrl ?? '') . '/admin/api/module3/print_violations.php?' . $qs,
+              'label' => 'Print',
+              'icon' => 'printer',
+              'attrs' => ['id' => 'btnPrintViolations', 'data-print-url' => ($rootUrl ?? '') . '/admin/api/module3/print_violations.php']
+            ]], ['mb' => 'mb-0']);
+          ?>
+        <?php endif; ?>
         <select id="filterWorkflow" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           <option value="">All</option>
           <option value="Pending">Pending</option>
@@ -180,6 +191,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
     const btnReload = document.getElementById('btnReload');
     const plateInput = document.getElementById('plateNumberInput');
     const plateDatalist = document.getElementById('plateNumberList');
+    const btnPrint = document.getElementById('btnPrintViolations');
 
     let violationTypes = [];
     let plates = [];
@@ -220,6 +232,23 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
     if (plateInput) {
       plateInput.addEventListener('input', () => {
         plateInput.value = plateInput.value.toUpperCase();
+      });
+    }
+
+    function buildPrintUrl() {
+      const qs = new URLSearchParams();
+      if (filterWorkflow && filterWorkflow.value) qs.set('workflow_status', filterWorkflow.value);
+      if (filterFrom && filterFrom.value) qs.set('from', filterFrom.value);
+      if (filterTo && filterTo.value) qs.set('to', filterTo.value);
+      if (filterQ && filterQ.value) qs.set('q', filterQ.value);
+      return (rootUrl || '') + '/admin/api/module3/print_violations.php' + (qs.toString() ? ('?' + qs.toString()) : '');
+    }
+    if (btnPrint) {
+      btnPrint.addEventListener('click', function(e){
+        e.preventDefault();
+        const url = buildPrintUrl();
+        if (window.tmmPrintLink) window.tmmPrintLink(url);
+        else window.open(url, '_blank');
       });
     }
 
