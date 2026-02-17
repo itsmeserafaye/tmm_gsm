@@ -123,8 +123,10 @@ $now = date('M d, Y H:i');
   <title>Vehicles Report</title>
   <style>
     *{box-sizing:border-box}
+    :root{--footer-height:18mm}
+    @page{margin:16mm 12mm 22mm 12mm}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
-    .wrap{padding:24px 24px 96px 24px}
+    .wrap{padding:16px 16px calc(var(--footer-height) + 12px) 16px}
     .header{display:flex;flex-direction:column;align-items:center;gap:8px;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px;text-align:center}
     .header h1{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
     .sub{font-weight:700;color:#334155}
@@ -133,8 +135,13 @@ $now = date('M d, Y H:i');
     th,td{border:1px solid #e2e8f0;padding:8px;font-size:12px}
     th{background:#f8fafc;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#334155}
     .logo{width:40px;height:40px;border-radius:8px;object-fit:cover}
-    .footer{border-top:2px solid #e2e8f0;padding:8px 24px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0}
-    @media print{.wrap{padding:0 24px 96px 24px}}
+    thead{display:table-header-group}
+    tbody tr{page-break-inside:avoid;break-inside:avoid}
+    .footer{border-top:2px solid #e2e8f0;padding:6px 16px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0;height:var(--footer-height);background:#fff}
+    @media print{
+      body{margin:0}
+      .wrap{padding:0 12mm calc(var(--footer-height) + 4mm) 12mm}
+    }
   </style>
 </head>
 <body>
