@@ -199,6 +199,9 @@ if (!empty($_FILES)) {
       'text/csv',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream',
+      'application/zip',
+      'text/plain',
     ];
     if ($mime && !in_array($mime, $allowedMime, true)) continue;
     $filename = 'reg_' . $docKey . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
