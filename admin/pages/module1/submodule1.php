@@ -131,6 +131,11 @@ if ($rootUrl === '/') $rootUrl = '';
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
+        $exportItems[] = [
+          'href' => $rootUrl . '/admin/api/module1/print_operators.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status]),
+          'label' => 'Print',
+          'icon' => 'printer'
+        ];
       }
       if (has_permission('module1.write')) {
         $exportItems[] = [
