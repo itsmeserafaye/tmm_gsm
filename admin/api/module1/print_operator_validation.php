@@ -65,8 +65,8 @@ $year = date('Y');
   <style>
     *{box-sizing:border-box}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
-    .wrap{padding:24px}
-    .header{display:flex;align-items:center;gap:16px;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px}
+    .wrap{padding:24px 24px 96px 24px}
+    .header{display:flex;flex-direction:column;align-items:center;gap:8px;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px;text-align:center}
     .header h1{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
     .sub{font-weight:700;color:#334155}
     .filters{font-size:12px;color:#475569;margin-top:4px}
@@ -76,8 +76,8 @@ $year = date('Y');
     .ok{color:#059669;font-weight:800}
     .no{color:#ef4444;font-weight:800}
     .logo{width:40px;height:40px;border-radius:8px;object-fit:cover}
-    .footer{display:flex;justify-content:space-between;align-items:center;border-top:2px solid #e2e8f0;padding:8px 24px;font-size:12px;color:#475569;position:fixed;left:0;right:0;bottom:0}
-    @media print{.wrap{padding:0 0 48px 0}}
+    .footer{border-top:2px solid #e2e8f0;padding:8px 24px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0}
+    @media print{.wrap{padding:0 24px 96px 24px}}
   </style>
 </head>
 <body>

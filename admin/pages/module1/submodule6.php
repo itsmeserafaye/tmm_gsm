@@ -393,6 +393,12 @@ if ($saParams) {
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
+        $exportItems[] = [
+          'href' => $rootUrl . '/admin/api/module1/print_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status]),
+          'label' => 'Print',
+          'icon' => 'printer',
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status])]
+        ];
       }
       if ($canManage) {
         $exportItems[] = [
