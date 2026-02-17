@@ -141,5 +141,19 @@ $year = date('Y');
     </table>
   </div>
   <div class="footer">Transport & Mobility Management • LGU Permitted • © <?php echo htmlspecialchars($year); ?></div>
+  <script>
+    (function() {
+      try { window.print(); } catch (e) {}
+      function tryClose(){ try{ if (window.opener && !window.opener.closed) window.close(); }catch(e){} }
+      if ('onafterprint' in window) window.addEventListener('afterprint', function(){ setTimeout(tryClose, 50); });
+      if (window.matchMedia) {
+        var mql = window.matchMedia('print');
+        if (mql) {
+          if (mql.addEventListener) mql.addEventListener('change', function(e){ if (!e.matches) setTimeout(tryClose, 50); });
+          else if (mql.addListener) mql.addListener(function(m){ if (!m.matches) setTimeout(tryClose, 50); });
+        }
+      }
+    })();
+  </script>
 </body>
 </html>
