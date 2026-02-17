@@ -340,7 +340,7 @@ try {
       try {
         $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=?, status='Active' WHERE id=?");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssiii', $remarks, $now, $adminId, $userId, $userId);
+        $stmt->bind_param('ssii', $remarks, $now, $adminId, $userId);
         $stmt->execute();
         $stmt->close();
 
