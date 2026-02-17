@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -561,226 +561,6 @@ if (!empty($_SESSION['user_id'])) {
                         <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold mb-1">Required Documents</label>
-                        <div id="opDocHint" class="text-xs text-gray-600 mb-2">Fields with <span class="required-asterisk">*</span> are required.</div>
-                        <div class="text-[11px] text-amber-600 mb-2">
-                            Note: Changing Operator Type clears files hidden by the change. Re-select files if you switch back.
-                        </div>
-                        <div class="space-y-3">
-                            <div data-doc-key="valid_id" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Valid Government ID / Driver’s License</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="valid_id">*</span>
-                                </label>
-                                <input type="file" name="valid_id" id="doc_valid_id" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="declared_fleet" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Declared Fleet (Planned / Owned Vehicles)</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="declared_fleet">*</span>
-                                </label>
-                                <input type="file" name="declared_fleet" id="doc_declared_fleet" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="proof_of_address" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Proof of Address</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="proof_of_address">*</span>
-                                </label>
-                                <input type="file" name="proof_of_address" id="doc_proof_of_address" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="nbi_clearance" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">NBI Clearance</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="nbi_clearance">*</span>
-                                </label>
-                                <input type="file" name="nbi_clearance" id="doc_nbi_clearance" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="authorization_letter" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Authorization Letter</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="authorization_letter">*</span>
-                                </label>
-                                <input type="file" name="authorization_letter" id="doc_authorization_letter" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">CDA Registration Certificate</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_registration">*</span>
-                                </label>
-                                <input type="file" name="cda_registration" id="doc_cda_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_good_standing" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">CDA Certificate of Good Standing</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_good_standing">*</span>
-                                </label>
-                                <input type="file" name="cda_good_standing" id="doc_cda_good_standing" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="board_resolution" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Board Resolution</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="board_resolution">*</span>
-                                </label>
-                                <input type="file" name="board_resolution" id="doc_board_resolution" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="list_of_members" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">List of Members</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="list_of_members">*</span>
-                                </label>
-                                <input type="file" name="list_of_members" id="doc_list_of_members" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_of_cooperation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Articles of Cooperation / By‑laws</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_of_cooperation">*</span>
-                                </label>
-                                <input type="file" name="articles_of_cooperation" id="doc_articles_of_cooperation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="sec_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">SEC Certificate of Registration</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="sec_registration">*</span>
-                                </label>
-                                <input type="file" name="sec_registration" id="doc_sec_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_incorporation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Articles of Incorporation / By‑laws</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_incorporation">*</span>
-                                </label>
-                                <input type="file" name="articles_incorporation" id="doc_articles_incorporation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="mayors_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Mayor’s Permit</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="mayors_permit">*</span>
-                                </label>
-                                <input type="file" name="mayors_permit" id="doc_mayors_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="business_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Business Permit</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="business_permit">*</span>
-                                </label>
-                                <input type="file" name="business_permit" id="doc_business_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <p class="text-[11px] text-gray-500">
-                                File types allowed: PDF/JPG/PNG; Declared Fleet and List of Members also allow CSV/XLS/XLSX. Max 5 MB per file.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold mb-1">Required Documents</label>
-                        <div id="opDocHint" class="text-xs text-gray-600 mb-2">Fields with <span class="required-asterisk">*</span> are required.</div>
-                        <div class="text-[11px] text-amber-600 mb-2">
-                            Note: Changing Operator Type clears files hidden by the change. Re-select files if you switch back.
-                        </div>
-                        <div class="space-y-3">
-                            <div data-doc-key="valid_id" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Valid Government ID / Driver’s License</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="valid_id">*</span>
-                                </label>
-                                <input type="file" name="valid_id" id="doc_valid_id" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="declared_fleet" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Declared Fleet (Planned / Owned Vehicles)</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="declared_fleet">*</span>
-                                </label>
-                                <input type="file" name="declared_fleet" id="doc_declared_fleet" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="proof_of_address" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Proof of Address</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="proof_of_address">*</span>
-                                </label>
-                                <input type="file" name="proof_of_address" id="doc_proof_of_address" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="nbi_clearance" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">NBI Clearance</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="nbi_clearance">*</span>
-                                </label>
-                                <input type="file" name="nbi_clearance" id="doc_nbi_clearance" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="authorization_letter" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Authorization Letter</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="authorization_letter">*</span>
-                                </label>
-                                <input type="file" name="authorization_letter" id="doc_authorization_letter" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">CDA Registration Certificate</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_registration">*</span>
-                                </label>
-                                <input type="file" name="cda_registration" id="doc_cda_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="cda_good_standing" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">CDA Certificate of Good Standing</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_good_standing">*</span>
-                                </label>
-                                <input type="file" name="cda_good_standing" id="doc_cda_good_standing" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="board_resolution" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Board Resolution</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="board_resolution">*</span>
-                                </label>
-                                <input type="file" name="board_resolution" id="doc_board_resolution" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="list_of_members" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">List of Members</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="list_of_members">*</span>
-                                </label>
-                                <input type="file" name="list_of_members" id="doc_list_of_members" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_of_cooperation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Articles of Cooperation / By‑laws</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_of_cooperation">*</span>
-                                </label>
-                                <input type="file" name="articles_of_cooperation" id="doc_articles_of_cooperation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="sec_registration" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">SEC Certificate of Registration</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="sec_registration">*</span>
-                                </label>
-                                <input type="file" name="sec_registration" id="doc_sec_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="articles_incorporation" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Articles of Incorporation / By‑laws</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_incorporation">*</span>
-                                </label>
-                                <input type="file" name="articles_incorporation" id="doc_articles_incorporation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="mayors_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Mayor’s Permit</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="mayors_permit">*</span>
-                                </label>
-                                <input type="file" name="mayors_permit" id="doc_mayors_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <div data-doc-key="business_permit" class="hidden">
-                                <label class="block text-xs font-semibold mb-1">
-                                    <span class="doc-label-text">Business Permit</span>
-                                    <span class="required-asterisk hidden" data-doc-asterisk="business_permit">*</span>
-                                </label>
-                                <input type="file" name="business_permit" id="doc_business_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
-                            </div>
-                            <p class="text-[11px] text-gray-500">
-                                File types allowed: PDF/JPG/PNG; Declared Fleet and List of Members also allow CSV/XLS/XLSX. Max 5 MB per file.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="md:col-span-2">
                         <label class="block text-xs font-semibold text-gray-700 mb-1">House / Building / Street<span class="required-asterisk">*</span></label>
                         <input type="text" name="address_street" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 123 Rizal St., Brgy Hall Bldg.">
                     </div>
@@ -808,6 +588,116 @@ if (!empty($_SESSION['user_id'])) {
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Postal Code</label>
                             <input type="text" name="address_postal_code" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 4027">
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold mb-1">Required Documents</label>
+                        <div id="opDocHint" class="text-xs text-gray-600 mb-2"></div>
+                        <div class="text-[11px] text-amber-600 mb-2">
+                            Note: Changing Operator Type clears files hidden by the change. Re-select files if you switch back.
+                        </div>
+                        <div class="space-y-3">
+                            <div data-doc-key="valid_id" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Valid Government ID / Driver’s License</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="valid_id">*</span>
+                                </label>
+                                <input type="file" name="valid_id" id="doc_valid_id" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="declared_fleet" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Declared Fleet (Planned / Owned Vehicles)</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="declared_fleet">*</span>
+                                </label>
+                                <input type="file" name="declared_fleet" id="doc_declared_fleet" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="proof_of_address" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Proof of Address</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="proof_of_address">*</span>
+                                </label>
+                                <input type="file" name="proof_of_address" id="doc_proof_of_address" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="nbi_clearance" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">NBI Clearance</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="nbi_clearance">*</span>
+                                </label>
+                                <input type="file" name="nbi_clearance" id="doc_nbi_clearance" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="authorization_letter" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Authorization Letter</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="authorization_letter">*</span>
+                                </label>
+                                <input type="file" name="authorization_letter" id="doc_authorization_letter" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="cda_registration" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">CDA Registration Certificate</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_registration">*</span>
+                                </label>
+                                <input type="file" name="cda_registration" id="doc_cda_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="cda_good_standing" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">CDA Certificate of Good Standing</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="cda_good_standing">*</span>
+                                </label>
+                                <input type="file" name="cda_good_standing" id="doc_cda_good_standing" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="board_resolution" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Board Resolution</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="board_resolution">*</span>
+                                </label>
+                                <input type="file" name="board_resolution" id="doc_board_resolution" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="list_of_members" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">List of Members</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="list_of_members">*</span>
+                                </label>
+                                <input type="file" name="list_of_members" id="doc_list_of_members" accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="articles_of_cooperation" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Articles of Cooperation / By‑laws</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_of_cooperation">*</span>
+                                </label>
+                                <input type="file" name="articles_of_cooperation" id="doc_articles_of_cooperation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="sec_registration" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">SEC Certificate of Registration</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="sec_registration">*</span>
+                                </label>
+                                <input type="file" name="sec_registration" id="doc_sec_registration" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="articles_incorporation" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Articles of Incorporation / By‑laws</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="articles_incorporation">*</span>
+                                </label>
+                                <input type="file" name="articles_incorporation" id="doc_articles_incorporation" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="mayors_permit" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Mayor’s Permit</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="mayors_permit">*</span>
+                                </label>
+                                <input type="file" name="mayors_permit" id="doc_mayors_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <div data-doc-key="business_permit" class="hidden">
+                                <label class="block text-xs font-semibold mb-1">
+                                    <span class="doc-label-text">Business Permit</span>
+                                    <span class="required-asterisk hidden" data-doc-asterisk="business_permit">*</span>
+                                </label>
+                                <input type="file" name="business_permit" id="doc_business_permit" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs">
+                            </div>
+                            <p class="text-[11px] text-gray-500">
+                                File types allowed: PDF/JPG/PNG; Declared Fleet and List of Members also allow CSV/XLS/XLSX. Max 5 MB per file.
+                            </p>
                         </div>
                     </div>
                     <div>
