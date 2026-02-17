@@ -778,59 +778,20 @@ $typesList = vehicle_types();
     function openDocViewer(url, label) {
       if (!url) return;
       const titleText = (label ? (label + ' Document') : 'Document');
-      const viewerId = 'tmmDocViewer';
       const content = `
         <div class="flex flex-col gap-3">
           <div class="flex items-center justify-between gap-2">
             <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">${escAttr(titleText)}</div>
-            <div class="flex items-center gap-2">
-              <button type="button" class="px-2 py-1 text-xs font-semibold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200" data-doc-zoom-out="1">-</button>
-              <span class="text-xs font-semibold text-slate-500 dark:text-slate-400" data-doc-zoom-label="1">100%</span>
-              <button type="button" class="px-2 py-1 text-xs font-semibold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200" data-doc-zoom-in="1">+</button>
-              <button type="button" class="px-2 py-1 text-xs font-semibold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200" data-doc-zoom-reset="1">Reset</button>
-              <a href="${escAttr(url)}" target="_blank" class="px-2 py-1 text-xs font-semibold rounded-md bg-slate-900 text-white hover:bg-black">Open in new tab</a>
-            </div>
+            <a href="${escAttr(url)}" target="_blank" class="px-2 py-1 text-xs font-semibold rounded-md bg-slate-900 text-white hover:bg-black">Open in new tab</a>
           </div>
           <div class="mt-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900/90">
             <div class="max-h-[75vh] overflow-auto flex justify-center items-start bg-slate-900/90">
-              <div id="${viewerId}" class="origin-top bg-slate-900">
-                <iframe src="${escAttr(url)}" class="w-[900px] h-[1200px] border-0 bg-white"></iframe>
-              </div>
+              <iframe src="${escAttr(url)}" class="w-[900px] h-[1200px] border-0 bg-white"></iframe>
             </div>
           </div>
         </div>
       `;
       openModal(content, titleText);
-      const viewer = body.querySelector('#' + viewerId);
-      if (!viewer) return;
-      let scale = 1;
-      const labelEl = body.querySelector('[data-doc-zoom-label]');
-      const applyScale = () => {
-        viewer.style.transform = 'scale(' + scale.toFixed(2) + ')';
-      };
-      const syncLabel = () => {
-        if (labelEl) labelEl.textContent = Math.round(scale * 100) + '%';
-      };
-      applyScale();
-      syncLabel();
-      const btnIn = body.querySelector('[data-doc-zoom-in]');
-      const btnOut = body.querySelector('[data-doc-zoom-out]');
-      const btnReset = body.querySelector('[data-doc-zoom-reset]');
-      if (btnIn) btnIn.addEventListener('click', () => {
-        scale = Math.min(3, scale + 0.1);
-        applyScale();
-        syncLabel();
-      });
-      if (btnOut) btnOut.addEventListener('click', () => {
-        scale = Math.max(0.3, scale - 0.1);
-        applyScale();
-        syncLabel();
-      });
-      if (btnReset) btnReset.addEventListener('click', () => {
-        scale = 1;
-        applyScale();
-        syncLabel();
-      });
     }
 
     function bindSubmissionDocViewer() {
