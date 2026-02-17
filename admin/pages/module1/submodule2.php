@@ -322,10 +322,10 @@ $typesList = vehicle_types();
           'icon' => 'file-spreadsheet'
         ];
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus]),
+          'href' => '#',
           'label' => 'Print',
           'icon' => 'printer',
-          'target' => '_blank'
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus])]
         ];
       }
       if (has_any_permission(['module1.write','module1.vehicles.write'])) {
