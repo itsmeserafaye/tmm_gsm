@@ -959,13 +959,13 @@ $typesList = vehicle_types();
             <form id="formVehicleEncode" onsubmit="submitNewVehicle(event)" class="space-y-4" enctype="multipart/form-data" novalidate>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number</label>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Plate Number<span class="required-asterisk">*</span></label>
                         <input type="text" name="plate_number" minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate"
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition uppercase text-sm font-semibold"
                             placeholder="ABC-1234" required>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Type</label>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Type<span class="required-asterisk">*</span></label>
                         <select name="vehicle_type" required
                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
                             <option value="" disabled selected>Select type</option>
@@ -1077,7 +1077,7 @@ $typesList = vehicle_types();
                     <div class="text-xs font-bold text-slate-500 uppercase">Required Documents</div>
                     <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR (Required)</label>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CR<span class="required-asterisk">*</span></label>
                             <input type="file" name="cr" accept=".pdf,.jpg,.jpeg,.png" required
                                 class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
                         </div>

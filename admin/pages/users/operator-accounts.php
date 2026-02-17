@@ -21,6 +21,10 @@ if ($rootUrl === '/') $rootUrl = '';
             <p class="mt-2 text-slate-500 dark:text-slate-400 font-medium ml-0 sm:ml-14">Manage operator portal logins (status, reset password, delete).</p>
         </div>
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+            <button type="button" onclick="syncPortalOperators()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
+                <i data-lucide="user-check" class="w-5 h-5"></i>
+                Sync Operators
+            </button>
             <button type="button" onclick="syncOperatorPlates()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
                 Sync Plates
@@ -159,6 +163,53 @@ if ($rootUrl === '/') $rootUrl = '';
         const appTableBody = document.getElementById('op-app-table-body');
         const pwdModal = document.getElementById('op-pwd-modal');
         const pwdInput = document.getElementById('op-temp-password');
+
+        window.syncPortalOperators = async function() {
+            if (!confirm('This will backfill operator records for approved Active portal accounts that are not yet linked. Proceed?')) return;
+
+            const btn = document.querySelector('button[onclick="syncPortalOperators()"]');
+            if (!btn) return;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Syncing...`;
+            if (window.lucide) window.lucide.createIcons();
+
+            try {
+                const res = await fetch(rootUrl + '/admin/api/users/sync_portal_operators.php', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('JSON Parse Error:', text);
+                    throw new Error('Invalid server response: ' + text.substring(0, 120));
+                }
+                if (data.ok) {
+                    const s = data.stats || {};
+                    alert(
+                        'Operator sync complete.' +
+                        '\n\nPortal users processed: ' + String(s.processed ?? 0) +
+                        '\nOperator records created: ' + String(s.created ?? 0) +
+                        '\nOperator records updated: ' + String(s.updated ?? 0) +
+                        '\nAccounts linked: ' + String(s.linked ?? 0) +
+                        '\nSkipped: ' + String(s.skipped ?? 0) +
+                        '\nFailed: ' + String(s.failed ?? 0)
+                    );
+                    loadOperatorAccounts(true);
+                } else {
+                    alert('Sync Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Sync Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        };
 
         window.syncOperatorPlates = async function() {
             if (!confirm('This will sync all admin-linked vehicles to operator portal users based on matching names. Proceed?')) return;
