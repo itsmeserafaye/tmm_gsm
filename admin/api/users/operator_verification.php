@@ -23,7 +23,7 @@ try {
   if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $userId = (int)($_GET['user_id'] ?? 0);
     if ($userId > 0) {
-      $stmtU = $db->prepare("SELECT id, email, full_name, contact_info, association_name, operator_type, approval_status, verification_submitted_at, approval_remarks, approved_at, approved_by, status, created_at FROM operator_portal_users WHERE id=? LIMIT 1");
+      $stmtU = $db->prepare("SELECT id, email, full_name, contact_info, association_name, address, operator_type, approval_status, verification_submitted_at, approval_remarks, approved_at, approved_by, status, created_at FROM operator_portal_users WHERE id=? LIMIT 1");
       if (!$stmtU) ov_send(false, ['error' => 'db_prepare_failed'], 500);
       $stmtU->bind_param('i', $userId);
       $stmtU->execute();

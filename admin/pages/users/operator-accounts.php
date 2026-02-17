@@ -165,10 +165,6 @@ if ($rootUrl === '/') $rootUrl = '';
                 <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Contact</div>
                 <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white" id="ov-contact">--</div>
               </div>
-              <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
-                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Association / Coop</div>
-                <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white" id="ov-association">--</div>
-              </div>
               <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 md:col-span-2">
                 <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Address</div>
                 <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white break-words" id="ov-address">--</div>
@@ -763,15 +759,12 @@ async function ovOpenModal(userId) {
   const submission = data.submission || {};
   const nameEl = document.getElementById('ov-name');
   const contactEl = document.getElementById('ov-contact');
-  const assocEl = document.getElementById('ov-association');
   const addrEl = document.getElementById('ov-address');
   const profileName = submission.name || submission.registered_name || u.full_name || '';
   const profileContact = submission.contact_no || u.contact_info || '';
-  const profileAssoc = submission.coop_name || u.association_name || '';
   const profileAddress = submission.address || u.address || '';
   if (nameEl) nameEl.textContent = profileName || '—';
   if (contactEl) contactEl.textContent = profileContact || '—';
-  if (assocEl) assocEl.textContent = profileAssoc || '—';
   if (addrEl) addrEl.textContent = profileAddress || '—';
 
   const required = Array.isArray(data.required_doc_keys) ? data.required_doc_keys : [];
