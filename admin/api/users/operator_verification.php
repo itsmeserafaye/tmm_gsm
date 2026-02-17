@@ -51,10 +51,38 @@ try {
         $stmtD->close();
       }
 
+      $submission = null;
+      $stmtSub = $db->prepare("SELECT operator_type, registered_name, name, address, contact_no, email, coop_name, status, submitted_at, submitted_by_name
+                               FROM operator_record_submissions
+                               WHERE portal_user_id=?
+                               ORDER BY submitted_at DESC, submission_id DESC
+                               LIMIT 1");
+      if ($stmtSub) {
+        $stmtSub->bind_param('i', $userId);
+        $stmtSub->execute();
+        $rowSub = $stmtSub->get_result()->fetch_assoc();
+        $stmtSub->close();
+        if ($rowSub) {
+          $submission = [
+            'operator_type' => (string)($rowSub['operator_type'] ?? ''),
+            'registered_name' => (string)($rowSub['registered_name'] ?? ''),
+            'name' => (string)($rowSub['name'] ?? ''),
+            'address' => (string)($rowSub['address'] ?? ''),
+            'contact_no' => (string)($rowSub['contact_no'] ?? ''),
+            'email' => (string)($rowSub['email'] ?? ''),
+            'coop_name' => (string)($rowSub['coop_name'] ?? ''),
+            'status' => (string)($rowSub['status'] ?? ''),
+            'submitted_at' => (string)($rowSub['submitted_at'] ?? ''),
+            'submitted_by_name' => (string)($rowSub['submitted_by_name'] ?? ''),
+          ];
+        }
+      }
+
       ov_send(true, [
         'user' => $u,
         'documents' => $docs,
         'required_doc_keys' => ov_required_doc_keys((string)($u['operator_type'] ?? 'Individual')),
+        'submission' => $submission,
       ]);
     }
 

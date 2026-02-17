@@ -155,6 +155,28 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <div>
+            <div class="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Profile</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Operator Name</div>
+                <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white" id="ov-name">--</div>
+              </div>
+              <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Contact</div>
+                <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white" id="ov-contact">--</div>
+              </div>
+              <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Association / Coop</div>
+                <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white" id="ov-association">--</div>
+              </div>
+              <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 md:col-span-2">
+                <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Address</div>
+                <div class="mt-1 text-sm font-bold text-slate-900 dark:text-white break-words" id="ov-address">--</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
             <div class="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Documents</div>
             <div class="space-y-3" id="ov-docs">Loading...</div>
           </div>
@@ -738,12 +760,35 @@ async function ovOpenModal(userId) {
   if (subEl) subEl.textContent = u.verification_submitted_at ? String(u.verification_submitted_at).slice(0, 16) : '-';
   if (remarks) remarks.value = u.approval_remarks || '';
 
+  const submission = data.submission || {};
+  const nameEl = document.getElementById('ov-name');
+  const contactEl = document.getElementById('ov-contact');
+  const assocEl = document.getElementById('ov-association');
+  const addrEl = document.getElementById('ov-address');
+  const profileName = submission.name || submission.registered_name || u.full_name || '';
+  const profileContact = submission.contact_no || u.contact_info || '';
+  const profileAssoc = submission.coop_name || u.association_name || '';
+  const profileAddress = submission.address || u.address || '';
+  if (nameEl) nameEl.textContent = profileName || '—';
+  if (contactEl) contactEl.textContent = profileContact || '—';
+  if (assocEl) assocEl.textContent = profileAssoc || '—';
+  if (addrEl) addrEl.textContent = profileAddress || '—';
+
   const required = Array.isArray(data.required_doc_keys) ? data.required_doc_keys : [];
   const list = Array.isArray(data.documents) ? data.documents : [];
   const root = (window.TMM_ROOT_URL || '');
   const map = {};
   list.forEach(d => { map[String(d.doc_key || '')] = d; });
-  docs.innerHTML = required.map(k => {
+  const keys = [];
+  required.forEach(k => {
+    const key = String(k || '');
+    if (key && keys.indexOf(key) === -1) keys.push(key);
+  });
+  list.forEach(d => {
+    const key = String(d.doc_key || '');
+    if (key && keys.indexOf(key) === -1) keys.push(key);
+  });
+  docs.innerHTML = keys.map(k => {
     const d = map[k] || null;
     const st = d ? (d.status || 'Pending') : 'Missing';
     const badge = st === 'Valid' ? 'bg-emerald-100 text-emerald-700' : (st === 'Invalid' ? 'bg-rose-100 text-rose-700' : (st === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'));
