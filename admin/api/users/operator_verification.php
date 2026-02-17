@@ -125,7 +125,7 @@ try {
   $userId = (int)($input['user_id'] ?? 0);
   if ($userId <= 0) ov_send(false, ['error' => 'invalid_user_id'], 400);
 
-  $stmtU = $db->prepare("SELECT id, email, full_name, contact_info, association_name, operator_type, approval_status, status, puv_operator_id FROM operator_portal_users WHERE id=? LIMIT 1");
+  $stmtU = $db->prepare("SELECT id, email, full_name, contact_info, association_name, operator_type, address, approval_status, status, puv_operator_id FROM operator_portal_users WHERE id=? LIMIT 1");
   if (!$stmtU) ov_send(false, ['error' => 'db_prepare_failed'], 500);
   $stmtU->bind_param('i', $userId);
   $stmtU->execute();
@@ -207,6 +207,7 @@ try {
     $fullName = trim((string)($user['full_name'] ?? ''));
     $contactInfo = trim((string)($user['contact_info'] ?? ''));
     $association = trim((string)($user['association_name'] ?? ''));
+    $portalAddress = trim((string)($user['address'] ?? ''));
     $puvOperatorId = (int)($user['puv_operator_id'] ?? 0);
 
     $operatorType = $operatorTypePortal;
@@ -269,7 +270,36 @@ try {
       }
 
       $now = date('Y-m-d H:i:s');
-      if ($addressStreet === '') $addressStreet = null;
+      if ($addressStreet === '' && $portalAddress !== '') $addressStreet = $portalAddress;
+
+      $addrStreet = null;
+      $addrBarangay = null;
+      $addrCity = null;
+      $addrProvince = null;
+      $addrPostal = null;
+
+      $line = trim((string)$addressStreet);
+      if ($line !== '') {
+        $parts = array_map('trim', explode(',', $line));
+        if (isset($parts[0]) && $parts[0] !== '') $addrStreet = $parts[0];
+        if (isset($parts[1]) && $parts[1] !== '') $addrBarangay = $parts[1];
+        if (isset($parts[2]) && $parts[2] !== '') $addrCity = $parts[2];
+        if (isset($parts[3]) && $parts[3] !== '') $addrProvince = $parts[3];
+        if (isset($parts[4]) && $parts[4] !== '') {
+          $candidate = $parts[4];
+          if (preg_match('/(\d{4,5})$/', $candidate, $m)) {
+            $addrPostal = $m[1];
+          } else {
+            $addrPostal = $candidate !== '' ? $candidate : null;
+          }
+        } else {
+          if (preg_match('/(\d{4,5})$/', $line, $m)) {
+            $addrPostal = $m[1];
+          }
+        }
+        $addressStreet = $addrStreet ?? $line;
+      }
+
 
       $db->begin_transaction();
       try {
@@ -279,8 +309,8 @@ try {
         $stmt->execute();
         $stmt->close();
 
-        $operatorId = $puvOperatorId;
-        if ($operatorId <= 0) {
+      $operatorId = $puvOperatorId;
+      if ($operatorId <= 0) {
           $stmtFind = $db->prepare("SELECT id FROM operators WHERE portal_user_id=? LIMIT 1");
           if ($stmtFind) {
             $stmtFind->bind_param('i', $portalUserId);
@@ -290,7 +320,7 @@ try {
             if ($row) $operatorId = (int)($row['id'] ?? 0);
           }
         }
-        if ($operatorId <= 0 && $email !== '') {
+      if ($operatorId <= 0 && $email !== '') {
           $stmtFind2 = $db->prepare("SELECT id FROM operators WHERE email=? ORDER BY id DESC LIMIT 1");
           if ($stmtFind2) {
             $stmtFind2->bind_param('s', $email);
@@ -301,36 +331,40 @@ try {
           }
         }
 
-        if ($operatorId > 0) {
-          $stmtOp = $db->prepare("UPDATE operators
-                                  SET operator_type=?, registered_name=?, name=?, full_name=?, address_street=?, contact_no=?, email=?, coop_name=?,
-                                      portal_user_id=?, approved_by_user_id=?, approved_by_name=?, approved_at=?,
-                                      verification_status='Verified', workflow_status='Active'
-                                  WHERE id=?");
-          if (!$stmtOp) throw new Exception('db_prepare_failed');
-          $stmtOp->bind_param(
-            'ssssssssiissi',
-            $operatorType, $registeredName, $name, $displayName, $addressStreet, $contactNo, $email, $coopName,
-            $portalUserId, $adminId, $adminName, $now,
-            $operatorId
-          );
-          $stmtOp->execute();
-          $stmtOp->close();
-        } else {
-          $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, address_street, contact_no, email, coop_name, status, verification_status, workflow_status,
-                                                         portal_user_id, submitted_by_name, submitted_at, approved_by_user_id, approved_by_name, approved_at, created_at)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'Verified', 'Active', ?, ?, ?, ?, ?, ?, NOW())");
-          if (!$stmtIns) throw new Exception('db_prepare_failed');
-          $stmtIns->bind_param(
-            'ssssssssississ',
-            $operatorType, $registeredName, $name, $displayName, $addressStreet, $contactNo, $email, $coopName,
-            $portalUserId, $submittedByName, $submittedAt,
-            $adminId, $adminName, $now
-          );
-          $stmtIns->execute();
-          $operatorId = (int)$db->insert_id;
-          $stmtIns->close();
-        }
+      if ($operatorId > 0) {
+        $stmtOp = $db->prepare("UPDATE operators
+                                SET operator_type=?, registered_name=?, name=?, full_name=?, address_street=?, address_barangay=?, address_city=?, address_province=?, address_postal_code=?, contact_no=?, email=?, coop_name=?,
+                                    portal_user_id=?, approved_by_user_id=?, approved_by_name=?, approved_at=?,
+                                    verification_status='Verified', workflow_status='Active'
+                                WHERE id=?");
+        if (!$stmtOp) throw new Exception('db_prepare_failed');
+        $stmtOp->bind_param(
+          'ssssssssssssssiii',
+          $operatorType, $registeredName, $name, $displayName,
+          $addressStreet, $addrBarangay, $addrCity, $addrProvince, $addrPostal,
+          $contactNo, $email, $coopName,
+          $portalUserId, $adminId, $adminName, $now,
+          $operatorId
+        );
+        $stmtOp->execute();
+        $stmtOp->close();
+      } else {
+        $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, address_street, address_barangay, address_city, address_province, address_postal_code, contact_no, email, coop_name, status, verification_status, workflow_status,
+                                                       portal_user_id, submitted_by_name, submitted_at, approved_by_user_id, approved_by_name, approved_at, created_at)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'Verified', 'Active', ?, ?, ?, ?, ?, ?, NOW())");
+        if (!$stmtIns) throw new Exception('db_prepare_failed');
+        $stmtIns->bind_param(
+          'ssssssssssssississ',
+          $operatorType, $registeredName, $name, $displayName,
+          $addressStreet, $addrBarangay, $addrCity, $addrProvince, $addrPostal,
+          $contactNo, $email, $coopName,
+          $portalUserId, $submittedByName, $submittedAt,
+          $adminId, $adminName, $now
+        );
+        $stmtIns->execute();
+        $operatorId = (int)$db->insert_id;
+        $stmtIns->close();
+      }
 
         if ($operatorId > 0) {
           $stmtLink = $db->prepare("UPDATE operator_portal_users SET puv_operator_id=? WHERE id=?");

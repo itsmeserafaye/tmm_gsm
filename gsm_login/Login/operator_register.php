@@ -56,6 +56,7 @@ $password = (string)($input['password'] ?? '');
 $confirmPassword = (string)($input['confirm_password'] ?? ($input['confirmPassword'] ?? ''));
 $contactInfo = trim((string)($input['contact_number'] ?? ($input['contact_info'] ?? '')));
 $association = trim((string)($input['association_name'] ?? ''));
+$address = trim((string)($input['address'] ?? ''));
 $agreeTerms = (bool)($input['agree_terms'] ?? false);
 $deviceId = trim((string)($input['device_id'] ?? ''));
 
@@ -113,9 +114,9 @@ if ($hash === false) opreg_send(false, 'Registration failed.', null, 500);
 $status = 'Inactive';
 $approvalStatus = 'Pending';
 $termsAcceptedAt = date('Y-m-d H:i:s');
-$stmt = $db->prepare("INSERT INTO operator_portal_users(email, password_hash, full_name, contact_info, association_name, operator_type, approval_status, terms_accepted_at, status) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt = $db->prepare("INSERT INTO operator_portal_users(email, password_hash, full_name, contact_info, association_name, operator_type, address, approval_status, terms_accepted_at, status) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 if (!$stmt) opreg_send(false, 'Registration failed.', null, 500);
-$stmt->bind_param('sssssssss', $email, $hash, $fullName, $contactInfo, $association, $operatorType, $approvalStatus, $termsAcceptedAt, $status);
+$stmt->bind_param('ssssssssss', $email, $hash, $fullName, $contactInfo, $association, $operatorType, $address, $approvalStatus, $termsAcceptedAt, $status);
 $ok = false;
 $errno = 0;
 try {
