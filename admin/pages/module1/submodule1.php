@@ -132,10 +132,10 @@ if ($rootUrl === '/') $rootUrl = '';
           'icon' => 'file-spreadsheet'
         ];
         $exportItems[] = [
-          'href' => $rootUrl . '/admin/api/module1/print_operators.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status]),
+          'href' => '#',
           'label' => 'Print',
           'icon' => 'printer',
-          'target' => '_blank'
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_operators.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status])]
         ];
       }
       if (has_permission('module1.write')) {

@@ -138,10 +138,10 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
           'icon' => 'file-spreadsheet'
         ],
         [
-          'href' => $rootUrl . '/admin/api/module1/print_operator_validation.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status]),
+          'href' => '#',
           'label' => 'Print',
           'icon' => 'printer',
-          'target' => '_blank'
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_operator_validation.php?' . http_build_query(['q' => $q, 'operator_type' => $type, 'status' => $status])]
         ]
       ]); ?>
     <?php endif; ?>

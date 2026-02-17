@@ -22,10 +22,16 @@ if (!function_exists('tmm_render_export_toolbar')) {
       $text = isset($item['label']) ? (string)$item['label'] : '';
       $icon = isset($item['icon']) ? (string)$item['icon'] : '';
       $target = isset($item['target']) ? (string)$item['target'] : '';
+      if (isset($item['print_url']) && !isset($item['attrs']['data-print-url'])) {
+        if (!isset($item['attrs'])) $item['attrs'] = [];
+        $item['attrs']['data-print-url'] = (string)$item['print_url'];
+      }
       $attrs = isset($item['attrs']) && is_array($item['attrs']) ? $item['attrs'] : [];
       $classes = $buttonBaseClass . ($idx > 0 ? (' ' . $separatorClass) : '');
       $attrs['class'] = $classes;
       if ($tag === 'a') {
+        // If this is a print link, keep href as '#' to avoid navigation
+        if (isset($attrs['data-print-url'])) $href = '#';
         $attrs['href'] = $href;
         if ($target !== '') $attrs['target'] = $target;
         if (($attrs['target'] ?? '') === '_blank') $attrs['rel'] = 'noopener';
@@ -49,5 +55,7 @@ if (!function_exists('tmm_render_export_toolbar')) {
     echo '</div>';
     echo '</div>';
     echo '</div>';
+    // Bind print handlers once globally
+    echo '<script>(function(){try{if(window.__tmmPrintBound)return;window.__tmmPrintBound=1;document.addEventListener("click",function(e){var t=e.target;if(!t)return;var el=t.closest? t.closest("[data-print-url]") : null; if(!el)return; e.preventDefault(); var url=el.getAttribute("data-print-url"); if(!url)return; var iframe=document.getElementById("__tmmPrintFrame"); if(!iframe){iframe=document.createElement("iframe"); iframe.style.position="fixed"; iframe.style.right="0"; iframe.style.bottom="0"; iframe.style.width="0"; iframe.style.height="0"; iframe.style.border="0"; iframe.style.visibility="hidden"; iframe.id="__tmmPrintFrame"; document.body.appendChild(iframe);} var done=function(){try{var w=iframe.contentWindow; if(!w) return; var cleanup=function(){ setTimeout(function(){ try{iframe.src="about:blank";}catch(e){} },300); }; if("onafterprint" in w){ w.addEventListener("afterprint", cleanup); } if(w.matchMedia){ var mql=w.matchMedia("print"); if(mql){ if(mql.addEventListener) mql.addEventListener("change", function(ev){ if(!ev.matches) cleanup();}); else if(mql.addListener) mql.addListener(function(m){ if(!m.matches) cleanup();}); } } setTimeout(function(){ try{w.focus(); w.print();}catch(e){} },150); }catch(e){} }; iframe.onload=done; try{iframe.src=url;}catch(e){window.open(url,"_blank");} });}catch(e){}</script>';
   }
 }
