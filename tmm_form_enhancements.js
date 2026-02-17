@@ -11,11 +11,17 @@
       '.tmm-inline-error{margin-top:4px;font-size:12px;line-height:1.25;color:#e11d48;font-weight:600}',
       '.tmm-inline-error[hidden]{display:none}',
       '.tmm-invalid{outline:2px solid rgba(225,29,72,.45);outline-offset:2px;border-color:#fb7185 !important}',
-      '.tmm-file-clear{margin-left:8px;display:none;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;border:1px solid rgba(148,163,184,.7);background:#fff;color:#64748b;font-weight:900;line-height:1;cursor:pointer;user-select:none}',
-      '.tmm-file-clear:hover{background:#f1f5f9;color:#0f172a}',
+      '.tmm-file-wrapper{position:relative;display:block;width:100%}',
+      '.tmm-file-wrapper input[type=file]{display:block;width:100%;font-size:12px;border-radius:0.75rem;border:1px solid #cbd5e1;padding:0.5rem 2.5rem 0.5rem 0.75rem;background:#f8fafc;color:#0f172a;cursor:pointer}',
+      '.tmm-file-wrapper input[type=file]::file-selector-button{margin-right:8px;border:none;border-radius:9999px;background:#0f172a;color:#fff;font-weight:600;padding:0.35rem 0.85rem;font-size:11px;cursor:pointer}',
+      '.tmm-file-wrapper input[type=file]::file-selector-button:hover{background:#111827}',
+      '.tmm-file-wrapper input[type=file]::-webkit-file-upload-button{margin-right:8px;border:none;border-radius:9999px;background:#0f172a;color:#fff;font-weight:600;padding:0.35rem 0.85rem;font-size:11px;cursor:pointer}',
+      '.tmm-file-wrapper input[type=file]::-webkit-file-upload-button:hover{background:#111827}',
+      '.tmm-file-clear{position:absolute;top:4px;right:8px;display:none;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;border:none;background:transparent;color:#64748b;font-weight:900;font-size:12px;line-height:1;cursor:pointer;user-select:none;padding:0}',
+      '.tmm-file-clear:hover{color:#0f172a;background:transparent}',
       '.tmm-file-clear:focus{outline:2px solid rgba(59,130,246,.45);outline-offset:2px}',
-      '.dark .tmm-file-clear{background:rgba(15,23,42,.55);border-color:rgba(100,116,139,.8);color:rgba(203,213,225,1)}',
-      '.dark .tmm-file-clear:hover{background:rgba(30,41,59,.8);color:#fff}'
+      '.dark .tmm-file-clear{color:rgba(203,213,225,1)}',
+      '.dark .tmm-file-clear:hover{color:#fff;background:transparent}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -386,7 +392,16 @@
     btn.setAttribute('aria-label', 'Clear selected file');
     btn.textContent = '×';
 
-    input.insertAdjacentElement('afterend', btn);
+    var parent = input.parentNode;
+    var wrapper = document.createElement('div');
+    wrapper.className = 'tmm-file-wrapper';
+    if (parent && parent.insertBefore) {
+      parent.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+      wrapper.appendChild(btn);
+    } else {
+      input.insertAdjacentElement('afterend', btn);
+    }
 
     function hasSelection() {
       try {
