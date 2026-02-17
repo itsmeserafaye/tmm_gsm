@@ -14,6 +14,10 @@ if ($rootUrl === '/') $rootUrl = '';
 $statRegistered = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Registered'")->fetch_assoc()['c'] ?? 0);
 $statPending = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Pending'")->fetch_assoc()['c'] ?? 0);
 $statExpired = (int)($db->query("SELECT COUNT(*) AS c FROM vehicle_registrations WHERE registration_status='Expired'")->fetch_assoc()['c'] ?? 0);
+$statNotRegistered = (int)($db->query("SELECT COUNT(DISTINCT v.id) AS c
+                                      FROM vehicles v
+                                      LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id
+                                      WHERE vr.registration_status IS NULL OR vr.registration_status=''")->fetch_assoc()['c'] ?? 0);
 $statActiveOps = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE status='Active' AND COALESCE(record_status,'') <> 'Archived'")->fetch_assoc()['c'] ?? 0);
 $statBlockedOps = (int)($db->query("SELECT COUNT(*) AS c FROM vehicles WHERE status='Blocked' AND COALESCE(record_status,'') <> 'Archived'")->fetch_assoc()['c'] ?? 0);
 
@@ -74,7 +78,7 @@ $res = $db->query($sql);
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[120] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Registered</div>
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statRegistered; ?></div>
@@ -86,6 +90,10 @@ $res = $db->query($sql);
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expired</div>
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statExpired; ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Not Registered</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statNotRegistered; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Operating (Active)</div>
