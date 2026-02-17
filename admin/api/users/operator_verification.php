@@ -401,6 +401,59 @@ try {
             $stmtLink->execute();
             $stmtLink->close();
           }
+
+          $rootDir = dirname(__DIR__, 3);
+          $portalUploadsDir = $rootDir . DIRECTORY_SEPARATOR . 'gsm_login' . DIRECTORY_SEPARATOR . 'uploads';
+          $adminUploadsDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'uploads';
+          if (!is_dir($adminUploadsDir)) {
+            @mkdir($adminUploadsDir, 0777, true);
+          }
+          $docMap = [
+            'valid_id' => ['type' => 'GovID', 'label' => 'Valid Government ID'],
+            'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet (Planned / Owned Vehicles)'],
+            'proof_of_address' => ['type' => 'BarangayCert', 'label' => 'Proof of Address'],
+            'nbi_clearance' => ['type' => 'Others', 'label' => 'NBI Clearance'],
+            'authorization_letter' => ['type' => 'Others', 'label' => 'Authorization Letter'],
+            'cda_registration' => ['type' => 'CDA', 'label' => 'CDA Registration Certificate'],
+            'cda_good_standing' => ['type' => 'CDA', 'label' => 'CDA Certificate of Good Standing'],
+            'board_resolution' => ['type' => 'Others', 'label' => 'Board Resolution'],
+            'list_of_members' => ['type' => 'Others', 'label' => 'List of Members'],
+            'articles_of_cooperation' => ['type' => 'Others', 'label' => 'Articles of Cooperation / By-laws'],
+            'sec_registration' => ['type' => 'SEC', 'label' => 'SEC Certificate of Registration'],
+            'articles_incorporation' => ['type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws'],
+            'mayors_permit' => ['type' => 'Others', 'label' => "Mayor's Permit"],
+            'business_permit' => ['type' => 'Others', 'label' => 'Business Permit'],
+          ];
+          $stmtDocs = $db->prepare("SELECT doc_key, file_path, status FROM operator_portal_documents WHERE user_id=? AND status='Valid'");
+          if ($stmtDocs) {
+            $stmtDocs->bind_param('i', $portalUserId);
+            $stmtDocs->execute();
+            $resDocs = $stmtDocs->get_result();
+            while ($resDocs && ($rowDoc = $resDocs->fetch_assoc())) {
+              $docKey = (string)($rowDoc['doc_key'] ?? '');
+              if ($docKey === '') continue;
+              $cfg = $docMap[$docKey] ?? null;
+              $docType = $cfg && isset($cfg['type']) ? (string)$cfg['type'] : 'Others';
+              $label = $cfg && array_key_exists('label', $cfg) ? (string)$cfg['label'] : $docKey;
+              $relPath = (string)($rowDoc['file_path'] ?? '');
+              $basename = basename($relPath);
+              if ($basename === '') continue;
+              $src = $portalUploadsDir . DIRECTORY_SEPARATOR . $basename;
+              if (!is_file($src)) continue;
+              $dest = $adminUploadsDir . DIRECTORY_SEPARATOR . $basename;
+              if (!is_file($dest)) {
+                @copy($src, $dest);
+              }
+              if (!is_file($dest)) continue;
+              $stmtInsDoc = $db->prepare("INSERT INTO operator_documents (operator_id, doc_type, file_path, doc_status, remarks, is_verified, verified_by, verified_at) VALUES (?, ?, ?, 'Verified', ?, 1, ?, ?)");
+              if ($stmtInsDoc) {
+                $stmtInsDoc->bind_param('isssis', $operatorId, $docType, $basename, $label, $adminId, $now);
+                $stmtInsDoc->execute();
+                $stmtInsDoc->close();
+              }
+            }
+            $stmtDocs->close();
+          }
         }
 
         $title = 'Operator account approved';
