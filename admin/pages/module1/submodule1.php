@@ -245,7 +245,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 if ($addrPostal !== '') $addrLine = trim($addrLine . ' ' . $addrPostal);
                 if ($addrLine === '') $addrLine = '-';
               ?>
-              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" data-op-row="1" data-operator-id="<?php echo (int)$rid; ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" data-op-row="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" data-operator-type="<?php echo htmlspecialchars((string)($row['operator_type'] ?? ''), ENT_QUOTES); ?>" data-contact-no="<?php echo htmlspecialchars($contactLine, ENT_QUOTES); ?>" data-email="<?php echo htmlspecialchars($emailLine, ENT_QUOTES); ?>" data-address-street="<?php echo htmlspecialchars($addrStreet, ENT_QUOTES); ?>" data-address-barangay="<?php echo htmlspecialchars($addrBrgy, ENT_QUOTES); ?>" data-address-city="<?php echo htmlspecialchars($addrCity, ENT_QUOTES); ?>" data-address-province="<?php echo htmlspecialchars($addrProv, ENT_QUOTES); ?>" data-address-postal="<?php echo htmlspecialchars($addrPostal, ENT_QUOTES); ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
                 <td class="py-4 px-6">
                   <div class="font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($row['display_name'] ?? '')); ?></div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">ID: <?php echo (int)$rid; ?></div>
@@ -267,6 +267,9 @@ if ($rootUrl === '/') $rootUrl = '';
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
                     <?php if (has_permission('module1.write')): ?>
+                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all" data-op-edit="1" data-operator-id="<?php echo (int)$rid; ?>" title="Edit Operator">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                      </button>
                       <a href="?page=module1/submodule3&review_operator_id=<?php echo (int)$rid; ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all inline-flex items-center justify-center" title="Validate Documents">
                         <i data-lucide="clipboard-check" class="w-4 h-4"></i>
                       </a>
@@ -608,6 +611,233 @@ if ($rootUrl === '/') $rootUrl = '';
         }
       });
     });
+
+    if (canWrite) {
+      document.querySelectorAll('[data-op-edit="1"]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('tr[data-op-row]');
+          if (!row) return;
+          const id = Number(row.getAttribute('data-operator-id') || '0');
+          if (!id) return;
+          const name = row.getAttribute('data-operator-name') || '';
+          const email = row.getAttribute('data-email') || '';
+          const operatorType = row.getAttribute('data-operator-type') || '';
+          const contactNo = row.getAttribute('data-contact-no') || '';
+          const addrStreet = row.getAttribute('data-address-street') || '';
+          const addrBrgy = row.getAttribute('data-address-barangay') || '';
+          const addrCity = row.getAttribute('data-address-city') || '';
+          const addrProv = row.getAttribute('data-address-province') || '';
+          const addrPostal = row.getAttribute('data-address-postal') || '';
+
+          openModal(`
+            <form id="formEditOperator" class="space-y-5" novalidate>
+              <input type="hidden" name="operator_id" value="${escAttr(String(id))}">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type</label>
+                  <select name="operator_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <option value="Individual"${operatorType === 'Individual' ? ' selected' : ''}>Individual</option>
+                    <option value="Cooperative"${operatorType === 'Cooperative' ? ' selected' : ''}>Cooperative</option>
+                    <option value="Corporation"${operatorType === 'Corporation' ? ' selected' : ''}>Corporation</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Name</label>
+                  <div class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-bold text-slate-900 dark:text-white overflow-hidden text-ellipsis whitespace-nowrap" title="${escAttr(name)}">
+                    ${escAttr(name)}
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
+                  <input name="address_street" maxlength="160" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(addrStreet)}" placeholder="e.g., 123 Rizal St., Brgy Hall Bldg.">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
+                    <select id="editBrgy" name="address_barangay" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                      <option value="">Select barangay</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
+                    <select id="editCity" name="address_city" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                      <option value="">Select city / municipality</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
+                    <select id="editProv" name="address_province" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                      <option value="">Select province</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
+                    <input id="editPostal" name="address_postal_code" maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(addrPostal)}" placeholder="e.g., 4027">
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
+                  <input name="contact_no" type="tel" inputmode="numeric" minlength="7" maxlength="20" pattern="^[0-9]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" value="${escAttr(contactNo)}" placeholder="e.g., 09171234567">
+                </div>
+                <div>
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
+                  <div class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-900 dark:text-white overflow-hidden text-ellipsis whitespace-nowrap" title="${escAttr(email)}">
+                    ${escAttr(email || '-')}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold" data-op-cancel="1">Cancel</button>
+                <button id="btnUpdateOperator" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Changes</button>
+              </div>
+            </form>
+          `, 'Edit Operator');
+
+          const cancel = body.querySelector('[data-op-cancel="1"]');
+          if (cancel) cancel.addEventListener('click', closeModal);
+
+          const form = document.getElementById('formEditOperator');
+          const btnSave = document.getElementById('btnUpdateOperator');
+          if (!form || !btnSave) return;
+
+          const contactInput = form.querySelector('input[name="contact_no"]');
+          const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
+          if (contactInput) {
+            contactInput.addEventListener('input', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+            contactInput.addEventListener('blur', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
+          }
+
+          const provSelect = form.querySelector('#editProv');
+          const citySelect = form.querySelector('#editCity');
+          const brgySelect = form.querySelector('#editBrgy');
+
+          const fillSelect = (sel, items, placeholder) => {
+            if (!sel) return;
+            sel.innerHTML = '';
+            const opt0 = document.createElement('option');
+            opt0.value = '';
+            opt0.textContent = placeholder;
+            sel.appendChild(opt0);
+            (items || []).forEach((name) => {
+              const opt = document.createElement('option');
+              opt.value = String(name || '');
+              opt.textContent = String(name || '');
+              sel.appendChild(opt);
+            });
+          };
+
+          const ensureOption = (sel, value) => {
+            if (!sel || !value) return;
+            const v = String(value);
+            let exists = false;
+            for (let i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value === v) { exists = true; break; }
+            }
+            if (!exists) {
+              const opt = document.createElement('option');
+              opt.value = v;
+              opt.textContent = v;
+              sel.appendChild(opt);
+            }
+            sel.value = v;
+          };
+
+          const loadOpts = async (mode, params) => {
+            const qs = new URLSearchParams();
+            qs.set('mode', mode);
+            Object.keys(params || {}).forEach((k) => {
+              if (params[k]) qs.set(k, params[k]);
+            });
+            const res = await fetch(rootUrl + '/admin/api/geo/address_options.php?' + qs.toString());
+            const data = await res.json().catch(() => null);
+            if (!data || !data.ok || !Array.isArray(data.data)) return [];
+            return data.data;
+          };
+
+          const initProvinces = async () => {
+            if (!provSelect) return;
+            const provs = await loadOpts('provinces', {});
+            fillSelect(provSelect, provs, 'Select province');
+            if (addrProv) ensureOption(provSelect, addrProv);
+            if (!citySelect || !brgySelect) return;
+            fillSelect(citySelect, [], 'Select city / municipality');
+            fillSelect(brgySelect, [], 'Select barangay');
+            if (addrProv) await refreshCities();
+          };
+
+          const refreshCities = async () => {
+            if (!provSelect || !citySelect) return;
+            const p = provSelect.value ? provSelect.value.trim() : '';
+            if (!p) {
+              fillSelect(citySelect, [], 'Select city / municipality');
+              fillSelect(brgySelect, [], 'Select barangay');
+              return;
+            }
+            const cities = await loadOpts('cities', { province: p });
+            fillSelect(citySelect, cities, 'Select city / municipality');
+            if (addrCity) ensureOption(citySelect, addrCity);
+            if (addrCity) await refreshBarangays();
+          };
+
+          const refreshBarangays = async () => {
+            if (!provSelect || !citySelect || !brgySelect) return;
+            const p = provSelect.value ? provSelect.value.trim() : '';
+            const c = citySelect.value ? citySelect.value.trim() : '';
+            if (!p || !c) {
+              fillSelect(brgySelect, [], 'Select barangay');
+              return;
+            }
+            const brgys = await loadOpts('barangays', { province: p, city: c });
+            fillSelect(brgySelect, brgys, 'Select barangay');
+            if (addrBrgy) ensureOption(brgySelect, addrBrgy);
+          };
+
+          if (provSelect) {
+            provSelect.addEventListener('change', () => { refreshCities().catch(() => {}); });
+          }
+          if (citySelect) {
+            citySelect.addEventListener('change', () => { refreshBarangays().catch(() => {}); });
+          }
+          initProvinces().catch(() => {});
+
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+              form.reportValidity();
+              return;
+            }
+            const fd = new FormData(form);
+            const cleanContact = digitsOnly(fd.get('contact_no') || '');
+            fd.set('contact_no', cleanContact);
+            btnSave.disabled = true;
+            const orig = btnSave.textContent;
+            btnSave.textContent = 'Saving...';
+            try {
+              const res = await fetch(rootUrl + '/admin/api/module1/update_operator.php', { method: 'POST', body: fd });
+              const data = await res.json().catch(() => null);
+              if (!data || !data.ok) {
+                throw new Error((data && data.error) ? data.error : 'save_failed');
+              }
+              showToast('Operator updated.', 'success');
+              setTimeout(() => { window.location.reload(); }, 600);
+            } catch (err) {
+              showToast(err.message || 'Save failed', 'error');
+              btnSave.disabled = false;
+              btnSave.textContent = orig;
+            }
+          });
+        });
+      });
+    }
 
     const highlight = document.getElementById('op-row-highlight');
     if (highlight) {
