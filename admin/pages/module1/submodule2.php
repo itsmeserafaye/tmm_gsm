@@ -322,7 +322,7 @@ $typesList = vehicle_types();
           'icon' => 'file-spreadsheet'
         ];
         $exportItems[] = [
-          'href' => '#',
+          'href' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus]),
           'label' => 'Print',
           'icon' => 'printer',
           'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus])]
