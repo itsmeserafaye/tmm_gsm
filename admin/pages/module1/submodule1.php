@@ -240,9 +240,8 @@ if ($rootUrl === '/') $rootUrl = '';
                 $addrCity = trim((string)($row['address_city'] ?? ''));
                 $addrProv = trim((string)($row['address_province'] ?? ''));
                 $addrPostal = trim((string)($row['address_postal_code'] ?? ''));
-                $addrParts = array_values(array_filter([$addrStreet, $addrBrgy, $addrCity, $addrProv], fn($x) => $x !== ''));
+                $addrParts = array_values(array_filter([$addrStreet, $addrBrgy, $addrCity], fn($x) => $x !== ''));
                 $addrLine = $addrParts ? implode(', ', $addrParts) : '';
-                if ($addrPostal !== '') $addrLine = trim($addrLine . ' ' . $addrPostal);
                 if ($addrLine === '') $addrLine = '-';
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" data-op-row="1" data-operator-id="<?php echo (int)$rid; ?>" data-operator-name="<?php echo htmlspecialchars((string)($row['display_name'] ?? ''), ENT_QUOTES); ?>" data-operator-type="<?php echo htmlspecialchars((string)($row['operator_type'] ?? ''), ENT_QUOTES); ?>" data-contact-no="<?php echo htmlspecialchars($contactLine, ENT_QUOTES); ?>" data-email="<?php echo htmlspecialchars($emailLine, ENT_QUOTES); ?>" data-address-street="<?php echo htmlspecialchars($addrStreet, ENT_QUOTES); ?>" data-address-barangay="<?php echo htmlspecialchars($addrBrgy, ENT_QUOTES); ?>" data-address-city="<?php echo htmlspecialchars($addrCity, ENT_QUOTES); ?>" data-address-province="<?php echo htmlspecialchars($addrProv, ENT_QUOTES); ?>" data-address-postal="<?php echo htmlspecialchars($addrPostal, ENT_QUOTES); ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
@@ -635,11 +634,9 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type</label>
-                  <select name="operator_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                    <option value="Individual"${operatorType === 'Individual' ? ' selected' : ''}>Individual</option>
-                    <option value="Cooperative"${operatorType === 'Cooperative' ? ' selected' : ''}>Cooperative</option>
-                    <option value="Corporation"${operatorType === 'Corporation' ? ' selected' : ''}>Corporation</option>
-                  </select>
+                  <div class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-bold text-slate-900 dark:text-white overflow-hidden text-ellipsis whitespace-nowrap" title="${escAttr(operatorType)}">
+                    ${escAttr(operatorType || '-')}
+                  </div>
                 </div>
                 <div class="sm:col-span-2">
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Name</label>
