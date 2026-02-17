@@ -84,16 +84,16 @@ $res = $db->query($sql);
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statRegistered; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Not Registered</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statNotRegistered; ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending</div>
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statPending; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Expired</div>
       <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statExpired; ?></div>
-    </div>
-    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Not Registered</div>
-      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statNotRegistered; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Operating (Active)</div>
