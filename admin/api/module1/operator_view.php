@@ -5,7 +5,6 @@ require_once __DIR__ . '/../../includes/auth.php';
 $db = db();
 require_login();
 require_any_permission(['module1.read', 'module1.view', 'module1.write', 'module1.vehicles.write']);
-$canEdit = has_any_permission(['module1.write', 'module1.vehicles.write']);
 
 $operatorId = isset($_GET['operator_id']) ? (int) $_GET['operator_id'] : 0;
 header('Content-Type: text/html; charset=utf-8');
@@ -119,53 +118,40 @@ if ($stmtV) {
     <details open class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
       <summary class="cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-3">
         <div class="text-sm font-black text-slate-900 dark:text-white">Contact & Address</div>
-        <div id="opInlineMsg" class="text-[11px] font-bold text-slate-500 dark:text-slate-400 hidden"></div>
       </summary>
-      <div id="opInlineEdit" class="p-4 pt-0 space-y-4" data-operator-id="<?php echo (int)$operatorId; ?>" data-root-url="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>" data-can-edit="<?php echo $canEdit ? '1' : '0'; ?>">
+      <div class="p-4 pt-0 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-            <input data-op-field="contact_no" data-initial="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['contact_no'] ?? ''), ENT_QUOTES); ?>" inputmode="numeric" maxlength="20" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., 09171234567" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['contact_no'] ?? '-')); ?></div>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
-            <input data-op-field="email" data-initial="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['email'] ?? ''), ENT_QUOTES); ?>" type="email" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($emailLine !== '' ? $emailLine : '-'); ?></div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="sm:col-span-2">
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
-            <input data-op-field="address_street" data-initial="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_street'] ?? ''), ENT_QUOTES); ?>" maxlength="160" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="House / Building / Street" <?php echo $canEdit ? '' : 'disabled'; ?>>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['address_street'] ?? '-')); ?></div>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
-            <input list="opProvList" id="opProv" data-op-field="address_province" data-initial="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_province'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type province" <?php echo $canEdit ? '' : 'disabled'; ?>>
-            <datalist id="opProvList"></datalist>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['address_province'] ?? '-')); ?></div>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
-            <input list="opCityList" id="opCity" data-op-field="address_city" data-initial="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_city'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type city" <?php echo $canEdit ? '' : 'disabled'; ?>>
-            <datalist id="opCityList"></datalist>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['address_city'] ?? '-')); ?></div>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
-            <input list="opBrgyList" id="opBrgy" data-op-field="address_barangay" data-initial="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_barangay'] ?? ''), ENT_QUOTES); ?>" maxlength="120" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Select or type barangay" <?php echo $canEdit ? '' : 'disabled'; ?>>
-            <datalist id="opBrgyList"></datalist>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['address_barangay'] ?? '-')); ?></div>
           </div>
           <div>
-            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
-            <input list="opPostalList" id="opPostal" data-op-field="address_postal_code" data-initial="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" value="<?php echo htmlspecialchars((string)($op['address_postal_code'] ?? ''), ENT_QUOTES); ?>" maxlength="10" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold" placeholder="Postal code" <?php echo $canEdit ? '' : 'disabled'; ?>>
-            <datalist id="opPostalList"></datalist>
+            <div class="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</div>
+            <div class="text-sm font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars((string)($op['address_postal_code'] ?? '-')); ?></div>
           </div>
-        </div>
-
-        <?php if (!$canEdit): ?>
-          <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Read-only: you don’t have permission to edit this operator.</div>
-        <?php endif; ?>
-        <div class="flex items-center justify-end gap-2 pt-1">
-          <button type="button" id="opInlineCancel" class="hidden px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
-          <button type="button" id="opInlineSave" class="hidden px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold">Save Changes</button>
         </div>
       </div>
     </details>
@@ -325,168 +311,3 @@ if ($stmtV) {
       </div>
     </details>
 </div>
-<script>
-  (function(){
-    const wrap = document.getElementById('opInlineEdit');
-    const msg = document.getElementById('opInlineMsg');
-    const btnSave = document.getElementById('opInlineSave');
-    const btnCancel = document.getElementById('opInlineCancel');
-    if (!wrap) return;
-    const canEdit = wrap.getAttribute('data-can-edit') === '1';
-    if (!canEdit) return;
-
-    const operatorId = wrap.getAttribute('data-operator-id') || '';
-    const rootUrl = wrap.getAttribute('data-root-url') || '';
-    const inputs = Array.from(wrap.querySelectorAll('[data-op-field]'));
-    const digitsOnly = (v) => (v || '').toString().replace(/\D+/g, '');
-
-    const showMsg = (text, kind) => {
-      if (!msg) return;
-      msg.textContent = text || '';
-      msg.classList.remove('hidden');
-      msg.className = 'text-[11px] font-black ' + (kind === 'error' ? 'text-rose-600 dark:text-rose-300' : (kind === 'success' ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'));
-      if (text) setTimeout(() => { msg.classList.add('hidden'); }, 2500);
-    };
-
-    const isDirty = () => inputs.some((i) => (i.value || '') !== (i.getAttribute('data-initial') || ''));
-    const refresh = () => {
-      const dirty = isDirty();
-      if (btnSave) btnSave.classList.toggle('hidden', !dirty);
-      if (btnCancel) btnCancel.classList.toggle('hidden', !dirty);
-    };
-    const reset = () => {
-      inputs.forEach((i) => { i.value = i.getAttribute('data-initial') || ''; });
-      refresh();
-    };
-
-    const provInput = document.getElementById('opProv');
-    const cityInput = document.getElementById('opCity');
-    const brgyInput = document.getElementById('opBrgy');
-    const postalInput = document.getElementById('opPostal');
-    const provList = document.getElementById('opProvList');
-    const cityList = document.getElementById('opCityList');
-    const brgyList = document.getElementById('opBrgyList');
-    const postalList = document.getElementById('opPostalList');
-
-    const fillList = (dl, items) => {
-      if (!dl) return;
-      dl.innerHTML = (Array.isArray(items) ? items : []).map((x) => `<option value="${String(x || '').replace(/\"/g,'&quot;')}"></option>`).join('');
-    };
-
-    const loadOpts = async (mode, params) => {
-      const qs = new URLSearchParams();
-      qs.set('mode', mode);
-      Object.keys(params || {}).forEach((k) => { if (params[k]) qs.set(k, params[k]); });
-      const res = await fetch(rootUrl + '/admin/api/geo/address_options.php?' + qs.toString());
-      const data = await res.json().catch(() => null);
-      if (!data || !data.ok) return [];
-      return Array.isArray(data.data) ? data.data : [];
-    };
-
-    const initLocationLists = async () => {
-      try {
-        const provs = await loadOpts('provinces', {});
-        fillList(provList, provs);
-        const p = (provInput && provInput.value) ? provInput.value.trim() : '';
-        if (p) {
-          const cities = await loadOpts('cities', { province: p });
-          fillList(cityList, cities);
-        }
-        const c = (cityInput && cityInput.value) ? cityInput.value.trim() : '';
-        if (p && c) {
-          const brgys = await loadOpts('barangays', { province: p, city: c });
-          fillList(brgyList, brgys);
-          const posts = await loadOpts('postals', { province: p, city: c });
-          fillList(postalList, posts);
-          if (postalInput && (!postalInput.value || postalInput.value.trim() === '') && posts.length === 1) {
-            postalInput.value = posts[0];
-            refresh();
-          }
-        }
-      } catch (_) {}
-    };
-
-    const onProvinceChange = async () => {
-      if (!provInput) return;
-      const p = provInput.value.trim();
-      try {
-        const cities = p ? await loadOpts('cities', { province: p }) : [];
-        fillList(cityList, cities);
-        if (cityInput) cityInput.value = '';
-        if (brgyInput) brgyInput.value = '';
-        if (postalInput) postalInput.value = '';
-        fillList(brgyList, []);
-        fillList(postalList, []);
-        refresh();
-      } catch (_) {}
-    };
-
-    const onCityChange = async () => {
-      const p = provInput ? provInput.value.trim() : '';
-      const c = cityInput ? cityInput.value.trim() : '';
-      try {
-        const brgys = (p && c) ? await loadOpts('barangays', { province: p, city: c }) : [];
-        fillList(brgyList, brgys);
-        const posts = (p && c) ? await loadOpts('postals', { province: p, city: c }) : [];
-        fillList(postalList, posts);
-        if (brgyInput) brgyInput.value = '';
-        if (postalInput) {
-          if (posts.length === 1) postalInput.value = posts[0];
-          else postalInput.value = '';
-        }
-        refresh();
-      } catch (_) {}
-    };
-
-    inputs.forEach((inp) => {
-      const field = inp.getAttribute('data-op-field') || '';
-      if (field === 'contact_no') {
-        inp.addEventListener('input', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
-        inp.addEventListener('blur', () => { inp.value = digitsOnly(inp.value).slice(0, 20); refresh(); });
-      } else {
-        inp.addEventListener('input', refresh);
-      }
-      inp.addEventListener('change', refresh);
-    });
-
-    if (btnCancel) btnCancel.addEventListener('click', reset);
-
-    if (btnSave) {
-      btnSave.addEventListener('click', async () => {
-        if (!operatorId) return;
-        btnSave.disabled = true;
-        try {
-          const fd = new FormData();
-          fd.append('operator_id', operatorId);
-          inputs.forEach((inp) => {
-            const k = inp.getAttribute('data-op-field') || '';
-            if (!k) return;
-            fd.append(k, inp.value || '');
-          });
-          const res = await fetch(rootUrl + '/admin/api/module1/update_operator.php', { method: 'POST', body: fd });
-          const data = await res.json().catch(() => null);
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
-          inputs.forEach((inp) => { inp.setAttribute('data-initial', inp.value || ''); });
-          refresh();
-          showMsg('Saved.', 'success');
-        } catch (e) {
-          showMsg((e && e.message) ? e.message : 'Failed', 'error');
-        } finally {
-          btnSave.disabled = false;
-        }
-      });
-    }
-
-    if (provInput) {
-      provInput.addEventListener('change', onProvinceChange);
-      provInput.addEventListener('blur', onProvinceChange);
-    }
-    if (cityInput) {
-      cityInput.addEventListener('change', onCityChange);
-      cityInput.addEventListener('blur', onCityChange);
-    }
-
-    initLocationLists();
-    refresh();
-  })();
-</script>
