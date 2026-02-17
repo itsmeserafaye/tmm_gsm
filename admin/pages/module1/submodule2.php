@@ -1181,6 +1181,34 @@ $typesList = vehicle_types();
         }
       }
 
+      const formDetails = root.querySelector('#formDetails');
+      const formLink = root.querySelector('#formLink');
+      const btnEdit = root.querySelector('#vehEditBtn');
+      const btnCancel = root.querySelector('#vehCancelBtn');
+      const btnSave = root.querySelector('#vehSaveBtn');
+
+      const setEditing = (on) => {
+        const toggle = (form) => {
+          if (!form) return;
+          form.querySelectorAll('input, select, textarea, button').forEach((el) => {
+            if (!el) return;
+            if (el.id === 'vehSaveBtn') return;
+            if (el.type === 'hidden') return;
+            if (on) el.removeAttribute('disabled');
+            else el.setAttribute('disabled', 'disabled');
+          });
+        };
+        toggle(formDetails);
+        toggle(formLink);
+        if (btnEdit) btnEdit.classList.toggle('hidden', on);
+        if (btnCancel) btnCancel.classList.toggle('hidden', !on);
+        if (btnSave) btnSave.classList.toggle('hidden', !on);
+      };
+      setEditing(false);
+
+      if (btnEdit) btnEdit.addEventListener('click', () => setEditing(true));
+      if (btnCancel) btnCancel.addEventListener('click', () => loadVehicleView(plate));
+
       const postForm = async (form) => {
         if (!form) return;
         if ((form.getAttribute('id') || '') === 'formLink') {

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 $types = [];
 if (is_file(__DIR__ . '/../../includes/vehicle_types.php')) { require_once __DIR__ . '/../../includes/vehicle_types.php'; $types = vehicle_types(); }
 $db = db();
+$canWrite = has_permission('module1.vehicles.write');
 $plate = trim($_GET['plate'] ?? '');
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -172,6 +173,12 @@ if ($hasTable('vehicle_ownership_transfers')) {
                     <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <i data-lucide="info" class="w-4 h-4 text-blue-500"></i> Vehicle Information
                     </h3>
+                    <?php if ($canWrite): ?>
+                      <div class="flex items-center gap-2">
+                        <button type="button" id="vehCancelBtn" class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors hidden">Cancel</button>
+                        <button type="button" id="vehEditBtn" class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Edit</button>
+                      </div>
+                    <?php endif; ?>
                 </div>
                 <div class="<?php echo $cardBodyClass; ?>">
                     <form id="formDetails" class="space-y-4" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/update_vehicle.php" novalidate>
@@ -179,7 +186,7 @@ if ($hasTable('vehicle_ownership_transfers')) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Vehicle Type</label>
-                                <select name="vehicle_type" class="<?php echo $inputClass; ?>">
+                                <select name="vehicle_type" class="<?php echo $inputClass; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                     <option value="">Select type</option>
                                     <?php foreach ($types as $t): ?>
                                         <option value="<?php echo htmlspecialchars($t); ?>" <?php echo ((string)($v['vehicle_type'] ?? '') === (string)$t) ? 'selected' : ''; ?>><?php echo htmlspecialchars($t); ?></option>
@@ -193,52 +200,52 @@ if ($hasTable('vehicle_ownership_transfers')) {
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Engine No</label>
-                                <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345">
+                                <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['engine_no'] ?? '')); ?>" placeholder="e.g., 1NZFE-12345" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Chassis No</label>
-                                <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234">
+                                <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['chassis_no'] ?? '')); ?>" placeholder="e.g., NCP12345678901234" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">OR Number</label>
-                                <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['or_number'] ?? '')); ?>" placeholder="e.g., 123456">
+                                <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['or_number'] ?? '')); ?>" placeholder="e.g., 123456" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">CR Number</label>
-                                <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? '')); ?>" placeholder="e.g., ABCD-123456">
+                                <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_number'] ?? '')); ?>" placeholder="e.g., ABCD-123456" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">CR Issue Date</label>
-                                <input name="cr_issue_date" type="date" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '')); ?>">
+                                <input name="cr_issue_date" type="date" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? '')); ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div class="md:col-span-2">
                                 <label class="<?php echo $labelClass; ?>">Registered Owner</label>
-                                <input name="registered_owner" list="vehEditOwnerList" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz">
+                                <input name="registered_owner" list="vehEditOwnerList" maxlength="120" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['registered_owner'] ?? '')); ?>" placeholder="e.g., Juan Dela Cruz" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                 <datalist id="vehEditOwnerList"></datalist>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Color</label>
-                                <input name="color" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['color'] ?? '')); ?>" placeholder="e.g., White">
+                                <input name="color" maxlength="64" class="<?php echo $inputClass; ?>" value="<?php echo htmlspecialchars((string)($v['color'] ?? '')); ?>" placeholder="e.g., White" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Make</label>
-                                <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>"></select>
+                                <select id="vehEditMakeSelect" class="<?php echo $inputClass; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>></select>
                                 <div id="vehEditMakeOtherWrap" class="hidden mt-2">
-                                    <input id="vehEditMakeOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type make">
+                                    <input id="vehEditMakeOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type make" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                 </div>
                                 <input id="vehEditMakeHidden" name="make" type="hidden" value="<?php echo htmlspecialchars((string)($v['make'] ?? '')); ?>">
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Model</label>
-                                <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>"></select>
+                                <select id="vehEditModelSelect" class="<?php echo $inputClass; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>></select>
                                 <div id="vehEditModelOtherWrap" class="hidden mt-2">
-                                    <input id="vehEditModelOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type model">
+                                    <input id="vehEditModelOtherInput" maxlength="40" class="<?php echo $inputClass; ?>" placeholder="Type model" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                 </div>
                                 <input id="vehEditModelHidden" name="model" type="hidden" value="<?php echo htmlspecialchars((string)($v['model'] ?? '')); ?>">
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Year Model</label>
-                                <select name="year_model" class="<?php echo $inputClass; ?>">
+                                <select name="year_model" class="<?php echo $inputClass; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                     <option value="">Select year</option>
                                     <?php $curY = (int)date('Y'); ?>
                                     <?php for ($y = $curY; $y >= 1950; $y--): ?>
@@ -248,15 +255,15 @@ if ($hasTable('vehicle_ownership_transfers')) {
                             </div>
                             <div>
                                 <label class="<?php echo $labelClass; ?>">Fuel Type</label>
-                                <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>"></select>
+                                <select id="vehEditFuelSelect" class="<?php echo $inputClass; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>></select>
                                 <div id="vehEditFuelOtherWrap" class="hidden mt-2">
-                                    <input id="vehEditFuelOtherInput" maxlength="20" class="<?php echo $inputClass; ?>" placeholder="Type fuel type">
+                                    <input id="vehEditFuelOtherInput" maxlength="20" class="<?php echo $inputClass; ?>" placeholder="Type fuel type" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                 </div>
                                 <input id="vehEditFuelHidden" name="fuel_type" type="hidden" value="<?php echo htmlspecialchars((string)($v['fuel_type'] ?? '')); ?>">
                             </div>
                         </div>
                         <div class="flex justify-end">
-                            <button class="<?php echo $btnClass; ?>">Save</button>
+                            <button id="vehSaveBtn" class="<?php echo $btnClass; ?> <?php echo $canWrite ? 'hidden' : 'hidden'; ?>">Save</button>
                         </div>
                     </form>
 
@@ -274,8 +281,8 @@ if ($hasTable('vehicle_ownership_transfers')) {
                                         <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9"
                                                placeholder="Search by name or ID..."
                                                autocomplete="off"
-                                               value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>">
-                                        <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>">
+                                               value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
+                                        <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
                                             <i data-lucide="x" class="w-3 h-3"></i>
                                         </button>
                                     </div>
@@ -285,7 +292,7 @@ if ($hasTable('vehicle_ownership_transfers')) {
                             </div>
 
                             <div>
-                                <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp">Link Operator</button>
+                                <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>Link Operator</button>
                             </div>
                         </form>
                     </div>
