@@ -1,6 +1,14 @@
 <?php
 require_once __DIR__ . '/../../includes/auth.php';
 require_role(['SuperAdmin']);
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
+header('Location: ' . $rootUrl . '/admin/index.php?page=users/operator-accounts');
+exit;
 ?>
 
 <div class="mx-auto max-w-7xl px-4 py-8 space-y-8">
