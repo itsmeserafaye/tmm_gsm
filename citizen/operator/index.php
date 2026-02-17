@@ -924,7 +924,7 @@ $typesList = vehicle_types();
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Address</label>
                     <input type="text" name="address" id="opRecAddress"
                         class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
-                        placeholder="Complete address">
+                        placeholder="House / Building / Street, Barangay, City / Municipality, Province, Postal Code">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Coop / Association Name (optional)</label>
