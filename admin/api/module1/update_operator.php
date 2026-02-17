@@ -81,13 +81,9 @@ foreach ($addrKeys as $k) {
         break;
     }
 }
-
-$legacyAddressProvided = $hasKey('address');
-if ($legacyAddressProvided) {
-    $address = trim((string) ($_POST['address'] ?? ''));
-    $sets[] = "address=?";
-    $params[] = $address;
-    $types .= 's';
+if (!$hasAddrParts && $hasKey('address')) {
+    $_POST['address_street'] = (string) ($_POST['address'] ?? '');
+    $hasAddrParts = true;
 }
 
 if ($hasAddrParts) {
@@ -113,15 +109,6 @@ if ($hasAddrParts) {
     $sets[] = "address_postal_code=?";
     $params[] = $postal;
     $types .= 's';
-
-    if (!$legacyAddressProvided) {
-        $parts = array_values(array_filter([$street, $brgy, $city, $prov], fn($x) => $x !== ''));
-        $addrLine = $parts ? implode(', ', $parts) : '';
-        if ($postal !== '') $addrLine = trim($addrLine . ' ' . $postal);
-        $sets[] = "address=?";
-        $params[] = $addrLine;
-        $types .= 's';
-    }
 }
 
 if (!$sets) {

@@ -1414,9 +1414,6 @@ function db()
   if (!isset($opsCols['name'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN name VARCHAR(255) DEFAULT NULL");
   }
-  if (!isset($opsCols['address'])) {
-    $conn->query("ALTER TABLE operators ADD COLUMN address VARCHAR(255) DEFAULT NULL");
-  }
   if (!isset($opsCols['address_street'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN address_street VARCHAR(160) DEFAULT NULL");
   }
@@ -1431,6 +1428,10 @@ function db()
   }
   if (!isset($opsCols['address_postal_code'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN address_postal_code VARCHAR(10) DEFAULT NULL");
+  }
+  if (isset($opsCols['address'])) {
+    $conn->query("UPDATE operators SET address_street = COALESCE(NULLIF(address_street,''), address) WHERE address IS NOT NULL AND address <> '' AND (address_street IS NULL OR address_street='')");
+    $conn->query("ALTER TABLE operators DROP COLUMN address");
   }
   if (!isset($opsCols['contact_no'])) {
     $conn->query("ALTER TABLE operators ADD COLUMN contact_no VARCHAR(64) DEFAULT NULL");

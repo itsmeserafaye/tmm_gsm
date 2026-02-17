@@ -38,14 +38,14 @@ $now = date('Y-m-d H:i:s');
 $allowedTypes = ['Individual','Cooperative','Corporation'];
 $allowedStatus = ['Pending','Approved','Inactive'];
 
-$sql = "INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
+$sql = "INSERT INTO operators (full_name, contact_info, operator_type, registered_name, name, address_street, contact_no, email, status, verification_status, workflow_status, updated_at, submitted_by_name, submitted_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft', 'Draft', ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           contact_info=VALUES(contact_info),
           operator_type=VALUES(operator_type),
           registered_name=VALUES(registered_name),
           name=VALUES(name),
-          address=VALUES(address),
+          address_street=VALUES(address_street),
           contact_no=VALUES(contact_no),
           email=VALUES(email),
           status=VALUES(status),
@@ -135,4 +135,3 @@ echo json_encode([
   'skipped' => $skipped,
   'errors' => $errors
 ]);
-
