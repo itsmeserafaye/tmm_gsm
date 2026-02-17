@@ -603,87 +603,6 @@ if ($rootUrl === '/') $rootUrl = '';
         const brgySelect = form.querySelector('#aeBrgy');
         const postalInput = form.querySelector('#aePostal');
 
-        const phProvinces = [
-          'Metro Manila (NCR)',
-          'Bulacan',
-          'Cavite',
-          'Laguna',
-          'Rizal',
-          'Pampanga',
-          'Batangas',
-          'Quezon',
-          'Nueva Ecija',
-          'Tarlac',
-          'Zambales'
-        ];
-
-        const phCities = {
-          'Metro Manila (NCR)': [
-            'Caloocan City',
-            'Quezon City',
-            'City of Manila',
-            'Makati City',
-            'Pasig City',
-            'Taguig City',
-            'Valenzuela City'
-          ],
-          'Bulacan': [
-            'Malolos City',
-            'Meycauayan City',
-            'San Jose del Monte City'
-          ],
-          'Cavite': [
-            'Bacoor City',
-            'Dasmariñas City',
-            'Imus City'
-          ],
-          'Laguna': [
-            'Calamba City',
-            'Santa Rosa City',
-            'San Pablo City'
-          ],
-          'Rizal': [
-            'Antipolo City',
-            'Cainta',
-            'Taytay'
-          ]
-        };
-
-        const phBarangays = {
-          'Metro Manila (NCR)|Caloocan City': [
-            'Bagumbong',
-            'Bagong Silang',
-            'Camarin',
-            'Deparo',
-            'Grace Park',
-            'Sangandaan',
-            'Monumento',
-            'Tala'
-          ],
-          'Metro Manila (NCR)|Quezon City': [
-            'Batasan Hills',
-            'Commonwealth',
-            'Novaliches',
-            'Bagong Silangan'
-          ],
-          'Metro Manila (NCR)|City of Manila': [
-            'Tondo',
-            'Ermita',
-            'Malate',
-            'Quiapo'
-          ],
-          'Laguna|Calamba City': [
-            'Barangay Real',
-            'Barangay Halang',
-            'Barangay Canlubang'
-          ]
-        };
-
-        const phPostals = {
-          'Metro Manila (NCR)|Caloocan City': ['1400', '1401', '1420', '1421'],
-          'Laguna|Calamba City': ['4027']
-        };
-
         const fillSelect = (sel, items, placeholder) => {
           if (!sel) return;
           sel.innerHTML = '';
@@ -699,29 +618,52 @@ if ($rootUrl === '/') $rootUrl = '';
           });
         };
 
-        fillSelect(provSelect, phProvinces, 'Select province');
-        fillSelect(citySelect, [], 'Select city / municipality');
-        fillSelect(brgySelect, [], 'Select barangay');
+        const loadOpts = async (mode, params) => {
+          const qs = new URLSearchParams();
+          qs.set('mode', mode);
+          Object.keys(params || {}).forEach((k) => {
+            if (params[k]) qs.set(k, params[k]);
+          });
+          const res = await fetch(rootUrl + '/admin/api/geo/address_options.php?' + qs.toString());
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok || !Array.isArray(data.data)) return [];
+          return data.data;
+        };
 
-        const refreshCities = () => {
-          const p = provSelect && provSelect.value ? provSelect.value : '';
-          const cities = p && phCities[p] ? phCities[p] : [];
+        const initProvinces = async () => {
+          if (!provSelect) return;
+          const provs = await loadOpts('provinces', {});
+          fillSelect(provSelect, provs, 'Select province');
+          fillSelect(citySelect, [], 'Select city / municipality');
+          fillSelect(brgySelect, [], 'Select barangay');
+        };
+
+        const refreshCities = async () => {
+          if (!provSelect) return;
+          const p = provSelect.value ? provSelect.value.trim() : '';
+          if (!p) {
+            fillSelect(citySelect, [], 'Select city / municipality');
+            fillSelect(brgySelect, [], 'Select barangay');
+            if (postalInput) postalInput.value = '';
+            return;
+          }
+          const cities = await loadOpts('cities', { province: p });
           fillSelect(citySelect, cities, 'Select city / municipality');
           fillSelect(brgySelect, [], 'Select barangay');
           if (postalInput) postalInput.value = '';
         };
 
-        const refreshBarangaysAndPostal = () => {
-          const p = provSelect && provSelect.value ? provSelect.value : '';
-          const c = citySelect && citySelect.value ? citySelect.value : '';
-          const key = p && c ? (p + '|' + c) : '';
-          const brgys = key && phBarangays[key] ? phBarangays[key] : [];
-          fillSelect(brgySelect, brgys, 'Select barangay');
-          const posts = key && phPostals[key] ? phPostals[key] : [];
-          if (postalInput) {
-            if (posts.length === 1) postalInput.value = posts[0];
-            else if (posts.length === 0) postalInput.value = '';
+        const refreshBarangays = async () => {
+          if (!provSelect || !citySelect) return;
+          const p = provSelect.value ? provSelect.value.trim() : '';
+          const c = citySelect.value ? citySelect.value.trim() : '';
+          if (!p || !c) {
+            fillSelect(brgySelect, [], 'Select barangay');
+            if (postalInput) postalInput.value = '';
+            return;
           }
+          const brgys = await loadOpts('barangays', { province: p, city: c });
+          fillSelect(brgySelect, brgys, 'Select barangay');
         };
 
         if (provSelect) {
@@ -731,9 +673,11 @@ if ($rootUrl === '/') $rootUrl = '';
         }
         if (citySelect) {
           citySelect.addEventListener('change', () => {
-            refreshBarangaysAndPostal();
+            refreshBarangays();
           });
         }
+
+        initProvinces().catch(() => {});
 
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
