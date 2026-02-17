@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -561,8 +561,28 @@ if (!empty($_SESSION['user_id'])) {
                         <input type="tel" name="contact_number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="09171234567">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm mb-1">Operator Address<span class="required-asterisk">*</span></label>
-                        <input type="text" name="address" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="House / Building / Street, Barangay, City / Municipality, Province, Postal Code">
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">House / Building / Street<span class="required-asterisk">*</span></label>
+                        <input type="text" name="address_street" required class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 123 Rizal St., Brgy Hall Bldg.">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Barangay</label>
+                            <input type="text" name="address_barangay" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Brgy San Isidro">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">City / Municipality</label>
+                            <input type="text" name="address_city" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Quezon City">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Province</label>
+                            <input type="text" name="address_province" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Metro Manila">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Postal Code</label>
+                            <input type="text" name="address_postal_code" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., 4027">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm mb-1">Password<span class="required-asterisk">*</span></label>
@@ -1111,11 +1131,24 @@ if (!empty($_SESSION['user_id'])) {
                         alert('You must agree to the Terms to register.');
                         return;
                     }
+                    const street = (f.address_street ? String(f.address_street.value || '') : '').trim();
+                    const brgy = (f.address_barangay ? String(f.address_barangay.value || '') : '').trim();
+                    const city = (f.address_city ? String(f.address_city.value || '') : '').trim();
+                    const province = (f.address_province ? String(f.address_province.value || '') : '').trim();
+                    const postal = (f.address_postal_code ? String(f.address_postal_code.value || '') : '').trim();
+                    const addrParts = [];
+                    if (street) addrParts.push(street);
+                    if (brgy) addrParts.push(brgy);
+                    if (city) addrParts.push(city);
+                    if (province) addrParts.push(province);
+                    let combinedAddress = addrParts.join(', ');
+                    if (postal) combinedAddress = combinedAddress ? (combinedAddress + ' ' + postal) : postal;
+
                     const payload = {
                         operator_type: (f.operator_type ? String(f.operator_type.value || '') : '').trim(),
                         operator_name: (f.operator_name ? String(f.operator_name.value || '') : '').trim(),
                         contact_number: (f.contact_number ? String(f.contact_number.value || '') : '').trim(),
-                        address: (f.address ? String(f.address.value || '') : '').trim(),
+                        address: combinedAddress,
                         email: (f.email ? String(f.email.value || '') : '').trim(),
                         password: pwd,
                         confirm_password: confirmPwd,
