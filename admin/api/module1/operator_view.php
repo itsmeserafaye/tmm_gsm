@@ -25,7 +25,7 @@ if ($operatorId <= 0) {
 }
 
 $stmt = $db->prepare("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), NULLIF(full_name,'')) AS display_name, operator_type,
-                             address, address_street, address_barangay, address_city, address_province, address_postal_code,
+                             address_street, address_barangay, address_city, address_province, address_postal_code,
                              contact_no, email, verification_status, workflow_status, created_at,
                              COALESCE(portal_user_id,0) AS portal_user_id, COALESCE(submitted_by_name,'') AS submitted_by_name, submitted_at,
                              COALESCE(approved_by_name,'') AS approved_by_name, approved_at

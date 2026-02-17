@@ -17,7 +17,7 @@ $status = trim((string)($_GET['status'] ?? ''));
 $highlightId = (int)($_GET['highlight_operator_id'] ?? 0);
 
 $sql = "SELECT id, operator_type, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name,
-               address, address_street, address_barangay, address_city, address_province, address_postal_code,
+               address_street, address_barangay, address_city, address_province, address_postal_code,
                contact_no, email, workflow_status, created_at
         FROM operators";
 $conds = [];
@@ -274,11 +274,10 @@ if ($rootUrl === '/') $rootUrl = '';
                 $addrCity = trim((string)($row['address_city'] ?? ''));
                 $addrProv = trim((string)($row['address_province'] ?? ''));
                 $addrPostal = trim((string)($row['address_postal_code'] ?? ''));
-                $legacyAddr = trim((string)($row['address'] ?? ''));
                 $addrParts = array_values(array_filter([$addrStreet, $addrBrgy, $addrCity, $addrProv], fn($x) => $x !== ''));
-                $addrLine = $addrParts ? implode(', ', $addrParts) : $legacyAddr;
+                $addrLine = $addrParts ? implode(', ', $addrParts) : '';
                 if ($addrPostal !== '') $addrLine = trim($addrLine . ' ' . $addrPostal);
-                $addrLine = $addrLine !== '' ? $addrLine : '-';
+                if ($addrLine === '') $addrLine = '-';
               ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group <?php echo $isHighlight ? 'bg-emerald-50/70 dark:bg-emerald-900/15 ring-1 ring-inset ring-emerald-200/70 dark:ring-emerald-900/30' : ''; ?>" data-op-row="1" data-operator-id="<?php echo (int)$rid; ?>" <?php echo $isHighlight ? 'id="op-row-highlight"' : ''; ?>>
                 <td class="py-4 px-6">
