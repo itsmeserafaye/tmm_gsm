@@ -269,32 +269,48 @@ if ($hasTable('vehicle_ownership_transfers')) {
 
                     <div class="border-t border-slate-100 dark:border-slate-800 pt-6 mt-6">
                         <label class="<?php echo $labelClass; ?> mb-3">Link Vehicle to Operator</label>
-                        <form id="formLink" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
-                            <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
-                            
-                            <div class="md:col-span-2 relative">
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Search Operator</label>
-                                <div class="relative">
-                                    <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo ((int)($v['operator_exists'] ?? 0) === 1) ? ((int)($v['operator_id'] ?? 0) ?: '') : ''; ?>">
-                                    <div class="relative">
-                                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                                        <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9"
-                                               placeholder="Search by name or ID..."
-                                               autocomplete="off"
-                                               value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
-                                        <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>
-                                            <i data-lucide="x" class="w-3 h-3"></i>
-                                        </button>
-                                    </div>
-                                    <div id="linkOpResults" class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden"></div>
-                                </div>
-                                <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400" id="linkOpHint">Type to search existing operators</div>
+                        <?php if ($canWrite): ?>
+                          <div id="linkOpViewOnly" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <div class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                              <?php echo htmlspecialchars(($v['operator_display'] ?? '') !== '' ? $v['operator_display'] : 'Unlinked'); ?>
                             </div>
-
-                            <div>
-                                <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp" <?php echo $canWrite ? 'disabled' : 'disabled'; ?>>Link Operator</button>
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo ((string)($v['operator_display'] ?? '') !== '') ? 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400'; ?>">
+                              <?php echo ((string)($v['operator_display'] ?? '') !== '') ? 'Linked' : 'Unlinked'; ?>
+                            </span>
+                          </div>
+                          <form id="formLink" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 items-end mt-4" method="POST" action="<?php echo htmlspecialchars($rootUrl, ENT_QUOTES); ?>/admin/api/module1/link_vehicle_operator.php">
+                              <input type="hidden" name="plate_number" value="<?php echo htmlspecialchars($v['plate_number']); ?>">
+                              
+                              <div class="md:col-span-2 relative">
+                                  <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Search Operator</label>
+                                  <div class="relative">
+                                      <input type="hidden" name="operator_id" id="linkOpId" value="<?php echo ((int)($v['operator_exists'] ?? 0) === 1) ? ((int)($v['operator_id'] ?? 0) ?: '') : ''; ?>">
+                                      <div class="relative">
+                                          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                          <input type="text" id="linkOpSearch" name="operator_name" class="<?php echo $inputClass; ?> pl-9"
+                                                 placeholder="Search by name or ID..."
+                                                 autocomplete="off"
+                                                 value="<?php echo htmlspecialchars(((int)($v['operator_exists'] ?? 0) === 1) ? ($v['operator_display'] ?? '') : ''); ?>" disabled>
+                                          <button type="button" id="linkOpClear" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 <?php echo empty($v['operator_display']) ? 'hidden' : ''; ?>" disabled>
+                                              <i data-lucide="x" class="w-3 h-3"></i>
+                                          </button>
+                                      </div>
+                                      <div id="linkOpResults" class="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 hidden"></div>
+                                  </div>
+                                  <div class="mt-1 text-[10px] text-slate-500 dark:text-slate-400" id="linkOpHint">Type to search existing operators</div>
+                              </div>
+      
+                              <div>
+                                  <button class="<?php echo $btnClass; ?> w-full" id="btnLinkOp" disabled>Link Operator</button>
+                              </div>
+                          </form>
+                        <?php else: ?>
+                          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                            <div class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                              <?php echo htmlspecialchars(($v['operator_display'] ?? '') !== '' ? $v['operator_display'] : 'Unlinked'); ?>
                             </div>
-                        </form>
+                          </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
