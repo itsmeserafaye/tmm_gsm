@@ -103,6 +103,9 @@ if ($needIds) {
     .rtitle .title{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
     .rtitle .sub{font-weight:700;color:#334155}
     .rtitle .filters{font-size:12px;color:#475569;margin-top:4px}
+    .meta{font-size:11px;color:#64748b;padding:4px 0}
+    .meta .left{text-align:left}
+    .meta .center{text-align:center;font-weight:700}
     @media print{
       body{margin:0}
       .wrap{padding:0 12mm calc(var(--footer-height) + 4mm) 12mm}
@@ -113,6 +116,14 @@ if ($needIds) {
   <div class="wrap">
     <table>
       <thead>
+        <tr>
+          <th colspan="6" style="background:#fff;border:0;padding:0">
+            <div class="meta">
+              <div class="left"><?php echo htmlspecialchars($now); ?></div>
+              <div class="center">Franchise Applications Report</div>
+            </div>
+          </th>
+        </tr>
         <tr>
           <th colspan="6" style="background:#fff;border:0;padding:0">
             <div class="rhead">
@@ -170,4 +181,3 @@ if ($needIds) {
   <div class="footer">Transport & Mobility Management • LGU Permitted • © <?php echo htmlspecialchars($year); ?></div>
 </body>
 </html>
-
