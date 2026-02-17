@@ -287,25 +287,8 @@ function setupEventListeners() {
 
         // Operator type — document visibility and required toggles
         const opTypeSelect = document.getElementById('opTypeSelect');
-        const opDocHint = document.getElementById('opDocHint');
         const clearInputFile = (el) => { try { el.value = ''; } catch (e) {} };
         const setRequired = (el, on) => { if (!el) return; if (on) el.setAttribute('required','required'); else el.removeAttribute('required'); };
-        const setOptionalBadge = (wrap, optional) => {
-            if (!wrap) return;
-            const lbl = wrap.querySelector('label');
-            if (!lbl) return;
-            let chip = lbl.querySelector('.op-opt-chip');
-            if (optional) {
-                if (!chip) {
-                    chip = document.createElement('span');
-                    chip.className = 'op-opt-chip text-[11px] text-gray-500 ml-2';
-                    chip.textContent = '(Optional)';
-                    lbl.appendChild(chip);
-                }
-            } else if (chip) {
-                chip.remove();
-            }
-        };
         const updateDocVisibility = () => {
             const t = opTypeSelect ? String(opTypeSelect.value || 'Individual') : 'Individual';
             const reqMap = {
@@ -327,16 +310,16 @@ function setupEventListeners() {
                 const show = req.includes(k) || opt.includes(k);
                 if (wrap) wrap.classList.toggle('hidden', !show);
                 if (input) {
-                    if (req.includes(k)) setRequired(input, true); else setRequired(input, false);
+                    const isReq = req.includes(k);
+                    if (isReq) setRequired(input, true); else setRequired(input, false);
                     if (!show) clearInputFile(input);
                 }
-                if (wrap) setOptionalBadge(wrap, opt.includes(k));
+                if (wrap) {
+                    const star = wrap.querySelector('[data-doc-asterisk="'+k+'"]');
+                    const isReq = req.includes(k);
+                    if (star) star.classList.toggle('hidden', !isReq);
+                }
             });
-            if (opDocHint) {
-                if (t === 'Individual') opDocHint.textContent = 'Required: Valid Government ID, Declared Fleet. Optional: Proof of Address, NBI Clearance, Authorization Letter.';
-                else if (t === 'Coop') opDocHint.textContent = 'Required: CDA Registration, CDA Good Standing, Board Resolution, Declared Fleet. Optional: List of Members, Articles of Cooperation/By‑laws.';
-                else opDocHint.textContent = 'Required: SEC Registration, Articles of Incorporation/By‑laws, Board Resolution, Declared Fleet. Optional: Mayor’s Permit, Business Permit.';
-            }
         };
         updateDocVisibility();
         if (opTypeSelect) opTypeSelect.addEventListener('change', updateDocVisibility);
