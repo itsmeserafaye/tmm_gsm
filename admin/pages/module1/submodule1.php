@@ -537,25 +537,27 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
-                  <input list="aeBrgyList" id="aeBrgy" name="address_barangay" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select or type barangay">
-                  <datalist id="aeBrgyList"></datalist>
+                  <select id="aeBrgy" name="address_barangay" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <option value="">Select barangay</option>
+                  </select>
                 </div>
                 <div>
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
-                  <input list="aeCityList" id="aeCity" name="address_city" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select or type city">
-                  <datalist id="aeCityList"></datalist>
+                  <select id="aeCity" name="address_city" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <option value="">Select city / municipality</option>
+                  </select>
                 </div>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
-                  <input list="aeProvList" id="aeProv" name="address_province" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select or type province">
-                  <datalist id="aeProvList"></datalist>
+                  <select id="aeProv" name="address_province" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <option value="">Select province</option>
+                  </select>
                 </div>
                 <div>
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
-                  <input list="aePostalList" id="aePostal" name="address_postal_code" maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select or type postal code">
-                  <datalist id="aePostalList"></datalist>
+                  <input id="aePostal" name="address_postal_code" maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 4027">
                 </div>
               </div>
             </div>
@@ -596,74 +598,140 @@ if ($rootUrl === '/') $rootUrl = '';
           contactInput.addEventListener('blur', () => { contactInput.value = digitsOnly(contactInput.value).slice(0, 20); });
         }
 
-        const provInput = form.querySelector('#aeProv');
-        const cityInput = form.querySelector('#aeCity');
-        const brgyInput = form.querySelector('#aeBrgy');
+        const provSelect = form.querySelector('#aeProv');
+        const citySelect = form.querySelector('#aeCity');
+        const brgySelect = form.querySelector('#aeBrgy');
         const postalInput = form.querySelector('#aePostal');
-        const provList = form.querySelector('#aeProvList');
-        const cityList = form.querySelector('#aeCityList');
-        const brgyList = form.querySelector('#aeBrgyList');
-        const postalList = form.querySelector('#aePostalList');
 
-        const fillList = (dl, items) => {
-          if (!dl) return;
-          dl.innerHTML = (Array.isArray(items) ? items : []).map((x) => `<option value="${String(x || '').replace(/\"/g,'&quot;')}"></option>`).join('');
+        const phProvinces = [
+          'Metro Manila (NCR)',
+          'Bulacan',
+          'Cavite',
+          'Laguna',
+          'Rizal',
+          'Pampanga',
+          'Batangas',
+          'Quezon',
+          'Nueva Ecija',
+          'Tarlac',
+          'Zambales'
+        ];
+
+        const phCities = {
+          'Metro Manila (NCR)': [
+            'Caloocan City',
+            'Quezon City',
+            'City of Manila',
+            'Makati City',
+            'Pasig City',
+            'Taguig City',
+            'Valenzuela City'
+          ],
+          'Bulacan': [
+            'Malolos City',
+            'Meycauayan City',
+            'San Jose del Monte City'
+          ],
+          'Cavite': [
+            'Bacoor City',
+            'Dasmariñas City',
+            'Imus City'
+          ],
+          'Laguna': [
+            'Calamba City',
+            'Santa Rosa City',
+            'San Pablo City'
+          ],
+          'Rizal': [
+            'Antipolo City',
+            'Cainta',
+            'Taytay'
+          ]
         };
 
-        const loadOpts = async (mode, params) => {
-          const qs = new URLSearchParams();
-          qs.set('mode', mode);
-          Object.keys(params || {}).forEach((k) => { if (params[k]) qs.set(k, params[k]); });
-          const res = await fetch(rootUrl + '/admin/api/geo/address_options.php?' + qs.toString());
-          const data = await res.json().catch(() => null);
-          if (!data || !data.ok) return [];
-          return Array.isArray(data.data) ? data.data : [];
+        const phBarangays = {
+          'Metro Manila (NCR)|Caloocan City': [
+            'Bagumbong',
+            'Bagong Silang',
+            'Camarin',
+            'Deparo',
+            'Grace Park',
+            'Sangandaan',
+            'Monumento',
+            'Tala'
+          ],
+          'Metro Manila (NCR)|Quezon City': [
+            'Batasan Hills',
+            'Commonwealth',
+            'Novaliches',
+            'Bagong Silangan'
+          ],
+          'Metro Manila (NCR)|City of Manila': [
+            'Tondo',
+            'Ermita',
+            'Malate',
+            'Quiapo'
+          ],
+          'Laguna|Calamba City': [
+            'Barangay Real',
+            'Barangay Halang',
+            'Barangay Canlubang'
+          ]
         };
 
-        const refreshCitiesAndBelow = async () => {
-          const p = provInput && provInput.value ? provInput.value.trim() : '';
-          if (!p) {
-            fillList(cityList, []);
-            fillList(brgyList, []);
-            fillList(postalList, []);
-            return;
+        const phPostals = {
+          'Metro Manila (NCR)|Caloocan City': ['1400', '1401', '1420', '1421'],
+          'Laguna|Calamba City': ['4027']
+        };
+
+        const fillSelect = (sel, items, placeholder) => {
+          if (!sel) return;
+          sel.innerHTML = '';
+          const opt0 = document.createElement('option');
+          opt0.value = '';
+          opt0.textContent = placeholder;
+          sel.appendChild(opt0);
+          (items || []).forEach((name) => {
+            const opt = document.createElement('option');
+            opt.value = String(name || '');
+            opt.textContent = String(name || '');
+            sel.appendChild(opt);
+          });
+        };
+
+        fillSelect(provSelect, phProvinces, 'Select province');
+        fillSelect(citySelect, [], 'Select city / municipality');
+        fillSelect(brgySelect, [], 'Select barangay');
+
+        const refreshCities = () => {
+          const p = provSelect && provSelect.value ? provSelect.value : '';
+          const cities = p && phCities[p] ? phCities[p] : [];
+          fillSelect(citySelect, cities, 'Select city / municipality');
+          fillSelect(brgySelect, [], 'Select barangay');
+          if (postalInput) postalInput.value = '';
+        };
+
+        const refreshBarangaysAndPostal = () => {
+          const p = provSelect && provSelect.value ? provSelect.value : '';
+          const c = citySelect && citySelect.value ? citySelect.value : '';
+          const key = p && c ? (p + '|' + c) : '';
+          const brgys = key && phBarangays[key] ? phBarangays[key] : [];
+          fillSelect(brgySelect, brgys, 'Select barangay');
+          const posts = key && phPostals[key] ? phPostals[key] : [];
+          if (postalInput) {
+            if (posts.length === 1) postalInput.value = posts[0];
+            else if (posts.length === 0) postalInput.value = '';
           }
-          const cities = await loadOpts('cities', { province: p });
-          fillList(cityList, cities);
-          const c = cityInput && cityInput.value ? cityInput.value.trim() : '';
-          if (!c) {
-            fillList(brgyList, []);
-            fillList(postalList, []);
-            return;
-          }
-          const brgys = await loadOpts('barangays', { province: p, city: c });
-          fillList(brgyList, brgys);
-          const posts = await loadOpts('postals', { province: p, city: c });
-          fillList(postalList, posts);
         };
 
-        const initLocationLists = async () => {
-          try {
-            const provs = await loadOpts('provinces', {});
-            fillList(provList, provs);
-            await refreshCitiesAndBelow();
-          } catch (_) {}
-        };
-        initLocationLists();
-
-        if (provInput) {
-          provInput.addEventListener('change', () => {
-            if (cityInput) cityInput.value = '';
-            if (brgyInput) brgyInput.value = '';
-            if (postalInput) postalInput.value = '';
-            refreshCitiesAndBelow();
+        if (provSelect) {
+          provSelect.addEventListener('change', () => {
+            refreshCities();
           });
         }
-        if (cityInput) {
-          cityInput.addEventListener('change', () => {
-            if (brgyInput) brgyInput.value = '';
-            if (postalInput) postalInput.value = '';
-            refreshCitiesAndBelow();
+        if (citySelect) {
+          citySelect.addEventListener('change', () => {
+            refreshBarangaysAndPostal();
           });
         }
 
