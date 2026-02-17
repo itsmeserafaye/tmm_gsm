@@ -1183,6 +1183,7 @@ $typesList = vehicle_types();
 
       const formDetails = root.querySelector('#formDetails');
       const formLink = root.querySelector('#formLink');
+      const linkOpViewOnly = root.querySelector('#linkOpViewOnly');
       const btnEdit = root.querySelector('#vehEditBtn');
       const btnCancel = root.querySelector('#vehCancelBtn');
       const btnSave = root.querySelector('#vehSaveBtn');
@@ -1200,6 +1201,8 @@ $typesList = vehicle_types();
         };
         toggle(formDetails);
         toggle(formLink);
+        if (formLink) formLink.classList.toggle('hidden', !on);
+        if (linkOpViewOnly) linkOpViewOnly.classList.toggle('hidden', on);
         if (btnEdit) btnEdit.classList.toggle('hidden', on);
         if (btnCancel) btnCancel.classList.toggle('hidden', !on);
         if (btnSave) btnSave.classList.toggle('hidden', !on);
