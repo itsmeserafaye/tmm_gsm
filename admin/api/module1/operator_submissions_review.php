@@ -87,7 +87,7 @@ try {
 
   if ($operatorId > 0) {
     $stmtOp = $db->prepare("UPDATE operators
-                            SET operator_type=?, registered_name=?, name=?, full_name=?, address=?, contact_no=?, email=?, coop_name=?,
+                            SET operator_type=?, registered_name=?, name=?, full_name=?, address_street=?, contact_no=?, email=?, coop_name=?,
                                 portal_user_id=?, submitted_by_name=?, submitted_at=?,
                                 approved_by_user_id=?, approved_by_name=?, approved_at=?,
                                 verification_status='Verified', workflow_status='Active'
@@ -103,7 +103,7 @@ try {
     $stmtOp->execute();
     $stmtOp->close();
   } else {
-    $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, address, contact_no, email, coop_name, status, verification_status, workflow_status,
+    $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, address_street, contact_no, email, coop_name, status, verification_status, workflow_status,
                                                    portal_user_id, submitted_by_name, submitted_at, approved_by_user_id, approved_by_name, approved_at, created_at)
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Active', 'Verified', 'Active', ?, ?, ?, ?, ?, ?, NOW())");
     if (!$stmtIns) throw new Exception('db_prepare_failed');

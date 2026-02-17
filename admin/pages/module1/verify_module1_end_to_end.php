@@ -52,8 +52,8 @@ echo "\n--- Operator Registration ---\n";
 // If not, we just link via name or separate table if needed.
 // Based on submodule2, it links via name or ID?
 // Let's just insert basic operator for now.
-$sql = "INSERT INTO operators (full_name, address, contact_number, email, status) 
-        VALUES ('TEST_E2E_OP', '456 Op St', '09123456789', 'test@op.com', 'Active')";
+$sql = "INSERT INTO operators (full_name, contact_number, email, status) 
+        VALUES ('TEST_E2E_OP', '09123456789', 'test@op.com', 'Active')";
 if (!$db->query($sql)) {
     echo "Error: " . $db->error . "\n";
     exit(1);
