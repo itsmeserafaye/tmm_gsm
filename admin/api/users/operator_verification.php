@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/mailer.php';
 
 header('Content-Type: application/json');
 
@@ -19,6 +20,12 @@ function ov_required_doc_keys(string $operatorType): array {
 try {
   $db = db();
   require_role(['SuperAdmin']);
+
+  $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+  $rootUrl = '';
+  $pos = strpos($scriptName, '/admin/');
+  if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+  if ($rootUrl === '/') $rootUrl = '';
 
   if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $userId = (int)($_GET['user_id'] ?? 0);
@@ -331,9 +338,9 @@ try {
 
       $db->begin_transaction();
       try {
-        $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=? WHERE id=?");
+        $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=?, status='Active' WHERE id=?");
         if (!$stmt) throw new Exception('db_prepare_failed');
-        $stmt->bind_param('ssii', $remarks, $now, $adminId, $userId);
+        $stmt->bind_param('ssiii', $remarks, $now, $adminId, $userId, $userId);
         $stmt->execute();
         $stmt->close();
 
@@ -467,6 +474,42 @@ try {
         }
 
         $db->commit();
+
+        try {
+          $toEmail = $email;
+          if ($toEmail !== '' && filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            $displayNameEmail = $displayName !== '' ? $displayName : ($fullName !== '' ? $fullName : $toEmail);
+            $portalLink = $rootUrl . '/gsm_login/index.php?mode=operator';
+            $subject = 'Your TMM Operator Account is Approved and Active';
+            $html = '<div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;background:#f8fafc;color:#0f172a">'
+              . '<div style="background:#16a34a;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0">'
+              . '<h2 style="margin:0;font-size:18px">TMM Operator Portal</h2>'
+              . '<p style="margin:4px 0 0;font-size:12px;opacity:.9">Account Approved & Active</p>'
+              . '</div>'
+              . '<div style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 12px 12px">'
+              . '<p style="margin:0 0 12px 0;">Hello ' . htmlspecialchars($displayNameEmail) . ',</p>'
+              . '<p style="margin:0 0 12px 0;">Your operator account has been approved and activated. You can now sign in and use the Operator Portal.</p>'
+              . '<p style="text-align:center;margin:24px 0;">'
+              . '<a href="' . htmlspecialchars($portalLink) . '" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:700;">Open Operator Portal</a>'
+              . '</p>'
+              . '<p style="margin:0 0 12px 0;font-size:13px;color:#475569;">If you did not expect this email, you can ignore it.</p>'
+              . '</div>'
+              . '<p style="margin-top:20px;font-size:12px;color:#64748b;text-align:center;">© ' . date('Y') . ' TMM</p>'
+              . '</div>';
+            $text = "Hello {$displayNameEmail},\n\nYour operator account has been approved and activated. You can now sign in and use the Operator Portal.\n\nOpen Operator Portal: {$portalLink}\n\nThank you.\n";
+
+            $mail = tmm_mailer($db);
+            $mail->clearAllRecipients();
+            $mail->Subject = $subject;
+            $mail->Body = $html;
+            $mail->AltBody = $text;
+            $mail->addAddress($toEmail);
+            $mail->send();
+          }
+        } catch (Throwable $e) {
+          @error_log('[TMM][OperatorApprovalMail] ' . $e->getMessage());
+        }
+
         ov_send(true, ['message' => 'Approval status updated', 'operator_id' => $operatorId]);
       } catch (Throwable $e) {
         $db->rollback();
