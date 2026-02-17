@@ -292,6 +292,7 @@ $typesList = vehicle_types();
         <thead class="bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-300">
           <tr>
             <th class="px-4 py-3 text-left font-black">Submitted</th>
+            <th class="px-4 py-3 text-left font-black">Operator</th>
             <th class="px-4 py-3 text-left font-black">Plate</th>
             <th class="px-4 py-3 text-left font-black">Type</th>
             <th class="px-4 py-3 text-left font-black">Engine</th>
@@ -664,7 +665,7 @@ $typesList = vehicle_types();
 
     async function loadVehicleSubmissions() {
       if (!vehSubmissionsTbody) return;
-      vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Loading…</td></tr>`;
+      vehSubmissionsTbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">Loading…</td></tr>`;
       try {
         const qs = new URLSearchParams();
         qs.set('status', (vehSubStatus && vehSubStatus.value) ? vehSubStatus.value : 'Submitted');
@@ -674,7 +675,7 @@ $typesList = vehicle_types();
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         const rows = Array.isArray(data.data) ? data.data : [];
         if (!rows.length) {
-          vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No submissions found.</td></tr>`;
+          vehSubmissionsTbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-slate-500 dark:text-slate-400">No submissions found.</td></tr>`;
           return;
         }
         vehSubmissionsTbody.innerHTML = rows.map((r) => {
@@ -687,20 +688,83 @@ $typesList = vehicle_types();
           const submittedAt = (r.submitted_at || '').toString();
           const cr = (r.cr_file_path || '').toString();
           const orf = (r.or_file_path || '').toString();
+          const make = (r.make || '').toString();
+          const model = (r.model || '').toString();
+          const yearModel = (r.year_model || '').toString();
+          const fuelType = (r.fuel_type || '').toString();
+          const color = (r.color || '').toString();
+          const orNumber = (r.or_number || '').toString();
+          const crNumber = (r.cr_number || '').toString();
+          const crIssueDate = (r.cr_issue_date || '').toString();
+          const registeredOwner = (r.registered_owner || '').toString();
+          const portalName = (r.portal_full_name || r.portal_association_name || r.submitted_by_name || '').toString();
+          const portalEmail = (r.portal_email || '').toString();
+          const portalUserId = r.portal_user_id || '';
+          const operatorId = Number(r.operator_id || 0) || '';
           const docs = [
             cr ? `<button type="button" class="text-blue-700 hover:underline font-bold" data-doc-viewer="1" data-doc-url="${escAttr(rootUrl + '/admin/uploads/' + encodeURIComponent(cr))}" data-doc-label="CR">CR</button>` : `<span class="text-slate-400">CR</span>`,
             orf ? `<button type="button" class="text-blue-700 hover:underline font-bold" data-doc-viewer="1" data-doc-url="${escAttr(rootUrl + '/admin/uploads/' + encodeURIComponent(orf))}" data-doc-label="OR">OR</button>` : `<span class="text-slate-400">OR</span>`
           ].join(' • ');
           const actionHtml = st === 'Submitted'
             ? `<div class="flex gap-2">
+                 <button data-vehsub-view="${escAttr(sid)}"
+                   data-plate="${escAttr(plate)}"
+                   data-type="${escAttr(type)}"
+                   data-engine="${escAttr(engine)}"
+                   data-chassis="${escAttr(chassis)}"
+                   data-make="${escAttr(make)}"
+                   data-model="${escAttr(model)}"
+                   data-year-model="${escAttr(yearModel)}"
+                   data-fuel-type="${escAttr(fuelType)}"
+                   data-color="${escAttr(color)}"
+                   data-or-number="${escAttr(orNumber)}"
+                   data-cr-number="${escAttr(crNumber)}"
+                   data-cr-issue-date="${escAttr(crIssueDate)}"
+                   data-registered-owner="${escAttr(registeredOwner)}"
+                   data-portal-name="${escAttr(portalName)}"
+                   data-portal-email="${escAttr(portalEmail)}"
+                   data-portal-user-id="${escAttr(String(portalUserId || ''))}"
+                   data-operator-id="${escAttr(String(operatorId || ''))}"
+                   class="px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold">View</button>
                  <button data-vehsub-approve="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">Approve</button>
                  <button data-vehsub-reject="${escAttr(sid)}" class="px-3 py-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold">Reject</button>
                </div>`
-            : `<div class="text-xs font-semibold text-slate-500 dark:text-slate-400">${escAttr(r.approved_by_name || '')} ${escAttr(r.approved_at || '')}</div>`;
+            : `<div class="flex flex-col gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                 <div>${escAttr(r.approved_by_name || '')} ${escAttr(r.approved_at || '')}</div>
+                 <div>
+                   <button data-vehsub-view="${escAttr(sid)}"
+                     data-plate="${escAttr(plate)}"
+                     data-type="${escAttr(type)}"
+                     data-engine="${escAttr(engine)}"
+                     data-chassis="${escAttr(chassis)}"
+                     data-make="${escAttr(make)}"
+                     data-model="${escAttr(model)}"
+                     data-year-model="${escAttr(yearModel)}"
+                     data-fuel-type="${escAttr(fuelType)}"
+                     data-color="${escAttr(color)}"
+                     data-or-number="${escAttr(orNumber)}"
+                     data-cr-number="${escAttr(crNumber)}"
+                     data-cr-issue-date="${escAttr(crIssueDate)}"
+                     data-registered-owner="${escAttr(registeredOwner)}"
+                     data-portal-name="${escAttr(portalName)}"
+                     data-portal-email="${escAttr(portalEmail)}"
+                     data-portal-user-id="${escAttr(String(portalUserId || ''))}"
+                     data-operator-id="${escAttr(String(operatorId || ''))}"
+                     class="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold">View details</button>
+                 </div>
+               </div>`;
           return `<tr>
             <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(submittedAt)}</td>
+            <td class="px-4 py-3 text-xs font-semibold">
+              <div class="font-bold text-slate-900 dark:text-white">${escAttr(portalName || '(Unknown operator)')}</div>
+              ${portalEmail ? `<div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">${escAttr(portalEmail)}</div>` : ''}
+              ${portalUserId ? `<div class="mt-1 text-[11px] text-slate-400">Portal User ID: ${escAttr(String(portalUserId))}</div>` : ''}
+            </td>
             <td class="px-4 py-3 font-bold text-slate-900 dark:text-white">${escAttr(plate)}</td>
-            <td class="px-4 py-3 text-xs font-semibold">${escAttr(type)}</td>
+            <td class="px-4 py-3 text-xs font-semibold">
+              <div>${escAttr(type)}</div>
+              ${(make || model || yearModel) ? `<div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">${escAttr([make, model, yearModel].filter(Boolean).join(' • '))}</div>` : ''}
+            </td>
             <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(engine)}</td>
             <td class="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(chassis)}</td>
             <td class="px-4 py-3 text-xs font-semibold">${docs}</td>
@@ -715,9 +779,108 @@ $typesList = vehicle_types();
         vehSubmissionsTbody.querySelectorAll('[data-vehsub-reject]').forEach((b) => {
           b.addEventListener('click', () => reviewVehicleSubmission(b.getAttribute('data-vehsub-reject'), 'reject'));
         });
+        vehSubmissionsTbody.querySelectorAll('[data-vehsub-view]').forEach((b) => {
+          if (b.getAttribute('data-bound-view') === '1') return;
+          b.setAttribute('data-bound-view', '1');
+          b.addEventListener('click', () => {
+            const plate = b.getAttribute('data-plate') || '';
+            const type = b.getAttribute('data-type') || '';
+            const make = b.getAttribute('data-make') || '';
+            const model = b.getAttribute('data-model') || '';
+            const yearModel = b.getAttribute('data-year-model') || '';
+            const fuelType = b.getAttribute('data-fuel-type') || '';
+            const color = b.getAttribute('data-color') || '';
+            const engine = b.getAttribute('data-engine') || '';
+            const chassis = b.getAttribute('data-chassis') || '';
+            const orNumber = b.getAttribute('data-or-number') || '';
+            const crNumber = b.getAttribute('data-cr-number') || '';
+            const crIssueDate = b.getAttribute('data-cr-issue-date') || '';
+            const registeredOwner = b.getAttribute('data-registered-owner') || '';
+            const portalName = b.getAttribute('data-portal-name') || '';
+            const portalEmail = b.getAttribute('data-portal-email') || '';
+            const portalUserId = b.getAttribute('data-portal-user-id') || '';
+            const operatorIdStr = b.getAttribute('data-operator-id') || '';
+            const operatorId = operatorIdStr ? parseInt(operatorIdStr, 10) : 0;
+
+            const vehicleLines = [];
+            if (make || model || yearModel) {
+              vehicleLines.push([make, model, yearModel].filter(Boolean).join(' • '));
+            }
+            if (color) vehicleLines.push('Color: ' + color);
+            if (fuelType) vehicleLines.push('Fuel: ' + fuelType);
+
+            const regLines = [];
+            if (orNumber) regLines.push('OR: ' + orNumber);
+            if (crNumber) regLines.push('CR: ' + crNumber);
+            if (crIssueDate) regLines.push('CR Issued: ' + crIssueDate);
+
+            const submitterLines = [];
+            if (portalEmail) submitterLines.push(portalEmail);
+            if (portalUserId) submitterLines.push('Portal User ID: ' + portalUserId);
+
+            const html = `
+              <div class="space-y-4">
+                <div>
+                  <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Vehicle</div>
+                  <div class="text-sm font-black text-slate-900 dark:text-white">${escAttr(plate || '')}</div>
+                  <div class="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">${escAttr(type || '')}</div>
+                  ${vehicleLines.length ? `<div class="mt-2 text-xs text-slate-600 dark:text-slate-300">${escAttr(vehicleLines.join(' • '))}</div>` : ''}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Engine No</div>
+                    <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escAttr(engine || '-')}</div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Chassis / VIN</div>
+                    <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escAttr(chassis || '-')}</div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Registered Owner</div>
+                    <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">${escAttr(registeredOwner || '-')}</div>
+                  </div>
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Registration</div>
+                    <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">${regLines.length ? escAttr(regLines.join(' • ')) : '-'}</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Submitted By</div>
+                  <div class="text-sm font-bold text-slate-900 dark:text-white">${escAttr(portalName || '(Unknown operator)')}</div>
+                  ${submitterLines.length ? `<div class="mt-1 text-xs text-slate-600 dark:text-slate-300">${escAttr(submitterLines.join(' • '))}</div>` : ''}
+                </div>
+                ${operatorId ? `
+                  <div class="pt-2">
+                    <button type="button"
+                      data-view-operator-record="${operatorId}"
+                      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold">
+                      <span>View Operator Record</span>
+                    </button>
+                  </div>
+                ` : `
+                  <div class="pt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                    No linked operator record yet. Approve the operator profile first.
+                  </div>
+                `}
+              </div>
+            `;
+
+            openModal(html, 'Vehicle Submission • ' + (plate || ''));
+
+            if (operatorId) {
+              const root = body;
+              const btnOp = root.querySelector('[data-view-operator-record]');
+              if (btnOp) {
+                btnOp.addEventListener('click', () => {
+                  window.location.href = '?page=puv-database/operator-encoding&highlight_operator_id=' + encodeURIComponent(String(operatorId));
+                });
+              }
+            }
+          });
+        });
         bindSubmissionDocViewer();
       } catch (e) {
-        vehSubmissionsTbody.innerHTML = `<tr><td colspan="8" class="px-4 py-6 text-center text-rose-600 font-semibold">${escAttr(e.message || 'Failed')}</td></tr>`;
+        vehSubmissionsTbody.innerHTML = `<tr><td colspan="9" class="px-4 py-6 text-center text-rose-600 font-semibold">${escAttr(e.message || 'Failed')}</td></tr>`;
       }
     }
 

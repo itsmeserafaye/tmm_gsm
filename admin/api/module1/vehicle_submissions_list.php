@@ -13,21 +13,24 @@ $q = trim((string)($_GET['q'] ?? ''));
 $allowed = ['Submitted','Approved','Rejected'];
 if (!in_array($status, $allowed, true)) $status = 'Submitted';
 
-$sql = "SELECT submission_id, portal_user_id, plate_number, vehicle_type, engine_no, chassis_no, make, model, year_model,
-               or_number, cr_number, cr_issue_date, registered_owner, cr_file_path, or_file_path, or_expiry_date,
-               status, submitted_at, submitted_by_name, approved_at, approved_by_name, approval_remarks, vehicle_id
-        FROM vehicle_record_submissions";
+$sql = "SELECT s.submission_id, s.portal_user_id, s.plate_number, s.vehicle_type, s.engine_no, s.chassis_no, s.make, s.model, s.year_model,
+               s.fuel_type, s.color, s.or_number, s.cr_number, s.cr_issue_date, s.registered_owner, s.cr_file_path, s.or_file_path, s.or_expiry_date,
+               s.status, s.submitted_at, s.submitted_by_name, s.approved_at, s.approved_by_name, s.approval_remarks, s.vehicle_id,
+               u.email AS portal_email, u.full_name AS portal_full_name, u.association_name AS portal_association_name,
+               u.puv_operator_id AS operator_id
+        FROM vehicle_record_submissions s
+        LEFT JOIN operator_portal_users u ON s.portal_user_id = u.id";
 $conds = [];
 $params = [];
 $types = '';
 
 if ($status !== '') {
-  $conds[] = "status=?";
+  $conds[] = "s.status=?";
   $params[] = $status;
   $types .= 's';
 }
 if ($q !== '') {
-  $conds[] = "(plate_number LIKE ? OR vehicle_type LIKE ? OR submitted_by_name LIKE ? OR cr_number LIKE ? OR chassis_no LIKE ?)";
+  $conds[] = "(s.plate_number LIKE ? OR s.vehicle_type LIKE ? OR s.submitted_by_name LIKE ? OR s.cr_number LIKE ? OR s.chassis_no LIKE ?)";
   $like = '%' . $q . '%';
   $params[] = $like;
   $params[] = $like;
@@ -37,7 +40,7 @@ if ($q !== '') {
   $types .= 'sssss';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
-$sql .= " ORDER BY submitted_at DESC, submission_id DESC LIMIT 300";
+$sql .= " ORDER BY s.submitted_at DESC, s.submission_id DESC LIMIT 300";
 
 $rows = [];
 if ($params) {
