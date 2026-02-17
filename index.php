@@ -1,4 +1,4 @@
-﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
@@ -534,7 +534,7 @@ if (!empty($_SESSION['user_id'])) {
 
     <div id="operatorRegisterModal" class="fixed inset-0 bg-black/40 flex items-start justify-center pt-20 px-4 hidden overflow-y-auto z-50">
         <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full glass-card form-compact max-h-[80vh] overflow-y-auto" style="background: #ffffff !important;">
-            <div class="sticky top-0 bg-white/95 backdrop-blur border-b border-gray-200 z-10 -mx-6 px-6 py-3 text-center" style="background: #ffffff !important;">
+            <div class="relative bg-white/95 backdrop-blur border-b border-gray-200 -mx-6 px-6 py-3 text-center" style="background: #ffffff !important;">
                 <h2 class="text-xl md:text-2xl font-semibold text-custom-secondary">Operator Registration</h2>
                 <button type="button" id="btnOperatorRegisterClose" class="text-gray-500 hover:text-gray-700 absolute right-6 top-6"><i class="fas fa-times"></i></button>
             </div>
@@ -1185,6 +1185,7 @@ if (!empty($_SESSION['user_id'])) {
                 const loadAddressOpts = async (mode, params) => {
                     const qs = new URLSearchParams();
                     qs.set('mode', mode);
+                    qs.set('public', '1');
                     Object.keys(params || {}).forEach((k) => {
                         if (params[k]) qs.set(k, params[k]);
                     });

@@ -3,8 +3,11 @@ require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
 header('Content-Type: application/json');
-require_login(false);
-require_any_permission(['module1.read', 'module1.view', 'module1.write', 'module1.vehicles.write']);
+
+$public = isset($_GET['public']) && $_GET['public'] === '1';
+if (!$public) {
+  require_any_permission(['module1.read', 'module1.view', 'module1.write', 'module1.vehicles.write']);
+}
 
 $mode = strtolower(trim((string)($_GET['mode'] ?? '')));
 $province = trim((string)($_GET['province'] ?? ''));
