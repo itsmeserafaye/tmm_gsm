@@ -77,18 +77,27 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
       <?php if (has_permission('reports.export')): ?>
-        <?php tmm_render_export_toolbar([
-          [
-            'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'csv']),
-            'label' => 'CSV',
-            'icon' => 'download'
-          ],
-          [
-            'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'excel']),
-            'label' => 'Excel',
-            'icon' => 'file-spreadsheet'
-          ]
-        ], ['mb' => 'mb-0']); ?>
+        <?php
+          $export = [
+            [
+              'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'csv']),
+              'label' => 'CSV',
+              'icon' => 'download'
+            ],
+            [
+              'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'excel']),
+              'label' => 'Excel',
+              'icon' => 'file-spreadsheet'
+            ],
+            [
+              'href' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+              'label' => 'Print',
+              'icon' => 'printer',
+              'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab])]
+            ]
+          ];
+          tmm_render_export_toolbar($export, ['mb' => 'mb-0']);
+        ?>
       <?php endif; ?>
       <form class="flex flex-col sm:flex-row gap-3 items-end" method="GET">
         <input type="hidden" name="page" value="module5/submodule3">
