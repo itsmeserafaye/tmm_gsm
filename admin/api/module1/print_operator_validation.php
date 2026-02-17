@@ -68,10 +68,6 @@ $year = date('Y');
     @page{margin:16mm 12mm 22mm 12mm}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
     .wrap{padding:16px 16px calc(var(--footer-height) + 12px) 16px}
-    .header{display:flex;flex-direction:column;align-items:center;gap:8px;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:16px;text-align:center}
-    .header h1{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
-    .sub{font-weight:700;color:#334155}
-    .filters{font-size:12px;color:#475569;margin-top:4px}
     table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{border:1px solid #e2e8f0;padding:8px;font-size:12px}
     th{background:#f8fafc;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#334155}
@@ -81,6 +77,11 @@ $year = date('Y');
     thead{display:table-header-group}
     tbody tr{page-break-inside:avoid;break-inside:avoid}
     .footer{border-top:2px solid #e2e8f0;padding:6px 16px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0;height:var(--footer-height);background:#fff}
+    .rhead{display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;padding:8px 0}
+    .rtitle{display:flex;flex-direction:column;align-items:center}
+    .rtitle .title{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+    .rtitle .sub{font-weight:700;color:#334155}
+    .rtitle .filters{font-size:12px;color:#475569;margin-top:4px}
     @media print{
       body{margin:0}
       .wrap{padding:0 12mm calc(var(--footer-height) + 4mm) 12mm}
@@ -89,16 +90,21 @@ $year = date('Y');
 </head>
 <body>
   <div class="wrap">
-    <div class="header">
-      <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
-      <div>
-        <h1>Transport & Mobility Management</h1>
-        <div class="sub">Operator Document Validation Report</div>
-        <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Type: <?php echo htmlspecialchars($type ?: 'All'); ?> • Status: <?php echo htmlspecialchars($status ?: 'All'); ?></div>
-      </div>
-    </div>
     <table>
       <thead>
+        <tr>
+          <th colspan="6" style="background:#fff;border:0;padding:0">
+            <div class="rhead">
+              <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
+              <div class="rtitle">
+                <div class="title">Transport & Mobility Management</div>
+                <div class="sub">Operator Document Validation Report</div>
+                <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Type: <?php echo htmlspecialchars($type ?: 'All'); ?> • Status: <?php echo htmlspecialchars($status ?: 'All'); ?></div>
+              </div>
+            </div>
+            <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
+          </th>
+        </tr>
         <tr>
           <th style="width:32%">Operator</th>
           <th style="width:12%">Type</th>
