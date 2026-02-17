@@ -566,18 +566,24 @@ if (!empty($_SESSION['user_id'])) {
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Barangay</label>
-                            <input type="text" name="address_barangay" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Brgy San Isidro">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Barangay<span class="required-asterisk">*</span></label>
+                            <select id="opRegBrgy" name="address_barangay" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Select barangay</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">City / Municipality</label>
-                            <input type="text" name="address_city" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Quezon City">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">City / Municipality<span class="required-asterisk">*</span></label>
+                            <select id="opRegCity" name="address_city" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Select city / municipality</option>
+                            </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
                         <div>
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Province</label>
-                            <input type="text" name="address_province" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Metro Manila">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Province<span class="required-asterisk">*</span></label>
+                            <select id="opRegProv" name="address_province" required class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Select province</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 mb-1">Postal Code</label>
@@ -1047,6 +1053,78 @@ if (!empty($_SESSION['user_id'])) {
 
             const operatorRegisterForm = document.getElementById('operatorRegisterForm');
             if (operatorRegisterForm) {
+                const opProv = document.getElementById('opRegProv');
+                const opCity = document.getElementById('opRegCity');
+                const opBrgy = document.getElementById('opRegBrgy');
+
+                const fillSelect = (sel, items, placeholder) => {
+                    if (!sel) return;
+                    sel.innerHTML = '';
+                    const opt0 = document.createElement('option');
+                    opt0.value = '';
+                    opt0.textContent = placeholder;
+                    sel.appendChild(opt0);
+                    (items || []).forEach((name) => {
+                        const opt = document.createElement('option');
+                        opt.value = String(name || '');
+                        opt.textContent = String(name || '');
+                        sel.appendChild(opt);
+                    });
+                };
+
+                const loadAddressOpts = async (mode, params) => {
+                    const qs = new URLSearchParams();
+                    qs.set('mode', mode);
+                    Object.keys(params || {}).forEach((k) => {
+                        if (params[k]) qs.set(k, params[k]);
+                    });
+                    const res = await fetch((BASE_URL || '') + '/admin/api/geo/address_options.php?' + qs.toString());
+                    const data = await res.json().catch(() => null);
+                    if (!data || !data.ok || !Array.isArray(data.data)) return [];
+                    return data.data;
+                };
+
+                const initRegProvinces = async () => {
+                    if (!opProv) return;
+                    const provs = await loadAddressOpts('provinces', {});
+                    fillSelect(opProv, provs, 'Select province');
+                    fillSelect(opCity, [], 'Select city / municipality');
+                    fillSelect(opBrgy, [], 'Select barangay');
+                };
+
+                const refreshRegCities = async () => {
+                    if (!opProv) return;
+                    const p = opProv.value ? opProv.value.trim() : '';
+                    if (!p) {
+                        fillSelect(opCity, [], 'Select city / municipality');
+                        fillSelect(opBrgy, [], 'Select barangay');
+                        return;
+                    }
+                    const cities = await loadAddressOpts('cities', { province: p });
+                    fillSelect(opCity, cities, 'Select city / municipality');
+                    fillSelect(opBrgy, [], 'Select barangay');
+                };
+
+                const refreshRegBarangays = async () => {
+                    if (!opProv || !opCity) return;
+                    const p = opProv.value ? opProv.value.trim() : '';
+                    const c = opCity.value ? opCity.value.trim() : '';
+                    if (!p || !c) {
+                        fillSelect(opBrgy, [], 'Select barangay');
+                        return;
+                    }
+                    const brgys = await loadAddressOpts('barangays', { province: p, city: c });
+                    fillSelect(opBrgy, brgys, 'Select barangay');
+                };
+
+                if (opProv) {
+                    opProv.addEventListener('change', () => { refreshRegCities().catch(() => {}); });
+                }
+                if (opCity) {
+                    opCity.addEventListener('change', () => { refreshRegBarangays().catch(() => {}); });
+                }
+                initRegProvinces().catch(() => {});
+
                 // Live password checklist
                 const pwdEl = document.getElementById('opRegPassword');
                 const checklist = document.getElementById('opPwdChecklist');
