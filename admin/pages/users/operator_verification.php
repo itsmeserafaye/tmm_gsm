@@ -281,6 +281,11 @@ async function ovApprove() {
     alert((data && data.error) ? data.error : 'Failed to approve');
     return;
   }
+  const opId = data.operator_id ? parseInt(String(data.operator_id), 10) : 0;
+  if (opId > 0) {
+    window.location.href = '?page=puv-database/operator-encoding&highlight_operator_id=' + encodeURIComponent(opId);
+    return;
+  }
   alert('Approved.');
   await ovOpenModal(ovActiveUserId);
   ovFetchList();

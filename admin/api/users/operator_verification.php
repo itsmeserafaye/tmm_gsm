@@ -202,8 +202,75 @@ try {
       }
     }
 
-    $now = date('Y-m-d H:i:s');
+    $portalUserId = $userId;
+    $email = strtolower(trim((string)($user['email'] ?? '')));
+    $fullName = trim((string)($user['full_name'] ?? ''));
+    $contactInfo = trim((string)($user['contact_info'] ?? ''));
+    $association = trim((string)($user['association_name'] ?? ''));
+    $puvOperatorId = (int)($user['puv_operator_id'] ?? 0);
+
+    $operatorType = $operatorTypePortal;
+    if ($operatorType === 'Coop') $operatorType = 'Cooperative';
+    else if ($operatorType === 'Corp') $operatorType = 'Corporation';
+    if ($operatorType === '') $operatorType = 'Individual';
+
+    $registeredName = $association !== '' ? $association : $fullName;
+    $name = $registeredName !== '' ? $registeredName : $fullName;
+    $displayName = $name !== '' ? $name : $fullName;
+    if ($displayName === '') $displayName = 'Operator';
+
+    $coopName = ($operatorType === 'Individual') ? null : ($association !== '' ? $association : null);
+    $contactNo = $contactInfo;
+    $addressStreet = '';
+    $submittedByName = $fullName !== '' ? $fullName : ($association !== '' ? $association : 'Operator');
+    $submittedAt = date('Y-m-d H:i:s');
+
     if ($approval === 'Approved') {
+      $stmtSub = $db->prepare("SELECT operator_type, registered_name, name, address, contact_no, email, coop_name, submitted_at, submitted_by_name, status FROM operator_record_submissions WHERE portal_user_id=? AND status IN ('Submitted','Approved') ORDER BY submission_id DESC LIMIT 1");
+      if ($stmtSub) {
+        $stmtSub->bind_param('i', $portalUserId);
+        $stmtSub->execute();
+        $subRow = $stmtSub->get_result()->fetch_assoc();
+        $stmtSub->close();
+        if ($subRow) {
+          $subType = trim((string)($subRow['operator_type'] ?? ''));
+          if ($subType !== '') $operatorType = $subType;
+          $subRegisteredName = trim((string)($subRow['registered_name'] ?? ''));
+          $subName = trim((string)($subRow['name'] ?? ''));
+          if ($subRegisteredName !== '' || $subName !== '') {
+            $registeredName = $subRegisteredName !== '' ? $subRegisteredName : $subName;
+            $name = $subName !== '' ? $subName : $registeredName;
+          }
+          $subAddress = trim((string)($subRow['address'] ?? ''));
+          if ($subAddress !== '') $addressStreet = $subAddress;
+          $subContact = trim((string)($subRow['contact_no'] ?? ''));
+          if ($subContact !== '') $contactNo = $subContact;
+          $subEmail = strtolower(trim((string)($subRow['email'] ?? '')));
+          if ($subEmail !== '') $email = $subEmail;
+          $subCoop = trim((string)($subRow['coop_name'] ?? ''));
+          if ($subCoop !== '') $coopName = $subCoop;
+          $subSubmittedAt = trim((string)($subRow['submitted_at'] ?? ''));
+          if ($subSubmittedAt !== '') $submittedAt = $subSubmittedAt;
+          $subSubmittedBy = trim((string)($subRow['submitted_by_name'] ?? ''));
+          if ($subSubmittedBy !== '') $submittedByName = $subSubmittedBy;
+        }
+      }
+
+      if ($operatorType === 'Coop') $operatorType = 'Cooperative';
+      else if ($operatorType === 'Corp') $operatorType = 'Corporation';
+      if ($operatorType === '') $operatorType = 'Individual';
+
+      $displayName = $registeredName !== '' ? $registeredName : ($name !== '' ? $name : $fullName);
+      if ($displayName === '') $displayName = 'Operator';
+      if ($operatorType === 'Individual') {
+        if ($coopName === null) $coopName = null;
+      } else {
+        if ($coopName === null || $coopName === '') $coopName = $association !== '' ? $association : $coopName;
+      }
+
+      $now = date('Y-m-d H:i:s');
+      if ($addressStreet === '') $addressStreet = null;
+
       $db->begin_transaction();
       try {
         $stmt = $db->prepare("UPDATE operator_portal_users SET approval_status='Approved', approval_remarks=?, approved_at=?, approved_by=? WHERE id=?");
@@ -211,29 +278,6 @@ try {
         $stmt->bind_param('ssii', $remarks, $now, $adminId, $userId);
         $stmt->execute();
         $stmt->close();
-
-        $portalUserId = $userId;
-        $email = strtolower(trim((string)($user['email'] ?? '')));
-        $fullName = trim((string)($user['full_name'] ?? ''));
-        $contactInfo = trim((string)($user['contact_info'] ?? ''));
-        $association = trim((string)($user['association_name'] ?? ''));
-        $puvOperatorId = (int)($user['puv_operator_id'] ?? 0);
-
-        $operatorType = $operatorTypePortal;
-        if ($operatorType === 'Coop') $operatorType = 'Cooperative';
-        else if ($operatorType === 'Corp') $operatorType = 'Corporation';
-        if ($operatorType === '') $operatorType = 'Individual';
-
-        $registeredName = $association !== '' ? $association : $fullName;
-        $name = $registeredName !== '' ? $registeredName : $fullName;
-        $displayName = $name !== '' ? $name : $fullName;
-        if ($displayName === '') $displayName = 'Operator';
-
-        $coopName = ($operatorType === 'Individual') ? null : ($association !== '' ? $association : null);
-        $contactNo = $contactInfo;
-
-        $submittedByName = $fullName !== '' ? $fullName : ($association !== '' ? $association : 'Operator');
-        $submittedAt = $now;
 
         $operatorId = $puvOperatorId;
         if ($operatorId <= 0) {
@@ -259,27 +303,27 @@ try {
 
         if ($operatorId > 0) {
           $stmtOp = $db->prepare("UPDATE operators
-                                  SET operator_type=?, registered_name=?, name=?, full_name=?, contact_no=?, email=?, coop_name=?,
+                                  SET operator_type=?, registered_name=?, name=?, full_name=?, address_street=?, contact_no=?, email=?, coop_name=?,
                                       portal_user_id=?, approved_by_user_id=?, approved_by_name=?, approved_at=?,
                                       verification_status='Verified', workflow_status='Active'
                                   WHERE id=?");
           if (!$stmtOp) throw new Exception('db_prepare_failed');
           $stmtOp->bind_param(
-            'sssssssiissi',
-            $operatorType, $registeredName, $name, $displayName, $contactNo, $email, $coopName,
+            'ssssssssiissi',
+            $operatorType, $registeredName, $name, $displayName, $addressStreet, $contactNo, $email, $coopName,
             $portalUserId, $adminId, $adminName, $now,
             $operatorId
           );
           $stmtOp->execute();
           $stmtOp->close();
         } else {
-          $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, contact_no, email, coop_name, status, verification_status, workflow_status,
+          $stmtIns = $db->prepare("INSERT INTO operators (operator_type, registered_name, name, full_name, address_street, contact_no, email, coop_name, status, verification_status, workflow_status,
                                                          portal_user_id, submitted_by_name, submitted_at, approved_by_user_id, approved_by_name, approved_at, created_at)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, 'Approved', 'Verified', 'Active', ?, ?, ?, ?, ?, ?, NOW())");
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Approved', 'Verified', 'Active', ?, ?, ?, ?, ?, ?, NOW())");
           if (!$stmtIns) throw new Exception('db_prepare_failed');
           $stmtIns->bind_param(
-            'sssssssississ',
-            $operatorType, $registeredName, $name, $displayName, $contactNo, $email, $coopName,
+            'ssssssssississ',
+            $operatorType, $registeredName, $name, $displayName, $addressStreet, $contactNo, $email, $coopName,
             $portalUserId, $submittedByName, $submittedAt,
             $adminId, $adminName, $now
           );
@@ -308,7 +352,7 @@ try {
         }
 
         $db->commit();
-        ov_send(true, ['message' => 'Approval status updated']);
+        ov_send(true, ['message' => 'Approval status updated', 'operator_id' => $operatorId]);
       } catch (Throwable $e) {
         $db->rollback();
         ov_send(false, ['error' => 'db_error'], 500);
