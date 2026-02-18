@@ -14,6 +14,12 @@ $type = $type === 'Parking' ? 'Parking' : 'Terminal';
 $q = trim((string)($_GET['q'] ?? ''));
 $city = trim((string)($_GET['city'] ?? ''));
 $cat = trim((string)($_GET['category'] ?? ''));
+$owner = trim((string)($_GET['owner'] ?? ''));
+$operator = trim((string)($_GET['operator'] ?? ''));
+$permitStatus = trim((string)($_GET['permit_status'] ?? ''));
+$agreementType = trim((string)($_GET['agreement_type'] ?? ''));
+$validFrom = trim((string)($_GET['valid_from'] ?? ''));
+$validTo = trim((string)($_GET['valid_to'] ?? ''));
 $where = $type === 'Parking' ? "t.type='Parking'" : "t.type <> 'Parking'";
 $params = [];
 $types = '';
@@ -33,7 +39,43 @@ if ($cat !== '') {
   $types .= 's';
   $params[] = $cat;
 }
+$termCols = [];
+$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('owner','owner_name','owned_by','operator','operator_name','managed_by')");
+if ($termColRes) while ($c = $termColRes->fetch_assoc()) $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+$ownerCol = isset($termCols['owner_name']) ? 'owner_name' : (isset($termCols['owner']) ? 'owner' : (isset($termCols['owned_by']) ? 'owned_by' : ''));
+$operatorCol = isset($termCols['operator_name']) ? 'operator_name' : (isset($termCols['operator']) ? 'operator' : (isset($termCols['managed_by']) ? 'managed_by' : ''));
+$permCols = [];
+$permColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+if ($permColRes) while ($c = $permColRes->fetch_assoc()) $permCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+$permStatusCol = isset($permCols['status']) ? 'status' : '';
+$permTypeCol = isset($permCols['doc_type']) ? 'doc_type' : (isset($permCols['document_type']) ? 'document_type' : (isset($permCols['type']) ? 'type' : ''));
+$permIssueCol = isset($permCols['issue_date']) ? 'issue_date' : (isset($permCols['issued_at']) ? 'issued_at' : (isset($permCols['start_date']) ? 'start_date' : ''));
+$permExpiryCol = isset($permCols['expiry_date']) ? 'expiry_date' : (isset($permCols['expires_at']) ? 'expires_at' : (isset($permCols['valid_until']) ? 'valid_until' : ''));
+$permCreatedCol = isset($permCols['created_at']) ? 'created_at' : '';
+$orderParts = [];
+if ($permExpiryCol !== '') $orderParts[] = "p.$permExpiryCol";
+if ($permIssueCol !== '') $orderParts[] = "p.$permIssueCol";
+if ($permCreatedCol !== '') $orderParts[] = "p.$permCreatedCol";
+$permOrderExpr = $orderParts ? ('COALESCE(' . implode(',', $orderParts) . ')') : '1';
+$ownerExpr = $ownerCol !== '' ? "t.$ownerCol" : "NULL";
+$operatorExpr = $operatorCol !== '' ? "t.$operatorCol" : "NULL";
+$permTypeExpr = $permTypeCol !== '' ? "(SELECT p.$permTypeCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
+$permStatusExpr = $permStatusCol !== '' ? "(SELECT p.$permStatusCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
+$permIssueExpr = $permIssueCol !== '' ? "(SELECT p.$permIssueCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
+$permExpiryExpr = $permExpiryCol !== '' ? "(SELECT p.$permExpiryCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
+if ($owner !== '' && $ownerCol !== '') { $where .= " AND COALESCE(t.$ownerCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $owner . '%'; }
+if ($operator !== '' && $operatorCol !== '') { $where .= " AND COALESCE(t.$operatorCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $operator . '%'; }
+if ($permitStatus !== '' && $permStatusCol !== '') { $where .= " AND (SELECT p.$permStatusCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?"; $types .= 's'; $params[] = '%' . $permitStatus . '%'; }
+if ($agreementType !== '' && $permTypeCol !== '') { $where .= " AND (SELECT p.$permTypeCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?"; $types .= 's'; $params[] = '%' . $agreementType . '%'; }
+if ($validFrom !== '' && ($permExpiryCol !== '' || $permIssueCol !== '')) { $vc = $permExpiryCol !== '' ? $permExpiryCol : $permIssueCol; $where .= " AND (SELECT p.$vc FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) >= ?"; $types .= 's'; $params[] = $validFrom; }
+if ($validTo !== '' && ($permIssueCol !== '' || $permExpiryCol !== '')) { $vc2 = $permIssueCol !== '' ? $permIssueCol : $permExpiryCol; $where .= " AND (SELECT p.$vc2 FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) <= ?"; $types .= 's'; $params[] = $validTo; }
 $sql = "SELECT t.id, t.name, t.location, t.address, t.capacity, t.category,
+               $ownerExpr AS owner_name,
+               $operatorExpr AS operator_name,
+               $permTypeExpr AS permit_type,
+               $permStatusExpr AS permit_status,
+               $permIssueExpr AS permit_issue_date,
+               $permExpiryExpr AS permit_expiry_date,
                COUNT(DISTINCT tr.route_id) AS route_count
         FROM terminals t
         LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
@@ -71,6 +113,12 @@ $filterParts[] = 'Type: ' . $type;
 if ($q !== '') $filterParts[] = 'Search: ' . $q;
 if ($city !== '') $filterParts[] = 'City: ' . $city;
 if ($cat !== '') $filterParts[] = 'Category: ' . $cat;
+if ($owner !== '') $filterParts[] = 'Owner: ' . $owner;
+if ($operator !== '') $filterParts[] = 'Operator: ' . $operator;
+if ($permitStatus !== '') $filterParts[] = 'Permit Status: ' . $permitStatus;
+if ($agreementType !== '') $filterParts[] = 'Agreement: ' . $agreementType;
+if ($validFrom !== '') $filterParts[] = 'Valid From: ' . $validFrom;
+if ($validTo !== '') $filterParts[] = 'Valid To: ' . $validTo;
 $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' : 'All.');
 ?>
 <!doctype html>
@@ -113,7 +161,7 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
     <table>
       <thead>
         <tr>
-          <th colspan="5" style="background:#fff;border:0;padding:0">
+          <th colspan="8" style="background:#fff;border:0;padding:0">
             <div class="rhead">
               <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
               <div class="rtitle">
@@ -128,12 +176,12 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
           </th>
         </tr>
         <tr>
-          <td colspan="5" style="background:#fff;border:0;padding:6px 0 0 0">
+          <td colspan="8" style="background:#fff;border:0;padding:6px 0 0 0">
             <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
           </td>
         </tr>
         <tr>
-          <td colspan="5" style="background:#fff;border:0;padding:0">
+          <td colspan="8" style="background:#fff;border:0;padding:0">
             <div class="ibox">
               <table>
                 <tr>
@@ -163,11 +211,14 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
           </td>
         </tr>
         <tr>
-          <th style="width:28%">Name</th>
-          <th style="width:24%">Location</th>
-          <th style="width:18%">Routes</th>
-          <th style="width:14%">Capacity</th>
-          <th style="width:16%">Address</th>
+          <th style="width:20%">Name</th>
+          <th style="width:14%">Owner</th>
+          <th style="width:14%">Operator</th>
+          <th style="width:12%">Agreement</th>
+          <th style="width:10%">Status</th>
+          <th style="width:14%">Validity</th>
+          <th style="width:8%">Routes</th>
+          <th style="width:8%">Capacity</th>
         </tr>
       </thead>
       <tbody>
@@ -175,14 +226,17 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
           <?php while ($t = $res->fetch_assoc()): ?>
             <tr>
               <td><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-              <td><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars((string)($t['owner_name'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars((string)($t['operator_name'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars((string)($t['permit_type'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars((string)($t['permit_status'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars(trim(((string)($t['permit_issue_date'] ?? '')) . ((string)($t['permit_issue_date'] ?? '') !== '' || (string)($t['permit_expiry_date'] ?? '') !== '' ? ' → ' : '') . ((string)($t['permit_expiry_date'] ?? '')))); ?></td>
               <td><?php echo (int)($t['route_count'] ?? 0); ?></td>
               <td><?php echo (int)($t['capacity'] ?? 0); ?></td>
-              <td><?php echo htmlspecialchars((string)($t['address'] ?? '')); ?></td>
             </tr>
           <?php endwhile; ?>
         <?php else: ?>
-          <tr><td colspan="5" class="py-6 text-center text-slate-500">No terminals found.</td></tr>
+          <tr><td colspan="8" class="py-6 text-center text-slate-500">No terminals found.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
