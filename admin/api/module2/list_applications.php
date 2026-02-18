@@ -13,7 +13,7 @@ if ($hasFranchises) {
                JOIN franchises f ON f.application_id=fa.application_id
                SET fa.status='Expired'
                WHERE f.status='Expired'
-                 AND fa.status IN ('PA Issued','CPC Issued','LTFRB-Approved','Approved')");
+                 AND fa.status IN ('Active','Approved','Pending Review','Returned for Correction','PA Issued','CPC Issued','LTFRB-Approved','Submitted','Pending','Under Review')");
 }
 
 $q = trim((string)($_GET['q'] ?? ''));

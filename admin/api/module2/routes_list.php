@@ -37,7 +37,7 @@ JOIN route_vehicle_types a ON a.route_id=r.id AND a.status='Active' AND a.vehicl
 LEFT JOIN (
   SELECT route_id, vehicle_type, COALESCE(SUM(vehicle_count),0) AS used_units
   FROM franchise_applications
-  WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+  WHERE status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
   GROUP BY route_id, vehicle_type
 ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
 WHERE r.status='Active'
@@ -76,7 +76,7 @@ LIMIT 2000");
     COALESCE(SUM(fa.vehicle_count),0) AS used_units,
     GREATEST(COALESCE(r.authorized_units, r.max_vehicle_limit, 0) - COALESCE(SUM(fa.vehicle_count),0), 0) AS remaining_units
   FROM routes r
-  LEFT JOIN franchise_applications fa ON fa.route_id=r.id AND fa.status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+  LEFT JOIN franchise_applications fa ON fa.route_id=r.id AND fa.status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
   WHERE r.status='Active' AND COALESCE(r.vehicle_type,'')<>'Tricycle'
   GROUP BY r.id
   ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC
@@ -108,7 +108,7 @@ if ($db->query("SHOW TABLES LIKE 'tricycle_service_areas'") && ($db->query("SHOW
   LEFT JOIN (
     SELECT service_area_id, COALESCE(SUM(vehicle_count),0) AS used_units
     FROM franchise_applications
-    WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+    WHERE status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
       AND COALESCE(vehicle_type,'')='Tricycle'
       AND service_area_id IS NOT NULL
     GROUP BY service_area_id

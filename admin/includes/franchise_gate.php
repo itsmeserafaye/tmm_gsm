@@ -16,10 +16,10 @@ function tmm_operator_required_doc_slots(string $operatorType): array {
     ];
   }
   return [
-    ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys'], 'label' => 'Valid Government ID'],
+    ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys'], 'label' => 'Government ID'],
     ['doc_type' => 'BarangayCert', 'keywords' => ['barangay clearance', 'barangay'], 'label' => 'Barangay Clearance'],
     ['doc_type' => 'BarangayCert', 'keywords' => ['proof of residency', 'residency', 'address'], 'label' => 'Proof of Residency'],
-    ['doc_type' => 'Others', 'keywords' => ['police clearance', 'police'], 'label' => 'Police Clearance', 'optional' => true],
+    ['doc_type' => 'Others', 'keywords' => ['police clearance', 'police'], 'label' => 'Police Clearance (optional)', 'optional' => true],
     ['doc_type' => 'Others', 'keywords' => ['application form', 'application'], 'label' => 'Application form'],
   ];
 }
@@ -120,13 +120,13 @@ function tmm_route_capacity_check(mysqli $db, int $routeDbId, int $wantUnits, in
   if ($excludeApplicationId > 0) {
     $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
                            FROM franchise_applications
-                           WHERE route_id=? AND application_id<>? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+                           WHERE route_id=? AND application_id<>? AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('ii', $routeDbId, $excludeApplicationId);
   } else {
     $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
                            FROM franchise_applications
-                           WHERE route_id=? AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+                           WHERE route_id=? AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('i', $routeDbId);
   }
@@ -135,6 +135,46 @@ function tmm_route_capacity_check(mysqli $db, int $routeDbId, int $wantUnits, in
   $stmtC->close();
   $curCount = (int)($cur['c'] ?? 0);
   if ($curCount + $want > $cap) return ['ok' => false, 'error' => 'route_over_capacity', 'cap' => $cap, 'used' => $curCount, 'want' => $want];
+  return ['ok' => true, 'cap' => $cap, 'used' => $curCount, 'want' => $want];
+}
+
+function tmm_service_area_capacity_check(mysqli $db, int $serviceAreaId, int $wantUnits, int $excludeApplicationId = 0): array {
+  if ($serviceAreaId <= 0) return ['ok' => true];
+  $stmtA = $db->prepare("SELECT COALESCE(authorized_units,0) AS authorized_units, status FROM tricycle_service_areas WHERE id=? LIMIT 1");
+  if (!$stmtA) return ['ok' => false, 'error' => 'db_prepare_failed'];
+  $stmtA->bind_param('i', $serviceAreaId);
+  $stmtA->execute();
+  $area = $stmtA->get_result()->fetch_assoc();
+  $stmtA->close();
+  if (!$area) return ['ok' => false, 'error' => 'service_area_not_found'];
+  if (((string)($area['status'] ?? '')) !== 'Active') return ['ok' => false, 'error' => 'service_area_inactive'];
+  $cap = (int)($area['authorized_units'] ?? 0);
+  if ($cap <= 0) return ['ok' => true];
+
+  $want = $wantUnits > 0 ? $wantUnits : 1;
+  $statusList = "('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')";
+  if ($excludeApplicationId > 0) {
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+                           FROM franchise_applications
+                           WHERE service_area_id=? AND application_id<>?
+                             AND COALESCE(vehicle_type,'')='Tricycle'
+                             AND status IN $statusList");
+    if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
+    $stmtC->bind_param('ii', $serviceAreaId, $excludeApplicationId);
+  } else {
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+                           FROM franchise_applications
+                           WHERE service_area_id=?
+                             AND COALESCE(vehicle_type,'')='Tricycle'
+                             AND status IN $statusList");
+    if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
+    $stmtC->bind_param('i', $serviceAreaId);
+  }
+  $stmtC->execute();
+  $cur = $stmtC->get_result()->fetch_assoc();
+  $stmtC->close();
+  $curCount = (int)($cur['c'] ?? 0);
+  if ($curCount + $want > $cap) return ['ok' => false, 'error' => 'service_area_over_capacity', 'cap' => $cap, 'used' => $curCount, 'want' => $want];
   return ['ok' => true, 'cap' => $cap, 'used' => $curCount, 'want' => $want];
 }
 
@@ -165,6 +205,28 @@ function tmm_can_endorse_application(mysqli $db, int $operatorId, int $routeDbId
   if (!$docCheck['ok']) return $docCheck;
 
   $capCheck = tmm_route_capacity_check($db, $routeDbId, $vehicleCount, $excludeApplicationId);
+  if (!$capCheck['ok']) return $capCheck;
+
+  return ['ok' => true];
+}
+
+function tmm_can_review_tricycle_application(mysqli $db, int $operatorId, int $serviceAreaId, int $vehicleCount, int $excludeApplicationId = 0): array {
+  $stmtO = $db->prepare("SELECT status, operator_type, verification_status, workflow_status, COALESCE(NULLIF(risk_level,''),'Low') AS risk_level FROM operators WHERE id=? LIMIT 1");
+  if (!$stmtO) return ['ok' => false, 'error' => 'db_prepare_failed'];
+  $stmtO->bind_param('i', $operatorId);
+  $stmtO->execute();
+  $op = $stmtO->get_result()->fetch_assoc();
+  $stmtO->close();
+  if (!$op) return ['ok' => false, 'error' => 'operator_not_found'];
+  if (!tmm_operator_is_valid_row($op)) return ['ok' => false, 'error' => 'operator_invalid'];
+  $riskLevel = (string)($op['risk_level'] ?? 'Low');
+  if ($riskLevel === 'High') return ['ok' => false, 'error' => 'operator_under_review'];
+
+  $slots = tmm_operator_required_doc_slots((string)($op['operator_type'] ?? ''));
+  $docCheck = tmm_operator_docs_verified($db, $operatorId, $slots);
+  if (!$docCheck['ok']) return $docCheck;
+
+  $capCheck = tmm_service_area_capacity_check($db, $serviceAreaId, $vehicleCount, $excludeApplicationId);
   if (!$capCheck['ok']) return $capCheck;
 
   return ['ok' => true];
