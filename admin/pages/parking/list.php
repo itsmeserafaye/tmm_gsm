@@ -131,7 +131,16 @@ if ($rootUrl === '/') $rootUrl = '';
           </a>
           <?php if (has_permission('reports.export')): ?>
             <?php
-              $qs = http_build_query(['type' => 'Parking', 'q' => $qFilter]);
+              $qs = http_build_query([
+                'type' => 'Parking',
+                'q' => $qFilter,
+                'owner' => $ownerFilter,
+                'operator' => $operatorFilter,
+                'permit_status' => $permitStatusFilter,
+                'agreement_type' => $agreementTypeFilter,
+                'valid_from' => $validFromFilter,
+                'valid_to' => $validToFilter,
+              ]);
               $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
             ?>
             <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report">
