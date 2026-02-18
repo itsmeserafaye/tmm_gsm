@@ -189,21 +189,6 @@ if (!empty($_FILES)) {
     if ($ext === '' || !in_array($ext, $allowedExt, true)) continue;
     $tmp = (string)($file['tmp_name'] ?? '');
     if ($tmp === '' || !is_uploaded_file($tmp)) continue;
-    $finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : false;
-    $mime = $finfo ? finfo_file($finfo, $tmp) : null;
-    if ($finfo) finfo_close($finfo);
-    $allowedMime = [
-      'image/jpeg',
-      'image/png',
-      'application/pdf',
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/octet-stream',
-      'application/zip',
-      'text/plain',
-    ];
-    if ($mime && !in_array($mime, $allowedMime, true)) continue;
     $filename = 'reg_' . $docKey . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
     $targetPath = $uploadDir . $filename;
     if (!@move_uploaded_file($tmp, $targetPath)) continue;
