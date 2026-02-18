@@ -9,6 +9,10 @@ tmm_send_export_headers($format, 'franchise_applications');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$basis = trim((string)($_GET['basis'] ?? 'submitted'));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
+$coverage = trim((string)($_GET['coverage'] ?? ''));
 
 $sql = "SELECT fa.application_id,
                fa.franchise_ref_number,
@@ -42,6 +46,24 @@ if ($q !== '') {
 if ($status !== '') {
   $conds[] = "fa.status=?";
   $params[] = $status;
+  $types .= 's';
+}
+if ($coverage === 'route') {
+  $conds[] = "COALESCE(fa.service_area_id,0)=0 AND COALESCE(fa.route_id,0)<>0";
+}
+if ($coverage === 'service_area') {
+  $conds[] = "COALESCE(fa.service_area_id,0)<>0";
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) >= ?";
+  $params[] = $from;
+  $types .= 's';
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) <= ?";
+  $params[] = $to;
   $types .= 's';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);

@@ -25,6 +25,10 @@ $statRevoked = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_application
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$basis = trim((string)($_GET['basis'] ?? 'submitted')); // submitted|endorsed|approved
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
+$coverage = trim((string)($_GET['coverage'] ?? '')); // '', 'route', 'service_area'
 $highlightAppId = (int)($_GET['highlight_application_id'] ?? 0);
 
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
@@ -62,6 +66,24 @@ if ($q !== '') {
 if ($status !== '' && $status !== 'Status') {
   $conds[] = "fa.status=?";
   $params[] = $status;
+  $types .= 's';
+}
+if ($coverage === 'route') {
+  $conds[] = "COALESCE(fa.service_area_id,0)=0 AND COALESCE(fa.route_id,0)<>0";
+}
+if ($coverage === 'service_area') {
+  $conds[] = "COALESCE(fa.service_area_id,0)<>0";
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) >= ?";
+  $params[] = $from;
+  $types .= 's';
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) <= ?";
+  $params[] = $to;
   $types .= 's';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
@@ -274,21 +296,21 @@ if ($rootUrl === '/') $rootUrl = '';
     <?php if (has_permission('reports.export')): ?>
       <?php tmm_render_export_toolbar([
         [
-          'href' => $rootUrl . '/admin/api/module2/export_applications_csv.php?' . http_build_query(['q' => $q, 'status' => $status]),
+          'href' => $rootUrl . '/admin/api/module2/export_applications_csv.php?' . http_build_query(['q' => $q, 'status' => $status, 'basis' => $basis, 'from' => $from, 'to' => $to, 'coverage' => $coverage]),
           'label' => 'CSV',
           'icon' => 'download'
         ],
         [
-          'href' => $rootUrl . '/admin/api/module2/export_applications_csv.php?' . http_build_query(['q' => $q, 'status' => $status, 'format' => 'excel']),
+          'href' => $rootUrl . '/admin/api/module2/export_applications_csv.php?' . http_build_query(['q' => $q, 'status' => $status, 'format' => 'excel', 'basis' => $basis, 'from' => $from, 'to' => $to, 'coverage' => $coverage]),
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ],
         [
-          'href' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status]),
+          'href' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status, 'basis' => $basis, 'from' => $from, 'to' => $to, 'coverage' => $coverage]),
           'label' => 'Print',
           'icon' => 'printer',
           'attrs' => [
-            'data-print-url' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status]),
+            'data-print-url' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status, 'basis' => $basis, 'from' => $from, 'to' => $to, 'coverage' => $coverage]),
             'data-report-name' => 'Franchise Applications Report'
           ]
         ]
@@ -307,6 +329,26 @@ if ($rootUrl === '/') $rootUrl = '';
             <?php foreach (['Pending Review','Returned for Correction','Approved','Active','Rejected','Expired','Revoked'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
+        <div class="relative w-full sm:w-48">
+          <select name="basis" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+            <?php $bb = in_array($basis, ['submitted','endorsed','approved'], true) ? $basis : 'submitted'; ?>
+            <option value="submitted" <?php echo $bb==='submitted'?'selected':''; ?>>Submitted Date</option>
+            <option value="endorsed" <?php echo $bb==='endorsed'?'selected':''; ?>>Endorsed Date</option>
+            <option value="approved" <?php echo $bb==='approved'?'selected':''; ?>>Approved Date</option>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
+        <input name="from" type="date" value="<?php echo htmlspecialchars($from); ?>" class="w-full sm:w-44 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        <input name="to" type="date" value="<?php echo htmlspecialchars($to); ?>" class="w-full sm:w-44 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        <div class="relative w-full sm:w-56">
+          <select name="coverage" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+            <?php $cov = in_array($coverage, ['route','service_area'], true) ? $coverage : ''; ?>
+            <option value="" <?php echo $cov===''?'selected':''; ?>>All Coverage</option>
+            <option value="route" <?php echo $cov==='route'?'selected':''; ?>>Routes</option>
+            <option value="service_area" <?php echo $cov==='service_area'?'selected':''; ?>>Service Areas</option>
           </select>
           <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
         </div>

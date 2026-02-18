@@ -5,6 +5,10 @@ require_any_permission(['module2.read','module2.endorse','module2.approve','repo
 $db = db();
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$basis = trim((string)($_GET['basis'] ?? 'submitted'));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
+$coverage = trim((string)($_GET['coverage'] ?? ''));
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -14,6 +18,7 @@ if ($rootUrl === '/') $rootUrl = '';
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                fa.route_ids, fa.approved_route_ids,
+               fa.service_area_id, fa.route_id,
                fa.vehicle_count, fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id";
@@ -36,6 +41,24 @@ if ($status !== '' && $status !== 'Status') {
     $params[] = $status;
     $types .= 's';
   }
+}
+if ($coverage === 'route') {
+  $conds[] = "COALESCE(fa.service_area_id,0)=0 AND COALESCE(fa.route_id,0)<>0";
+}
+if ($coverage === 'service_area') {
+  $conds[] = "COALESCE(fa.service_area_id,0)<>0";
+}
+if ($from !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $from)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) >= ?";
+  $params[] = $from;
+  $types .= 's';
+}
+if ($to !== '' && preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $to)) {
+  $col = ($basis === 'endorsed') ? 'fa.endorsed_at' : (($basis === 'approved') ? 'fa.approved_at' : 'fa.submitted_at');
+  $conds[] = "DATE($col) <= ?";
+  $params[] = $to;
+  $types .= 's';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY fa.submitted_at DESC LIMIT 1000";
@@ -65,6 +88,13 @@ $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''))
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
 $filterParts = [];
 $filterParts[] = 'Status: ' . (($status !== '' && $status !== 'Status') ? $status : 'All');
+if ($coverage === 'route') $filterParts[] = 'Coverage: Routes';
+elseif ($coverage === 'service_area') $filterParts[] = 'Coverage: Service Areas';
+if ($from !== '') $filterParts[] = 'From: ' . $from;
+if ($to !== '') $filterParts[] = 'To: ' . $to;
+if (in_array($basis, ['submitted','endorsed','approved'], true)) {
+  $filterParts[] = 'Date Basis: ' . ucfirst($basis);
+}
 $filterLabel = 'Filtered: ' . implode('. ', $filterParts) . '.';
 
 function tmm_extract_ids(string $csv): array {

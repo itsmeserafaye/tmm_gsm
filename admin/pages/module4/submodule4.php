@@ -8,6 +8,8 @@ $db = db();
 $scheduleId = (int)($_GET['schedule_id'] ?? 0);
 $q = trim((string)($_GET['q'] ?? ''));
 $resultFilter = trim((string)($_GET['result'] ?? ''));
+$from = trim((string)($_GET['from'] ?? ''));
+$to = trim((string)($_GET['to'] ?? ''));
 
 $schedules = [];
 $resS = $db->query("SELECT schedule_id, plate_number, status, schedule_date, scheduled_at
@@ -31,6 +33,14 @@ if ($q !== '') {
 if ($resultFilter !== '' && in_array($resultFilter, ['Passed','Failed'], true)) {
   $rv = $db->real_escape_string($resultFilter);
   $sqlC .= " AND r.overall_status='$rv'";
+}
+if ($from !== '') {
+  $fv = $db->real_escape_string($from);
+  $sqlC .= " AND DATE(r.submitted_at) >= '$fv'";
+}
+if ($to !== '') {
+  $tv = $db->real_escape_string($to);
+  $sqlC .= " AND DATE(r.submitted_at) <= '$tv'";
 }
 $sqlC .= " ORDER BY r.submitted_at DESC, r.result_id DESC LIMIT 500";
 $resC = $db->query($sqlC);
@@ -82,6 +92,9 @@ if ($rootUrl === '/') $rootUrl = '';
             <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
             <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
           </select>
+          <input type="date" name="from" value="<?php echo htmlspecialchars($from); ?>" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" title="From date">
+          <input type="date" name="to" value="<?php echo htmlspecialchars($to); ?>" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" title="To date">
+          <button class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Apply</button>
           <a href="?page=module4/submodule4" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
         </form>
       </div>
