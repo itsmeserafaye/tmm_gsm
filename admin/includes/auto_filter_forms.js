@@ -28,6 +28,9 @@
   }
 
   function hideSubmitControls(form) {
+    // New behavior: keep submit controls visible by default.
+    // Only hide if the form explicitly opts in via data-tmm-auto-hide-submit="1".
+    if (form.getAttribute('data-tmm-auto-hide-submit') !== '1') return;
     var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];

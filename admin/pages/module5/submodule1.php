@@ -356,6 +356,7 @@ if ($rootUrl === '/') $rootUrl = '';
                       </td>
                     </tr>
                   <?php endif; ?>
+                  <tr>
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
                       <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
                       <?php
@@ -367,24 +368,20 @@ if ($rootUrl === '/') $rootUrl = '';
                         <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
                       </span>
                     </td>
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
+                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">
+                      <?php echo htmlspecialchars((string)($t['location'] ?? '')); ?>
+                    </td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
                       <?php $rc = (int)($t['route_count'] ?? 0); ?>
                       <?php if ($rc > 0): ?>
-                          <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
-                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
-                            class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                            title="View routes">
-                            <i data-lucide="list" class="w-4 h-4"></i>
-                            <span class="sr-only">View routes</span>
-                          </button>
-                        </div>
+                        <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
+                        <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="ml-2 inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="View routes">
+                          <i data-lucide="list" class="w-4 h-4"></i>
+                          <span class="sr-only">View routes</span>
+                        </button>
                       <?php else: ?>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
-                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
-                        </div>
+                        <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
+                        <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="ml-2 text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
                       <?php endif; ?>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
