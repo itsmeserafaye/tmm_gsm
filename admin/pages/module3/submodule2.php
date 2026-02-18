@@ -134,7 +134,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="text-base font-black text-slate-900 dark:text-white">STS Tickets</div>
         <div class="text-sm text-slate-500 dark:text-slate-400">Track payment and closure status.</div>
       </div>
-      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+      <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full sm:w-auto">
       <?php if (has_permission('reports.export')): ?>
         <?php
           $qs = http_build_query(['status' => '', 'from' => '', 'to' => '', 'q' => '']);
@@ -158,8 +158,8 @@ if ($rootUrl === '/') $rootUrl = '';
         </select>
         <input id="filterFrom" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
         <input id="filterTo" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-        <input id="filterQ" class="w-full sm:w-72 px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ticket/plate…">
-        <button id="btnReload" class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
+        <input id="filterQ" class="w-full sm:w-72 min-w-[12rem] px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ticket/plate…">
+        <button id="btnReload" class="w-full sm:w-auto min-w-[7rem] px-4 py-2 rounded-md bg-slate-900 hover:bg-black text-white text-sm font-semibold">Reload</button>
       </div>
     </div>
     <div class="overflow-x-auto">
