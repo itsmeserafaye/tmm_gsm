@@ -927,6 +927,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = btn.getAttribute('data-ov-doc-url') || '';
       const key = btn.getAttribute('data-ov-doc-key') || '';
       if (!url) return;
+      const clean = url.split('#')[0].split('?')[0];
+      const dotIdx = clean.lastIndexOf('.');
+      const ext = dotIdx >= 0 ? clean.slice(dotIdx + 1).toLowerCase() : '';
+      const fileExts = ['pdf','jpg','jpeg','png','csv','xls','xlsx'];
+      if (!ext || fileExts.indexOf(ext) === -1) {
+        window.open(url, '_blank');
+        return;
+      }
       viewerFrame.src = url;
       if (viewerTitle) viewerTitle.textContent = key || 'Document';
       viewer.classList.remove('hidden');
