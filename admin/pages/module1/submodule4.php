@@ -168,6 +168,10 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
         </select>
         <input id="linkReqQ" class="w-full sm:w-56 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate…">
         <button id="btnReloadLinkReq" class="w-full sm:w-auto rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+        <button id="btnPrintLinkReq" class="w-full sm:w-auto rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          Print
+        </button>
       </div>
     </div>
 
@@ -222,6 +226,10 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
         <a href="?page=puv-database/link-vehicle-to-operator" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
         </a>
+        <button id="btnPrintLinkingOverview" type="button" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          Print
+        </button>
       </div>
     </form>
   </div>
@@ -438,6 +446,20 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
     }
 
     if (btnReloadLinkReq) btnReloadLinkReq.addEventListener('click', loadLinkRequests);
+    const btnPrintLinkReq = document.getElementById('btnPrintLinkReq');
+    if (btnPrintLinkReq) {
+      btnPrintLinkReq.addEventListener('click', (e) => {
+        e.preventDefault();
+        const qs = new URLSearchParams();
+        if (linkReqStatus && linkReqStatus.value) qs.set('status', linkReqStatus.value);
+        if (linkReqQ && linkReqQ.value) qs.set('q', linkReqQ.value.trim());
+        const url = rootUrl + '/admin/api/module1/print_vehicle_link_requests.php?' + qs.toString();
+        const fake = document.createElement('a');
+        fake.setAttribute('data-print-url', url);
+        fake.setAttribute('data-report-name', 'Vehicle Link Requests');
+        if (window.tmmPrintLink) window.tmmPrintLink(fake);
+      });
+    }
     if (linkReqStatus) linkReqStatus.addEventListener('change', loadLinkRequests);
     if (linkReqQ) linkReqQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadLinkRequests(); } });
     loadLinkRequests();
@@ -555,5 +577,24 @@ $canLink = has_any_permission(['module1.link_vehicle','module1.write']);
         }
       });
     });
+    const btnPrintLinkingOverview = document.getElementById('btnPrintLinkingOverview');
+    if (btnPrintLinkingOverview) {
+      btnPrintLinkingOverview.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = new URL(window.location.href);
+        const q = url.searchParams.get('q') || '';
+        const type = url.searchParams.get('operator_type') || '';
+        const status = url.searchParams.get('status') || '';
+        const qs = new URLSearchParams();
+        if (q) qs.set('q', q);
+        if (type) qs.set('operator_type', type);
+        if (status) qs.set('status', status);
+        const finalUrl = rootUrl + '/admin/api/module1/print_operator_linking.php?' + qs.toString();
+        const fake = document.createElement('a');
+        fake.setAttribute('data-print-url', finalUrl);
+        fake.setAttribute('data-report-name', 'Vehicle–Operator Linking Overview');
+        if (window.tmmPrintLink) window.tmmPrintLink(fake);
+      });
+    }
   })();
 </script>
