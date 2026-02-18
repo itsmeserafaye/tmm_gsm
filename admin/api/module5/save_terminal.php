@@ -80,6 +80,13 @@ if ($terminalPk > 0) {
     $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, address=?, type=?, capacity=? WHERE id=?");
   }
 } else {
+  // Enforce mandatory permit document on create
+  $uploadErr = $_FILES['permit_file']['error'] ?? UPLOAD_ERR_NO_FILE;
+  if ($uploadErr !== UPLOAD_ERR_OK) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'ok' => false, 'message' => 'Permit/MOA document is required when creating a terminal or parking area.']);
+    exit;
+  }
   if ($hasCity && $hasCategory) {
     $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?, ?)");
   } elseif ($hasCity) {
@@ -127,7 +134,9 @@ try {
   if (isset($_FILES['permit_file']) && is_array($_FILES['permit_file']) && ($_FILES['permit_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
     $ext = strtolower(pathinfo($_FILES['permit_file']['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, ['jpg','jpeg','png','pdf'], true)) {
-      // ignore invalid type silently for now
+      http_response_code(400);
+      echo json_encode(['success' => false, 'ok' => false, 'message' => 'Invalid permit file type. Allowed: PDF, JPG, PNG.']);
+      exit;
     } else {
       $uploads_dir = __DIR__ . '/../../uploads';
       if (!is_dir($uploads_dir)) @mkdir($uploads_dir, 0777, true);
@@ -201,7 +210,11 @@ try {
     }
   }
 } catch (Throwable $e) {
-  // best-effort: ignore upload errors for terminal save
+  if ($terminalPk <= 0) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'ok' => false, 'message' => 'Failed to store permit document.']);
+    exit;
+  }
 }
 echo json_encode(['success' => true, 'ok' => true, 'message' => 'Terminal saved', 'terminal_id' => $terminalId, 'id' => $terminalId]);
 ?>
