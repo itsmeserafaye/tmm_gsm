@@ -534,6 +534,10 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
           '<div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">',
             '<div class="text-lg font-black text-slate-900 dark:text-white">Report Details</div>',
             '<div id="tmm-pm-report" class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400"></div>',
+            '<div class="mt-4">',
+              '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Report Title</label>',
+              '<input id="tmm-pm-rep-title" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+            '</div>',
             '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">',
               '<div>',
                 '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Prepared by Department</label>',
@@ -574,6 +578,8 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         var rep = m.querySelector('#tmm-pm-report');
         if (rep) rep.textContent = (reportTitle || 'Summary Report') + ' • ' + new Date().toLocaleString();
         var v = localStorage;
+        var titleEl = m.querySelector('#tmm-pm-rep-title');
+        if (titleEl) titleEl.value = v.getItem('tmm_rep_title') || reportTitle || 'Summary Report';
         m.querySelector('#tmm-pm-pb-name').value = v.getItem('tmm_pb_name') || '';
         m.querySelector('#tmm-pm-pb-dept').value = v.getItem('tmm_pb_dept') || '';
         m.querySelector('#tmm-pm-rc-name').value = v.getItem('tmm_rc_name') || '';
@@ -590,6 +596,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
       function collect() {
         var m = ensureModal();
         var data = {
+          rep_title: (m.querySelector('#tmm-pm-rep-title').value || '').trim(),
           pb_name: m.querySelector('#tmm-pm-pb-name').value.trim(),
           pb_dept: m.querySelector('#tmm-pm-pb-dept').value.trim(),
           rc_name: m.querySelector('#tmm-pm-rc-name').value.trim(),
@@ -598,6 +605,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
         };
         try {
           var v = localStorage;
+          if (data.rep_title) v.setItem('tmm_rep_title', data.rep_title);
           v.setItem('tmm_pb_name', data.pb_name);
           v.setItem('tmm_pb_dept', data.pb_dept);
           v.setItem('tmm_rc_name', data.rc_name);
@@ -631,7 +639,7 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
             q.set('rc_name', d.rc_name);
             q.set('rc_pos', d.rc_pos);
             q.set('rc_dept', d.rc_dept);
-            q.set('rep_title', reportName);
+            q.set('rep_title', d.rep_title || reportName);
             var final = url.split('?')[0] + '?' + q.toString();
             var w = window.open(final, '_blank');
             try { if (w && w.focus) w.focus(); } catch (e) {}

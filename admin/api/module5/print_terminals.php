@@ -28,7 +28,7 @@ $rc_name = trim((string)($_GET['rc_name'] ?? ''));
 $rc_pos = trim((string)($_GET['rc_pos'] ?? ''));
 $rc_dept = trim((string)($_GET['rc_dept'] ?? ''));
 $rep_title = trim((string)($_GET['rep_title'] ?? 'Terminal List'));
-$office_addr = trim((string)(tmm_get_app_setting('office_address','') ?? ''));
+$office_addr = trim((string)(tmm_get_app_setting('office_address','1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.') ?? '1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.'));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
@@ -83,36 +83,40 @@ $filterLabel = 'Filtered: All.';
                 <?php if ($office_addr !== ''): ?>
                 <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
                 <?php endif; ?>
-                <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
               </div>
             </div>
             <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
           </th>
         </tr>
         <tr>
+          <td colspan="5" style="background:#fff;border:0;padding:6px 0 0 0">
+            <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
+          </td>
+        </tr>
+        <tr>
           <td colspan="5" style="background:#fff;border:0;padding:0">
             <div class="ibox">
               <table>
                 <tr>
-                  <th>Prepared by Department</th>
+                  <th>Prepared by Department:</th>
                   <td><?php echo htmlspecialchars($pb_dept !== '' ? $pb_dept : '-'); ?></td>
-                  <th>Report</th>
+                  <th>Report:</th>
                   <td><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Summary Report'); ?></td>
                 </tr>
                 <tr>
-                  <th>Name</th>
+                  <th>Name:</th>
                   <td><?php echo htmlspecialchars($pb_name !== '' ? $pb_name : '-'); ?></td>
-                  <th>Date & Time</th>
+                  <th>Date & Time:</th>
                   <td><?php echo htmlspecialchars($now); ?></td>
                 </tr>
                 <tr>
-                  <th>Recipient Name</th>
+                  <th>Recipient Name:</th>
                   <td><?php echo htmlspecialchars($rc_name !== '' ? $rc_name : '-'); ?></td>
-                  <th>Position</th>
+                  <th>Position:</th>
                   <td><?php echo htmlspecialchars($rc_pos !== '' ? $rc_pos : '-'); ?></td>
                 </tr>
                 <tr>
-                  <th>Department</th>
+                  <th>Department:</th>
                   <td colspan="3"><?php echo htmlspecialchars($rc_dept !== '' ? $rc_dept : '-'); ?></td>
                 </tr>
               </table>
