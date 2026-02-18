@@ -38,8 +38,6 @@ $vehicle_count = (int)($_POST['vehicle_count'] ?? 0);
 $representative_name = trim((string)($_POST['representative_name'] ?? ''));
 $assisted = (int)($_POST['assisted'] ?? 0) === 1;
 
-$hasUpload = isset($_FILES['declared_fleet_doc']) && is_array($_FILES['declared_fleet_doc']);
-
 if ($operator_id <= 0 || $route_id <= 0 || $vehicle_count <= 0) {
     if ($operator_id <= 0 || $vehicle_count <= 0) {
         echo json_encode(['ok' => false, 'error' => 'missing_required_fields']);
@@ -78,7 +76,11 @@ try {
     }
 
     $isTricycle = tmm_is_tricycle_like($vehicle_type);
-    if ($isTricycle) $vehicle_type = 'Tricycle';
+    if (!$isTricycle) {
+        echo json_encode(['ok' => false, 'error' => 'tricycle_only']);
+        exit;
+    }
+    $vehicle_type = 'Tricycle';
     if ($isTricycle) {
         if ($service_area_id <= 0) { echo json_encode(['ok' => false, 'error' => 'missing_required_fields']); exit; }
         $stmtA = $db->prepare("SELECT id, status, COALESCE(authorized_units,0) AS authorized_units FROM tricycle_service_areas WHERE id=? LIMIT 1");
@@ -87,8 +89,14 @@ try {
         $stmtA->execute();
         $area = $stmtA->get_result()->fetch_assoc();
         $stmtA->close();
-        if (!$area) { echo json_encode(['ok' => false, 'error' => 'service_area_not_found']); exit; }
-        if (($area['status'] ?? '') !== 'Active') { echo json_encode(['ok' => false, 'error' => 'service_area_inactive']); exit; }
+        if (!$area) {
+            echo json_encode(['ok' => false, 'error' => 'Service area / TODA zone not found. Please select a valid area.']);
+            exit;
+        }
+        if (($area['status'] ?? '') !== 'Active') {
+            echo json_encode(['ok' => false, 'error' => 'Selected service area / TODA zone is not active. Please choose another area.']);
+            exit;
+        }
 
         $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
                                FROM franchise_applications
@@ -102,7 +110,14 @@ try {
             $limit = (int)($area['authorized_units'] ?? 0);
             $used = (int)($u['used_units'] ?? 0);
             $remaining = max(0, $limit - $used);
-            if ($limit > 0 && $vehicle_count > $remaining) { echo json_encode(['ok' => false, 'error' => 'capacity_exceeded']); exit; }
+            if ($limit > 0 && $vehicle_count > $remaining) {
+                echo json_encode([
+                    'ok' => false,
+                    'error' => 'Requested number of units exceeds available slots in this service area.',
+                    'remaining_slots' => $remaining,
+                ]);
+                exit;
+            }
         }
         $route_id = 0;
     } else {
@@ -224,87 +239,6 @@ try {
 if ($execOk) {
     try {
         $app_id = $db->insert_id;
-        if ($hasUpload) {
-            $f = $_FILES['declared_fleet_doc'];
-            $err = (int)($f['error'] ?? UPLOAD_ERR_NO_FILE);
-            if ($err !== UPLOAD_ERR_NO_FILE) {
-                if ($err !== UPLOAD_ERR_OK) throw new Exception('declared_fleet_upload_error');
-                $tmp = (string)($f['tmp_name'] ?? '');
-                $orig = (string)($f['name'] ?? '');
-                if ($tmp === '' || $orig === '' || !is_uploaded_file($tmp)) throw new Exception('declared_fleet_invalid_file');
-
-                $allowedExt = ['pdf','xlsx','xls','csv'];
-                $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-                if ($ext === '' || !in_array($ext, $allowedExt, true)) throw new Exception('declared_fleet_invalid_type');
-
-                $uploadDir = __DIR__ . '/../../uploads/franchise/';
-                if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
-                $filename = 'APP' . $app_id . '_declared_fleet_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                $dest = $uploadDir . $filename;
-                if (!move_uploaded_file($tmp, $dest)) throw new Exception('declared_fleet_upload_failed');
-
-                $safe = tmm_scan_file_for_viruses($dest);
-                if (!$safe) {
-                    if (is_file($dest)) @unlink($dest);
-                    throw new Exception('declared_fleet_failed_scan');
-                }
-
-                $dbPath = 'franchise/' . $filename;
-                $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?)");
-                if (!$ins) {
-                    if (is_file($dest)) @unlink($dest);
-                    throw new Exception('db_prepare_failed');
-                }
-                $ins->bind_param('si', $dbPath, $app_id);
-                if (!$ins->execute()) {
-                    $ins->close();
-                    if (is_file($dest)) @unlink($dest);
-                    throw new Exception('db_error');
-                }
-                $ins->close();
-            }
-        }
-
-        $already = false;
-        $chkFleet = $db->prepare("SELECT 1 FROM documents WHERE application_id=? AND type='Declared Fleet' LIMIT 1");
-        if ($chkFleet) {
-            $chkFleet->bind_param('i', $app_id);
-            $chkFleet->execute();
-            $already = (bool)$chkFleet->get_result()->fetch_row();
-            $chkFleet->close();
-        }
-        if (!$already && (!$hasUpload || (int)(($_FILES['declared_fleet_doc']['error'] ?? UPLOAD_ERR_NO_FILE)) === UPLOAD_ERR_NO_FILE)) {
-            $stmtFleet = $db->prepare("SELECT file_path, doc_status, is_verified, remarks
-                                       FROM operator_documents
-                                       WHERE operator_id=?
-                                         AND doc_type='Others'
-                                         AND (doc_status='Verified' OR is_verified=1)
-                                         AND LOWER(COALESCE(remarks,'')) LIKE '%declared fleet%'
-                                       ORDER BY uploaded_at DESC, doc_id DESC
-                                       LIMIT 1");
-            if ($stmtFleet) {
-                $stmtFleet->bind_param('i', $operator_id);
-                $stmtFleet->execute();
-                $rowFleet = $stmtFleet->get_result()->fetch_assoc();
-                $stmtFleet->close();
-                $fp = $rowFleet ? trim((string)($rowFleet['file_path'] ?? '')) : '';
-                if ($fp !== '') {
-                    $hasVerifiedCol = false;
-                    $col = $db->query("SHOW COLUMNS FROM documents LIKE 'verified'");
-                    if ($col && $col->num_rows > 0) $hasVerifiedCol = true;
-                    if ($hasVerifiedCol) {
-                        $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id, verified) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?, 1)");
-                    } else {
-                        $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'admin', ?)");
-                    }
-                    if ($ins) {
-                        $ins->bind_param('si', $fp, $app_id);
-                        $ins->execute();
-                        $ins->close();
-                    }
-                }
-            }
-        }
 
         $db->commit();
         tmm_audit_event($db, 'FRANCHISE_APPLICATION_SUBMITTED', 'FranchiseApplication', (string)$app_id, ['channel' => $submittedChannel, 'operator_id' => $operator_id, 'route_id' => $route_id, 'vehicle_count' => $vehicle_count]);

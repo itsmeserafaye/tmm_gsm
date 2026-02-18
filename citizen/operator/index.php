@@ -432,11 +432,11 @@ $typesList = vehicle_types();
                                         <div class="mt-2 text-[11px] text-slate-500">Requested units can be adjusted during LTFRB approval.</div>
                                     </div>
                                     <div class="space-y-2">
-                                        <label class="block text-sm font-semibold text-slate-700">Requested Route</label>
+                                        <label class="block text-sm font-semibold text-slate-700">Service Area / TODA Zone</label>
                                         <div class="relative">
-                                            <select name="route_id" id="franchiseRouteSelect" required
+                                            <select name="service_area_id" id="franchiseRouteSelect" required
                                                 class="w-full pl-4 pr-10 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition appearance-none text-sm font-semibold">
-                                                <option value="">Loading routes…</option>
+                                                <option value="">Loading service areas…</option>
                                             </select>
                                             <div class="absolute right-3 top-3.5 pointer-events-none text-slate-400">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,13 +452,6 @@ $typesList = vehicle_types();
                                     <input type="text" name="representative_name" maxlength="150"
                                         class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold"
                                         placeholder="Authorized representative">
-                                </div>
-
-                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                                    <div class="text-xs font-bold text-slate-500 uppercase">Declared Fleet (optional)</div>
-                                    <div class="mt-2 text-xs text-slate-500">If you already generated Declared Fleet in this portal, you can skip upload.</div>
-                                    <input type="file" name="declared_fleet_doc" accept=".pdf,.xlsx,.xls,.csv"
-                                        class="mt-3 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary-light file:text-primary hover:file:bg-orange-200">
                                 </div>
 
                                 <div class="flex justify-end pt-2">
@@ -3244,8 +3237,8 @@ $typesList = vehicle_types();
                 return;
             }
             const rows = Array.isArray(data.data) ? data.data : [];
+            const src = data && data.meta && data.meta.source ? String(data.meta.source) : '';
             if (!rows.length) {
-                const src = data && data.meta && data.meta.source ? String(data.meta.source) : '';
                 sel.innerHTML = `<option value="">No routes found${src ? (' (' + escapeHtml(src) + ')') : ''}</option>`;
                 franchiseRoutesLoaded = false;
                 return;
@@ -3255,7 +3248,15 @@ $typesList = vehicle_types();
                 const code = String(r.route_code || '');
                 const name = String(r.route_name || '');
                 const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
-                const label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
+                let label = [code, name].filter(Boolean).join(' • ') + (od ? (' • ' + od) : '');
+                if (src === 'tricycle_service_areas') {
+                    const limit = Number(r.authorized_units || 0);
+                    const remRaw = (r.remaining_slots !== undefined && r.remaining_slots !== null) ? Number(r.remaining_slots) : null;
+                    if (Number.isFinite(limit) && limit > 0) {
+                        const rem = (remRaw !== null && Number.isFinite(remRaw)) ? remRaw : limit;
+                        label += ` • ${rem} slot${rem === 1 ? '' : 's'} remaining`;
+                    }
+                }
                 return `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`;
             }).join('');
             franchiseRoutesLoaded = true;

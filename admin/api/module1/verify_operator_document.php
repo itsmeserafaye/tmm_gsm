@@ -103,26 +103,27 @@ if ($stmtO) {
 $opType = (string) (($op['operator_type'] ?? '') ?: 'Individual');
 $opStatus = (string) ($op['verification_status'] ?? '');
 $wfStatus = (string) ($op['workflow_status'] ?? 'Draft');
-if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
+  if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   $slots = [];
   if ($opType === 'Cooperative') {
     $slots = [
       ['doc_type' => 'CDA', 'label' => 'CDA Registration Certificate', 'keywords' => ['registration']],
       ['doc_type' => 'CDA', 'label' => 'CDA Certificate of Good Standing', 'keywords' => ['good standing', 'good_standing', 'standing']],
       ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
-      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
     ];
   } elseif ($opType === 'Corporation') {
     $slots = [
       ['doc_type' => 'SEC', 'label' => 'SEC Certificate of Registration', 'keywords' => ['certificate', 'registration']],
       ['doc_type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation']],
       ['doc_type' => 'Others', 'label' => 'Board Resolution', 'keywords' => ['board resolution', 'resolution']],
-      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
     ];
   } else {
     $slots = [
       ['doc_type' => 'GovID', 'label' => 'Valid Government ID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
-      ['doc_type' => 'Others', 'label' => 'Declared Fleet', 'keywords' => ['declared fleet', 'fleet']],
+      ['doc_type' => 'BarangayCert', 'label' => 'Barangay Clearance', 'keywords' => ['barangay clearance', 'barangay']],
+      ['doc_type' => 'BarangayCert', 'label' => 'Proof of Residency', 'keywords' => ['proof of residency', 'residency', 'address']],
+      ['doc_type' => 'Others', 'label' => 'Police Clearance', 'keywords' => ['police clearance', 'police'], 'optional' => true],
+      ['doc_type' => 'Others', 'label' => 'Application form', 'keywords' => ['application form', 'application']],
     ];
   }
 
@@ -169,9 +170,8 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   for ($i = 0; $i < count($slots); $i++) {
     if ($slotPresent[$i]) continue;
     $s = $slots[$i];
-    $kw = (array)($s['keywords'] ?? []);
-    $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
-    if (in_array('declared fleet', $kwLower, true)) continue;
+    $isOptional = !empty($s['optional']);
+    if ($isOptional) continue;
     foreach ($docs as $drow) {
       $did = (int)($drow['doc_id'] ?? 0);
       if ($did <= 0 || isset($used[$did])) continue;
@@ -201,9 +201,8 @@ if ($opStatus !== 'Inactive' && $wfStatus !== 'Inactive') {
   for ($i = 0; $i < count($slots); $i++) {
     if ($slotOk[$i]) continue;
     $s = $slots[$i];
-    $kw = (array)($s['keywords'] ?? []);
-    $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
-    if (in_array('declared fleet', $kwLower, true)) continue;
+    $isOptional = !empty($s['optional']);
+    if ($isOptional) continue;
     foreach ($docs as $drow) {
       $did = (int)($drow['doc_id'] ?? 0);
       if ($did <= 0 || isset($used[$did])) continue;

@@ -100,7 +100,7 @@ if ($params) {
 function tmm_required_doc_list(string $operatorType): array {
   if ($operatorType === 'Cooperative') return ['CDA Registration', 'CDA Good Standing', 'Board Resolution'];
   if ($operatorType === 'Corporation') return ['SEC Registration', 'Articles/By-laws', 'Board Resolution'];
-  return ['Government ID'];
+  return ['Government ID', 'Barangay Clearance', 'Proof of Residency', 'Police Clearance (optional)', 'Application form'];
 }
 
 function tmm_extract_gov_id_kind(?string $remarks): string {
@@ -487,12 +487,12 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
         Individual: {
           required: [
             { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
+            { name: 'barangay_clearance', docType: 'BarangayCert', label: 'Barangay Clearance', hint: 'Issued by barangay of residence' },
+            { name: 'proof_residency', docType: 'BarangayCert', label: 'Proof of Residency', hint: 'Certificate or equivalent proof of address' },
+            { name: 'application_form', docType: 'Others', label: 'Application form', hint: 'Signed tricycle franchise application form' },
           ],
           optional: [
-            { name: 'proof_address', docType: 'BarangayCert', label: 'Proof of Address', hint: 'Barangay Clearance or Utility Bill' },
-            { name: 'nbi_clearance', docType: 'Others', label: 'NBI Clearance', hint: '' },
-            { name: 'authorization_letter', docType: 'Others', label: 'Authorization Letter', hint: 'If represented' },
+            { name: 'police_clearance', docType: 'Others', label: 'Police Clearance (optional)', hint: 'Recommended but not required' },
           ],
         },
         Cooperative: {
@@ -500,7 +500,6 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             { name: 'cda_registration', docType: 'CDA', label: 'CDA Registration Certificate', hint: '' },
             { name: 'cda_good_standing', docType: 'CDA', label: 'CDA Certificate of Good Standing', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing application + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
           ],
           optional: [
             { name: 'members_list', docType: 'Others', label: 'List of Members', hint: '' },
@@ -512,7 +511,6 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
             { name: 'sec_certificate', docType: 'SEC', label: 'SEC Certificate of Registration', hint: '' },
             { name: 'corp_articles_bylaws', docType: 'SEC', label: 'Articles of Incorporation / By-laws', hint: '' },
             { name: 'board_resolution', docType: 'Others', label: 'Board Resolution', hint: 'Authorizing operation + naming representative' },
-            { name: 'declared_fleet', docType: 'Others', label: 'Declared Fleet (Planned / Owned Vehicles)', hint: 'Upload PDF/Excel/CSV (planned/owned vehicles)' },
           ],
           optional: [
             { name: 'mayors_permit', docType: 'Others', label: "Mayor’s Permit", hint: '' },
@@ -524,7 +522,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
       function findFieldDoc(f) {
         const label = (f && f.label) ? String(f.label).trim() : '';
         const want = label.toLowerCase();
-        const wantAlt = (f && f.name === 'declared_fleet') ? 'declared fleet' : want;
+        const wantAlt = want;
         return (rows || []).find((d) => {
           const rem = (d && d.remarks) ? String(d.remarks) : '';
           const head = rem.split('|')[0].trim().toLowerCase();

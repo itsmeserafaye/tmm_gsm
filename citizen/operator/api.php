@@ -1876,51 +1876,93 @@ if ($action === 'puv_create_transfer_request') {
 if ($action === 'puv_list_routes') {
   session_write_close();
   $rows = [];
-  
+  $source = null;
+
   try {
-      $source = null;
-      $res = null;
+    if (op_table_exists($db, 'tricycle_service_areas')) {
+      $source = 'tricycle_service_areas';
+      $sql = "SELECT sa.id,
+                     sa.area_code,
+                     sa.area_name,
+                     sa.barangay,
+                     COALESCE(sap.points, '') AS points,
+                     COALESCE(sa.authorized_units,0) AS authorized_units,
+                     COALESCE(used.used_units,0) AS used_units
+              FROM tricycle_service_areas sa
+              LEFT JOIN (
+                SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+                FROM tricycle_service_area_points
+                GROUP BY area_id
+              ) sap ON sap.area_id=sa.id
+              LEFT JOIN (
+                SELECT service_area_id, COALESCE(SUM(vehicle_count),0) AS used_units
+                FROM franchise_applications
+                WHERE COALESCE(vehicle_type,'')='Tricycle'
+                  AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+                GROUP BY service_area_id
+              ) used ON used.service_area_id=sa.id
+              WHERE COALESCE(TRIM(sa.status),'')='' OR LOWER(TRIM(COALESCE(sa.status,'')))='active'
+              ORDER BY sa.area_name ASC
+              LIMIT 800";
+      $res = $db->query($sql);
+    } elseif (op_table_exists($db, 'routes')) {
+      $source = 'routes';
+      $res = $db->query("SELECT * FROM routes WHERE COALESCE(TRIM(status),'')='' OR LOWER(TRIM(COALESCE(status,'')))='active' LIMIT 800");
+    } elseif (op_table_exists($db, 'lptrp_routes')) {
+      $source = 'lptrp_routes';
+      $res = $db->query("SELECT * FROM lptrp_routes LIMIT 800");
+    } else {
+      op_send(true, ['data' => []]);
+    }
 
-      if (op_table_exists($db, 'routes')) {
-          $source = 'routes';
-          $res = $db->query("SELECT * FROM routes WHERE COALESCE(TRIM(status),'')='' OR LOWER(TRIM(COALESCE(status,'')))='active' LIMIT 800");
-      } else if (op_table_exists($db, 'lptrp_routes')) {
-          $source = 'lptrp_routes';
-          $res = $db->query("SELECT * FROM lptrp_routes LIMIT 800");
-      } else {
-          op_send(true, ['data' => []]);
+    if (isset($res) && $res) {
+      while ($r = $res->fetch_assoc()) {
+        $id = (int)($r['id'] ?? 0);
+        if ($id <= 0) continue;
+
+        if ($source === 'tricycle_service_areas') {
+          $code = (string)($r['area_code'] ?? '');
+          $name = (string)($r['area_name'] ?? '');
+          $barangay = (string)($r['barangay'] ?? '');
+          $points = (string)($r['points'] ?? '');
+          $origin = $points !== '' ? $points : $barangay;
+          $limit = (int)($r['authorized_units'] ?? 0);
+          $used = (int)($r['used_units'] ?? 0);
+          $remaining = $limit > 0 ? max(0, $limit - $used) : null;
+          $rows[] = [
+            'route_id' => $id,
+            'route_code' => $code !== '' ? $code : (string)$id,
+            'route_name' => $name,
+            'origin' => $origin,
+            'destination' => '',
+            'authorized_units' => $limit,
+            'remaining_slots' => $remaining,
+          ];
+        } else {
+          $routeIdText = (string)($r['route_id'] ?? '');
+          $routeCode = (string)($r['route_code'] ?? '');
+          $routeName = (string)($r['route_name'] ?? '');
+          $displayCode = $routeCode !== '' ? $routeCode : $routeIdText;
+          $rows[] = [
+            'route_id' => $id,
+            'route_code' => $displayCode,
+            'route_name' => $routeName,
+            'origin' => (string)($r['origin'] ?? ''),
+            'destination' => (string)($r['destination'] ?? ''),
+          ];
+        }
       }
 
-      if ($res) {
-          while ($r = $res->fetch_assoc()) {
-              $id = (int)($r['id'] ?? 0);
-              if ($id <= 0) continue;
-
-              $routeIdText = (string)($r['route_id'] ?? '');
-              $routeCode = (string)($r['route_code'] ?? '');
-              $routeName = (string)($r['route_name'] ?? '');
-
-              $displayCode = $routeCode !== '' ? $routeCode : $routeIdText;
-
-              $rows[] = [
-                  'route_id' => $id,
-                  'route_code' => $displayCode,
-                  'route_name' => $routeName,
-                  'origin' => (string)($r['origin'] ?? ''),
-                  'destination' => (string)($r['destination'] ?? ''),
-              ];
-          }
-
-          usort($rows, function ($a, $b) {
-              $nameA = $a['route_name'] ?: $a['route_code'];
-              $nameB = $b['route_name'] ?: $b['route_code'];
-              return strnatcasecmp($nameA, $nameB);
-          });
-      }
+      usort($rows, function ($a, $b) {
+        $nameA = $a['route_name'] ?: $a['route_code'];
+        $nameB = $b['route_name'] ?: $b['route_code'];
+        return strnatcasecmp($nameA, $nameB);
+      });
+    }
   } catch (Throwable $e) {
-      op_send(true, ['data' => [], 'error' => 'Backend error']);
+    op_send(true, ['data' => [], 'error' => 'Backend error']);
   }
-  
+
   op_send(true, ['data' => $rows, 'meta' => ['source' => $source, 'count' => count($rows)]]);
 }
 
@@ -1939,14 +1981,24 @@ if ($action === 'puv_list_franchise_applications') {
 
   $rows = [];
   try {
-    $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id, fa.route_id, fa.vehicle_count, fa.approved_vehicle_count,
+    $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
+                                 fa.route_id, fa.service_area_id, fa.vehicle_type,
+                                 fa.vehicle_count, fa.approved_vehicle_count,
                                  fa.representative_name, fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at,
-                                 COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code, r.origin, r.destination,
+                                 COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
+                                 COALESCE(r.origin, sap.points, '') AS origin,
+                                 COALESCE(r.destination, '') AS destination,
                                  er.endorsement_status, er.conditions, er.permit_number, er.issued_date,
                                  fr.ltfrb_ref_no, fr.authority_type, fr.issue_date, fr.expiry_date,
                                  (SELECT COUNT(*) FROM documents d2 WHERE d2.application_id=fa.application_id AND LOWER(COALESCE(d2.type,''))='declared fleet' AND COALESCE(NULLIF(d2.file_path,''),'')<>'') AS declared_fleet_count
                           FROM franchise_applications fa
                           LEFT JOIN routes r ON r.id=fa.route_id
+                          LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+                          LEFT JOIN (
+                            SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+                            FROM tricycle_service_area_points
+                            GROUP BY area_id
+                          ) sap ON sap.area_id=sa.id
                           LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
                           LEFT JOIN franchises fr ON fr.application_id=fa.application_id
                           WHERE fa.operator_id=?
@@ -2011,12 +2063,21 @@ if ($action === 'puv_get_franchise_application') {
   $appId = (int)($_GET['application_id'] ?? 0);
   if ($appId <= 0) op_send(false, ['error' => 'invalid_application_id'], 400);
 
-  $stmt = $db->prepare("SELECT fa.*, 
-                               COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code, r.route_name, r.origin, r.destination,
+  $stmt = $db->prepare("SELECT fa.*,
+                               COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
+                               COALESCE(r.route_name, sa.area_name) AS route_name,
+                               COALESCE(r.origin, sap.points, '') AS origin,
+                               COALESCE(r.destination, '') AS destination,
                                er.endorsement_status, er.conditions, er.permit_number, er.issued_date,
                                fr.ltfrb_ref_no, fr.decision_order_no, fr.authority_type, fr.issue_date, fr.expiry_date, fr.status AS franchise_status
                         FROM franchise_applications fa
                         LEFT JOIN routes r ON r.id=fa.route_id
+                        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+                        LEFT JOIN (
+                          SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+                          FROM tricycle_service_area_points
+                          GROUP BY area_id
+                        ) sap ON sap.area_id=sa.id
                         LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
                         LEFT JOIN franchises fr ON fr.application_id=fa.application_id
                         WHERE fa.application_id=? AND fa.operator_id=?
@@ -2086,10 +2147,12 @@ if ($action === 'puv_submit_franchise_application') {
     }
   }
 
-  $routeId = (int)($_POST['route_id'] ?? 0);
+  $serviceAreaId = isset($_POST['service_area_id'])
+    ? (int)($_POST['service_area_id'] ?? 0)
+    : (int)($_POST['route_id'] ?? 0);
   $vehicleCount = (int)($_POST['vehicle_count'] ?? 0);
   $repName = trim((string)($_POST['representative_name'] ?? ''));
-  if ($routeId <= 0 || $vehicleCount <= 0) op_send(false, ['error' => 'Missing required fields.'], 400);
+  if ($serviceAreaId <= 0 || $vehicleCount <= 0) op_send(false, ['error' => 'Missing required fields.'], 400);
   if ($vehicleCount > 500) $vehicleCount = 500;
   $repName = substr($repName, 0, 150);
 
@@ -2098,89 +2161,58 @@ if ($action === 'puv_submit_franchise_application') {
   if ($submittedBy === '') $submittedBy = 'Operator';
   $email = strtolower(trim((string)($u['email'] ?? '')));
 
-  $stmtR = $db->prepare("SELECT id, status FROM routes WHERE id=? LIMIT 1");
-  if (!$stmtR) op_send(false, ['error' => 'db_prepare_failed'], 500);
-  $stmtR->bind_param('i', $routeId);
-  $stmtR->execute();
-  $route = $stmtR->get_result()->fetch_assoc();
-  $stmtR->close();
-  if (!$route) op_send(false, ['error' => 'route_not_found'], 404);
-  if ((string)($route['status'] ?? '') !== 'Active') op_send(false, ['error' => 'route_inactive'], 400);
+  if (!op_table_exists($db, 'tricycle_service_areas')) {
+    op_send(false, ['error' => 'service_areas_not_configured'], 400);
+  }
+
+  $stmtA = $db->prepare("SELECT id, status, COALESCE(authorized_units,0) AS authorized_units FROM tricycle_service_areas WHERE id=? LIMIT 1");
+  if (!$stmtA) op_send(false, ['error' => 'db_prepare_failed'], 500);
+  $stmtA->bind_param('i', $serviceAreaId);
+  $stmtA->execute();
+  $area = $stmtA->get_result()->fetch_assoc();
+  $stmtA->close();
+  if (!$area) op_send(false, ['error' => 'service_area_not_found'], 404);
+  if ((string)($area['status'] ?? '') !== 'Active') {
+    op_send(false, ['error' => 'Selected service area / TODA zone is not active. Please choose another area.'], 400);
+  }
+
+  $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+                         FROM franchise_applications
+                         WHERE service_area_id=? AND COALESCE(vehicle_type,'')='Tricycle'
+                           AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+  if ($stmtU) {
+    $stmtU->bind_param('i', $serviceAreaId);
+    $stmtU->execute();
+    $uRow = $stmtU->get_result()->fetch_assoc();
+    $stmtU->close();
+    $limit = (int)($area['authorized_units'] ?? 0);
+    $used = (int)($uRow['used_units'] ?? 0);
+    $remaining = max(0, $limit - $used);
+    if ($limit > 0 && $vehicleCount > $remaining) {
+      op_send(false, ['error' => 'Requested number of units exceeds available slots in this service area.', 'meta' => ['remaining_slots' => $remaining]], 400);
+    }
+  }
 
   $franchiseRef = 'APP-' . date('Ymd') . '-' . substr(uniqid(), -6);
-  $routeIdsVal = (string)$routeId;
-
-  $uploadsDir = __DIR__ . '/../../admin/uploads/franchise/';
-  if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0777, true);
-
-  $hasUpload = isset($_FILES['declared_fleet_doc']) && is_array($_FILES['declared_fleet_doc']) && (int)($_FILES['declared_fleet_doc']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
+  $routeIdsVal = 'AREA:' . (string)$serviceAreaId;
 
   $db->begin_transaction();
   try {
+    $vehicleType = 'Tricycle';
+    $routeIdBind = 0;
+    $areaIdBind = $serviceAreaId;
+
     $stmt = $db->prepare("INSERT INTO franchise_applications
-                          (franchise_ref_number, operator_id, route_id, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_portal_user_id, submitted_by_name, submitted_channel)
-                          VALUES (?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, 'operator_portal')");
+                          (franchise_ref_number, operator_id, route_id, service_area_id, vehicle_type, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_portal_user_id, submitted_by_name, submitted_channel)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, 'operator_portal')");
     if (!$stmt) throw new Exception('db_prepare_failed');
-    $stmt->bind_param('siisisiss', $franchiseRef, $operatorId, $routeId, $routeIdsVal, $vehicleCount, $repName, $userId, $submittedBy);
+    $stmt->bind_param('siiissisiss', $franchiseRef, $operatorId, $routeIdBind, $areaIdBind, $vehicleType, $routeIdsVal, $vehicleCount, $repName, $userId, $submittedBy);
     if (!$stmt->execute()) throw new Exception('insert_failed');
     $appId = (int)$db->insert_id;
     $stmt->close();
 
-    if ($hasUpload) {
-      $f = $_FILES['declared_fleet_doc'];
-      $tmp = (string)($f['tmp_name'] ?? '');
-      $orig = (string)($f['name'] ?? '');
-      if ($tmp === '' || $orig === '' || !is_uploaded_file($tmp)) throw new Exception('declared_fleet_invalid_file');
-      $allowedExt = ['pdf','xlsx','xls','csv'];
-      $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-      if ($ext === '' || !in_array($ext, $allowedExt, true)) throw new Exception('declared_fleet_invalid_type');
-      $filename = 'APP' . $appId . '_declared_fleet_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-      $dest = $uploadsDir . $filename;
-      if (!move_uploaded_file($tmp, $dest)) throw new Exception('declared_fleet_upload_failed');
-      $safe = tmm_scan_file_for_viruses($dest);
-      if (!$safe) {
-        if (is_file($dest)) @unlink($dest);
-        throw new Exception('declared_fleet_failed_scan');
-      }
-      $dbPath = 'franchise/' . $filename;
-      $ins = $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?)");
-      if (!$ins) { if (is_file($dest)) @unlink($dest); throw new Exception('db_prepare_failed'); }
-      $ins->bind_param('si', $dbPath, $appId);
-      if (!$ins->execute()) { $ins->close(); if (is_file($dest)) @unlink($dest); throw new Exception('db_error'); }
-      $ins->close();
-    } else {
-      $stmtFleet = $db->prepare("SELECT file_path
-                                 FROM operator_documents
-                                 WHERE operator_id=?
-                                   AND doc_type='Others'
-                                   AND (doc_status='Verified' OR is_verified=1)
-                                   AND LOWER(COALESCE(remarks,'')) LIKE '%declared fleet%'
-                                 ORDER BY uploaded_at DESC, doc_id DESC
-                                 LIMIT 1");
-      if ($stmtFleet) {
-        $stmtFleet->bind_param('i', $operatorId);
-        $stmtFleet->execute();
-        $rowFleet = $stmtFleet->get_result()->fetch_assoc();
-        $stmtFleet->close();
-        $fp = $rowFleet ? trim((string)($rowFleet['file_path'] ?? '')) : '';
-        if ($fp !== '') {
-          $hasVerifiedCol = false;
-          $col = $db->query("SHOW COLUMNS FROM documents LIKE 'verified'");
-          if ($col && $col->num_rows > 0) $hasVerifiedCol = true;
-          $ins = $hasVerifiedCol
-            ? $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id, verified) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?, 1)")
-            : $db->prepare("INSERT INTO documents (plate_number, type, file_path, uploaded_by, application_id) VALUES (NULL, 'Declared Fleet', ?, 'operator_portal', ?)");
-          if ($ins) {
-            $ins->bind_param('si', $fp, $appId);
-            $ins->execute();
-            $ins->close();
-          }
-        }
-      }
-    }
-
     $db->commit();
-    op_audit_event($db, $userId, $email, 'PUV_FRANCHISE_SUBMITTED', 'FranchiseApplication', (string)$appId, ['route_id' => $routeId, 'vehicle_count' => $vehicleCount]);
+    op_audit_event($db, $userId, $email, 'PUV_FRANCHISE_SUBMITTED', 'FranchiseApplication', (string)$appId, ['service_area_id' => $serviceAreaId, 'vehicle_type' => $vehicleType, 'vehicle_count' => $vehicleCount]);
     op_send(true, ['message' => 'Franchise application submitted for admin review.', 'data' => ['application_id' => $appId, 'franchise_ref_number' => $franchiseRef]]);
   } catch (Throwable $e) {
     $db->rollback();
