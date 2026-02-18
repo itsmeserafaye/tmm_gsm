@@ -406,7 +406,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <input type="hidden" name="assisted" value="1">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type (Required)</label>
                 <select name="operator_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option>Individual</option>
                   <option>Cooperative</option>
@@ -414,7 +414,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 </select>
               </div>
               <div class="sm:col-span-2">
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name (Required)</label>
                 <input name="name" required minlength="3" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Juan Dela Cruz / ABC Cooperative / XYZ Transport Corp">
               </div>
             </div>
