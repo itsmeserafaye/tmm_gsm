@@ -682,17 +682,6 @@ function ovBadge(status) {
   return 'bg-amber-100 text-amber-700';
 }
 
-function ovDocHref(filePath) {
-  const fp = (filePath || '').toString().trim();
-  if (!fp) return '';
-  if (/^https?:\/\//i.test(fp)) return fp;
-  if (fp.startsWith('/')) return fp;
-  const root = (window.TMM_ROOT_URL || '');
-  if (fp.startsWith('gsm_login/')) return root + '/' + fp.replace(/^\/+/, '');
-  if (fp.startsWith('uploads/')) return root + '/gsm_login/' + fp.replace(/^\/+/, '');
-  return root + '/gsm_login/' + fp.replace(/^\/+/, '');
-}
-
 async function ovFetchList() {
   const tbody = document.getElementById('ov-table-body');
   if (!tbody) return;
@@ -812,7 +801,9 @@ async function ovOpenModal(userId) {
     const d = map[k] || null;
     const st = d ? (d.status || 'Pending') : 'Missing';
     const badge = st === 'Valid' ? 'bg-emerald-100 text-emerald-700' : (st === 'Invalid' ? 'bg-rose-100 text-rose-700' : (st === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'));
-    const href = d && d.file_path ? ovDocHref(d.file_path) : '';
+    const href = d && d.file_path
+      ? ((window.TMM_ROOT_URL || '') + '/admin/api/users/operator_doc.php?user_id=' + encodeURIComponent(String(userId)) + '&doc_key=' + encodeURIComponent(String(k)))
+      : '';
     const remarksLine = (d && d.remarks) ? ('<div class="mt-1 text-xs text-rose-700 font-semibold">' + ovEscape(d.remarks) + '</div>') : '';
     return `
       <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
@@ -927,14 +918,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = btn.getAttribute('data-ov-doc-url') || '';
       const key = btn.getAttribute('data-ov-doc-key') || '';
       if (!url) return;
-      const clean = url.split('#')[0].split('?')[0];
-      const dotIdx = clean.lastIndexOf('.');
-      const ext = dotIdx >= 0 ? clean.slice(dotIdx + 1).toLowerCase() : '';
-      const fileExts = ['pdf','jpg','jpeg','png','csv','xls','xlsx'];
-      if (!ext || fileExts.indexOf(ext) === -1) {
-        window.open(url, '_blank');
-        return;
-      }
       viewerFrame.src = url;
       if (viewerTitle) viewerTitle.textContent = key || 'Document';
       viewer.classList.remove('hidden');
