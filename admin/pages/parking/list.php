@@ -8,6 +8,12 @@ $db = db();
 $canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
+$ownerFilter = trim((string)($_GET['owner'] ?? ''));
+$operatorFilter = trim((string)($_GET['operator'] ?? ''));
+$permitStatusFilter = trim((string)($_GET['permit_status'] ?? ''));
+$agreementTypeFilter = trim((string)($_GET['agreement_type'] ?? ''));
+$validFromFilter = trim((string)($_GET['valid_from'] ?? ''));
+$validToFilter = trim((string)($_GET['valid_to'] ?? ''));
 
 $statParkingAreas = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Free' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
@@ -50,6 +56,12 @@ if ($qFilter !== '') {
   $like = '%' . $qFilter . '%';
   $params = [$like, $like, $like];
 }
+if ($ownerFilter !== '' && $ownerCol !== '') { $where .= " AND COALESCE(t.$ownerCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $ownerFilter . '%'; }
+if ($operatorFilter !== '' && $operatorCol !== '') { $where .= " AND COALESCE(t.$operatorCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $operatorFilter . '%'; }
+if ($permitStatusFilter !== '' && $permStatusCol !== '') { $where .= " AND (SELECT p.$permStatusCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?"; $types .= 's'; $params[] = '%' . $permitStatusFilter . '%'; }
+if ($agreementTypeFilter !== '' && $permTypeCol !== '') { $where .= " AND (SELECT p.$permTypeCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?"; $types .= 's'; $params[] = '%' . $agreementTypeFilter . '%'; }
+if ($validFromFilter !== '' && ($permExpiryCol !== '' || $permIssueCol !== '')) { $vc = $permExpiryCol !== '' ? $permExpiryCol : $permIssueCol; $where .= " AND (SELECT p.$vc FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) >= ?"; $types .= 's'; $params[] = $validFromFilter; }
+if ($validToFilter !== '' && ($permIssueCol !== '' || $permExpiryCol !== '')) { $vc2 = $permIssueCol !== '' ? $permIssueCol : $permExpiryCol; $where .= " AND (SELECT p.$vc2 FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) <= ?"; $types .= 's'; $params[] = $validToFilter; }
 $sql = "SELECT t.id, t.name, t.location, t.address, t.capacity,
                $ownerExpr AS owner_name,
                $operatorExpr AS operator_name,
@@ -148,6 +160,43 @@ if ($rootUrl === '/') $rootUrl = '';
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
             <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 120">
           </div>
+          <div class="md:col-span-6">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner</label>
+            <input name="owner" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Private / Mall">
+          </div>
+          <div class="md:col-span-6">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
+            <input name="operator" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Mall Management">
+          </div>
+          <div class="md:col-span-12 grid grid-cols-4 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Agreement Type</label>
+              <select name="agreement_type" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+                <option value="MOA">MOA</option>
+                <option value="Permit">Permit</option>
+                <option value="Lease">Lease</option>
+                <option value="Authorization">Authorization</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Status</label>
+              <select name="permit_status" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Expired">Expired</option>
+                <option value="Revoked">Revoked</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid From</label>
+              <input name="valid_from" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid To</label>
+              <input name="valid_to" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+            </div>
+          </div>
           <div class="md:col-span-12">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
             <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" required class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
@@ -164,12 +213,36 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
       <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <input type="hidden" name="page" value="parking/list">
-        <div class="md:col-span-8">
+        <div class="md:col-span-4">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
           <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
             <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Parking name / location / address">
           </div>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner</label>
+          <input name="owner" value="<?php echo htmlspecialchars($ownerFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
+          <input name="operator" value="<?php echo htmlspecialchars($operatorFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+          <input name="permit_status" value="<?php echo htmlspecialchars($permitStatusFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Agreement</label>
+          <input name="agreement_type" value="<?php echo htmlspecialchars($agreementTypeFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Valid From</label>
+          <input name="valid_from" type="date" value="<?php echo htmlspecialchars($validFromFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Valid To</label>
+          <input name="valid_to" type="date" value="<?php echo htmlspecialchars($validToFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
         </div>
         <div class="md:col-span-4 flex items-center gap-2">
           <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
