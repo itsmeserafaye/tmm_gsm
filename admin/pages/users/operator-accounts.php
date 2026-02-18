@@ -682,6 +682,17 @@ function ovBadge(status) {
   return 'bg-amber-100 text-amber-700';
 }
 
+function ovDocHref(filePath) {
+  const fp = (filePath || '').toString().trim();
+  if (!fp) return '';
+  if (/^https?:\/\//i.test(fp)) return fp;
+  if (fp.startsWith('/')) return fp;
+  const root = (window.TMM_ROOT_URL || '');
+  if (fp.startsWith('gsm_login/')) return root + '/' + fp.replace(/^\/+/, '');
+  if (fp.startsWith('uploads/')) return root + '/gsm_login/' + fp.replace(/^\/+/, '');
+  return root + '/gsm_login/' + fp.replace(/^\/+/, '');
+}
+
 async function ovFetchList() {
   const tbody = document.getElementById('ov-table-body');
   if (!tbody) return;
@@ -786,7 +797,6 @@ async function ovOpenModal(userId) {
 
   const required = Array.isArray(data.required_doc_keys) ? data.required_doc_keys : [];
   const list = Array.isArray(data.documents) ? data.documents : [];
-  const root = (window.TMM_ROOT_URL || '');
   const map = {};
   list.forEach(d => { map[String(d.doc_key || '')] = d; });
   const keys = [];
@@ -802,7 +812,7 @@ async function ovOpenModal(userId) {
     const d = map[k] || null;
     const st = d ? (d.status || 'Pending') : 'Missing';
     const badge = st === 'Valid' ? 'bg-emerald-100 text-emerald-700' : (st === 'Invalid' ? 'bg-rose-100 text-rose-700' : (st === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'));
-    const href = d && d.file_path ? (root + '/citizen/operator/' + String(d.file_path).replace(/^\/+/, '')) : '';
+    const href = d && d.file_path ? ovDocHref(d.file_path) : '';
     const remarksLine = (d && d.remarks) ? ('<div class="mt-1 text-xs text-rose-700 font-semibold">' + ovEscape(d.remarks) + '</div>') : '';
     return `
       <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30">
