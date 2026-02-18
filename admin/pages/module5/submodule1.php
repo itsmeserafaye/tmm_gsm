@@ -74,6 +74,20 @@ $termHasCity = isset($termCols['city']);
 $termHasAddress = isset($termCols['address']);
 $termHasCategory = isset($termCols['category']);
 
+$qFilter = trim((string)($_GET['q'] ?? ''));
+$cityFilter = trim((string)($_GET['city'] ?? ''));
+$catFilter = trim((string)($_GET['category'] ?? ''));
+$cities = [];
+$categories = [];
+if ($termHasCity) {
+  $resCities = $db->query("SELECT DISTINCT TRIM(COALESCE(city,'')) AS city FROM terminals WHERE type <> 'Parking' AND COALESCE(city,'') <> '' ORDER BY city ASC LIMIT 200");
+  if ($resCities) while ($r = $resCities->fetch_assoc()) { $c = trim((string)($r['city'] ?? '')); if ($c !== '') $cities[] = $c; }
+}
+if ($termHasCategory) {
+  $resCats = $db->query("SELECT DISTINCT TRIM(COALESCE(category,'')) AS category FROM terminals WHERE type <> 'Parking' AND COALESCE(category,'') <> '' ORDER BY category ASC LIMIT 200");
+  if ($resCats) while ($r = $resCats->fetch_assoc()) { $c = trim((string)($r['category'] ?? '')); if ($c !== '') $categories[] = $c; }
+}
+
 $assignCountByTerminalId = [];
 $assignCountByTerminalName = [];
 if ($taTerminalIdCol !== '') {
@@ -187,6 +201,12 @@ if ($rootUrl === '/') $rootUrl = '';
           <?php
             $exportItems = [];
             if (has_permission('reports.export')) {
+              $qs = http_build_query([
+                'q' => $qFilter,
+                'city' => $cityFilter,
+                'category' => $catFilter,
+                'type' => 'Terminal'
+              ]);
               $exportItems[] = [
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php',
                 'label' => 'CSV',
@@ -198,11 +218,11 @@ if ($rootUrl === '/') $rootUrl = '';
                 'icon' => 'file-spreadsheet'
               ];
               $exportItems[] = [
-                'href' => $rootUrl . '/admin/api/module5/print_terminals.php',
+                'href' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
                 'label' => 'Print',
                 'icon' => 'printer',
                 'attrs' => [
-                  'data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php',
+                  'data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
                   'data-report-name' => 'Terminal List Report'
                 ]
               ];
@@ -215,6 +235,35 @@ if ($rootUrl === '/') $rootUrl = '';
             ];
             if ($exportItems) tmm_render_export_toolbar($exportItems, ['mb' => 'mb-0']);
           ?>
+          <form method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <input type="hidden" name="page" value="module5/submodule1">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+              <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location / category">
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
+              <select name="city" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" <?php echo $cityFilter === '' ? 'selected' : ''; ?>>All</option>
+                <?php foreach ($cities as $c): ?>
+                  <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $cityFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Category</label>
+              <select name="category" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" <?php echo $catFilter === '' ? 'selected' : ''; ?>>All</option>
+                <?php foreach ($categories as $c): ?>
+                  <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $catFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="sm:col-span-4 flex items-center justify-end">
+              <button class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Update Print Filters</button>
+              <a href="?page=module5/submodule1" class="ml-2 px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">Reset</a>
+            </div>
+          </form>
           <div id="modalImportTerminals" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
             <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">

@@ -1,8 +1,9 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module5.manage_terminal','reports.export']);
+require_any_permission(['module5.read','module5.manage_terminal','module5.parking_fees','reports.export']);
 $db = db();
+
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -12,41 +13,48 @@ if ($rootUrl === '/') $rootUrl = '';
 $type = trim((string)($_GET['type'] ?? 'Terminal'));
 $type = $type === 'Parking' ? 'Parking' : 'Terminal';
 $q = trim((string)($_GET['q'] ?? ''));
-$city = trim((string)($_GET['city'] ?? ''));
-$cat = trim((string)($_GET['category'] ?? ''));
-$where = $type === 'Parking' ? "t.type='Parking'" : "t.type <> 'Parking'";
+$limit = (int)($_GET['limit'] ?? 500);
+if ($limit <= 0) $limit = 500;
+if ($limit > 1000) $limit = 1000;
+
+$where = $type === 'Parking' ? "t.type='Parking'" : "t.type<>'Parking'";
 $params = [];
 $types = '';
 if ($q !== '') {
   $qLike = '%' . $q . '%';
-  $where .= " AND (t.name LIKE ? OR COALESCE(t.location,'') LIKE ? OR COALESCE(t.city,'') LIKE ? OR COALESCE(t.category,'') LIKE ?)";
-  $types .= 'ssss';
-  $params[] = $qLike; $params[] = $qLike; $params[] = $qLike; $params[] = $qLike;
+  $where .= " AND (t.name LIKE ? OR COALESCE(t.category,'') LIKE ? OR COALESCE(t.city,'') LIKE ?)";
+  $types .= 'sss';
+  $params[] = $qLike;
+  $params[] = $qLike;
+  $params[] = $qLike;
 }
-if ($city !== '') {
-  $where .= " AND COALESCE(t.city,'') = ?";
-  $types .= 's';
-  $params[] = $city;
-}
-if ($cat !== '') {
-  $where .= " AND COALESCE(t.category,'') = ?";
-  $types .= 's';
-  $params[] = $cat;
-}
-$sql = "SELECT t.id, t.name, t.location, t.address, t.capacity, t.category,
-               COUNT(DISTINCT tr.route_id) AS route_count
+
+$sql = "SELECT
+          t.id,
+          t.name,
+          COALESCE(t.capacity,0) AS capacity,
+          COALESCE(t.category,'') AS category,
+          COALESCE(t.city,'') AS city,
+          SUM(CASE WHEN ps.status='Occupied' THEN 1 ELSE 0 END) AS occupied_slots,
+          SUM(CASE WHEN ps.status='Free' THEN 1 ELSE 0 END) AS free_slots,
+          COUNT(ps.slot_id) AS total_slots,
+          (SELECT COUNT(*) FROM terminal_queue tq WHERE tq.terminal_id=t.id AND tq.status='Queued') AS queue_len,
+          (SELECT COUNT(*) FROM terminal_queue tq WHERE tq.terminal_id=t.id AND tq.status='Queued' AND tq.priority='Priority') AS queue_priority_len
         FROM terminals t
-        LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
-        WHERE $where
-        GROUP BY t.id, t.name, t.location, t.address, t.capacity, t.category
-        ORDER BY t.name ASC LIMIT 1000";
-$res = null;
+        LEFT JOIN parking_slots ps ON ps.terminal_id=t.id
+        WHERE {$where}
+        GROUP BY t.id
+        ORDER BY t.name ASC
+        LIMIT {$limit}";
+
 if ($types !== '') {
   $stmt = $db->prepare($sql);
   if ($stmt) {
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $res = $stmt->get_result();
+  } else {
+    $res = false;
   }
 } else {
   $res = $db->query($sql);
@@ -61,7 +69,7 @@ $pb_dept = trim((string)($_GET['pb_dept'] ?? ''));
 $rc_name = trim((string)($_GET['rc_name'] ?? ''));
 $rc_pos = trim((string)($_GET['rc_pos'] ?? ''));
 $rc_dept = trim((string)($_GET['rc_dept'] ?? ''));
-$rep_title = trim((string)($_GET['rep_title'] ?? ($type === 'Parking' ? 'Parking Areas' : 'Terminal List')));
+$rep_title = trim((string)($_GET['rep_title'] ?? ($type === 'Parking' ? 'Parking Occupancy' : 'Terminal Occupancy')));
 $office_addr = trim((string)(tmm_get_app_setting('office_address','1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.') ?? '1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.'));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
@@ -69,15 +77,13 @@ $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph
 $filterParts = [];
 $filterParts[] = 'Type: ' . $type;
 if ($q !== '') $filterParts[] = 'Search: ' . $q;
-if ($city !== '') $filterParts[] = 'City: ' . $city;
-if ($cat !== '') $filterParts[] = 'Category: ' . $cat;
 $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' : 'All.');
 ?>
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Terminal List</title>
+  <title><?php echo htmlspecialchars($rep_title); ?></title>
   <style>
     *{box-sizing:border-box}
     :root{--footer-height:18mm}
@@ -107,33 +113,31 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
       .wrap{padding:0 12mm calc(var(--footer-height) + 4mm) 12mm}
     }
   </style>
-</head>
+  </head>
 <body>
   <div class="wrap">
     <table>
       <thead>
         <tr>
-          <th colspan="5" style="background:#fff;border:0;padding:0">
+          <th colspan="7" style="background:#fff;border:0;padding:0">
             <div class="rhead">
               <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
               <div class="rtitle">
                 <div class="title">Transport & Mobility Management</div>
-                <div class="sub"><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Terminal List'); ?></div>
-                <?php if ($office_addr !== ''): ?>
-                <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
-                <?php endif; ?>
+                <div class="sub"><?php echo htmlspecialchars($rep_title); ?></div>
+                <?php if ($office_addr !== ''): ?><div class="addr"><?php echo htmlspecialchars($office_addr); ?></div><?php endif; ?>
               </div>
             </div>
             <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
           </th>
         </tr>
         <tr>
-          <td colspan="5" style="background:#fff;border:0;padding:6px 0 0 0">
+          <td colspan="7" style="background:#fff;border:0;padding:6px 0 0 0">
             <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
           </td>
         </tr>
         <tr>
-          <td colspan="5" style="background:#fff;border:0;padding:0">
+          <td colspan="7" style="background:#fff;border:0;padding:0">
             <div class="ibox">
               <table>
                 <tr>
@@ -164,25 +168,39 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
         </tr>
         <tr>
           <th style="width:28%">Name</th>
-          <th style="width:24%">Location</th>
-          <th style="width:18%">Routes</th>
-          <th style="width:14%">Capacity</th>
-          <th style="width:16%">Address</th>
+          <th style="width:12%">Capacity</th>
+          <th style="width:12%">Occupied</th>
+          <th style="width:12%">Free</th>
+          <th style="width:14%">Congestion</th>
+          <th style="width:10%">Queue</th>
+          <th style="width:12%">Priority</th>
         </tr>
       </thead>
       <tbody>
         <?php if ($res && $res->num_rows > 0): ?>
-          <?php while ($t = $res->fetch_assoc()): ?>
+          <?php while ($r = $res->fetch_assoc()):
+            $cap = (int)($r['capacity'] ?? 0);
+            $occ = (int)($r['occupied_slots'] ?? 0);
+            $total = (int)($r['total_slots'] ?? 0);
+            $effective = $total > 0 ? $total : ($cap > 0 ? $cap : 0);
+            if ($cap > $effective) $effective = $cap;
+            $free = $effective > 0 ? max(0, $effective - $occ) : (int)($r['free_slots'] ?? 0);
+            $pct = $effective > 0 ? round(($occ / $effective) * 100, 1) : 0.0;
+            $ql = (int)($r['queue_len'] ?? 0);
+            $qp = (int)($r['queue_priority_len'] ?? 0);
+          ?>
             <tr>
-              <td><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-              <td><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-              <td><?php echo (int)($t['route_count'] ?? 0); ?></td>
-              <td><?php echo (int)($t['capacity'] ?? 0); ?></td>
-              <td><?php echo htmlspecialchars((string)($t['address'] ?? '')); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['name'] ?? '')); ?></td>
+              <td><?php echo $effective; ?></td>
+              <td><?php echo $occ; ?></td>
+              <td><?php echo $free; ?></td>
+              <td><?php echo number_format($pct, 1); ?>%</td>
+              <td><?php echo $ql; ?></td>
+              <td><?php echo $qp; ?></td>
             </tr>
           <?php endwhile; ?>
         <?php else: ?>
-          <tr><td colspan="5" class="py-6 text-center text-slate-500">No terminals found.</td></tr>
+          <tr><td colspan="7" class="py-6 text-center text-slate-500">No data.</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
@@ -206,3 +224,4 @@ $filterLabel = 'Filtered: ' . ($filterParts ? implode('. ', $filterParts) . '.' 
   </script>
 </body>
 </html>
+

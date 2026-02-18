@@ -12,9 +12,13 @@ $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 $termName = '';
+$termType = '';
 if ($terminalId > 0) {
-  $r = $db->query("SELECT name FROM terminals WHERE id=".(int)$terminalId." LIMIT 1");
-  if ($r && ($x = $r->fetch_assoc())) $termName = (string)($x['name'] ?? '');
+  $r = $db->query("SELECT name, type FROM terminals WHERE id=".(int)$terminalId." LIMIT 1");
+  if ($r && ($x = $r->fetch_assoc())) {
+    $termName = (string)($x['name'] ?? '');
+    $termType = trim((string)($x['type'] ?? ''));
+  }
 }
 $res = null;
 if ($tab === 'slots') {
@@ -37,13 +41,14 @@ $pb_dept = trim((string)($_GET['pb_dept'] ?? ''));
 $rc_name = trim((string)($_GET['rc_name'] ?? ''));
 $rc_pos = trim((string)($_GET['rc_pos'] ?? ''));
 $rc_dept = trim((string)($_GET['rc_dept'] ?? ''));
-$rep_title = trim((string)($_GET['rep_title'] ?? ($tab === 'payments' ? 'Parking Payments' : 'Parking Slots')));
+$isParking = (strcasecmp($termType, 'Parking') === 0);
+$rep_title = trim((string)($_GET['rep_title'] ?? ($tab === 'payments' ? ($isParking ? 'Parking Payments' : 'Terminal Payments') : ($isParking ? 'Parking Slots' : 'Terminal Slots'))));
 $office_addr = trim((string)(tmm_get_app_setting('office_address','1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.') ?? '1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.'));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
 $filterParts = [];
-$filterParts[] = 'Terminal: ' . ($termName !== '' ? $termName : ('ID ' . (int)$terminalId));
+$filterParts[] = ($isParking ? 'Parking' : 'Terminal') . ': ' . ($termName !== '' ? $termName : ('ID ' . (int)$terminalId));
 $filterLabel = 'Filtered: ' . implode('. ', $filterParts) . '.';
 ?>
 <!doctype html>

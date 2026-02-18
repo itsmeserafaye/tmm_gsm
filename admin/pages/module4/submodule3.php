@@ -9,6 +9,8 @@ $prefillVehicleId = (int)($_GET['vehicle_id'] ?? 0);
 $reinspectOf = (int)($_GET['reinspect_of'] ?? 0);
 $scheduleId = (int)($_GET['schedule_id'] ?? 0);
 $q = trim((string)($_GET['q'] ?? ''));
+$month = (int)($_GET['month'] ?? 0);
+$year = (int)($_GET['year'] ?? 0);
 
 $hasCol = function (string $table, string $col) use ($db): bool {
   $t = $db->real_escape_string($table);
@@ -122,6 +124,12 @@ if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $sqlL .= " AND s.plate_number LIKE '%$qv%'";
 }
+if ($year > 0) {
+  $sqlL .= " AND YEAR(COALESCE(s.schedule_date, s.scheduled_at))=" . (int)$year;
+}
+if ($month > 0 && $month <= 12) {
+  $sqlL .= " AND MONTH(COALESCE(s.schedule_date, s.scheduled_at))=" . (int)$month;
+}
 if ($listStatus !== '') {
   $sv = $db->real_escape_string($listStatus);
   $sqlL .= " AND s.status='$sv'";
@@ -147,6 +155,12 @@ $sqlO = "SELECT " . implode(", ", $sqlOCols) . " FROM inspection_schedules s
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $sqlO .= " AND s.plate_number LIKE '%$qv%'";
+}
+if ($year > 0) {
+  $sqlO .= " AND YEAR(COALESCE(s.overdue_marked_at, s.schedule_date, s.scheduled_at))=" . (int)$year;
+}
+if ($month > 0 && $month <= 12) {
+  $sqlO .= " AND MONTH(COALESCE(s.overdue_marked_at, s.schedule_date, s.scheduled_at))=" . (int)$month;
 }
 $sqlO .= " ORDER BY COALESCE(s.overdue_marked_at, s.schedule_date, s.scheduled_at) DESC LIMIT 200";
 $resO = $db->query($sqlO);
@@ -196,6 +210,8 @@ if ($rootUrl === '/') $rootUrl = '';
             $qs = http_build_query([
               'q' => $q,
               'list_status' => $listStatus,
+              'month' => $month,
+              'year' => $year,
             ]);
             tmm_render_export_toolbar([[
               'href' => $rootUrl . '/admin/api/module4/print_inspection_schedules.php?' . $qs,
@@ -217,6 +233,18 @@ if ($rootUrl === '/') $rootUrl = '';
             <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
               <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
             <?php endforeach; ?>
+          </select>
+          <select name="month" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="0" <?php echo $month===0?'selected':''; ?>>All Months</option>
+            <?php for ($m=1; $m<=12; $m++): ?>
+              <option value="<?php echo $m; ?>" <?php echo $month===$m?'selected':''; ?>><?php echo date('F', mktime(0,0,0,$m,1)); ?></option>
+            <?php endfor; ?>
+          </select>
+          <select name="year" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <?php $cy = (int)date('Y'); for ($y=$cy+1; $y>=($cy-5); $y--): ?>
+              <option value="<?php echo $y; ?>" <?php echo $year===$y?'selected':''; ?>><?php echo $y; ?></option>
+            <?php endfor; ?>
+            <option value="0" <?php echo $year===0?'selected':''; ?>>All Years</option>
           </select>
           <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Apply</button>
           <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>

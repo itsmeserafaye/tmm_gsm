@@ -23,14 +23,40 @@ if ($rootUrl === '/') $rootUrl = '';
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 flex items-center justify-between gap-3">
-      <div class="relative max-w-sm group w-full">
-        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-        <input id="routeSearch" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search route name/code/origin/destination...">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div class="relative max-w-sm group w-full">
+          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+          <input id="routeSearch" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search route name/code/origin/destination...">
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="filterKind" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">
+            <option value="">All</option>
+            <option value="route">Routes</option>
+            <option value="service_area">Service Areas</option>
+          </select>
+          <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            <input id="filterRemaining" type="checkbox" class="rounded border-slate-300 dark:border-slate-600"> Remaining only
+          </label>
+          <button id="btnRefreshRoutes" type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
+            Refresh
+          </button>
+        </div>
       </div>
-      <button id="btnRefreshRoutes" type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-        Refresh
-      </button>
+      <?php if (has_permission('reports.export')): ?>
+        <?php
+          $qsBase = http_build_query([]);
+          tmm_render_export_toolbar([[
+            'href' => $rootUrl . '/admin/api/module2/print_route_assignments.php',
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'id' => 'btnPrintRoutes',
+              'data-report-name' => 'Route Assignment Report'
+            ]
+          ]], ['mb' => 'mb-0']);
+        ?>
+      <?php endif; ?>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
@@ -135,6 +161,9 @@ if ($rootUrl === '/') $rootUrl = '';
     const routesBody = document.getElementById('routesBody');
     const routeSearch = document.getElementById('routeSearch');
     const btnRefreshRoutes = document.getElementById('btnRefreshRoutes');
+    const filterKind = document.getElementById('filterKind');
+    const filterRemaining = document.getElementById('filterRemaining');
+    const btnPrintRoutes = document.getElementById('btnPrintRoutes');
 
     let allRoutes = [];
     function renderRoutes(rows) {
@@ -188,11 +217,19 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function applyFilter() {
       const q = (routeSearch && routeSearch.value || '').toString().trim().toLowerCase();
+      const k = (filterKind && filterKind.value || '').toString();
+      const remainOnly = !!(filterRemaining && filterRemaining.checked);
       const rows = allRoutes.filter(r => {
         const hay = [
           r.route_code, r.route_id, r.route_name, r.origin, r.destination
         ].map(v => (v || '').toString().toLowerCase()).join(' ');
-        return !q || hay.indexOf(q) !== -1;
+        if (q && hay.indexOf(q) === -1) return false;
+        if (k && (r.kind || '') !== k) return false;
+        if (remainOnly) {
+          const remaining = Number(r.remaining_units || 0);
+          if (!(remaining > 0)) return false;
+        }
+        return true;
       });
       renderRoutes(rows);
     }
@@ -234,6 +271,8 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (routeSearch) routeSearch.addEventListener('input', () => applyFilter());
+    if (filterKind) filterKind.addEventListener('change', () => applyFilter());
+    if (filterRemaining) filterRemaining.addEventListener('change', () => applyFilter());
     if (btnRefreshRoutes) btnRefreshRoutes.addEventListener('click', () => loadRoutes());
 
     const routeModal = document.getElementById('routeModal');
@@ -335,6 +374,25 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (btnRefreshAssigned) btnRefreshAssigned.addEventListener('click', () => { if (activeRouteId) loadAssigned(activeRouteId).catch(() => {}); });
+
+    function buildPrintUrl() {
+      const qs = new URLSearchParams();
+      const q = (routeSearch && routeSearch.value || '').toString().trim();
+      const k = (filterKind && filterKind.value || '').toString();
+      const remain = !!(filterRemaining && filterRemaining.checked);
+      if (q) qs.set('q', q);
+      if (k) qs.set('kind', k);
+      if (remain) qs.set('remaining_only', '1');
+      return rootUrl + '/admin/api/module2/print_route_assignments.php' + (qs.toString() ? ('?' + qs.toString()) : '');
+    }
+    if (btnPrintRoutes) {
+      btnPrintRoutes.addEventListener('click', function(e){
+        e.preventDefault();
+        const url = buildPrintUrl();
+        if (window.tmmPrintLink) window.tmmPrintLink({ getAttribute: () => url });
+        else window.open(url, '_blank');
+      });
+    }
 
     loadRoutes().catch(() => {});
   })();

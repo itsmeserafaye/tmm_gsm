@@ -82,6 +82,15 @@ if ($rootUrl === '/') $rootUrl = '';
             'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'excel']),
             'label' => 'Excel',
             'icon' => 'file-spreadsheet'
+          ],
+          [
+            'href' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'data-print-url' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+              'data-report-name' => 'Terminal Slots & Payments Report'
+            ]
           ]
         ], ['mb' => 'mb-0']); ?>
       <?php endif; ?>

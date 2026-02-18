@@ -46,6 +46,21 @@ if ($rootUrl === '/') $rootUrl = '';
           </select>
         </div>
       </div>
+      <?php if (has_permission('reports.export')): ?>
+        <?php
+          $items = [[
+            'href' => $rootUrl . '/admin/api/module5/print_occupancy.php',
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'id' => 'btnPrintOps',
+              'data-print-url' => $rootUrl . '/admin/api/module5/print_occupancy.php',
+              'data-report-name' => 'Operations Dashboard Report'
+            ]
+          ]];
+          tmm_render_export_toolbar($items, ['mb' => 'mb-0', 'label' => 'Report']);
+        ?>
+      <?php endif; ?>
  
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
@@ -105,6 +120,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const kpiOcc = document.getElementById('kpiOcc');
     const kpiFree = document.getElementById('kpiFree');
     const kpiQueue = document.getElementById('kpiQueue');
+    const btnPrint = document.getElementById('btnPrintOps');
  
     let timer = null;
     let inflight = null;
@@ -185,6 +201,12 @@ if ($rootUrl === '/') $rootUrl = '';
     if (btnRefresh) btnRefresh.addEventListener('click', load);
     if (q) q.addEventListener('input', () => { load(); });
     if (type) type.addEventListener('change', () => { load(); });
+    if (btnPrint) btnPrint.addEventListener('click', () => {
+      const qs = new URLSearchParams();
+      qs.set('type', (type && type.value) ? type.value : 'Terminal');
+      if (q && q.value.trim() !== '') qs.set('q', q.value.trim());
+      btnPrint.setAttribute('data-print-url', rootUrl + '/admin/api/module5/print_occupancy.php?' + qs.toString());
+    }, { capture: true });
     load();
     schedule();
   })();
