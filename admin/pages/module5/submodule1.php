@@ -519,6 +519,8 @@ if ($rootUrl === '/') $rootUrl = '';
                           'address' => (string)($t['address'] ?? ''),
                           'capacity' => (int)($t['capacity'] ?? 0),
                           'category' => (string)($t['category'] ?? ''),
+                          'owner' => (string)($t['owner_name'] ?? ''),
+                          'operator' => (string)($t['operator_name'] ?? ''),
                         ];
                       ?>
                       <div class="inline-flex items-center justify-end gap-1">
@@ -764,6 +766,14 @@ if ($rootUrl === '/') $rootUrl = '';
             <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
           </div>
           <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner</label>
+            <input name="owner" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LGU / Private Corp">
+          </div>
+          <div class="md:col-span-4">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
+            <input name="operator" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LGU / Company Name">
+          </div>
+          <div class="md:col-span-4">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
             <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select</option>
@@ -786,6 +796,35 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="md:col-span-8">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
+            <div class="grid grid-cols-2 gap-4 mb-2">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Agreement Type</label>
+                <select name="agreement_type" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+                  <option value="MOA">MOA (Memorandum of Agreement)</option>
+                  <option value="Permit">Permit / License</option>
+                  <option value="Lease">Lease Agreement</option>
+                  <option value="Authorization">Authority to Operate</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Status</label>
+                <select name="permit_status" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Revoked">Revoked</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid From</label>
+                <input name="valid_from" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid To</label>
+                <input name="valid_to" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
+              </div>
+            </div>
             <input id="terminalPermitFile" name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
             <div id="terminalPermitHelp" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required on create to ensure legal compliance.</div>
           </div>
@@ -924,6 +963,8 @@ if ($rootUrl === '/') $rootUrl = '';
       set('location', t.location || '');
       set('address', t.address || '');
       set('capacity', (t.capacity !== null && t.capacity !== undefined) ? t.capacity : 0);
+      set('owner', t.owner || '');
+      set('operator', t.operator || '');
       const pf = document.getElementById('terminalPermitFile');
       const help = document.getElementById('terminalPermitHelp');
       if (pf) pf.required = false;
