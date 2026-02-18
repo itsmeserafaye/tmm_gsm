@@ -237,20 +237,39 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="font-black text-slate-900 dark:text-white">Payments History</div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-            <select id="payFilterExported" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="" selected>All</option>
-              <option value="pending">Pending</option>
-              <option value="exported">Exported</option>
-            </select>
-            <input id="payFilterFrom" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <input id="payFilterTo" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <input id="payFilterQ" class="w-full sm:w-64 px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / OR / slot">
-            <button type="button" id="btnRefreshPayments" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-              Refresh
-            </button>
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+          <div class="flex items-center justify-between mb-4">
+            <div class="font-black text-slate-900 dark:text-white">Payments History</div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select id="payFilterExported" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" selected>All</option>
+                <option value="pending">Pending</option>
+                <option value="exported">Exported</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From</label>
+              <input id="payFilterFrom" type="date" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To</label>
+              <input id="payFilterTo" type="date" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input id="payFilterQ" class="w-full pl-9 pr-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / OR / slot">
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <button type="button" id="btnRefreshPayments" class="w-full px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
         <div class="overflow-x-auto">

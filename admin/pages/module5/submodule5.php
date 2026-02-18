@@ -33,34 +33,30 @@ if ($rootUrl === '/') $rootUrl = '';
  
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="sm:col-span-2">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4">
+        <div class="md:col-span-5">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-          <input id="opsQ" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search terminal/category/city">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input id="opsQ" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search terminal/category/city">
+          </div>
         </div>
-        <div>
+        <div class="md:col-span-4">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Type</label>
           <select id="opsType" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             <option value="Terminal" selected>Terminal</option>
             <option value="Parking">Parking</option>
           </select>
         </div>
+        <div class="md:col-span-3">
+          <?php if (has_permission('reports.export')): ?>
+            <button type="button" id="btnPrintOps" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors shadow-sm" data-print-url="<?php echo htmlspecialchars($rootUrl . '/admin/api/module5/print_occupancy.php'); ?>" data-report-name="Operations Dashboard Report">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              Print Report
+            </button>
+          <?php endif; ?>
+        </div>
       </div>
-      <?php if (has_permission('reports.export')): ?>
-        <?php
-          $items = [[
-            'href' => $rootUrl . '/admin/api/module5/print_occupancy.php',
-            'label' => 'Print',
-            'icon' => 'printer',
-            'attrs' => [
-              'id' => 'btnPrintOps',
-              'data-print-url' => $rootUrl . '/admin/api/module5/print_occupancy.php',
-              'data-report-name' => 'Operations Dashboard Report'
-            ]
-          ]];
-          tmm_render_export_toolbar($items, ['mb' => 'mb-0', 'label' => 'Report']);
-        ?>
-      <?php endif; ?>
  
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4">
