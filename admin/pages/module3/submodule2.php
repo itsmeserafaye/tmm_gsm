@@ -58,27 +58,37 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
           <form id="formCreateStsTicket" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
             <div class="md:col-span-4 space-y-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Ticket No.</label>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Ticket No.
+                </label>
                 <input name="sts_ticket_no" required minlength="3" maxlength="64" pattern="^(?:[0-9A-Za-z/]|-){3,64}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="STS-2026-000123">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Issued By</label>
-                <input name="issued_by" maxlength="128" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Officer / STS Reference">
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Issued By
+                </label>
+                <input name="issued_by" required maxlength="128" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Officer / STS Reference">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date Issued</label>
-                <input name="date_issued" type="date" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Date Issued
+                </label>
+                <input name="date_issued" required type="date" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
               </div>
             </div>
             <div class="md:col-span-5 space-y-4">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Fine Amount</label>
-                  <input name="fine_amount" type="number" min="0" step="0.01" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="0.00">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    <span class="text-rose-600">*</span> Fine Amount
+                  </label>
+                  <input name="fine_amount" required type="number" min="0" step="0.01" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="0.00">
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
-                  <select name="status" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                  <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    <span class="text-rose-600">*</span> Status
+                  </label>
+                  <select name="status" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
                     <option value="Pending Payment">Pending Payment</option>
                     <option value="Paid">Paid</option>
                     <option value="Closed">Closed</option>

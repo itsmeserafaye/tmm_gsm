@@ -1673,11 +1673,15 @@ $typesList = vehicle_types();
             <input type="hidden" name="assisted" value="1">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Plate No
+                </label>
                 <input name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" autocapitalize="characters" data-tmm-mask="plate" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., ABC-1234 (ABC1234 also ok)">
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Vehicle Type
+                </label>
                 <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option value="" disabled selected>Select type</option>
                   ${vehicleTypes.map((t) => `<option value="${t}">${t}</option>`).join('')}
@@ -1687,19 +1691,25 @@ $typesList = vehicle_types();
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Engine No</label>
-                <input name="engine_no" minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1NZFE-12345">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Engine No
+                </label>
+                <input name="engine_no" required minlength="5" maxlength="20" pattern="^[A-Z0-9\\-]{5,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="engine" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1NZFE-12345">
                 <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Engine number (from engine block or CR)</div>
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Chassis No</label>
-                <input name="chassis_no" minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., NCP12345678901234">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Chassis No
+                </label>
+                <input name="chassis_no" required minlength="17" maxlength="17" pattern="^[A-HJ-NPR-Z0-9]{17}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="vin" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., NCP12345678901234">
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Make</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Make
+                </label>
                 <div id="vehMakeBox" class="relative">
                   <div class="relative">
                     <input id="vehMakeDisplay" type="text" readonly class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select make">
@@ -1717,10 +1727,12 @@ $typesList = vehicle_types();
                 <div id="vehMakeOtherWrap" class="hidden mt-2">
                   <input id="vehMakeOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type make">
                 </div>
-                <input id="vehMakeHidden" name="make" type="hidden">
+                <input id="vehMakeHidden" name="make" type="hidden" required>
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Model</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Model
+                </label>
                 <div id="vehModelBox" class="relative">
                   <div class="relative">
                     <input id="vehModelDisplay" type="text" readonly class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold cursor-pointer" placeholder="Select model">
@@ -1738,11 +1750,13 @@ $typesList = vehicle_types();
                 <div id="vehModelOtherWrap" class="hidden mt-2">
                   <input id="vehModelOtherInput" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type model">
                 </div>
-                <input id="vehModelHidden" name="model" type="hidden">
+                <input id="vehModelHidden" name="model" type="hidden" required>
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
-                <select name="year_model" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Year
+                </label>
+                <select name="year_model" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option value="" selected>Select year</option>
                   ${(() => { const ys = []; const cy = new Date().getFullYear(); for (let y=cy; y>=1950; y--) ys.push(`<option value="${y}">${y}</option>`); return ys.join(''); })()}
                 </select>
@@ -1751,15 +1765,19 @@ $typesList = vehicle_types();
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Fuel Type</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Fuel Type
+                </label>
                 <select id="vehFuelSelect" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></select>
                 <div id="vehFuelOtherWrap" class="hidden mt-2">
                   <input id="vehFuelOtherInput" maxlength="20" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Type fuel type">
                 </div>
-                <input id="vehFuelHidden" name="fuel_type" type="hidden">
+                <input id="vehFuelHidden" name="fuel_type" type="hidden" required>
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Color (optional)</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Color
+                </label>
                 <input name="color" maxlength="64" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., White">
               </div>
             </div>
