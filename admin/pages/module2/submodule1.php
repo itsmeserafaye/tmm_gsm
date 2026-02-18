@@ -366,11 +366,16 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
       </div>
 
-      <!-- Date Range -->
-      <div class="flex items-center gap-2">
-        <input name="from" type="date" value="<?php echo htmlspecialchars($from); ?>" class="block w-full px-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+      <div class="flex items-center gap-2 xl:col-span-2">
+        <div class="relative flex-1 min-w-[10rem]">
+          <input name="from" type="date" value="<?php echo htmlspecialchars($from); ?>" class="block w-full px-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+          <i data-lucide="calendar" class="pointer-events-none absolute inset-y-0 right-3 my-auto w-4 h-4 text-slate-400"></i>
+        </div>
         <span class="text-slate-400">-</span>
-        <input name="to" type="date" value="<?php echo htmlspecialchars($to); ?>" class="block w-full px-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+        <div class="relative flex-1 min-w-[10rem]">
+          <input name="to" type="date" value="<?php echo htmlspecialchars($to); ?>" class="block w-full px-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+          <i data-lucide="calendar" class="pointer-events-none absolute inset-y-0 right-3 my-auto w-4 h-4 text-slate-400"></i>
+        </div>
       </div>
 
       <!-- Buttons -->
