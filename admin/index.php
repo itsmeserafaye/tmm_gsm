@@ -520,6 +520,24 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tmmInitAdminShell);
     else tmmInitAdminShell();
     window.addEventListener('resize', function () { initSidebar() });
+
+    // Global print handler used by export toolbar across modules
+    window.tmmPrintLink = function (elOrUrl) {
+      try {
+        var url = '';
+        if (typeof elOrUrl === 'string') {
+          url = elOrUrl;
+        } else if (elOrUrl && elOrUrl.getAttribute) {
+          url = elOrUrl.getAttribute('data-print-url') || elOrUrl.getAttribute('href') || '';
+        }
+        if (!url) return true;
+        var w = window.open(url, '_blank');
+        try { if (w && w.focus) w.focus(); } catch (e) {}
+        return false;
+      } catch (e) {
+        return true;
+      }
+    };
   </script>
 </body>
 
