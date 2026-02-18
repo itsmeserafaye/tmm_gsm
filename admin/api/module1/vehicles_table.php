@@ -93,6 +93,7 @@ $sql = "SELECT v.id AS vehicle_id,
                vr.registration_status,
                vr.orcr_no,
                vr.orcr_date,
+               CASE WHEN EXISTS (SELECT 1 FROM vehicle_registrations vr2 WHERE vr2.vehicle_id=v.id) THEN 0 ELSE 1 END AS is_new_registration,
                fa.status AS franchise_app_status,
                $hasOrcrSql
         FROM vehicles v
@@ -192,6 +193,8 @@ if ($res && ($res->num_rows ?? 0) > 0) {
   while ($row = $res->fetch_assoc()) {
     $plate = (string)($row['plate_number'] ?? '');
     $plateUp = strtoupper($plate);
+    $isNewRegFlag = (int)($row['is_new_registration'] ?? 0);
+    $isNewReg = $isNewRegFlag === 1 ? '1' : '0';
     $isHighlight = $highlightPlate !== '' && $highlightPlate === $plateUp;
     $rs = (string)($row['record_status_effective'] ?? ($row['record_status'] ?? ''));
     if ($rs === '') $rs = 'Encoded';
@@ -260,7 +263,7 @@ if ($res && ($res->num_rows ?? 0) > 0) {
     $html .= '<td class="py-4 px-4 text-right"><div class="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">';
     $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-veh-view="1" data-plate="' . $esc($plateUp) . '" title="View Details"><i data-lucide="eye" class="w-4 h-4"></i></button>';
     if ($canWrite) {
-      $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-veh-docs="1" data-vehicle-id="' . (int)$vehicleId . '" data-plate="' . $esc($plateUp) . '" title="Upload / View Docs"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>';
+      $html .= '<button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-veh-docs="1" data-vehicle-id="' . (int)$vehicleId . '" data-veh-new-reg="' . $esc($isNewReg) . '" data-plate="' . $esc($plateUp) . '" title="Upload / View Docs"><i data-lucide="upload-cloud" class="w-4 h-4"></i></button>';
       if ($canSchedule && $st === 'Pending Inspection' && $vehicleId > 0) {
         $html .= '<a href="?page=module4/submodule3&vehicle_id=' . rawurlencode((string)$vehicleId) . '" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all inline-flex items-center justify-center" title="Schedule Inspection"><i data-lucide="calendar-check" class="w-4 h-4"></i></a>';
       }

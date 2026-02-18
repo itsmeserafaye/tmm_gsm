@@ -12,7 +12,8 @@ if ($plate !== '') {
                                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
                                v.or_number, v.cr_number, v.or_date, v.or_expiry_date, v.cr_issue_date, v.registered_owner, v.color,
                                v.submitted_by_portal_user_id, v.submitted_by_name, v.submitted_at,
-                               v.status, v.created_at
+                               v.status, v.created_at,
+                               CASE WHEN EXISTS (SELECT 1 FROM vehicle_registrations vr2 WHERE vr2.vehicle_id=v.id) THEN 0 ELSE 1 END AS is_new_registration
                         FROM vehicles v
                         LEFT JOIN operators o ON o.id=v.operator_id
                         WHERE v.plate_number=?");
@@ -74,6 +75,14 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="text-base font-medium text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
             <i data-lucide="user" class="w-4 h-4"></i>
             <?php echo htmlspecialchars($v['operator_display'] !== '' ? $v['operator_display'] : 'Unlinked'); ?>
+          </div>
+          <?php
+            $isNewRegFlag = isset($v['is_new_registration']) ? (int)$v['is_new_registration'] : 0;
+            $registrationType = $isNewRegFlag === 1 ? 'First Registration (3-year expiry)' : 'Renewal (1-year expiry)';
+          ?>
+          <div class="mt-1 inline-flex items-center gap-2 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1.5 text-xs font-bold dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-600">
+            <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+            Registration type: <?php echo htmlspecialchars($registrationType); ?>
           </div>
           <div class="text-xs text-slate-400 mt-2 flex items-center gap-2">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
