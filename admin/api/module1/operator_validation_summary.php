@@ -19,8 +19,8 @@ $sql = "SELECT
     DISTINCT
     CASE
       WHEN TRIM(SUBSTRING_INDEX(COALESCE(d.remarks,''), '|', 1)) <> '' THEN TRIM(SUBSTRING_INDEX(COALESCE(d.remarks,''), '|', 1))
-      WHEN d.doc_type='GovID' THEN 'Valid Government ID'
-      WHEN d.doc_type='BarangayCert' THEN 'Proof of Address'
+      WHEN d.doc_type='GovID' THEN 'Government ID'
+      WHEN d.doc_type='BarangayCert' THEN 'Barangay Document'
       WHEN d.doc_type='CDA' THEN 'CDA'
       WHEN d.doc_type='SEC' THEN 'SEC'
       WHEN d.doc_type='Others' THEN 'Others'
@@ -72,4 +72,3 @@ echo json_encode([
     'doc_count' => (int)($row['doc_count'] ?? 0),
   ],
 ]);
-

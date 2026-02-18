@@ -416,11 +416,11 @@ try {
             @mkdir($adminUploadsDir, 0777, true);
           }
           $docMap = [
-            'valid_id' => ['type' => 'GovID', 'label' => 'Valid Government ID'],
-            'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet (Planned / Owned Vehicles)'],
-            'proof_of_address' => ['type' => 'BarangayCert', 'label' => 'Proof of Address'],
-            'nbi_clearance' => ['type' => 'Others', 'label' => 'NBI Clearance'],
-            'authorization_letter' => ['type' => 'Others', 'label' => 'Authorization Letter'],
+            'gov_id' => ['type' => 'GovID', 'label' => 'Government ID'],
+            'barangay_clearance' => ['type' => 'BarangayCert', 'label' => 'Barangay Clearance'],
+            'proof_residency' => ['type' => 'BarangayCert', 'label' => 'Proof of Residency'],
+            'police_clearance' => ['type' => 'Others', 'label' => 'Police Clearance (optional)'],
+            'application_form' => ['type' => 'Others', 'label' => 'Application form'],
             'cda_registration' => ['type' => 'CDA', 'label' => 'CDA Registration Certificate'],
             'cda_good_standing' => ['type' => 'CDA', 'label' => 'CDA Certificate of Good Standing'],
             'board_resolution' => ['type' => 'Others', 'label' => 'Board Resolution'],

@@ -127,14 +127,16 @@ if (strlen($govIdKind) > 80) $govIdKind = substr($govIdKind, 0, 80);
 if (strcasecmp($govIdKind, 'Other') === 0 && $govIdKindOther !== '') $govIdKind = $govIdKindOther;
 
 $fields = [
-  'gov_id' => ['type' => 'GovID', 'label' => 'Valid Government ID'],
-  'proof_address' => ['type' => 'BarangayCert', 'label' => 'Proof of Address'],
+  'gov_id' => ['type' => 'GovID', 'label' => 'Government ID'],
+  'barangay_clearance' => ['type' => 'BarangayCert', 'label' => 'Barangay Clearance'],
+  'proof_residency' => ['type' => 'BarangayCert', 'label' => 'Proof of Residency'],
+  'police_clearance' => ['type' => 'Others', 'label' => 'Police Clearance (optional)'],
+  'application_form' => ['type' => 'Others', 'label' => 'Application form'],
   'cda_registration' => ['type' => 'CDA', 'label' => 'CDA Registration Certificate'],
   'cda_good_standing' => ['type' => 'CDA', 'label' => 'CDA Certificate of Good Standing'],
   'sec_certificate' => ['type' => 'SEC', 'label' => 'SEC Certificate of Registration'],
   'corp_articles_bylaws' => ['type' => 'SEC', 'label' => 'Articles of Incorporation / By-laws'],
   'board_resolution' => ['type' => 'Others', 'label' => 'Board Resolution'],
-  'declared_fleet' => ['type' => 'Others', 'label' => 'Declared Fleet (Planned / Owned Vehicles)'],
   'nbi_clearance' => ['type' => 'Others', 'label' => 'NBI Clearance'],
   'authorization_letter' => ['type' => 'Others', 'label' => 'Authorization Letter'],
   'members_list' => ['type' => 'Others', 'label' => 'List of Members'],
