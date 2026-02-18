@@ -81,7 +81,19 @@ if ($insuranceExpiryMeta !== '' && !$isYmd($insuranceExpiryMeta)) {
 }
 
 if ($orDate !== '' && $orExpiryMeta === '') {
-    $orExpiryMeta = date('Y-m-d', strtotime($orDate . ' +1 year'));
+    $isNewRegistration = true;
+    $stmtReg = $db->prepare("SELECT 1 FROM vehicle_registrations WHERE vehicle_id=? LIMIT 1");
+    if ($stmtReg) {
+        $stmtReg->bind_param('i', $vehicleId);
+        $stmtReg->execute();
+        $stmtReg->store_result();
+        if ($stmtReg->num_rows > 0) {
+            $isNewRegistration = false;
+        }
+        $stmtReg->close();
+    }
+    $yearsToAdd = $isNewRegistration ? 3 : 1;
+    $orExpiryMeta = date('Y-m-d', strtotime($orDate . ' +' . $yearsToAdd . ' year'));
 }
 if ($regYear === '') {
     $regYear = $orDate !== '' ? substr($orDate, 0, 4) : '';

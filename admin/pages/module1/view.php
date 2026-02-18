@@ -10,9 +10,10 @@ if ($plate !== '') {
   $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id,
                                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
-                               v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner, v.color,
+                               v.or_number, v.cr_number, v.or_date, v.or_expiry_date, v.cr_issue_date, v.registered_owner, v.color,
                                v.submitted_by_portal_user_id, v.submitted_by_name, v.submitted_at,
-                               v.status, v.created_at
+                               v.status, v.created_at,
+                               CASE WHEN EXISTS (SELECT 1 FROM vehicle_registrations vr2 WHERE vr2.vehicle_id=v.id) THEN 0 ELSE 1 END AS is_new_registration
                         FROM vehicles v
                         LEFT JOIN operators o ON o.id=v.operator_id
                         WHERE v.plate_number=?");
@@ -75,6 +76,14 @@ if ($rootUrl === '/') $rootUrl = '';
             <i data-lucide="user" class="w-4 h-4"></i>
             <?php echo htmlspecialchars($v['operator_display'] !== '' ? $v['operator_display'] : 'Unlinked'); ?>
           </div>
+          <?php
+            $isNewRegFlag = isset($v['is_new_registration']) ? (int)$v['is_new_registration'] : 0;
+            $registrationType = $isNewRegFlag === 1 ? 'First Registration (3-year expiry)' : 'Renewal (1-year expiry)';
+          ?>
+          <div class="mt-1 inline-flex items-center gap-2 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1.5 text-xs font-bold dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-600">
+            <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+            Registration type: <?php echo htmlspecialchars($registrationType); ?>
+          </div>
           <div class="text-xs text-slate-400 mt-2 flex items-center gap-2">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
             <?php
@@ -127,6 +136,22 @@ if ($rootUrl === '/') $rootUrl = '';
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Year / Fuel</span>
                 <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['year_model'] ?? '') . ' ' . (string)($v['fuel_type'] ?? '')) ?: '-'); ?></div>
               </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">OR Number</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_number'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Number</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_number'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registration Date</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_date'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expiration Date</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_expiry_date'] ?? '') ?: '-'); ?></div>
+              </div>
             </div>
           <?php else: ?>
             <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
@@ -175,6 +200,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="space-y-1">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Issue Date</span>
                 <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registration Date</span>
+                <input name="or_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['or_date'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expiration Date</span>
+                <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['or_expiry_date'] ?? ''), ENT_QUOTES); ?>">
               </div>
               <div class="space-y-1">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registered Owner</span>

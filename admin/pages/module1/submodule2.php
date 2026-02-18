@@ -629,7 +629,7 @@ $typesList = vehicle_types();
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    const btnImportVehicles = document.getElementById('btnImportVehicles');
+        const btnImportVehicles = document.getElementById('btnImportVehicles');
     const modalImportVehicles = document.getElementById('modalImportVehicles');
     const fileImportVehicles = document.getElementById('fileImportVehicles');
     const btnCancelImportVehicles = document.getElementById('btnCancelImportVehicles');
@@ -1378,6 +1378,8 @@ $typesList = vehicle_types();
         if (!canWrite) return;
         const plate = btn.getAttribute('data-plate') || '';
         const vehicleId = btn.getAttribute('data-vehicle-id') || '';
+        const isNewRegAttr = btn.getAttribute('data-veh-new-reg') || '';
+        const isNewRegistration = isNewRegAttr === '1';
         openModal(`
           <form id="formUploadVehDocs" class="space-y-5" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="vehicle_id" value="${vehicleId}">
@@ -1408,7 +1410,7 @@ $typesList = vehicle_types();
                   <div id="orExpiryWrap">
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Expiration Date</label>
                     <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
-                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-generated: Registration Date + 1 year.</div>
+                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-generated: Registration Date + 3 years for first registration, 1 year for renewals.</div>
                   </div>
                 </div>
               </div>
@@ -1467,7 +1469,7 @@ $typesList = vehicle_types();
           const base = new Date(raw + 'T00:00:00');
           if (isNaN(base.getTime())) { orExpiryInput.value = ''; return; }
           const exp = new Date(base.getTime());
-          exp.setFullYear(exp.getFullYear() + 1);
+          exp.setFullYear(exp.getFullYear() + (isNewRegistration ? 3 : 1));
           orExpiryInput.value = toYmd(exp);
         };
         const computeRegYear = () => {
