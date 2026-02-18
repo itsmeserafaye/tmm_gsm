@@ -52,7 +52,9 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formSubmitApp" class="space-y-5" novalidate>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Operator
+            </label>
             <input name="operator_pick" list="operatorPickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 123 - Juan Dela Cruz)">
             <datalist id="operatorPickList">
               <?php foreach ($operators as $o): ?>
@@ -61,7 +63,9 @@ if ($rootUrl === '/') $rootUrl = '';
             </datalist>
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Type</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Vehicle Type
+            </label>
             <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select</option>
               <?php foreach ($typesList as $t): ?>
@@ -72,7 +76,9 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div>
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Route / Service Area</label>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-rose-600">*</span> Route / Service Area
+          </label>
           <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a vehicle type first">
           <datalist id="servicePickList"></datalist>
           <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">For Tricycles: choose a TODA service area (coverage points). For Jeepney/UV/Bus: choose a corridor route.</div>
@@ -80,12 +86,16 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle Count</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Vehicle Count
+            </label>
             <input name="vehicle_count" type="number" min="1" max="500" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 10">
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Representative Name (optional)</label>
-            <input name="representative_name" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Juan Dela Cruz (authorized representative)">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Representative Name
+            </label>
+            <input name="representative_name" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Juan Dela Cruz (authorized representative)">
           </div>
         </div>
 

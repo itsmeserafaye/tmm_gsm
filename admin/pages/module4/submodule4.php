@@ -163,7 +163,9 @@ if ($rootUrl === '/') $rootUrl = '';
       <form id="formConduct" class="space-y-6" enctype="multipart/form-data" novalidate>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Schedule</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Schedule
+            </label>
             <select name="schedule_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select schedule</option>
               <?php foreach ($schedules as $s): ?>
@@ -180,7 +182,9 @@ if ($rootUrl === '/') $rootUrl = '';
             </select>
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Overall Result</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Overall Result
+            </label>
             <select name="overall_status" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="Passed">Passed</option>
               <option value="Failed">Failed</option>

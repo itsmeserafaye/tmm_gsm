@@ -380,7 +380,9 @@ if ($rootUrl === '/') $rootUrl = '';
           <input type="hidden" id="scheduleId" name="schedule_id" value="<?php echo (int)$scheduleId; ?>">
         <?php endif; ?>
         <div>
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Vehicle</label>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-rose-600">*</span> Vehicle
+          </label>
           <input type="hidden" name="vehicle_id" id="vehicleIdHidden" value="">
           <div class="relative">
             <input id="vehiclePick" name="vehicle_pick" required minlength="1" readonly value="<?php echo htmlspecialchars(($editVehiclePick !== '' ? $editVehiclePick : ($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : '')))); ?>" data-tmm-uppercase="1" class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase cursor-pointer" placeholder="Select a vehicle (uninspected)">
@@ -398,8 +400,10 @@ if ($rootUrl === '/') $rootUrl = '';
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspection Type</label>
-            <select id="inspectionType" name="inspection_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Inspection Type
+            </label>
+            <select id="inspectionType" name="inspection_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <?php $selType = $editType !== '' ? $editType : ($reinspectOf > 0 ? 'Reinspection' : 'Annual'); ?>
               <option value="Annual" <?php echo $selType === 'Annual' ? 'selected' : ''; ?>>Annual</option>
               <option value="Reinspection" <?php echo $selType === 'Reinspection' ? 'selected' : ''; ?>>Reinspection</option>
@@ -411,21 +415,29 @@ if ($rootUrl === '/') $rootUrl = '';
             <?php endif; ?>
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspector</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Inspector
+            </label>
             <input type="text" disabled class="w-full px-4 py-2.5 rounded-md bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Assigned by inspection office">
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Schedule Date/Time</label>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Schedule Date/Time
+            </label>
             <input id="scheduleDate" name="schedule_date" type="datetime-local" required value="<?php echo htmlspecialchars($editScheduleLocal); ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           </div>
           <div id="correctionWrap" class="<?php echo $reinspectOf > 0 ? '' : 'hidden'; ?>">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Correction Due Date</label>
-            <input id="correctionDue" name="correction_due_date" type="date" value="<?php echo htmlspecialchars($editCorrectionDue); ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Correction Due Date
+            </label>
+            <input id="correctionDue" name="correction_due_date" <?php echo $reinspectOf > 0 ? 'required' : ''; ?> type="date" value="<?php echo htmlspecialchars($editCorrectionDue); ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+            <span class="text-rose-600">*</span> Location
+          </label>
           <input name="location" required maxlength="180" value="<?php echo htmlspecialchars($editLocation); ?>" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Main Terminal Inspection Bay">
         </div>
 

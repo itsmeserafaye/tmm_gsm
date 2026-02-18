@@ -179,24 +179,32 @@ if ($rootUrl === '/') $rootUrl = '';
             <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Slot</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Slot
+                </label>
                 <select id="slotSelect" name="slot_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option value="">Select slot</option>
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Amount</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Amount
+                </label>
                 <input id="amountInput" name="amount" type="number" min="0.01" step="0.01" value="20.00" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 50.00">
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Plate No
+                </label>
                 <input id="plateInput" name="plate_no" required minlength="4" maxlength="16" pattern="^(?:[0-9A-Za-z]|-){4,16}$" autocapitalize="characters" data-tmm-mask="plate_any" data-tmm-uppercase="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Type plate">
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> OR No
+                </label>
                 <input id="orInput" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123">
                 <input id="paidAtInput" type="hidden" name="paid_at" value="">
                 <input id="exportedToTreasuryInput" type="hidden" name="exported_to_treasury" value="0">

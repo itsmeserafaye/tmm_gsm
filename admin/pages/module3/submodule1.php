@@ -58,22 +58,30 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
           <form id="formCreateViolation" class="grid grid-cols-1 md:grid-cols-12 gap-6" enctype="multipart/form-data" novalidate>
             <div class="md:col-span-4 space-y-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Plate Number</label>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Plate Number
+                </label>
                 <input id="plateNumberInput" name="plate_number" list="plateNumberList" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold uppercase" placeholder="ABC-1234">
                 <datalist id="plateNumberList"></datalist>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Violation Type</label>
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Violation Type
+                </label>
                 <select id="violationTypeSelect" name="violation_type" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold"></select>
                 <div id="violationFinePreview" class="mt-1 text-xs font-bold text-rose-600"></div>
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Location</label>
-                <input name="location" maxlength="255" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Street / route / area">
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Location
+                </label>
+                <input name="location" required maxlength="255" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold" placeholder="Street / route / area">
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Date & Time</label>
-                <input name="violation_date" type="datetime-local" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Date & Time
+                </label>
+                <input name="violation_date" required type="datetime-local" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
               </div>
             </div>
             <div class="md:col-span-5 space-y-4">
@@ -88,8 +96,10 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
             </div>
             <div class="md:col-span-3 space-y-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Status</label>
-                <select name="workflow_status" class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
+                <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                  <span class="text-rose-600">*</span> Status
+                </label>
+                <select name="workflow_status" required class="w-full px-4 py-2.5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-md text-sm font-semibold">
                   <option value="Pending">Pending</option>
                   <option value="Verified">Verified</option>
                   <option value="Closed">Closed</option>
