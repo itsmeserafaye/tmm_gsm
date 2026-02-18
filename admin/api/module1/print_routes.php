@@ -102,6 +102,11 @@ $office_addr = trim((string)(tmm_get_app_setting('office_address','') ?? ''));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
+$filterParts = [];
+$filterParts[] = 'Vehicle Type: ' . (($vehicleType !== '' && $vehicleType !== 'Vehicle type') ? $vehicleType : 'All');
+$filterParts[] = 'Category: ' . (($routeCategory !== '' && $routeCategory !== 'Category') ? $routeCategory : 'All');
+$filterParts[] = 'Status: ' . (($status !== '' && $status !== 'Status') ? $status : 'All');
+$filterLabel = 'Filtered: ' . implode('. ', $filterParts) . '.';
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!doctype html>
@@ -153,13 +158,7 @@ header('Content-Type: text/html; charset=utf-8');
                 <?php if ($office_addr !== ''): ?>
                 <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
                 <?php endif; ?>
-                <div class="filters">
-                  Generated: <?php echo htmlspecialchars($now); ?>
-                  • Search: <?php echo htmlspecialchars($q ?: '-'); ?>
-                  • Type: <?php echo htmlspecialchars($vehicleType ?: 'All'); ?>
-                  • Category: <?php echo htmlspecialchars($routeCategory ?: 'All'); ?>
-                  • Status: <?php echo htmlspecialchars($status ?: 'All'); ?>
-                </div>
+                <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
               </div>
             </div>
             <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
