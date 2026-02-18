@@ -191,6 +191,23 @@ if ($rootUrl === '/') $rootUrl = '';
             <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
           </button>
         </div>
+        <?php if (has_permission('reports.export')): ?>
+          <?php
+            $qs = http_build_query([
+              'q' => $q,
+              'list_status' => $listStatus,
+            ]);
+            tmm_render_export_toolbar([[
+              'href' => $rootUrl . '/admin/api/module4/print_inspection_schedules.php?' . $qs,
+              'label' => 'Print',
+              'icon' => 'printer',
+              'attrs' => [
+                'data-print-url' => $rootUrl . '/admin/api/module4/print_inspection_schedules.php?' . $qs,
+                'data-report-name' => 'Inspection Schedules Report'
+              ]
+            ]], ['mb' => 'mb-0']);
+          ?>
+        <?php endif; ?>
         <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
           <input type="hidden" name="page" value="module4/submodule3">
           <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
