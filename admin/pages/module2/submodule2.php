@@ -35,7 +35,11 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Submit Franchise Application</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Encode a franchise application on behalf of an operator (assisted walk-in) or review submissions from the Operator Portal.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+        For tricycle franchises, Step 1 happens in the Operator Portal: the operator selects the Service Area / TODA Zone,
+        requested number of units, and uploads Government ID, Barangay Clearance, Proof of Residency, Police Clearance (optional),
+        and the Application form. Use this screen to encode that franchise on behalf of the operator using those uploads.
+      </p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -79,9 +83,9 @@ if ($rootUrl === '/') $rootUrl = '';
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
             <span class="text-rose-600">*</span> Route / Service Area
           </label>
-          <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a vehicle type first">
+          <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a service area">
           <datalist id="servicePickList"></datalist>
-          <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">For Tricycles: choose a TODA service area (coverage points). For Jeepney/UV/Bus: choose a corridor route.</div>
+          <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">For Tricycles: choose a TODA service area (coverage points).</div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -100,9 +104,18 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Supporting Documents (from Operator)</div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Upload Requirements (from Operator Portal)</div>
           <div id="opDocsBox" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-            <div class="text-sm text-slate-500 dark:text-slate-400 italic">Select an operator to view documents in the PUV Database.</div>
+            <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Documents submitted by the operator in Step 1 (Operator Portal):</div>
+            <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">Required uploads for tricycle operators:</div>
+            <ul class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+              <li>Government ID</li>
+              <li>Barangay Clearance</li>
+              <li>Proof of Residency</li>
+              <li>Police Clearance (optional)</li>
+              <li>Application form</li>
+            </ul>
+            <div class="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">Select an operator above to view their uploaded documents.</div>
           </div>
         </div>
 
