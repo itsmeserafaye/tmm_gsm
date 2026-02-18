@@ -6,7 +6,6 @@ function tmm_operator_required_doc_slots(string $operatorType): array {
       ['doc_type' => 'CDA', 'keywords' => ['registration'], 'label' => 'CDA Registration Certificate'],
       ['doc_type' => 'CDA', 'keywords' => ['good standing', 'good_standing', 'standing'], 'label' => 'CDA Certificate of Good Standing'],
       ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution'], 'label' => 'Board Resolution'],
-      ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
     ];
   }
   if ($opType === 'Corporation') {
@@ -14,12 +13,14 @@ function tmm_operator_required_doc_slots(string $operatorType): array {
       ['doc_type' => 'SEC', 'keywords' => ['certificate', 'registration'], 'label' => 'SEC Certificate of Registration'],
       ['doc_type' => 'SEC', 'keywords' => ['articles', 'by-laws', 'bylaws', 'incorporation'], 'label' => 'Articles of Incorporation / By-laws'],
       ['doc_type' => 'Others', 'keywords' => ['board resolution', 'resolution'], 'label' => 'Board Resolution'],
-      ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
     ];
   }
   return [
     ['doc_type' => 'GovID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys'], 'label' => 'Valid Government ID'],
-    ['doc_type' => 'Others', 'keywords' => ['declared fleet', 'fleet'], 'label' => 'Declared Fleet'],
+    ['doc_type' => 'BarangayCert', 'keywords' => ['barangay clearance', 'barangay'], 'label' => 'Barangay Clearance'],
+    ['doc_type' => 'BarangayCert', 'keywords' => ['proof of residency', 'residency', 'address'], 'label' => 'Proof of Residency'],
+    ['doc_type' => 'Others', 'keywords' => ['police clearance', 'police'], 'label' => 'Police Clearance', 'optional' => true],
+    ['doc_type' => 'Others', 'keywords' => ['application form', 'application'], 'label' => 'Application form'],
   ];
 }
 
@@ -79,9 +80,8 @@ function tmm_operator_docs_verified(mysqli $db, int $operatorId, array $slots): 
   for ($i = 0; $i < count($slots); $i++) {
     if ($slotOk[$i]) continue;
     $s = $slots[$i];
-    $kw = (array)($s['keywords'] ?? []);
-    $kwLower = array_map(fn($x) => strtolower((string)$x), $kw);
-    if (in_array('declared fleet', $kwLower, true)) continue;
+    $isOptional = !empty($s['optional']);
+    if ($isOptional) continue;
     foreach ($docs as $drow) {
       $did = (int)($drow['doc_id'] ?? 0);
       if ($did <= 0 || isset($used[$did])) continue;
@@ -95,6 +95,7 @@ function tmm_operator_docs_verified(mysqli $db, int $operatorId, array $slots): 
 
   $missing = [];
   for ($i = 0; $i < count($slots); $i++) {
+    if (!empty($slots[$i]['optional'])) continue;
     if (!$slotOk[$i]) $missing[] = (string)($slots[$i]['label'] ?? '');
   }
   $missing = array_values(array_filter($missing, fn($x) => trim((string)$x) !== ''));
