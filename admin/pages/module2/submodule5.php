@@ -23,26 +23,41 @@ if ($rootUrl === '/') $rootUrl = '';
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="relative max-w-sm group w-full">
-          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-          <input id="routeSearch" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search route name/code/origin/destination...">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <!-- Search -->
+        <div class="md:col-span-5 relative group w-full">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+          </div>
+          <input id="routeSearch" class="block w-full pl-10 pr-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400" placeholder="Search route name/code...">
         </div>
-        <div class="flex items-center gap-2">
-          <select id="filterKind" class="px-3 py-2 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">
-            <option value="">All</option>
+
+        <!-- Filter Kind -->
+        <div class="md:col-span-3">
+          <select id="filterKind" class="block w-full px-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-white dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+            <option value="">All Types</option>
             <option value="route">Routes</option>
             <option value="service_area">Service Areas</option>
           </select>
-          <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <input id="filterRemaining" type="checkbox" class="rounded border-slate-300 dark:border-slate-600"> Remaining only
+        </div>
+
+        <!-- Checkbox -->
+        <div class="md:col-span-2">
+          <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
+            <input id="filterRemaining" type="checkbox" class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500">
+            <span>Remaining only</span>
           </label>
-          <button id="btnRefreshRoutes" type="button" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
+        </div>
+
+        <!-- Refresh -->
+        <div class="md:col-span-2 flex justify-end">
+          <button id="btnRefreshRoutes" type="button" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold shadow-sm hover:bg-slate-50 transition-colors">
             Refresh
           </button>
         </div>
       </div>
+    </div>
       <?php if (has_permission('reports.export')): ?>
         <?php
           $qsBase = http_build_query([]);

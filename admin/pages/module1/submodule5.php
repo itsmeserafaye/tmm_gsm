@@ -162,20 +162,26 @@ if ($resO) while ($r = $resO->fetch_assoc()) $operators[] = $r;
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-      <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row gap-3 xl:items-center xl:justify-between">
         <div>
           <div class="text-sm font-black text-slate-900 dark:text-white">Transfer Requests</div>
           <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Review, approve, or reject requests.</div>
         </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-          <input id="qInput" class="w-full sm:w-56 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate/operator">
-          <select id="statusFilter" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <option value="">All</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-          <button type="button" id="btnReload" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Reload</button>
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 w-full xl:w-auto">
+          <div class="sm:col-span-6 xl:w-64">
+            <input id="qInput" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Search plate/operator">
+          </div>
+          <div class="sm:col-span-4 xl:w-40">
+            <select id="statusFilter" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold focus:ring-2 focus:ring-blue-500 transition-all">
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2 xl:w-auto">
+            <button type="button" id="btnReload" class="w-full px-3 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold hover:bg-slate-800 transition-colors">Reload</button>
+          </div>
         </div>
       </div>
       <div class="p-5">

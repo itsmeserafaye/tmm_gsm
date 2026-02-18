@@ -94,18 +94,25 @@ if ($rootUrl === '/') $rootUrl = '';
           ]
         ], ['mb' => 'mb-0']); ?>
       <?php endif; ?>
-      <form class="flex flex-col sm:flex-row gap-3 items-end" method="GET">
+      <form class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end" method="GET">
         <input type="hidden" name="page" value="module5/submodule4">
         <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tab); ?>">
-        <div class="flex-1">
+        <div class="sm:col-span-10">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Terminal</label>
-          <select name="terminal_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <?php foreach ($terminals as $t): ?>
-              <option value="<?php echo (int)$t['id']; ?>" <?php echo (int)$t['id'] === $terminalId ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$t['name']); ?></option>
-            <?php endforeach; ?>
-          </select>
+          <div class="relative">
+            <select name="terminal_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold appearance-none cursor-pointer">
+              <?php foreach ($terminals as $t): ?>
+                <option value="<?php echo (int)$t['id']; ?>" <?php echo (int)$t['id'] === $terminalId ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$t['name']); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </div>
+          </div>
         </div>
-        <button class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Load</button>
+        <div class="sm:col-span-2">
+          <button class="w-full px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold transition-colors shadow-sm">Load</button>
+        </div>
       </form>
 
       <div class="flex items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
