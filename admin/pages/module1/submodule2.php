@@ -57,6 +57,7 @@ $q = trim((string) ($_GET['q'] ?? ''));
 $vehicleType = trim((string) ($_GET['vehicle_type'] ?? ''));
 $recordStatus = trim((string) ($_GET['record_status'] ?? ''));
 $docuStatus = trim((string) ($_GET['docu_status'] ?? ''));
+$operatorIdFilter = (int)($_GET['operator_id'] ?? 0);
 $highlightPlate = strtoupper(trim((string) ($_GET['highlight_plate'] ?? '')));
 
 $dbMakes = [];
@@ -181,9 +182,15 @@ if ($docuStatus !== '' && $docuStatus !== 'DOCU') {
     $types .= 's';
   }
 }
+if ($operatorIdFilter > 0) {
+  $conds[] = "COALESCE(v.operator_id,0)=?";
+  $params[] = $operatorIdFilter;
+  $types .= 'i';
+}
 if ($conds)
   $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY v.created_at DESC LIMIT 300";
+
 
 if ($params) {
   $stmt = $db->prepare($sql);
@@ -204,6 +211,13 @@ if ($rootUrl === '/')
 
 require_once __DIR__ . '/../../includes/vehicle_types.php';
 $typesList = vehicle_types();
+$operatorsForFilter = [];
+$resOpsList = $db->query("SELECT id, COALESCE(NULLIF(registered_name,''), NULLIF(name,''), full_name) AS display_name FROM operators WHERE COALESCE(registered_name,name,full_name) IS NOT NULL AND TRIM(COALESCE(registered_name,name,full_name))<>'' ORDER BY display_name ASC LIMIT 300");
+if ($resOpsList) {
+  while ($r = $resOpsList->fetch_assoc()) {
+    $operatorsForFilter[] = ['id' => (int)($r['id'] ?? 0), 'name' => (string)($r['display_name'] ?? '')];
+  }
+}
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
@@ -282,8 +296,39 @@ $typesList = vehicle_types();
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
         </select>
+        <div class="relative w-full sm:w-40">
+          <select id="vehSubMonth" class="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+            <option value="">All Months</option>
+            <?php for ($m=1;$m<=12;$m++): ?>
+              <option value="<?php echo (int)$m; ?>"><?php echo date('F', mktime(0,0,0,$m,1)); ?></option>
+            <?php endfor; ?>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
+        <div class="relative w-full sm:w-32">
+          <select id="vehSubYear" class="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+            <option value="">All Years</option>
+            <?php $cy=(int)date('Y'); for ($y=$cy; $y>=($cy-6); $y--): ?>
+              <option value="<?php echo (int)$y; ?>"><?php echo (int)$y; ?></option>
+            <?php endfor; ?>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
+        <div class="relative w-full sm:w-40">
+          <select id="vehSubType" class="w-full rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold">
+            <option value="">All Types</option>
+            <?php foreach ($typesList as $t): ?>
+              <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        </div>
         <input id="vehSubQ" class="w-full sm:w-56 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm font-semibold" placeholder="Search plate/type…">
         <button id="btnReloadVehSubs" class="w-full sm:w-auto rounded-md bg-slate-900 hover:bg-black text-white px-4 py-2 text-sm font-semibold">Reload</button>
+        <button id="btnPrintVehSubs" class="w-full sm:w-auto rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold inline-flex items-center gap-2">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          Print
+        </button>
       </div>
     </div>
 
@@ -398,6 +443,20 @@ $typesList = vehicle_types();
             <?php foreach (['Pending Upload','For Review','Verified','Expired'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $docuStatus === $s ? 'selected' : ''; ?>>
                 <?php echo htmlspecialchars($s); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+          </span>
+        </div>
+        <div class="relative w-full sm:w-64">
+          <select name="operator_id"
+            class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
+            <option value="0">All Operators</option>
+            <?php foreach ($operatorsForFilter as $op): ?>
+              <option value="<?php echo (int)$op['id']; ?>" <?php echo $operatorIdFilter === (int)$op['id'] ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($op['name']); ?>
+              </option>
             <?php endforeach; ?>
           </select>
           <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
@@ -679,6 +738,10 @@ $typesList = vehicle_types();
         const qs = new URLSearchParams();
         qs.set('status', (vehSubStatus && vehSubStatus.value) ? vehSubStatus.value : 'Submitted');
         if (vehSubQ && vehSubQ.value.trim() !== '') qs.set('q', vehSubQ.value.trim());
+        const m = document.getElementById('vehSubMonth'); const y = document.getElementById('vehSubYear'); const t = document.getElementById('vehSubType');
+        if (m && m.value) qs.set('month', m.value);
+        if (y && y.value) qs.set('year', y.value);
+        if (t && t.value) qs.set('vehicle_type', t.value);
         const res = await fetch(rootUrl + '/admin/api/module1/vehicle_submissions_list.php?' + qs.toString());
         const data = await res.json();
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
@@ -913,6 +976,27 @@ $typesList = vehicle_types();
     }
 
     if (btnReloadVehSubs) btnReloadVehSubs.addEventListener('click', loadVehicleSubmissions);
+    const btnPrintVehSubs = document.getElementById('btnPrintVehSubs');
+    if (btnPrintVehSubs) {
+      btnPrintVehSubs.addEventListener('click', (e) => {
+        e.preventDefault();
+        const status = vehSubStatus ? vehSubStatus.value : '';
+        const qVal = vehSubQ ? vehSubQ.value : '';
+        const m = document.getElementById('vehSubMonth'); const y = document.getElementById('vehSubYear'); const t = document.getElementById('vehSubType');
+        const month = m ? (m.value || '') : ''; const year = y ? (y.value || '') : ''; const vtype = t ? (t.value || '') : '';
+        const qs = new URLSearchParams();
+        if (status) qs.set('status', status);
+        if (qVal) qs.set('q', qVal);
+        if (month) qs.set('month', month);
+        if (year) qs.set('year', year);
+        if (vtype) qs.set('vehicle_type', vtype);
+        const url = rootUrl + '/admin/api/module1/print_vehicle_submissions.php?' + qs.toString();
+        const fake = document.createElement('a');
+        fake.setAttribute('data-print-url', url);
+        fake.setAttribute('data-report-name', 'Vehicle Encoding Submissions');
+        if (window.tmmPrintLink) window.tmmPrintLink(fake);
+      });
+    }
     if (vehSubStatus) vehSubStatus.addEventListener('change', loadVehicleSubmissions);
     if (vehSubQ) vehSubQ.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); loadVehicleSubmissions(); } });
     loadVehicleSubmissions();
