@@ -1042,7 +1042,7 @@ if ($action === 'upload_verification_docs') {
 
   $operatorType = (string) ($u['operator_type'] ?? 'Individual');
   $allowedDocKeysByType = [
-    'Individual' => ['valid_id'],
+    'Individual' => ['gov_id', 'barangay_clearance', 'proof_residency', 'police_clearance', 'application_form'],
     'Coop' => ['cda_registration', 'board_resolution'],
     'Corp' => ['sec_registration', 'authority_to_operate'],
   ];

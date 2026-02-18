@@ -1742,7 +1742,7 @@ $typesList = vehicle_types();
                 const badge = verified ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
                 const up = (d.uploaded_at || '').toString().slice(0, 19).replace('T', ' ');
                 const exp = (d.expiry_date || '').toString();
-                const meta = [up ? ('Uploaded: ' + up) : '', exp ? ('Expiry: ' + exp) : '', (d.source || '') ? String(d.source) : ''].filter(Boolean).join(' • ');
+                const meta = [up ? ('Uploaded: ' + up) : '', exp ? ('Expiry: ' + exp) : ''].filter(Boolean).join(' • ');
                 const right = href ? `<a class="text-xs font-bold text-primary hover:text-primary-dark transition" target="_blank" rel="noopener" href="${escapeHtml(href)}">Open</a>` : `<span class="text-[10px] font-bold text-slate-400">Missing file</span>`;
                 return `
                     <div class="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-200 bg-slate-50">
@@ -3063,7 +3063,13 @@ $typesList = vehicle_types();
                     { key: 'authority_to_operate', label: 'Authority to Operate' },
                 ];
             }
-            return [{ key: 'valid_id', label: 'Valid ID' }];
+            return [
+                { key: 'gov_id', label: 'Government ID' },
+                { key: 'barangay_clearance', label: 'Barangay Clearance' },
+                { key: 'proof_residency', label: 'Proof of Residency' },
+                { key: 'police_clearance', label: 'Police Clearance (optional)', optional: true },
+                { key: 'application_form', label: 'Application form' },
+            ];
         }
 
         function setApprovalBanner(data) {
@@ -3142,11 +3148,13 @@ $typesList = vehicle_types();
                     const st = existing ? String(existing.status || 'Pending') : 'Missing';
                     const badge = st === 'Valid' ? 'bg-emerald-100 text-emerald-700' : (st === 'Invalid' ? 'bg-rose-100 text-rose-700' : (st === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'));
                     const remarkLine = existing && existing.remarks ? ('<div class="mt-1 text-[11px] text-rose-700 font-semibold">Remark: ' + escapeHtml(existing.remarks) + '</div>') : '';
-                    const reqAttr = (st === 'Valid') ? '' : 'required';
+                    const optional = !!req.optional;
+                    const reqAttr = optional || st === 'Valid' ? '' : 'required';
+                    const labelText = optional ? (req.label + ' (optional)') : req.label;
                     return `
                         <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
                             <div class="flex items-center justify-between gap-3">
-                                <div class="text-sm font-bold text-slate-800">${escapeHtml(req.label)}</div>
+                                <div class="text-sm font-bold text-slate-800">${escapeHtml(labelText)}</div>
                                 <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badge}">${escapeHtml(st)}</span>
                             </div>
                             ${remarkLine}
