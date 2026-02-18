@@ -786,8 +786,8 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="md:col-span-8">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
-            <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
-            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Optional on create; upload here when editing to attach legal proof for this terminal.</div>
+            <input id="terminalPermitFile" name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+            <div id="terminalPermitHelp" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required on create to ensure legal compliance.</div>
           </div>
           <div class="md:col-span-8 flex items-center justify-end gap-2">
             <button type="button" id="btnCancelCreateTerminal" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
@@ -883,6 +883,10 @@ if ($rootUrl === '/') $rootUrl = '';
         const idEl = formTerminal.querySelector('input[name="id"]');
         if (idEl) idEl.value = '';
       }
+      const pf = document.getElementById('terminalPermitFile');
+      const help = document.getElementById('terminalPermitHelp');
+      if (pf) pf.required = true;
+      if (help) help.textContent = 'Required on create to ensure legal compliance.';
     }
     function closeCreateTerminalModal() {
       if (!terminalCreateModal) return;
@@ -920,6 +924,10 @@ if ($rootUrl === '/') $rootUrl = '';
       set('location', t.location || '');
       set('address', t.address || '');
       set('capacity', (t.capacity !== null && t.capacity !== undefined) ? t.capacity : 0);
+      const pf = document.getElementById('terminalPermitFile');
+      const help = document.getElementById('terminalPermitHelp');
+      if (pf) pf.required = false;
+      if (help) help.textContent = 'Optional when editing; upload to update legal proof.';
     }
 
     Array.from(document.querySelectorAll('[data-terminal-edit="1"]')).forEach((btn) => {
