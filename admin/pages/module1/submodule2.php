@@ -1383,36 +1383,34 @@ $typesList = vehicle_types();
             <input type="hidden" name="vehicle_id" value="${vehicleId}">
             <div class="space-y-4">
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Official Receipt (OR)</div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">OR / CR Registration</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="sm:col-span-2">
+                  <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload OR (PDF/JPG/PNG)</label>
                     <input name="or" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="or">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload CR (PDF/JPG/PNG)</label>
+                    <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="cr">
                   </div>
                   <div>
                     <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
                     <input name="or_number" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   </div>
                   <div>
-                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">CR Number</label>
+                    <input name="cr_number" minlength="6" maxlength="20" pattern="^[A-Z0-9\\-]{6,20}$" autocapitalize="characters" data-tmm-uppercase="1" data-tmm-filter="alnumdash" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Date</label>
                     <input name="or_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   </div>
-                  <div class="sm:col-span-2">
-                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
-                    <input name="registration_year" inputmode="numeric" maxlength="4" pattern="^\\d{4}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
-                  </div>
-                  <div class="sm:col-span-2" id="orExpiryWrap">
-                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
+                  <div id="orExpiryWrap">
+                    <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Expiration Date</label>
                     <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
-                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-generated: OR Date + 1 year.</div>
+                    <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-generated: Registration Date + 1 year.</div>
                   </div>
                 </div>
-              </div>
-
-              <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Certificate of Registration (CR)</div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload CR (PDF/JPG/PNG)</label>
-                <input name="cr" type="file" accept=".pdf,.jpg,.jpeg,.png" class="w-full text-sm file-input" data-file-type="cr">
               </div>
 
               <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
@@ -1592,7 +1590,7 @@ $typesList = vehicle_types();
             e.preventDefault();
             const fd = new FormData(form);
             const hasFiles = ['or', 'cr', 'insurance', 'others'].some((k) => fd.get(k) && fd.get(k).name);
-            const hasMeta = ['or_number','or_date','or_expiry_date','registration_year','insurance_expiry_date']
+            const hasMeta = ['or_number','cr_number','or_date','or_expiry_date','registration_year','insurance_expiry_date']
               .some((k) => (fd.get(k) || '').toString().trim() !== '');
             if (!hasFiles && !hasMeta) { showToast('Select at least one file or fill in registration details.', 'error'); return; }
             btnSave.disabled = true;

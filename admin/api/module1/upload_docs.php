@@ -36,6 +36,10 @@ $plate = (string) ($exists['plate_number'] ?? $plate);
 $orNumberRaw = (string)($_POST['or_number'] ?? '');
 $orNumber = preg_replace('/[^0-9]/', '', trim($orNumberRaw));
 $orNumber = substr($orNumber, 0, 12);
+$crNumberRaw = (string)($_POST['cr_number'] ?? '');
+$crNumber = strtoupper(preg_replace('/\s+/', '', trim($crNumberRaw)));
+$crNumber = preg_replace('/[^A-Z0-9\-]/', '', $crNumber);
+$crNumber = substr($crNumber, 0, 20);
 $orDate = trim((string)($_POST['or_date'] ?? ''));
 $orExpiryMeta = trim((string)($_POST['or_expiry_date'] ?? ''));
 $regYear = trim((string)($_POST['registration_year'] ?? ''));
@@ -48,6 +52,11 @@ $isYmd = function (string $v): bool {
 if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'invalid_or_number']);
+    exit;
+}
+if ($crNumber !== '' && !preg_match('/^[A-Z0-9\-]{6,20}$/', $crNumber)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_cr_number']);
     exit;
 }
 if ($orDate !== '' && !$isYmd($orDate)) {
@@ -78,7 +87,7 @@ if ($regYear === '') {
     $regYear = $orDate !== '' ? substr($orDate, 0, 4) : '';
 }
 
-$hasMeta = ($orNumber !== '' || $orDate !== '' || $orExpiryMeta !== '' || $regYear !== '' || $insuranceExpiryMeta !== '');
+$hasMeta = ($orNumber !== '' || $crNumber !== '' || $orDate !== '' || $orExpiryMeta !== '' || $regYear !== '' || $insuranceExpiryMeta !== '');
 
 $uploads_dir = __DIR__ . '/../../uploads';
 if (!is_dir($uploads_dir)) {
@@ -397,6 +406,7 @@ foreach (['or', 'cr', 'insurance', 'others'] as $field) {
 if (empty($errors) && $hasMeta) {
     $sql = "UPDATE vehicles SET
               or_number=CASE WHEN ?<>'' THEN ? ELSE or_number END,
+              cr_number=CASE WHEN ?<>'' THEN ? ELSE cr_number END,
               or_date=CASE WHEN ?<>'' THEN ? ELSE or_date END,
               or_expiry_date=CASE WHEN ?<>'' THEN ? ELSE or_expiry_date END,
               registration_year=CASE WHEN ?<>'' THEN ? ELSE registration_year END,
@@ -409,8 +419,9 @@ if (empty($errors) && $hasMeta) {
         exit;
     }
     $stmtM->bind_param(
-        'ssssssssssi',
+        'sssssssssssssi',
         $orNumber, $orNumber,
+        $crNumber, $crNumber,
         $orDate, $orDate,
         $orExpiryMeta, $orExpiryMeta,
         $regYear, $regYear,
