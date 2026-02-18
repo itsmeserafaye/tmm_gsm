@@ -6,9 +6,6 @@ require_permission('module2.apply');
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
-require_once __DIR__ . '/../../includes/vehicle_types.php';
-$typesList = vehicle_types();
-
 $operators = [];
 $resO = $db->query("SELECT id, COALESCE(NULLIF(name,''), full_name) AS display_name, operator_type, status FROM operators ORDER BY created_at DESC LIMIT 800");
 if ($resO) {
@@ -35,12 +32,8 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-4xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Submit Franchise Application</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-        For tricycle franchises, Step 1 happens in the Operator Portal: the operator selects the Service Area / TODA Zone,
-        requested number of units, and uploads Government ID, Barangay Clearance, Proof of Residency, Police Clearance (optional),
-        and the Application form. Use this screen to encode that franchise on behalf of the operator using those uploads.
-      </p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Submit Tricycle Franchise Application</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Encode a tricycle franchise application for walk-in operators.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -55,6 +48,7 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-6">
       <form id="formSubmitApp" class="space-y-5" novalidate>
+        <input type="hidden" name="vehicle_type" value="Tricycle">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
@@ -67,23 +61,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <?php endforeach; ?>
             </datalist>
           </div>
-          <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
-              <span class="text-rose-600">*</span> Vehicle Type
-            </label>
-            <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="Tricycle">Tricycle</option>
-            </select>
-          </div>
         </div>
 
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
             <span class="text-rose-600">*</span> Service Area / TODA Zone
           </label>
-          <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a service area">
+          <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select Service Area / TODA Zone">
           <datalist id="servicePickList"></datalist>
-          <div class="mt-1 text-xs text-slate-500 dark:text-slate-400 font-semibold">For Tricycles: choose a TODA service area (coverage points).</div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -93,19 +78,12 @@ if ($rootUrl === '/') $rootUrl = '';
             </label>
             <input name="vehicle_count" type="number" min="1" max="500" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 5">
           </div>
-          <div>
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
-              <span class="text-rose-600">*</span> Representative Name
-            </label>
-            <input name="representative_name" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Juan Dela Cruz (authorized representative)">
-          </div>
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Upload Requirements (from Operator Portal)</div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Upload Requirements</div>
           <div id="opDocsBox" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
-            <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Documents submitted by the operator in Step 1 (Operator Portal):</div>
-            <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">Required uploads for tricycle operators:</div>
+            <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Required uploads for tricycle operators:</div>
             <ul class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
               <li>Government ID</li>
               <li>Barangay Clearance</li>
@@ -113,7 +91,6 @@ if ($rootUrl === '/') $rootUrl = '';
               <li>Police Clearance (optional)</li>
               <li>Application form</li>
             </ul>
-            <div class="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">Select an operator above to view their uploaded documents.</div>
           </div>
         </div>
 
@@ -168,7 +145,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     if (form && btn) {
       const opEl = form.querySelector('input[name="operator_pick"]');
-      const vtEl = form.querySelector('select[name="vehicle_type"]');
+      const vtEl = form.querySelector('input[name="vehicle_type"]');
       const svcEl = document.getElementById('servicePick');
       const svcList = document.getElementById('servicePickList');
       let routesCache = null;
@@ -237,20 +214,10 @@ if ($rootUrl === '/') $rootUrl = '';
         svcEl.addEventListener('input', () => { svcEl.setCustomValidity(''); });
         svcEl.addEventListener('blur', () => { setPickValidity(svcEl); });
       }
-      if (vtEl) {
-        vtEl.addEventListener('change', async () => {
-          try {
-            await loadServices();
-            rebuildServiceList(vtEl.value || '');
-          } catch (e) {
-            showToast('Failed to load routes/service areas.', 'error');
-          }
-        });
-      }
       (async () => {
         try {
           await loadServices();
-          if (vtEl) rebuildServiceList(vtEl.value || '');
+          rebuildServiceList((vtEl ? vtEl.value : 'Tricycle') || 'Tricycle');
         } catch (_) {}
       })();
 
@@ -275,9 +242,8 @@ if ($rootUrl === '/') $rootUrl = '';
           post.append('operator_id', String(operatorId));
           post.append('vehicle_type', vehicleType);
           if (tri) post.append('service_area_id', String(pickId));
-          else post.append('route_id', String(pickId));
           post.append('vehicle_count', String(vehicleCount));
-          post.append('representative_name', (fd.get('representative_name') || '').toString());
+          post.append('representative_name', '');
           post.append('assisted', '1');
 
           const res = await fetch(rootUrl + '/admin/api/module2/save_application.php', { method: 'POST', body: post });
@@ -380,8 +346,7 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!opDocsBox) return;
       if (!operatorId) {
         opDocsBox.innerHTML = `
-          <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Documents submitted by the operator in Step 1 (Operator Portal):</div>
-          <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">Required uploads for tricycle operators:</div>
+          <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Required uploads for tricycle operators:</div>
           <ul class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
             <li>Government ID</li>
             <li>Barangay Clearance</li>
@@ -389,7 +354,6 @@ if ($rootUrl === '/') $rootUrl = '';
             <li>Police Clearance (optional)</li>
             <li>Application form</li>
           </ul>
-          <div class="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">Select an operator above to view their uploaded documents.</div>
         `;
         return;
       }
