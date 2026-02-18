@@ -103,7 +103,6 @@ input[type="file"][required]:not([data-tmm-no-file-ui="1"]):hover::file-selector
   background: rgb(71 85 105);
 }
 
-/* Unified select styling: hide native arrow and keep chevron inside bounds */
 select:not([multiple]) {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -112,26 +111,22 @@ select:not([multiple]) {
   background-position: right 0.75rem center;
   background-size: 1rem 1rem;
   background-origin: content-box;
-  padding-right: 2.25rem; /* fallback when no utility class like pr-10 */
+  padding-right: 2.25rem;
   line-height: normal;
 }
 
-/* Light theme arrow */
 select:not([multiple]) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 }
 
-/* Dark theme arrow */
 .dark select:not([multiple]) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 }
 
-/* Hide old Edge arrow */
 select::-ms-expand {
   display: none;
 }
 
-/* If a chevron overlay is placed immediately after the select, hide it to avoid duplicates and misalignment */
 select + .pointer-events-none i[data-lucide="chevron-down"],
 select + .pointer-events-none {
   display: none !important;
