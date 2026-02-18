@@ -224,30 +224,79 @@ if ($rootUrl === '/') $rootUrl = '';
             ]], ['mb' => 'mb-0']);
           ?>
         <?php endif; ?>
-        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end mb-6">
           <input type="hidden" name="page" value="module4/submodule3">
-          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-56 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Search plate...">
-          <select name="list_status" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <?php $ls = trim((string)($_GET['list_status'] ?? '')); ?>
-            <option value="" <?php echo $ls === '' ? 'selected' : ''; ?>>All Status</option>
-            <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
-              <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <select name="month" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <option value="0" <?php echo $month===0?'selected':''; ?>>All Months</option>
-            <?php for ($m=1; $m<=12; $m++): ?>
-              <option value="<?php echo $m; ?>" <?php echo $month===$m?'selected':''; ?>><?php echo date('F', mktime(0,0,0,$m,1)); ?></option>
-            <?php endfor; ?>
-          </select>
-          <select name="year" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <?php $cy = (int)date('Y'); for ($y=$cy+1; $y>=($cy-5); $y--): ?>
-              <option value="<?php echo $y; ?>" <?php echo $year===$y?'selected':''; ?>><?php echo $y; ?></option>
-            <?php endfor; ?>
-            <option value="0" <?php echo $year===0?'selected':''; ?>>All Years</option>
-          </select>
-          <button type="submit" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Apply</button>
-          <a href="?page=module4/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-sm text-center">Reset</a>
+          
+          <!-- Search -->
+          <div class="sm:col-span-2 lg:col-span-3">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+            <div class="relative group">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+              </div>
+              <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="block w-full pl-10 pr-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400 uppercase" placeholder="Search plate...">
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div class="sm:col-span-2 lg:col-span-3">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+            <div class="relative">
+              <select name="list_status" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+                <?php $ls = trim((string)($_GET['list_status'] ?? '')); ?>
+                <option value="" <?php echo $ls === '' ? 'selected' : ''; ?>>All Status</option>
+                <?php foreach (['Scheduled','Rescheduled','Completed','Overdue / No-Show','Overdue','Cancelled'] as $st): ?>
+                  <option value="<?php echo htmlspecialchars($st); ?>" <?php echo $ls === $st ? 'selected' : ''; ?>><?php echo htmlspecialchars($st); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Month -->
+          <div class="lg:col-span-2">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Month</label>
+            <div class="relative">
+              <select name="month" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+                <option value="0" <?php echo $month===0?'selected':''; ?>>All Months</option>
+                <?php for ($m=1; $m<=12; $m++): ?>
+                  <option value="<?php echo $m; ?>" <?php echo $month===$m?'selected':''; ?>><?php echo date('F', mktime(0,0,0,$m,1)); ?></option>
+                <?php endfor; ?>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Year -->
+          <div class="lg:col-span-2">
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
+            <div class="relative">
+              <select name="year" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+                <?php $cy = (int)date('Y'); for ($y=$cy+1; $y>=($cy-5); $y--): ?>
+                  <option value="<?php echo $y; ?>" <?php echo $year===$y?'selected':''; ?>><?php echo $y; ?></option>
+                <?php endfor; ?>
+                <option value="0" <?php echo $year===0?'selected':''; ?>>All Years</option>
+              </select>
+              <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="sm:col-span-2 lg:col-span-2 flex items-center gap-2">
+            <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
+              <i data-lucide="filter" class="w-4 h-4"></i>
+              Apply
+            </button>
+            <a href="?page=module4/submodule3" class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </a>
+          </div>
         </form>
       </div>
       <div class="overflow-x-auto">

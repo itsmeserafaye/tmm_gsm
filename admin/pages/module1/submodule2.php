@@ -400,79 +400,91 @@ if ($resOpsList) {
         </div>
       </div>
     </div>
-    <form id="vehFilterForm" class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
+    <form id="vehFilterForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6" method="GET">
       <input type="hidden" name="page" value="puv-database/vehicle-encoding">
-      <div class="flex-1 flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1 sm:max-w-sm group">
-          <i data-lucide="search"
-            class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-          <input name="q" value="<?php echo htmlspecialchars($q); ?>"
-            class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400"
-            placeholder="Search plate or operator...">
+      
+      <!-- Search -->
+      <div class="relative group">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
         </div>
-        <div class="relative w-full sm:w-52">
-          <select name="vehicle_type"
-            class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="">All Types</option>
-            <?php foreach ($typesList as $t): ?>
-              <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $vehicleType === $t ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($t); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </span>
-        </div>
-        <div class="relative w-full sm:w-52">
-          <select name="record_status"
-            class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="">All Record Status</option>
-            <?php foreach (['Encoded', 'Linked', 'Archived'] as $s): ?>
-              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $recordStatus === $s ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($s); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </span>
-        </div>
-        <div class="relative w-full sm:w-44">
-          <select name="docu_status"
-            class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="">All DOCU</option>
-            <?php foreach (['Pending Upload','For Review','Verified','Expired'] as $s): ?>
-              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $docuStatus === $s ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($s); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </span>
-        </div>
-        <div class="relative w-full sm:w-64">
-          <select name="operator_id"
-            class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="0">All Operators</option>
-            <?php foreach ($operatorsForFilter as $op): ?>
-              <option value="<?php echo (int)$op['id']; ?>" <?php echo $operatorIdFilter === (int)$op['id'] ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($op['name']); ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
-          </span>
+        <input name="q" value="<?php echo htmlspecialchars($q); ?>"
+          class="block w-full pl-10 pr-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400"
+          placeholder="Search...">
+      </div>
+
+      <!-- Operator -->
+      <div class="relative">
+        <select name="operator_id"
+          class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <option value="0">All Operators</option>
+          <?php foreach ($operatorsForFilter as $op): ?>
+            <option value="<?php echo (int)$op['id']; ?>" <?php echo $operatorIdFilter === (int)$op['id'] ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($op['name']); ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-        <button
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+
+      <!-- Vehicle Type -->
+      <div class="relative">
+        <select name="vehicle_type"
+          class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <option value="">All Types</option>
+          <?php foreach ($typesList as $t): ?>
+            <option value="<?php echo htmlspecialchars($t); ?>" <?php echo $vehicleType === $t ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($t); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+      </div>
+
+      <!-- Record Status -->
+      <div class="relative">
+        <select name="record_status"
+          class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <option value="">All Status</option>
+          <?php foreach (['Encoded', 'Linked', 'Archived'] as $s): ?>
+            <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $recordStatus === $s ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($s); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+      </div>
+
+      <!-- Docu Status -->
+      <div class="relative">
+        <select name="docu_status"
+          class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <option value="">All DOCU</option>
+          <?php foreach (['Pending Upload','For Review','Verified','Expired'] as $s): ?>
+            <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $docuStatus === $s ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($s); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex items-center gap-2">
+        <button type="submit"
+          class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
         <a href="?page=puv-database/vehicle-encoding"
-          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          Reset
+          class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+          title="Reset Filters">
+          <i data-lucide="x" class="w-4 h-4"></i>
         </a>
       </div>
     </form>

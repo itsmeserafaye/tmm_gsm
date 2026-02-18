@@ -316,50 +316,71 @@ if ($rootUrl === '/') $rootUrl = '';
         ]
       ]); ?>
     <?php endif; ?>
-    <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
+    <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6" method="GET">
       <input type="hidden" name="page" value="module2/submodule1">
-      <div class="flex-1 flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1 sm:max-w-sm group">
-          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search operator or service area...">
+      
+      <!-- Search -->
+      <div class="relative group">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
         </div>
-        <div class="relative w-full sm:w-52">
-          <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <option value="">All Status</option>
-            <?php foreach (['Pending Review','Returned for Correction','Approved','Active','Rejected','Expired','Revoked'] as $s): ?>
-              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
-            <?php endforeach; ?>
-          </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-        </div>
-        <div class="relative w-full sm:w-48">
-          <select name="basis" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <?php $bb = in_array($basis, ['submitted','endorsed','approved'], true) ? $basis : 'submitted'; ?>
-            <option value="submitted" <?php echo $bb==='submitted'?'selected':''; ?>>Submitted Date</option>
-            <option value="endorsed" <?php echo $bb==='endorsed'?'selected':''; ?>>Endorsed Date</option>
-            <option value="approved" <?php echo $bb==='approved'?'selected':''; ?>>Approved Date</option>
-          </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
-        </div>
-        <input name="from" type="date" value="<?php echo htmlspecialchars($from); ?>" class="w-full sm:w-44 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-        <input name="to" type="date" value="<?php echo htmlspecialchars($to); ?>" class="w-full sm:w-44 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-        <div class="relative w-full sm:w-56">
-          <select name="coverage" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
-            <?php $cov = in_array($coverage, ['route','service_area'], true) ? $coverage : ''; ?>
-            <option value="" <?php echo $cov===''?'selected':''; ?>>All Coverage</option>
-            <option value="route" <?php echo $cov==='route'?'selected':''; ?>>Routes</option>
-            <option value="service_area" <?php echo $cov==='service_area'?'selected':''; ?>>Service Areas</option>
-          </select>
-          <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+        <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="block w-full pl-10 pr-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-400" placeholder="Search operator...">
+      </div>
+
+      <!-- Status -->
+      <div class="relative">
+        <select name="status" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <option value="">All Status</option>
+          <?php foreach (['Pending Review','Returned for Correction','Approved','Active','Rejected','Expired','Revoked'] as $s): ?>
+            <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
+          <?php endforeach; ?>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-        <button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+
+      <!-- Coverage -->
+      <div class="relative">
+        <select name="coverage" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <?php $cov = in_array($coverage, ['route','service_area'], true) ? $coverage : ''; ?>
+          <option value="" <?php echo $cov===''?'selected':''; ?>>All Coverage</option>
+          <option value="route" <?php echo $cov==='route'?'selected':''; ?>>Routes</option>
+          <option value="service_area" <?php echo $cov==='service_area'?'selected':''; ?>>Service Areas</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+      </div>
+
+      <!-- Basis -->
+      <div class="relative">
+        <select name="basis" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+          <?php $bb = in_array($basis, ['submitted','endorsed','approved'], true) ? $basis : 'submitted'; ?>
+          <option value="submitted" <?php echo $bb==='submitted'?'selected':''; ?>>Submitted Date</option>
+          <option value="endorsed" <?php echo $bb==='endorsed'?'selected':''; ?>>Endorsed Date</option>
+          <option value="approved" <?php echo $bb==='approved'?'selected':''; ?>>Approved Date</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+        </div>
+      </div>
+
+      <!-- Date Range -->
+      <div class="flex items-center gap-2">
+        <input name="from" type="date" value="<?php echo htmlspecialchars($from); ?>" class="block w-full px-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+        <span class="text-slate-400">-</span>
+        <input name="to" type="date" value="<?php echo htmlspecialchars($to); ?>" class="block w-full px-3 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all">
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex items-center gap-2">
+        <button class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=module2/submodule1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-          Reset
+        <a href="?page=module2/submodule1" class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
+          <i data-lucide="x" class="w-4 h-4"></i>
         </a>
       </div>
     </form>
