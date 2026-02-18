@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
 $prefillApp = (int)($_GET['application_id'] ?? 0);
+$q = trim((string)($_GET['q'] ?? ''));
 
 $erHasStatus = false;
 $erHasConditions = false;
@@ -30,9 +31,12 @@ $sqlEnd = "SELECT fa.application_id, fa.franchise_ref_number, fa.status AS app_s
            LEFT JOIN operators o ON o.id=fa.operator_id
            LEFT JOIN routes r ON r.id=fa.route_id
            LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
-           WHERE fa.status IN ('LGU-Endorsed','Endorsed','Rejected')
-           ORDER BY COALESCE(fa.endorsed_at, fa.submitted_at) DESC
-           LIMIT 300";
+           WHERE fa.status IN ('LGU-Endorsed','Endorsed','Rejected')";
+if ($q !== '') {
+  $qv = $db->real_escape_string($q);
+  $sqlEnd .= " AND (fa.franchise_ref_number LIKE '%$qv%' OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE '%$qv%' OR r.route_id LIKE '%$qv%' OR r.origin LIKE '%$qv%' OR r.destination LIKE '%$qv%')";
+}
+$sqlEnd .= " ORDER BY COALESCE(fa.endorsed_at, fa.submitted_at) DESC LIMIT 300";
 $resEnd = $db->query($sqlEnd);
 if ($resEnd) while ($r = $resEnd->fetch_assoc()) $endorsedRows[] = $r;
 
@@ -182,6 +186,28 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 border-b border-slate-200 dark:border-slate-700">
       <div class="text-sm font-black text-slate-900 dark:text-white">Endorsed Applications</div>
       <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">LGU-Endorsed / Rejected records with endorsement status and conditions.</div>
+    </div>
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-2">
+      <?php if (has_permission('reports.export')): ?>
+        <?php
+          $qs = http_build_query(['q' => $q]);
+          tmm_render_export_toolbar([[
+            'href' => $rootUrl . '/admin/api/module2/print_endorsements.php?' . $qs,
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'data-print-url' => $rootUrl . '/admin/api/module2/print_endorsements.php?' . $qs,
+              'data-report-name' => 'Endorsed Applications Report'
+            ]
+          ]], ['mb' => 'mb-0']);
+        ?>
+      <?php endif; ?>
+      <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+        <input type="hidden" name="page" value="module2/submodule3">
+        <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-72 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ref/operator/route…">
+        <button class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Apply</button>
+        <a href="?page=module2/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold text-center">Reset</a>
+      </form>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
