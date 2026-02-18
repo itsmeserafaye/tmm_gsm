@@ -340,6 +340,13 @@
       });
       applyInputTransform(el);
       setFieldValidityUI(el, false);
+      try {
+        var t = (el.getAttribute('type') || '').toLowerCase();
+        if (t === 'date') {
+          var prDate = parseFloat(window.getComputedStyle(el).paddingRight || '0') || 0;
+          if (prDate < 36) el.style.paddingRight = '2.5rem';
+        }
+      } catch (_) { }
       return;
     }
 

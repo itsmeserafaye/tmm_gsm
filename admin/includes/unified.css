@@ -139,6 +139,30 @@ select + .pointer-events-none {
   display: none !important;
 }
 
+/* Ensure readable width for selects in toolbars/filters */
+.tmm-select {
+  min-width: 10rem;
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .tmm-select {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Improve date input spacing so text, clear and calendar do not collide */
+input[type="date"] {
+  padding-right: 2.5rem;
+}
+input[type="date"]::-ms-clear,
+input[type="date"]::-ms-reveal {
+  display: none;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  padding-left: 0.5rem;
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;
