@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿<?php
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<?php
 require_once __DIR__ . '/admin/includes/db.php';
 require_once __DIR__ . '/includes/recaptcha.php';
 
