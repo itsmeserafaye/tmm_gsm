@@ -345,13 +345,14 @@
 
     if (el.tagName === 'SELECT') {
       try {
+        el.classList && el.classList.add('tmm-select');
         el.style.webkitAppearance = 'none';
         el.style.mozAppearance = 'none';
         el.style.appearance = 'none';
         var pr = parseFloat(window.getComputedStyle(el).paddingRight || '0') || 0;
         if (pr < 32) el.style.paddingRight = '2.25rem';
         var wrap = el.parentElement;
-        for (var hop = 0; hop < 2 && wrap && !wrap.classList.contains('relative'); hop++) wrap = wrap.parentElement;
+        for (var hop = 0; hop < 3 && wrap && !wrap.classList.contains('relative'); hop++) wrap = wrap.parentElement;
         var scope = wrap || el.parentElement || el;
         if (scope && scope.querySelectorAll) {
           Array.prototype.slice.call(scope.querySelectorAll('.pointer-events-none i[data-lucide="chevron-down"], .pointer-events-none')).forEach(function (ico) {

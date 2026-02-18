@@ -132,6 +132,13 @@ select + .pointer-events-none {
   display: none !important;
 }
 
+.relative:has(> select) > .pointer-events-none:has(> i[data-lucide="chevron-down"]) {
+  display: none !important;
+}
+.relative:has(> .tmm-select) > .pointer-events-none:has(> i[data-lucide="chevron-down"]) {
+  display: none !important;
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;
