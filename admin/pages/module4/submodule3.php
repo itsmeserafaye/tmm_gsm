@@ -259,7 +259,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="lg:col-span-2">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Month</label>
             <div class="relative">
-              <select name="month" class="block w-full min-w-[9rem] pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+              <select name="month" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
                 <option value="0" <?php echo $month===0?'selected':''; ?>>All Months</option>
                 <?php for ($m=1; $m<=12; $m++): ?>
                   <option value="<?php echo $m; ?>" <?php echo $month===$m?'selected':''; ?>><?php echo date('F', mktime(0,0,0,$m,1)); ?></option>
@@ -275,7 +275,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="lg:col-span-2">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
             <div class="relative">
-              <select name="year" class="block w-full min-w-[7.5rem] pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
+              <select name="year" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
                 <?php $cy = (int)date('Y'); for ($y=$cy+1; $y>=($cy-5); $y--): ?>
                   <option value="<?php echo $y; ?>" <?php echo $year===$y?'selected':''; ?>><?php echo $y; ?></option>
                 <?php endfor; ?>
@@ -288,12 +288,12 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Buttons -->
-          <div class="sm:col-span-2 lg:col-span-2 flex items-center flex-wrap gap-2">
-            <button type="submit" class="flex-1 min-w-[7.5rem] inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
+          <div class="sm:col-span-2 lg:col-span-2 flex items-center gap-2">
+            <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
               <i data-lucide="filter" class="w-4 h-4"></i>
               Apply
             </button>
-            <a href="?page=module4/submodule3" class="inline-flex items-center justify-center min-w-[2.5rem] rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
+            <a href="?page=module4/submodule3" class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
               <i data-lucide="x" class="w-4 h-4"></i>
             </a>
           </div>

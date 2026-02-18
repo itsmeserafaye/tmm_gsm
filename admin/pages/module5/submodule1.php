@@ -64,7 +64,7 @@ $taTerminalIdCol = isset($taCols['terminal_id']) ? 'terminal_id' : '';
 $taTerminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : '');
 
 $termCols = [];
-$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category','owner','owner_name','owned_by','operator','operator_name','managed_by')");
+$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category')");
 if ($termColRes) {
   while ($c = $termColRes->fetch_assoc()) {
     $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
@@ -73,18 +73,10 @@ if ($termColRes) {
 $termHasCity = isset($termCols['city']);
 $termHasAddress = isset($termCols['address']);
 $termHasCategory = isset($termCols['category']);
-$termOwnerCol = isset($termCols['owner_name']) ? 'owner_name' : (isset($termCols['owner']) ? 'owner' : (isset($termCols['owned_by']) ? 'owned_by' : ''));
-$termOperatorCol = isset($termCols['operator_name']) ? 'operator_name' : (isset($termCols['operator']) ? 'operator' : (isset($termCols['managed_by']) ? 'managed_by' : ''));
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
 $cityFilter = trim((string)($_GET['city'] ?? ''));
 $catFilter = trim((string)($_GET['category'] ?? ''));
-$ownerFilter = trim((string)($_GET['owner'] ?? ''));
-$operatorFilter = trim((string)($_GET['operator'] ?? ''));
-$permitStatusFilter = trim((string)($_GET['permit_status'] ?? ''));
-$agreementTypeFilter = trim((string)($_GET['agreement_type'] ?? ''));
-$validFromFilter = trim((string)($_GET['valid_from'] ?? ''));
-$validToFilter = trim((string)($_GET['valid_to'] ?? ''));
 $cities = [];
 $categories = [];
 if ($termHasCity) {
@@ -107,27 +99,6 @@ if ($taTerminalIdCol !== '') {
 }
 
 $terminalRows = [];
-$permCols = [];
-$permColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
-if ($permColRes) {
-  while ($c = $permColRes->fetch_assoc()) $permCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
-}
-$permStatusCol = isset($permCols['status']) ? 'status' : '';
-$permTypeCol = isset($permCols['doc_type']) ? 'doc_type' : (isset($permCols['document_type']) ? 'document_type' : (isset($permCols['type']) ? 'type' : ''));
-$permIssueCol = isset($permCols['issue_date']) ? 'issue_date' : (isset($permCols['issued_at']) ? 'issued_at' : (isset($permCols['start_date']) ? 'start_date' : ''));
-$permExpiryCol = isset($permCols['expiry_date']) ? 'expiry_date' : (isset($permCols['expires_at']) ? 'expires_at' : (isset($permCols['valid_until']) ? 'valid_until' : ''));
-$permCreatedCol = isset($permCols['created_at']) ? 'created_at' : '';
-$orderParts = [];
-if ($permExpiryCol !== '') $orderParts[] = "p.$permExpiryCol";
-if ($permIssueCol !== '') $orderParts[] = "p.$permIssueCol";
-if ($permCreatedCol !== '') $orderParts[] = "p.$permCreatedCol";
-$permOrderExpr = $orderParts ? ('COALESCE(' . implode(',', $orderParts) . ')') : '1';
-$permStatusExpr = $permStatusCol !== '' ? "(SELECT p.$permStatusCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
-$permTypeExpr = $permTypeCol !== '' ? "(SELECT p.$permTypeCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
-$permIssueExpr = $permIssueCol !== '' ? "(SELECT p.$permIssueCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
-$permExpiryExpr = $permExpiryCol !== '' ? "(SELECT p.$permExpiryCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1)" : "NULL";
-$ownerExpr = $termOwnerCol !== '' ? "t.$termOwnerCol" : "NULL";
-$operatorExpr = $termOperatorCol !== '' ? "t.$termOperatorCol" : "NULL";
 $sqlTerm = "SELECT
   t.id,
   t.name,
@@ -135,12 +106,6 @@ $sqlTerm = "SELECT
   t.location,
   " . ($termHasCity ? "t.city" : "NULL") . " AS city,
   " . ($termHasAddress ? "t.address" : "NULL") . " AS address,
-  $ownerExpr AS owner_name,
-  $operatorExpr AS operator_name,
-  $permTypeExpr AS permit_type,
-  $permStatusExpr AS permit_status,
-  $permIssueExpr AS permit_issue_date,
-  $permExpiryExpr AS permit_expiry_date,
   t.capacity,
   COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
   COUNT(DISTINCT tr.route_id) AS route_count
@@ -168,38 +133,6 @@ if ($cityFilter !== '') {
 if ($catFilter !== '') {
   $sqlTerm .= " AND t.category = ?";
   $params[] = $catFilter;
-  $types .= 's';
-}
-if ($ownerFilter !== '' && $termOwnerCol !== '') {
-  $sqlTerm .= " AND COALESCE(t.$termOwnerCol,'') LIKE ?";
-  $params[] = '%' . $ownerFilter . '%';
-  $types .= 's';
-}
-if ($operatorFilter !== '' && $termOperatorCol !== '') {
-  $sqlTerm .= " AND COALESCE(t.$termOperatorCol,'') LIKE ?";
-  $params[] = '%' . $operatorFilter . '%';
-  $types .= 's';
-}
-if ($permitStatusFilter !== '' && $permStatusCol !== '') {
-  $sqlTerm .= " AND (SELECT p.$permStatusCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?";
-  $params[] = '%' . $permitStatusFilter . '%';
-  $types .= 's';
-}
-if ($agreementTypeFilter !== '' && $permTypeCol !== '') {
-  $sqlTerm .= " AND (SELECT p.$permTypeCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) LIKE ?";
-  $params[] = '%' . $agreementTypeFilter . '%';
-  $types .= 's';
-}
-if ($validFromFilter !== '' && ($permExpiryCol !== '' || $permIssueCol !== '')) {
-  $targetCol = $permExpiryCol !== '' ? $permExpiryCol : $permIssueCol;
-  $sqlTerm .= " AND (SELECT p.$targetCol FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) >= ?";
-  $params[] = $validFromFilter;
-  $types .= 's';
-}
-if ($validToFilter !== '' && ($permIssueCol !== '' || $permExpiryCol !== '')) {
-  $targetCol2 = $permIssueCol !== '' ? $permIssueCol : $permExpiryCol;
-  $sqlTerm .= " AND (SELECT p.$targetCol2 FROM terminal_permits p WHERE p.terminal_id=t.id ORDER BY $permOrderExpr DESC LIMIT 1) <= ?";
-  $params[] = $validToFilter;
   $types .= 's';
 }
 
@@ -303,18 +236,12 @@ if ($rootUrl === '/') $rootUrl = '';
           <?php
             $exportItems = [];
             if (has_permission('reports.export')) {
-          $qs = http_build_query([
-            'q' => $qFilter,
-            'city' => $cityFilter,
-            'category' => $catFilter,
-            'type' => 'Terminal',
-            'owner' => $ownerFilter,
-            'operator' => $operatorFilter,
-            'permit_status' => $permitStatusFilter,
-            'agreement_type' => $agreementTypeFilter,
-            'valid_from' => $validFromFilter,
-            'valid_to' => $validToFilter,
-          ]);
+              $qs = http_build_query([
+                'q' => $qFilter,
+                'city' => $cityFilter,
+                'category' => $catFilter,
+                'type' => 'Terminal'
+              ]);
               $exportItems[] = [
                 'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php',
                 'label' => 'CSV',
@@ -369,30 +296,6 @@ if ($rootUrl === '/') $rootUrl = '';
                   <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $catFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
                 <?php endforeach; ?>
               </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Ownership</label>
-              <input name="owner" value="<?php echo htmlspecialchars($ownerFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Owner / landholder">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
-              <input name="operator" value="<?php echo htmlspecialchars($operatorFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Operator / manager">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Permit Status</label>
-              <input name="permit_status" value="<?php echo htmlspecialchars($permitStatusFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Active / Expired / Pending">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Agreement Type</label>
-              <input name="agreement_type" value="<?php echo htmlspecialchars($agreementTypeFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="MOA / Permit / Lease">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Valid From</label>
-              <input type="date" name="valid_from" value="<?php echo htmlspecialchars($validFromFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Valid To</label>
-              <input type="date" name="valid_to" value="<?php echo htmlspecialchars($validToFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             </div>
             <div class="md:col-span-2 flex items-center gap-2">
               <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
@@ -453,7 +356,6 @@ if ($rootUrl === '/') $rootUrl = '';
                       </td>
                     </tr>
                   <?php endif; ?>
-                  <tr>
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
                       <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
                       <?php
@@ -464,37 +366,25 @@ if ($rootUrl === '/') $rootUrl = '';
                       <span class="ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black <?php echo $hasPermit ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300'; ?>">
                         <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
                       </span>
-                      <?php if (trim((string)($t['owner_name'] ?? '')) !== '' || trim((string)($t['operator_name'] ?? '')) !== '' || trim((string)($t['permit_status'] ?? '')) !== '' || trim((string)($t['permit_type'] ?? '')) !== '' || trim((string)($t['permit_issue_date'] ?? '')) !== '' || trim((string)($t['permit_expiry_date'] ?? '')) !== ''): ?>
-                      <div class="mt-1 space-y-0.5">
-                        <?php if (trim((string)($t['owner_name'] ?? '')) !== ''): ?>
-                          <div class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Owner: <span class="font-bold text-slate-800 dark:text-slate-200"><?php echo htmlspecialchars((string)$t['owner_name']); ?></span></div>
-                        <?php endif; ?>
-                        <?php if (trim((string)($t['operator_name'] ?? '')) !== ''): ?>
-                          <div class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Operator: <span class="font-bold text-slate-800 dark:text-slate-200"><?php echo htmlspecialchars((string)$t['operator_name']); ?></span></div>
-                        <?php endif; ?>
-                        <?php if (trim((string)($t['permit_type'] ?? '')) !== '' || trim((string)($t['permit_status'] ?? '')) !== ''): ?>
-                          <div class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Permit: <span class="font-bold text-slate-800 dark:text-slate-200"><?php echo htmlspecialchars(trim(((string)($t['permit_type'] ?? '')) . (trim((string)($t['permit_status'] ?? '')) !== '' ? (' • ' . (string)$t['permit_status']) : ''))); ?></span></div>
-                        <?php endif; ?>
-                        <?php if (trim((string)($t['permit_issue_date'] ?? '')) !== '' || trim((string)($t['permit_expiry_date'] ?? '')) !== ''): ?>
-                          <div class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Validity: <span class="font-bold text-slate-800 dark:text-slate-200"><?php echo htmlspecialchars(trim(((string)($t['permit_issue_date'] ?? '')) . ((string)($t['permit_issue_date'] ?? '') !== '' || (string)($t['permit_expiry_date'] ?? '') !== '' ? ' → ' : '') . ((string)($t['permit_expiry_date'] ?? '')))); ?></span></div>
-                        <?php endif; ?>
-                      </div>
-                      <?php endif; ?>
                     </td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">
-                      <?php echo htmlspecialchars((string)($t['location'] ?? '')); ?>
-                    </td>
+                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
+                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
                     <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
                       <?php $rc = (int)($t['route_count'] ?? 0); ?>
                       <?php if ($rc > 0): ?>
-                        <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
-                        <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="ml-2 inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="View routes">
-                          <i data-lucide="list" class="w-4 h-4"></i>
-                          <span class="sr-only">View routes</span>
-                        </button>
+                          <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
+                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
+                            class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="View routes">
+                            <i data-lucide="list" class="w-4 h-4"></i>
+                            <span class="sr-only">View routes</span>
+                          </button>
+                        </div>
                       <?php else: ?>
-                        <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
-                        <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="ml-2 text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
+                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
+                        </div>
                       <?php endif; ?>
                     </td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
@@ -519,8 +409,6 @@ if ($rootUrl === '/') $rootUrl = '';
                           'address' => (string)($t['address'] ?? ''),
                           'capacity' => (int)($t['capacity'] ?? 0),
                           'category' => (string)($t['category'] ?? ''),
-                          'owner' => (string)($t['owner_name'] ?? ''),
-                          'operator' => (string)($t['operator_name'] ?? ''),
                         ];
                       ?>
                       <div class="inline-flex items-center justify-end gap-1">
@@ -766,14 +654,6 @@ if ($rootUrl === '/') $rootUrl = '';
             <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
           </div>
           <div class="md:col-span-4">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner</label>
-            <input name="owner" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LGU / Private Corp">
-          </div>
-          <div class="md:col-span-4">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator</label>
-            <input name="operator" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., LGU / Company Name">
-          </div>
-          <div class="md:col-span-4">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
             <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               <option value="">Select</option>
@@ -796,37 +676,8 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="md:col-span-8">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
-            <div class="grid grid-cols-2 gap-4 mb-2">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Agreement Type</label>
-                <select name="agreement_type" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
-                  <option value="MOA">MOA (Memorandum of Agreement)</option>
-                  <option value="Permit">Permit / License</option>
-                  <option value="Lease">Lease Agreement</option>
-                  <option value="Authorization">Authority to Operate</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Status</label>
-                <select name="permit_status" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
-                  <option value="Active">Active</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Expired">Expired</option>
-                  <option value="Revoked">Revoked</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid From</label>
-                <input name="valid_from" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Valid To</label>
-                <input name="valid_to" type="date" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-xs font-semibold">
-              </div>
-            </div>
-            <input id="terminalPermitFile" name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
-            <div id="terminalPermitHelp" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Required on create to ensure legal compliance.</div>
+            <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
+            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Optional on create; upload here when editing to attach legal proof for this terminal.</div>
           </div>
           <div class="md:col-span-8 flex items-center justify-end gap-2">
             <button type="button" id="btnCancelCreateTerminal" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
@@ -922,10 +773,6 @@ if ($rootUrl === '/') $rootUrl = '';
         const idEl = formTerminal.querySelector('input[name="id"]');
         if (idEl) idEl.value = '';
       }
-      const pf = document.getElementById('terminalPermitFile');
-      const help = document.getElementById('terminalPermitHelp');
-      if (pf) pf.required = true;
-      if (help) help.textContent = 'Required on create to ensure legal compliance.';
     }
     function closeCreateTerminalModal() {
       if (!terminalCreateModal) return;
@@ -963,12 +810,6 @@ if ($rootUrl === '/') $rootUrl = '';
       set('location', t.location || '');
       set('address', t.address || '');
       set('capacity', (t.capacity !== null && t.capacity !== undefined) ? t.capacity : 0);
-      set('owner', t.owner || '');
-      set('operator', t.operator || '');
-      const pf = document.getElementById('terminalPermitFile');
-      const help = document.getElementById('terminalPermitHelp');
-      if (pf) pf.required = false;
-      if (help) help.textContent = 'Optional when editing; upload to update legal proof.';
     }
 
     Array.from(document.querySelectorAll('[data-terminal-edit="1"]')).forEach((btn) => {
