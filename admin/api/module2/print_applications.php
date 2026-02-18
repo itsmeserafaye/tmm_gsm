@@ -53,6 +53,16 @@ header('Content-Type: text/html; charset=utf-8');
 $logo = $rootUrl . '/admin/includes/GSM_logo.png';
 $now = date('M d, Y H:i');
 $year = date('Y');
+$pb_name = trim((string)($_GET['pb_name'] ?? ''));
+$pb_dept = trim((string)($_GET['pb_dept'] ?? ''));
+$rc_name = trim((string)($_GET['rc_name'] ?? ''));
+$rc_pos = trim((string)($_GET['rc_pos'] ?? ''));
+$rc_dept = trim((string)($_GET['rc_dept'] ?? ''));
+$rep_title = trim((string)($_GET['rep_title'] ?? 'Franchise Applications Report'));
+$office_addr = trim((string)(tmm_get_app_setting('office_address','') ?? ''));
+$office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
+$office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
+$public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
 
 function tmm_extract_ids(string $csv): array {
   $out = [];
@@ -102,10 +112,13 @@ if ($needIds) {
     .rtitle{display:flex;flex-direction:column;align-items:center}
     .rtitle .title{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
     .rtitle .sub{font-weight:700;color:#334155}
+    .rtitle .addr{font-size:12px;color:#64748b;font-weight:700;margin-top:2px}
     .rtitle .filters{font-size:12px;color:#475569;margin-top:4px}
-    .meta{font-size:11px;color:#64748b;padding:4px 0}
-    .meta .left{text-align:left}
-    .meta .center{text-align:center;font-weight:700}
+    .ibox{margin-top:8px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+    .ibox table{margin:0;border:0}
+    .ibox th,.ibox td{border:0;padding:6px 10px;font-size:12px}
+    .ibox th{width:28%;text-align:left;background:#f8fafc;color:#334155;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+    .ibox td{font-weight:700;color:#0f172a}
     @media print{
       body{margin:0}
       .wrap{padding:0 12mm calc(var(--footer-height) + 4mm) 12mm}
@@ -118,24 +131,49 @@ if ($needIds) {
       <thead>
         <tr>
           <th colspan="6" style="background:#fff;border:0;padding:0">
-            <div class="meta">
-              <div class="left"><?php echo htmlspecialchars($now); ?></div>
-              <div class="center">Franchise Applications Report</div>
-            </div>
-          </th>
-        </tr>
-        <tr>
-          <th colspan="6" style="background:#fff;border:0;padding:0">
             <div class="rhead">
               <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
               <div class="rtitle">
                 <div class="title">Transport & Mobility Management</div>
-                <div class="sub">Franchise Applications Report</div>
+                <div class="sub"><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Franchise Applications Report'); ?></div>
+                <?php if ($office_addr !== ''): ?>
+                <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
+                <?php endif; ?>
                 <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Status: <?php echo htmlspecialchars($status ?: 'All'); ?></div>
               </div>
             </div>
             <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
           </th>
+        </tr>
+        <tr>
+          <td colspan="6" style="background:#fff;border:0;padding:0">
+            <div class="ibox">
+              <table>
+                <tr>
+                  <th>Prepared by Department</th>
+                  <td><?php echo htmlspecialchars($pb_dept !== '' ? $pb_dept : '-'); ?></td>
+                  <th>Report</th>
+                  <td><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Summary Report'); ?></td>
+                </tr>
+                <tr>
+                  <th>Name</th>
+                  <td><?php echo htmlspecialchars($pb_name !== '' ? $pb_name : '-'); ?></td>
+                  <th>Date & Time</th>
+                  <td><?php echo htmlspecialchars($now); ?></td>
+                </tr>
+                <tr>
+                  <th>Recipient Name</th>
+                  <td><?php echo htmlspecialchars($rc_name !== '' ? $rc_name : '-'); ?></td>
+                  <th>Position</th>
+                  <td><?php echo htmlspecialchars($rc_pos !== '' ? $rc_pos : '-'); ?></td>
+                </tr>
+                <tr>
+                  <th>Department</th>
+                  <td colspan="3"><?php echo htmlspecialchars($rc_dept !== '' ? $rc_dept : '-'); ?></td>
+                </tr>
+              </table>
+            </div>
+          </td>
         </tr>
         <tr>
           <th style="width:16%">Ref No</th>
@@ -178,7 +216,9 @@ if ($needIds) {
       </tbody>
     </table>
   </div>
-  <div class="footer">Transport & Mobility Management • LGU Permitted • © <?php echo htmlspecialchars($year); ?></div>
+  <div class="footer">
+    Transport & Mobility Management • <?php echo htmlspecialchars($office_email); ?><?php if ($office_contact !== '') echo ' • ' . htmlspecialchars($office_contact); ?> • <?php echo htmlspecialchars($public_site); ?> • © <?php echo htmlspecialchars($year); ?>
+  </div>
   <script>
     (function() {
       try { window.print(); } catch (e) {}

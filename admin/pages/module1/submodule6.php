@@ -397,7 +397,10 @@ if ($saParams) {
           'href' => $rootUrl . '/admin/api/module1/print_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status]),
           'label' => 'Print',
           'icon' => 'printer',
-          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status])]
+          'attrs' => [
+            'data-print-url' => $rootUrl . '/admin/api/module1/print_routes.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'route_category' => $routeCategory, 'status' => $status]),
+            'data-report-name' => 'Route Corridors Report'
+          ]
         ];
       }
       if ($canManage) {
