@@ -49,7 +49,9 @@ if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $conds[] = "(v.plate_number LIKE '%$qv%' OR v.engine_no LIKE '%$qv%' OR v.chassis_no LIKE '%$qv%')";
 }
-if ($status !== '' && in_array($status, ['Registered','Pending','Expired'], true)) {
+if ($status === 'Not Registered') {
+  $conds[] = "(vr.registration_status IS NULL OR vr.registration_status='')";
+} elseif ($status !== '' && in_array($status, ['Registered','Pending','Expired'], true)) {
   $sv = $db->real_escape_string($status);
   $conds[] = "vr.registration_status='$sv'";
 }
@@ -119,6 +121,12 @@ $res = $db->query($sql);
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
+        $exportItems[] = [
+          'href' => $rootUrl . '/admin/api/module4/print_registrations.php?' . http_build_query(['q' => $q, 'status' => $status]),
+          'label' => 'Print',
+          'icon' => 'printer',
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module4/print_registrations.php?' . http_build_query(['q' => $q, 'status' => $status])]
+        ];
       }
       if (has_permission('module4.schedule')) {
         $exportItems[] = [
@@ -154,7 +162,7 @@ $res = $db->query($sql);
         <div class="relative w-full sm:w-60">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Registration Status</option>
-            <?php foreach (['Registered','Pending','Expired'] as $s): ?>
+            <?php foreach (['Registered','Pending','Expired','Not Registered'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -174,7 +182,7 @@ $res = $db->query($sql);
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
-    <?php foreach (['Registered','Pending','Expired'] as $chip): ?>
+    <?php foreach (['Registered','Pending','Expired','Not Registered'] as $chip): ?>
         <a href="?<?php echo http_build_query(['page'=>'module4/submodule1','q'=>$q,'status'=>$chip]); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>

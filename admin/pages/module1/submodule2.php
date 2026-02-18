@@ -321,6 +321,12 @@ $typesList = vehicle_types();
           'label' => 'Excel',
           'icon' => 'file-spreadsheet'
         ];
+        $exportItems[] = [
+          'href' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus]),
+          'label' => 'Print',
+          'icon' => 'printer',
+          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module1/print_vehicles.php?' . http_build_query(['q' => $q, 'vehicle_type' => $vehicleType, 'record_status' => $recordStatus, 'docu_status' => $docuStatus])]
+        ];
       }
       if (has_any_permission(['module1.write','module1.vehicles.write'])) {
         $exportItems[] = [
@@ -1180,6 +1186,37 @@ $typesList = vehicle_types();
           fuelOtherInput.addEventListener('blur', () => { fuelHidden.value = fuelOtherInput.value || ''; });
         }
       }
+
+      const formDetails = root.querySelector('#formDetails');
+      const formLink = root.querySelector('#formLink');
+      const linkOpViewOnly = root.querySelector('#linkOpViewOnly');
+      const btnEdit = root.querySelector('#vehEditBtn');
+      const btnCancel = root.querySelector('#vehCancelBtn');
+      const btnSave = root.querySelector('#vehSaveBtn');
+
+      const setEditing = (on) => {
+        const toggle = (form) => {
+          if (!form) return;
+          form.querySelectorAll('input, select, textarea, button').forEach((el) => {
+            if (!el) return;
+            if (el.id === 'vehSaveBtn') return;
+            if (el.type === 'hidden') return;
+            if (on) el.removeAttribute('disabled');
+            else el.setAttribute('disabled', 'disabled');
+          });
+        };
+        toggle(formDetails);
+        toggle(formLink);
+        if (formLink) formLink.classList.toggle('hidden', !on);
+        if (linkOpViewOnly) linkOpViewOnly.classList.toggle('hidden', on);
+        if (btnEdit) btnEdit.classList.toggle('hidden', on);
+        if (btnCancel) btnCancel.classList.toggle('hidden', !on);
+        if (btnSave) btnSave.classList.toggle('hidden', !on);
+      };
+      setEditing(false);
+
+      if (btnEdit) btnEdit.addEventListener('click', () => setEditing(true));
+      if (btnCancel) btnCancel.addEventListener('click', () => loadVehicleView(plate));
 
       const postForm = async (form) => {
         if (!form) return;
