@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/security.php';
 require_once __DIR__ . '/../../includes/util.php';
 require_once __DIR__ . '/../../includes/vehicle_types.php';
+require_once __DIR__ . '/../../includes/franchise_gate.php';
 $db = db();
 
 header('Content-Type: application/json');
@@ -81,6 +82,23 @@ try {
         exit;
     }
     $vehicle_type = 'Tricycle';
+    $slots = tmm_operator_required_doc_slots((string)($op['operator_type'] ?? ''));
+    $docCheck = tmm_operator_docs_verified($db, $operator_id, $slots);
+    if (!$docCheck['ok']) {
+        $missing = [];
+        if (($docCheck['error'] ?? '') === 'operator_docs_missing') {
+            foreach ($slots as $s) {
+                if (!empty($s['optional'])) continue;
+                $lbl = trim((string)($s['label'] ?? ''));
+                if ($lbl !== '') $missing[] = $lbl;
+            }
+        } else {
+            $missing = (array)($docCheck['missing'] ?? []);
+        }
+        $missing = array_values(array_filter(array_map(fn($x) => trim((string)$x), $missing), fn($x) => $x !== ''));
+        echo json_encode(['ok' => false, 'error' => 'operator_docs_not_verified', 'missing' => $missing]);
+        exit;
+    }
     if ($isTricycle) {
         if ($service_area_id <= 0) { echo json_encode(['ok' => false, 'error' => 'missing_required_fields']); exit; }
         $stmtA = $db->prepare("SELECT id, status, COALESCE(authorized_units,0) AS authorized_units FROM tricycle_service_areas WHERE id=? LIMIT 1");
@@ -101,7 +119,7 @@ try {
         $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
                                FROM franchise_applications
                                WHERE service_area_id=? AND COALESCE(vehicle_type,'')='Tricycle'
-                                 AND status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')");
+                                 AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
         if ($stmtU) {
             $stmtU->bind_param('i', $service_area_id);
             $stmtU->execute();
@@ -217,7 +235,7 @@ try {
     $areaIdBind = $service_area_id > 0 ? $service_area_id : null;
     $stmt = $db->prepare("INSERT INTO franchise_applications
                           (franchise_ref_number, operator_id, route_id, service_area_id, vehicle_type, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_user_id, submitted_by_name, submitted_channel)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), ?, ?, ?)");
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending Review', NOW(), ?, ?, ?)");
     if (!$stmt) throw new Exception('db_prepare_failed');
     $stmt->bind_param('siiissisiss', $franchise_ref, $operator_id, $routeIdBind, $areaIdBind, $vehicle_type, $route_ids_val, $vehicle_count, $representative_name, $submittedByUserId, $submittedByName, $submittedChannel);
     $execOk = $stmt->execute();

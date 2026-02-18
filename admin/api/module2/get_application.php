@@ -105,8 +105,8 @@ if ($hasFranchises) {
                JOIN franchises f ON f.application_id=fa.application_id
                SET fa.status='Expired'
                WHERE f.status='Expired'
-                 AND fa.status IN ('PA Issued','CPC Issued','LTFRB-Approved','Approved')");
-  if ($row && in_array((string)($row['status'] ?? ''), ['PA Issued','CPC Issued','LTFRB-Approved','Approved'], true)) {
+                 AND fa.status IN ('Active','Approved','Pending Review','Returned for Correction','PA Issued','CPC Issued','LTFRB-Approved','Submitted','Pending','Under Review')");
+  if ($row && in_array((string)($row['status'] ?? ''), ['Active','Approved','Pending Review','Returned for Correction','PA Issued','CPC Issued','LTFRB-Approved','Approved','Submitted','Pending','Under Review'], true)) {
     $resSt = $db->query("SELECT status FROM franchise_applications WHERE application_id=" . (int)$appId . " LIMIT 1");
     if ($resSt && ($stRow = $resSt->fetch_assoc())) $row['status'] = (string)($stRow['status'] ?? $row['status']);
   }

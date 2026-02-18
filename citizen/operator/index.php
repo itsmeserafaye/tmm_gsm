@@ -417,19 +417,19 @@ $typesList = vehicle_types();
                 <section id="applications" class="hidden space-y-8">
                     <div>
                         <h2 class="text-2xl font-bold text-slate-900">Franchise Applications</h2>
-                        <p class="text-slate-500 text-sm">Submit a franchise application and monitor endorsement and LTFRB approval requirements.</p>
+                        <p class="text-slate-500 text-sm">Submit a tricycle franchise application and monitor staff evaluation and issuance.</p>
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-soft border border-slate-100 overflow-hidden">
                         <div class="p-1 bg-gradient-to-r from-primary to-secondary"></div>
                         <div class="p-6 md:p-8">
-                            <form id="franchiseApplicationForm" class="space-y-6" onsubmit="submitFranchiseApplication(event)" enctype="multipart/form-data" novalidate>
+                            <form id="franchiseApplicationForm" class="space-y-6" onsubmit="submitFranchiseApplication(event)" novalidate>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="space-y-2">
-                                        <label class="block text-sm font-semibold text-slate-700">Requested Vehicle Count</label>
+                                        <label class="block text-sm font-semibold text-slate-700">Requested number of units</label>
                                         <input type="number" name="vehicle_count" min="1" max="500" value="1" required
                                             class="w-full px-4 py-3 bg-slate-50 rounded-xl border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-primary outline-none transition text-sm font-semibold">
-                                        <div class="mt-2 text-[11px] text-slate-500">Requested units can be adjusted during LTFRB approval.</div>
+                                        <div class="mt-2 text-[11px] text-slate-500">Your request will be reviewed by LGU staff.</div>
                                     </div>
                                     <div class="space-y-2">
                                         <label class="block text-sm font-semibold text-slate-700">Service Area / TODA Zone</label>
@@ -445,6 +445,18 @@ $typesList = vehicle_types();
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                                    <div class="text-sm font-bold text-slate-800">Upload requirements</div>
+                                    <div class="mt-1 text-xs text-slate-500 font-semibold">These are pulled from your operator document validation and must be uploaded and verified before you can submit.</div>
+                                    <ul class="mt-3 space-y-1 text-sm text-slate-700 font-semibold">
+                                        <li>Government ID</li>
+                                        <li>Barangay Clearance</li>
+                                        <li>Proof of Residency</li>
+                                        <li>Police Clearance (optional)</li>
+                                        <li>Application form</li>
+                                    </ul>
                                 </div>
 
                                 <div class="space-y-2">
@@ -466,8 +478,8 @@ $typesList = vehicle_types();
                         <div class="p-6 md:p-8">
                             <div class="flex items-center justify-between mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-900">Franchise Applications & Endorsement</h3>
-                                    <p class="text-xs text-slate-500">View your status and what is required for LTFRB approval.</p>
+                                    <h3 class="text-lg font-bold text-slate-900">Franchise Applications</h3>
+                                    <p class="text-xs text-slate-500">View your status through review, approval, and issuance.</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <input type="text" oninput="setTableFilter('appsTable', this.value)" placeholder="Filter applications…"
@@ -485,26 +497,18 @@ $typesList = vehicle_types();
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                                 Reference</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Route</th>
+                                                Service Area / TODA Zone</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                                 Units</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Representative</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Declared Fleet</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                                 Status</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Endorsement</th>
-                                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                                Requirements</th>
                                             <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
                                                 Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="appsTable" class="divide-y divide-slate-100">
                                         <tr>
-                                            <td colspan="10" class="p-6 text-center text-slate-400 italic">Loading...
+                                            <td colspan="5" class="p-6 text-center text-slate-400 italic">Loading...
                                             </td>
                                         </tr>
                                     </tbody>
@@ -528,14 +532,6 @@ $typesList = vehicle_types();
                                         d="M12 4v16m8-8H4"></path>
                                 </svg>
                                 Submit Vehicle Encoding
-                            </button>
-                            <button id="btnDeclaredFleet" onclick="generateDeclaredFleetPreview()"
-                                class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12h6m-6 4h6M9 8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                                Generate Declared Fleet
                             </button>
                             <button id="btnTransferRequest" onclick="showTransferRequestModal()"
                                 class="bg-white text-slate-800 px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-slate-50 transition inline-flex items-center gap-2 ml-2 border border-slate-200">
@@ -1253,7 +1249,7 @@ $typesList = vehicle_types();
             <div class="flex items-start justify-between gap-4 mb-4">
                 <div>
                     <h3 class="text-lg font-bold text-slate-800">Franchise Application</h3>
-                    <p class="text-xs text-slate-500 mt-1">View endorsement status and LTFRB approval requirements.</p>
+                    <p class="text-xs text-slate-500 mt-1">View staff evaluation decision and franchise issuance details.</p>
                 </div>
                 <button type="button" onclick="closeFranchiseViewModal()" class="text-slate-400 hover:text-slate-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1814,58 +1810,44 @@ $typesList = vehicle_types();
         async function loadApplications() {
             const tbody = document.getElementById('appsTable');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">Loading...</td></tr>';
             const data = await apiGet('puv_list_franchise_applications');
             if (!data || !data.ok) {
                 const msg = (data && (data.error || data.message)) ? (data.error || data.message) : 'Failed to load applications.';
-                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">${escapeHtml(msg)}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">${escapeHtml(msg)}</td></tr>`;
                 return;
             }
             const rows = Array.isArray(data.data) ? data.data : [];
             if (!rows.length) {
-                tbody.innerHTML = '<tr><td colspan="10" class="p-6 text-center text-slate-400 italic">No applications yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No applications yet.</td></tr>';
                 return;
             }
             tbody.innerHTML = rows.map(r => {
-                const status = (r.status || 'Submitted').toString();
-                const statusBadge = (status === 'PA Issued' || status === 'CPC Issued')
+                const status = (r.status || 'Pending Review').toString();
+                const statusBadge = (status === 'Active')
                     ? 'bg-emerald-100 text-emerald-700'
-                    : (status === 'LGU-Endorsed' || status === 'Endorsed' || status === 'LTFRB-Approved' || status === 'Approved')
+                    : (status === 'Approved')
                         ? 'bg-blue-100 text-blue-700'
-                        : (status === 'Rejected')
+                        : (status === 'Rejected' || status === 'Revoked')
                             ? 'bg-rose-100 text-rose-700'
-                            : 'bg-amber-100 text-amber-700';
+                            : (status === 'Expired')
+                                ? 'bg-slate-100 text-slate-700'
+                                : 'bg-amber-100 text-amber-700';
 
                 const submitted = (r.submitted_at || '').toString().slice(0, 10);
                 const ref = (r.reference || '').toString();
                 const routeCode = (r.route_code || '').toString();
-                const od = [r.origin, r.destination].filter(Boolean).join(' → ');
-                const routeLabel = (routeCode ? routeCode : '') + (od ? (' • ' + od) : '');
+                const origin = (r.origin || '').toString();
+                const routeLabel = (routeCode ? routeCode : '') + (origin ? (' • ' + origin) : '');
                 const requestedUnits = Number(r.vehicle_count || 0);
-                const approvedUnits = Number(r.approved_vehicle_count || 0);
-                const unitsLabel = approvedUnits > 0 && approvedUnits !== requestedUnits ? `${requestedUnits} (LTFRB: ${approvedUnits})` : `${requestedUnits}`;
-                const rep = (r.representative_name || '').toString();
-                const hasFleet = Number(r.declared_fleet_count || 0) > 0;
-                const fleetBadge = hasFleet ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600';
-
-                const req = r.requirements || {};
-                const blockers = Array.isArray(req.endorsement_blockers) ? req.endorsement_blockers : [];
-                const ltfrb = Array.isArray(req.ltfrb) ? req.ltfrb : [];
-                let reqText = 'Complete';
-                if (blockers.length) reqText = String(blockers[0] || 'Needs endorsement requirements');
-                else if (ltfrb.length) reqText = String(ltfrb[0] || 'Needs LTFRB requirements');
 
                 return `
                     <tr class="hover:bg-slate-50 transition">
                         <td class="p-4 text-xs text-slate-500">${escapeHtml(submitted || '-')}</td>
                         <td class="p-4 font-bold text-slate-800">${escapeHtml(ref || '-')}</td>
                         <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml(routeLabel || '-')}</td>
-                        <td class="p-4 text-sm text-slate-800 font-bold">${escapeHtml(unitsLabel)}</td>
-                        <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml(rep || '-')}</td>
-                        <td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${fleetBadge}">${hasFleet ? 'Attached' : 'Not attached'}</span></td>
+                        <td class="p-4 text-sm text-slate-800 font-bold">${escapeHtml(String(requestedUnits || 0))}</td>
                         <td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${statusBadge}">${escapeHtml(status)}</span></td>
-                        <td class="p-4 text-xs text-slate-700 font-semibold">${escapeHtml((r.endorsement_status || '-').toString())}</td>
-                        <td class="p-4 text-xs text-slate-600">${escapeHtml(reqText)}</td>
                         <td class="p-4 text-right">
                             <button type="button" onclick="openFranchiseViewModal(${Number(r.application_id || 0)})"
                                 class="text-xs font-bold text-primary hover:text-primary-dark transition">View</button>
@@ -1898,14 +1880,16 @@ $typesList = vehicle_types();
             const docs = Array.isArray(data.data.documents) ? data.data.documents : [];
             const req = data.data.requirements || {};
 
-            const status = (app.status || 'Submitted').toString();
-            const statusBadge = (status === 'PA Issued' || status === 'CPC Issued')
+            const status = (app.status || 'Pending Review').toString();
+            const statusBadge = (status === 'Active')
                 ? 'bg-emerald-100 text-emerald-700'
-                : (status === 'LGU-Endorsed' || status === 'Endorsed' || status === 'LTFRB-Approved' || status === 'Approved')
+                : (status === 'Approved')
                     ? 'bg-blue-100 text-blue-700'
-                    : (status === 'Rejected')
+                    : (status === 'Rejected' || status === 'Revoked')
                         ? 'bg-rose-100 text-rose-700'
-                        : 'bg-amber-100 text-amber-700';
+                        : (status === 'Expired')
+                            ? 'bg-slate-100 text-slate-700'
+                            : 'bg-amber-100 text-amber-700';
 
             const ref = (app.franchise_ref_number || '').toString();
             const submitted = (app.submitted_at || '').toString().slice(0, 19).replace('T', ' ');
@@ -1913,34 +1897,19 @@ $typesList = vehicle_types();
             const rep = (app.representative_name || '').toString();
             const routeCode = (app.route_code || '').toString();
             const od = [app.origin, app.destination].filter(Boolean).join(' → ');
-            const routeLabel = (routeCode ? routeCode : '') + (od ? (' • ' + od) : '');
+            const routeLabel = (routeCode ? routeCode : '') + (o ? (' • ' + o) : '');
 
-            const endorseStatus = (app.endorsement_status || '').toString();
-            const conditions = (app.conditions || '').toString();
-            const permitNo = (app.permit_number || '').toString();
-            const issuedDate = (app.issued_date || '').toString();
+            const reviewedAt = (app.reviewed_at || '').toString();
+            const reviewDecision = (app.review_decision || '').toString();
+            const reviewNotes = (app.review_notes || '').toString();
 
-            const ltfrbRef = (app.ltfrb_ref_no || app.franchise_ref_number || '').toString();
-            const authType = (app.authority_type || '').toString();
+            const certNo = (app.certificate_no || '').toString();
             const issueDate = (app.issue_date || '').toString();
             const expiryDate = (app.expiry_date || '').toString();
+            const franchiseStatus = (app.franchise_status || '').toString();
 
-            const fleetDocs = docs.filter(d => (d && (d.type || '')).toString().toLowerCase() === 'declared fleet' && (d.file_path || '').toString() !== '');
-            const fleetHref = fleetDocs[0] ? ('../../admin/uploads/' + (fleetDocs[0].file_path || '').toString()) : '';
-
-            const endorseBlockers = Array.isArray(req.endorsement_blockers) ? req.endorsement_blockers : [];
-            const ltfrbReq = Array.isArray(req.ltfrb_requirements) ? req.ltfrb_requirements : [];
-            const vm = req.vehicle_metrics || {};
-
-            const list = (arr) => arr && arr.length ? ('<ul class="list-disc pl-5 space-y-1">' + arr.map(x => `<li>${escapeHtml(String(x || ''))}</li>`).join('') + '</ul>') : '<div class="text-xs text-slate-500">None</div>';
-
-            const needUnits = Number(req.need_units || 0);
-            const totalLinked = Number(vm.total_linked || 0);
-            const orcrHave = Number(vm.orcr_have || 0);
-            const readyHave = Number(vm.ready_have || 0);
-            const missOrcr = Array.isArray(vm.missing_orcr_plates) ? vm.missing_orcr_plates : [];
-            const missInsp = Array.isArray(vm.missing_ready_inspection) ? vm.missing_ready_inspection : [];
-            const missDocs = Array.isArray(vm.missing_ready_docs) ? vm.missing_ready_docs : [];
+            const reviewSummary = reviewDecision ? reviewDecision : (status === 'Returned for Correction' ? 'Returned for Correction' : 'Pending');
+            const issuanceSummary = certNo ? [certNo, issueDate, expiryDate].filter(Boolean).join(' • ') : '-';
 
             body.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1953,98 +1922,50 @@ $typesList = vehicle_types();
                     <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
                         <div class="text-[11px] font-bold text-slate-500 uppercase">Status</div>
                         <div class="mt-1"><span class="px-3 py-1 rounded-full text-[11px] font-bold ${statusBadge}">${escapeHtml(status)}</span></div>
-                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Units Requested</div>
+                        <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Requested number of units</div>
                         <div class="mt-1 text-sm font-bold text-slate-900">${escapeHtml(String(units || 0))}</div>
                         <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Representative</div>
                         <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(rep || '-')}</div>
                     </div>
                     <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 md:col-span-2">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase">Route</div>
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Service Area / TODA Zone</div>
                         <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(routeLabel || '-')}</div>
                     </div>
                 </div>
 
                 <div class="p-4 rounded-xl border border-slate-200 bg-white">
-                    <div class="text-xs font-bold text-slate-700">Endorsement</div>
+                    <div class="text-xs font-bold text-slate-700">Staff Evaluation</div>
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <div class="text-[11px] font-bold text-slate-500 uppercase">Endorsement Status</div>
-                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(endorseStatus || '-')}</div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Decision</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(reviewSummary || '-')}</div>
                         </div>
                         <div>
-                            <div class="text-[11px] font-bold text-slate-500 uppercase">Permit / Issued Date</div>
-                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([permitNo, issuedDate].filter(Boolean).join(' • ') || '-')}</div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Reviewed</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(reviewedAt ? reviewedAt.slice(0, 19).replace('T', ' ') : '-')}</div>
                         </div>
                     </div>
                     <div class="mt-3">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase">Conditions</div>
-                        <div class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(conditions || '-')}</div>
-                    </div>
-                    <div class="mt-4">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase">What blocks endorsement</div>
-                        <div class="mt-2 text-sm text-slate-700">${list(endorseBlockers)}</div>
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Notes</div>
+                        <div class="mt-1 text-sm text-slate-700 whitespace-pre-wrap">${escapeHtml(reviewNotes || '-')}</div>
                     </div>
                 </div>
 
                 <div class="p-4 rounded-xl border border-slate-200 bg-white">
-                    <div class="text-xs font-bold text-slate-700">LTFRB Approval Readiness</div>
+                    <div class="text-xs font-bold text-slate-700">Franchise Issuance</div>
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <div class="text-[11px] font-bold text-slate-500 uppercase">LTFRB Reference</div>
-                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(ltfrbRef || '-')}</div>
-                            <div class="mt-3 text-[11px] font-bold text-slate-500 uppercase">Authority</div>
-                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml([authType, issueDate, expiryDate].filter(Boolean).join(' • ') || '-')}</div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Certificate / Permit</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(certNo || '-')}</div>
                         </div>
                         <div>
-                            <div class="text-[11px] font-bold text-slate-500 uppercase">Vehicle Requirements</div>
-                            <div class="mt-2 text-sm text-slate-700 space-y-2">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="text-xs font-semibold text-slate-600">Units needed</div>
-                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(needUnits || 0))}</div>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="text-xs font-semibold text-slate-600">Linked vehicles</div>
-                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(totalLinked || 0))}</div>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="text-xs font-semibold text-slate-600">Verified OR/CR</div>
-                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(orcrHave || 0))}</div>
-                                </div>
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="text-xs font-semibold text-slate-600">Inspection+Insurance ready</div>
-                                    <div class="text-xs font-bold text-slate-900">${escapeHtml(String(readyHave || 0))}</div>
-                                </div>
-                            </div>
+                            <div class="text-[11px] font-bold text-slate-500 uppercase">Issue / Expiry</div>
+                            <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(issuanceSummary)}</div>
                         </div>
                     </div>
-
-                    <div class="mt-4">
-                        <div class="text-[11px] font-bold text-slate-500 uppercase">What is needed for LTFRB approval</div>
-                        <div class="mt-2 text-sm text-slate-700">${list(ltfrbReq)}</div>
-                    </div>
-
-                    ${(missOrcr.length || missInsp.length || missDocs.length) ? `
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing OR/CR</div>
-                                <div class="mt-2 text-xs text-slate-700">${list(missOrcr)}</div>
-                            </div>
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing Inspection</div>
-                                <div class="mt-2 text-xs text-slate-700">${list(missInsp)}</div>
-                            </div>
-                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                                <div class="text-[11px] font-bold text-slate-500 uppercase">Missing Insurance/Registration</div>
-                                <div class="mt-2 text-xs text-slate-700">${list(missDocs)}</div>
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-
-                <div class="p-4 rounded-xl border border-slate-200 bg-white">
-                    <div class="text-xs font-bold text-slate-700">Declared Fleet</div>
-                    <div class="mt-2">
-                        ${fleetHref ? `<a class="text-sm font-bold text-primary hover:text-primary-dark transition" target="_blank" rel="noopener" href="${escapeHtml(fleetHref)}">View Declared Fleet</a>` : `<div class="text-sm text-slate-600 font-semibold">No declared fleet document attached to this application.</div>`}
+                    <div class="mt-3">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Franchise Status</div>
+                        <div class="mt-1 text-sm font-semibold text-slate-800">${escapeHtml(franchiseStatus || (certNo ? 'Active' : '-'))}</div>
                     </div>
                 </div>
             `;

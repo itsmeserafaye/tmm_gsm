@@ -1209,17 +1209,17 @@ function db()
     operator_id INT NOT NULL,
     coop_id INT,
     vehicle_count INT DEFAULT 1,
-    status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued','Rejected','Expired','Revoked') DEFAULT 'Submitted',
+    status ENUM('Pending Review','Returned for Correction','Approved','Rejected','Active','Expired','Revoked','Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued') DEFAULT 'Pending Review',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
-  $conn->query("UPDATE franchise_applications SET status='Submitted' WHERE status IN ('Pending','Under Review')");
   $statusCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'status'");
   if ($statusCol && ($row = $statusCol->fetch_assoc())) {
     $t = (string) ($row['Type'] ?? '');
-    if (stripos($t, 'pa issued') === false || stripos($t, 'cpc issued') === false || stripos($t, 'revoked') === false || stripos($t, 'expired') === false || stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
-      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued','Rejected','Expired','Revoked') DEFAULT 'Submitted'");
+    if (stripos($t, 'pending review') === false || stripos($t, 'returned for correction') === false || stripos($t, 'active') === false || stripos($t, 'pa issued') === false || stripos($t, 'cpc issued') === false || stripos($t, 'revoked') === false || stripos($t, 'expired') === false || stripos($t, 'lgu-endorsed') === false || stripos($t, 'ltfrb-approved') === false || stripos($t, 'approved') === false || stripos($t, 'submitted') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN status ENUM('Pending Review','Returned for Correction','Approved','Rejected','Active','Expired','Revoked','Submitted','Pending','Under Review','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued') DEFAULT 'Pending Review'");
     }
   }
+  $conn->query("UPDATE franchise_applications SET status='Pending Review' WHERE status IN ('Pending','Under Review','Submitted')");
   $faCols = [
     'route_id' => "INT DEFAULT NULL",
     'vehicle_type' => "ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL",
@@ -1244,7 +1244,12 @@ function db()
     'approved_vehicle_count' => "INT DEFAULT NULL",
     'approved_route_ids' => "VARCHAR(255) DEFAULT NULL",
     'remarks' => "TEXT",
-    'assigned_officer_id' => "INT"
+    'assigned_officer_id' => "INT",
+    'reviewed_at' => "DATETIME DEFAULT NULL",
+    'reviewed_by_user_id' => "INT DEFAULT NULL",
+    'reviewed_by_name' => "VARCHAR(150) DEFAULT NULL",
+    'review_decision' => "VARCHAR(32) DEFAULT NULL",
+    'review_notes' => "TEXT"
   ];
   foreach ($faCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE '$col'");
@@ -1283,6 +1288,11 @@ function db()
     'issue_date' => "DATE DEFAULT NULL",
     'expiry_date' => "DATE DEFAULT NULL",
     'status' => "ENUM('Active','Expired','Revoked') DEFAULT 'Active'",
+    'certificate_no' => "VARCHAR(80) DEFAULT NULL",
+    'approved_units' => "INT DEFAULT NULL",
+    'issued_at' => "DATETIME DEFAULT NULL",
+    'issued_by_user_id' => "INT DEFAULT NULL",
+    'issued_by_name' => "VARCHAR(150) DEFAULT NULL"
   ];
   foreach ($frCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchises LIKE '$col'");

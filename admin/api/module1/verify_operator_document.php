@@ -119,10 +119,10 @@ $wfStatus = (string) ($op['workflow_status'] ?? 'Draft');
     ];
   } else {
     $slots = [
-      ['doc_type' => 'GovID', 'label' => 'Valid Government ID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
+      ['doc_type' => 'GovID', 'label' => 'Government ID', 'keywords' => ['gov', 'id', 'driver', 'license', 'umid', 'philsys']],
       ['doc_type' => 'BarangayCert', 'label' => 'Barangay Clearance', 'keywords' => ['barangay clearance', 'barangay']],
       ['doc_type' => 'BarangayCert', 'label' => 'Proof of Residency', 'keywords' => ['proof of residency', 'residency', 'address']],
-      ['doc_type' => 'Others', 'label' => 'Police Clearance', 'keywords' => ['police clearance', 'police'], 'optional' => true],
+      ['doc_type' => 'Others', 'label' => 'Police Clearance (optional)', 'keywords' => ['police clearance', 'police'], 'optional' => true],
       ['doc_type' => 'Others', 'label' => 'Application form', 'keywords' => ['application form', 'application']],
     ];
   }

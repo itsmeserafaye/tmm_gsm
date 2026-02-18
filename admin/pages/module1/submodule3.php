@@ -486,7 +486,7 @@ function tmm_extract_gov_id_kind(?string $remarks): string {
       const docMatrix = {
         Individual: {
           required: [
-            { name: 'gov_id', docType: 'GovID', label: 'Valid Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
+            { name: 'gov_id', docType: 'GovID', label: 'Government ID', hint: 'Driver’s License / UMID / PhilSys ID' },
             { name: 'barangay_clearance', docType: 'BarangayCert', label: 'Barangay Clearance', hint: 'Issued by barangay of residence' },
             { name: 'proof_residency', docType: 'BarangayCert', label: 'Proof of Residency', hint: 'Certificate or equivalent proof of address' },
             { name: 'application_form', docType: 'Others', label: 'Application form', hint: 'Signed tricycle franchise application form' },

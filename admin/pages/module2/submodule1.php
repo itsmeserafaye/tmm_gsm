@@ -12,13 +12,14 @@ if ($hasFranchises) {
                JOIN franchises f ON f.application_id=fa.application_id
                SET fa.status='Expired'
                WHERE f.status='Expired'
-                 AND fa.status IN ('PA Issued','CPC Issued','LTFRB-Approved','Approved')");
+                 AND fa.status IN ('Active','Approved','Pending Review','Returned for Correction','PA Issued','CPC Issued','LTFRB-Approved','Submitted','Pending','Under Review')");
 }
 
 $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications")->fetch_assoc()['c'] ?? 0);
-$statSubmitted = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Submitted'")->fetch_assoc()['c'] ?? 0);
-$statEndorsed = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Endorsed','LGU-Endorsed')")->fetch_assoc()['c'] ?? 0);
-$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued')")->fetch_assoc()['c'] ?? 0);
+$statPendingReview = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending Review'")->fetch_assoc()['c'] ?? 0);
+$statReturned = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Returned for Correction'")->fetch_assoc()['c'] ?? 0);
+$statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Approved'")->fetch_assoc()['c'] ?? 0);
+$statActive = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Active'")->fetch_assoc()['c'] ?? 0);
 $statExpired = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Expired'")->fetch_assoc()['c'] ?? 0);
 $statRevoked = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Revoked'")->fetch_assoc()['c'] ?? 0);
 
@@ -28,21 +29,29 @@ $highlightAppId = (int)($_GET['highlight_application_id'] ?? 0);
 
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
-               fa.route_id,
                fa.route_ids,
                fa.approved_route_ids,
-               r.route_id AS route_code,
-               r.origin, r.destination,
+               fa.route_id,
+               fa.service_area_id,
+               COALESCE(r.route_id, sa.area_code) AS route_code,
+               COALESCE(r.origin, sap.points, '') AS origin,
+               COALESCE(r.destination, '') AS destination,
                fa.vehicle_count, fa.representative_name,
                fa.status, fa.submitted_at, fa.endorsed_at, fa.approved_at
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
-        LEFT JOIN routes r ON r.id=fa.route_id";
+        LEFT JOIN routes r ON r.id=fa.route_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN (
+          SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+          FROM tricycle_service_area_points
+          GROUP BY area_id
+        ) sap ON sap.area_id=sa.id";
 $conds = [];
 $params = [];
 $types = '';
 if ($q !== '') {
-  $conds[] = "(fa.franchise_ref_number LIKE ? OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE ? OR r.route_id LIKE ? OR r.origin LIKE ? OR r.destination LIKE ?)";
+  $conds[] = "(fa.franchise_ref_number LIKE ? OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE ? OR COALESCE(r.route_id, sa.area_code) LIKE ? OR COALESCE(r.origin, sap.points, '') LIKE ? OR COALESCE(r.destination,'') LIKE ?)";
   $params[] = "%$q%";
   $params[] = "%$q%";
   $params[] = "%$q%";
@@ -51,15 +60,9 @@ if ($q !== '') {
   $types .= 'sssss';
 }
 if ($status !== '' && $status !== 'Status') {
-  if ($status === 'LGU-Endorsed' || $status === 'Endorsed') {
-    $conds[] = "fa.status IN ('LGU-Endorsed','Endorsed')";
-  } elseif ($status === 'LTFRB-Approved' || $status === 'Approved') {
-    $conds[] = "fa.status IN ('LTFRB-Approved','Approved')";
-  } else {
-    $conds[] = "fa.status=?";
-    $params[] = $status;
-    $types .= 's';
-  }
+  $conds[] = "fa.status=?";
+  $params[] = $status;
+  $types .= 's';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY fa.submitted_at DESC LIMIT 300";
@@ -81,7 +84,7 @@ if (isset($stmt) && $stmt instanceof mysqli_stmt) {
   try { $stmt->close(); } catch (Throwable $_) { }
 }
 
-$useMock = !$appRows && $q === '' && ($status === '' || $status === 'Status') && $highlightAppId <= 0;
+$useMock = false;
 if ($useMock) {
   $now = date('Y-m-d H:i:s');
   $appRows = [
@@ -147,9 +150,6 @@ $tmmExtractRouteIds = function (string $csv): array {
 foreach ($appRows as $row) {
   $rid = (int)($row['route_id'] ?? 0);
   if ($rid > 0) $routeIds[$rid] = true;
-  $csv = trim((string)($row['approved_route_ids'] ?? ''));
-  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
-  foreach ($tmmExtractRouteIds($csv) as $id) $routeIds[$id] = true;
 }
 
 $routeMap = [];
@@ -178,15 +178,12 @@ $tmmRouteLabel = function (array $r): string {
 };
 
 foreach ($appRows as &$row) {
-  $csv = trim((string)($row['approved_route_ids'] ?? ''));
-  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
-  $ids = $tmmExtractRouteIds($csv);
-  $labels = [];
-  foreach ($ids as $id) {
-    if (!isset($routeMap[$id])) continue;
-    $labels[] = $tmmRouteLabel($routeMap[$id]);
+  $rid = (int)($row['route_id'] ?? 0);
+  if ($rid > 0 && isset($routeMap[$rid])) {
+    $row['routes_display'] = $tmmRouteLabel($routeMap[$rid]);
+  } else {
+    $row['routes_display'] = '';
   }
-  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
 }
 unset($row);
 
@@ -201,23 +198,27 @@ if ($rootUrl === '/') $rootUrl = '';
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Franchise Applications</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Applications are operator-based and move from Submitted → LGU-Endorsed → LTFRB PA/CPC Issued (validity starts at LTFRB issue date).</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Tricycle-only flow: Pending Review → Approved / Rejected / Returned for Correction → Active (issued) → Expired / Revoked.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module2/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
         <i data-lucide="file-plus" class="w-4 h-4"></i>
         Submit Application
       </a>
-      <a href="?page=module2/submodule3" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+      <a href="?page=module2/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+        Staff Evaluation
+      </a>
+      <a href="?page=module2/submodule6" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="badge-check" class="w-4 h-4"></i>
-        Endorse / Approve
+        Issuance
       </a>
     </div>
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
         <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total</div>
@@ -227,24 +228,31 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Submitted</div>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Review</div>
         <i data-lucide="send" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
       </div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statSubmitted; ?></div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statPendingReview; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">LGU-Endorsed</div>
-        <i data-lucide="check-circle-2" class="w-4 h-4 text-violet-600 dark:text-violet-400"></i>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Returned</div>
+        <i data-lucide="undo-2" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
       </div>
-      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statEndorsed; ?></div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statReturned; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">LTFRB Issued</div>
-        <i data-lucide="badge-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Approved</div>
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
       </div>
       <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statApproved; ?></div>
+    </div>
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Active</div>
+        <i data-lucide="badge-check" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+      </div>
+      <div class="text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statActive; ?></div>
     </div>
     <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
       <div class="flex items-center justify-between mb-2">
@@ -288,12 +296,12 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-sm group">
           <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search operator or route...">
+          <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search operator or service area...">
         </div>
         <div class="relative w-full sm:w-52">
           <select name="status" class="px-4 py-2.5 pr-10 text-sm font-semibold border-0 rounded-md bg-slate-50 dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer">
             <option value="">All Status</option>
-            <?php foreach (['Submitted','LGU-Endorsed','PA Issued','CPC Issued','Rejected','Expired','Revoked'] as $s): ?>
+            <?php foreach (['Pending Review','Returned for Correction','Approved','Active','Rejected','Expired','Revoked'] as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $status === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
             <?php endforeach; ?>
           </select>
@@ -319,7 +327,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <tr class="text-left text-slate-500 dark:text-slate-400">
             <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Application</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
-            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Route</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Service Area / TODA Zone</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Units</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Status</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Submitted</th>
@@ -334,10 +342,10 @@ if ($rootUrl === '/') $rootUrl = '';
                 $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
                 $st = (string)($row['status'] ?? '');
                 $badge = match($st) {
-                  'Approved', 'LTFRB-Approved' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Endorsed', 'LGU-Endorsed' => 'bg-violet-100 text-violet-700 ring-violet-600/20 dark:bg-violet-900/30 dark:text-violet-400 dark:ring-violet-500/20',
-                  'PA Issued', 'CPC Issued' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Submitted' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  'Approved' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-300 dark:ring-blue-500/20',
+                  'Pending Review' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Returned for Correction' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
                   'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Expired' => 'bg-slate-200 text-slate-700 ring-slate-600/20 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-500/20',
                   'Revoked' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
@@ -357,9 +365,14 @@ if ($rootUrl === '/') $rootUrl = '';
                 </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium">
                   <?php
-                    $multi = trim((string)($row['routes_display'] ?? ''));
-                    if ($multi !== '') { echo htmlspecialchars($multi); }
-                    else {
+                    $areaId = (int)($row['service_area_id'] ?? 0);
+                    if ($areaId > 0) {
+                      $rc = trim((string)($row['route_code'] ?? ''));
+                      $ro = trim((string)($row['origin'] ?? ''));
+                      $label = $rc !== '' ? $rc : '-';
+                      if ($ro !== '') $label .= ' • ' . $ro;
+                      echo htmlspecialchars($label);
+                    } else {
                     $rc = trim((string)($row['route_code'] ?? ''));
                     $ro = trim((string)($row['origin'] ?? ''));
                     $rd = trim((string)($row['destination'] ?? ''));
@@ -381,15 +394,15 @@ if ($rootUrl === '/') $rootUrl = '';
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-app-view="1" data-app-id="<?php echo (int)$appId; ?>" title="View Details">
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
-                    <?php if (has_permission('module2.franchises.manage') && $st === 'Submitted'): ?>
-                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all" data-app-endorse="1" data-app-id="<?php echo (int)$appId; ?>" title="Endorse">
-                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                      </button>
+                    <?php if (has_permission('module2.franchises.manage') && in_array($st, ['Pending Review','Returned for Correction'], true)): ?>
+                      <a href="?<?php echo http_build_query(['page'=>'module2/submodule4','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="Staff Evaluation">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                      </a>
                     <?php endif; ?>
-                    <?php if (has_permission('module2.franchises.manage') && ($st === 'Endorsed' || $st === 'LGU-Endorsed' || $st === 'Approved' || $st === 'LTFRB-Approved')): ?>
-                      <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" data-app-approve="1" data-app-id="<?php echo (int)$appId; ?>" title="LTFRB Approval Entry">
+                    <?php if (has_permission('module2.franchises.manage') && $st === 'Approved'): ?>
+                      <a href="?<?php echo http_build_query(['page'=>'module2/submodule6','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" title="Issue Franchise">
                         <i data-lucide="badge-check" class="w-4 h-4"></i>
-                      </button>
+                      </a>
                     <?php endif; ?>
                   </div>
                 </td>
@@ -769,30 +782,6 @@ if ($rootUrl === '/') $rootUrl = '';
         } catch (err) {
           body.innerHTML = `<div class="text-sm text-rose-600">${(err && err.message) ? err.message : 'Failed to load.'}</div>`;
         }
-      });
-    });
-
-    document.querySelectorAll('[data-app-endorse="1"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!canManage) return;
-        const appId = btn.getAttribute('data-app-id');
-        if (!appId) return;
-        const params = new URLSearchParams(window.location.search || '');
-        params.set('page', 'module2/submodule3');
-        params.set('application_id', String(appId));
-        window.location.search = params.toString();
-      });
-    });
-
-    document.querySelectorAll('[data-app-approve="1"]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        if (!canManage) return;
-        const appId = btn.getAttribute('data-app-id');
-        if (!appId) return;
-        const params = new URLSearchParams(window.location.search || '');
-        params.set('page', 'module2/submodule3');
-        params.set('application_id', String(appId));
-        window.location.search = params.toString();
       });
     });
 

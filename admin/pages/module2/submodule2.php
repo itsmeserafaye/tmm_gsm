@@ -1,4 +1,5 @@
 <?php
+if (function_exists('opcache_invalidate')) { @opcache_invalidate(__FILE__, true); }
 require_once __DIR__ . '/../../includes/auth.php';
 require_permission('module2.apply');
 
@@ -71,17 +72,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <span class="text-rose-600">*</span> Vehicle Type
             </label>
             <select name="vehicle_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="">Select</option>
-              <?php foreach ($typesList as $t): ?>
-                <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
-              <?php endforeach; ?>
+              <option value="Tricycle">Tricycle</option>
             </select>
           </div>
         </div>
 
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
-            <span class="text-rose-600">*</span> Route / Service Area
+            <span class="text-rose-600">*</span> Service Area / TODA Zone
           </label>
           <input id="servicePick" name="service_pick" list="servicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select a service area">
           <datalist id="servicePickList"></datalist>
@@ -91,9 +89,9 @@ if ($rootUrl === '/') $rootUrl = '';
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
-              <span class="text-rose-600">*</span> Vehicle Count
+              <span class="text-rose-600">*</span> Requested number of units
             </label>
-            <input name="vehicle_count" type="number" min="1" max="500" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 10">
+            <input name="vehicle_count" type="number" min="1" max="500" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 5">
           </div>
           <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
@@ -191,7 +189,7 @@ if ($rootUrl === '/') $rootUrl = '';
         const tri = isTricycleLike(vtRaw);
         svcList.innerHTML = '';
         svcEl.value = '';
-        svcEl.placeholder = vtRaw ? (tri ? 'Select a service area (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a route (e.g., 45 - JEEP-...)') : 'Select a vehicle type first';
+        svcEl.placeholder = tri ? 'Select Service Area / TODA Zone (e.g., 12 - TODA-BAGUMBONG • Bagumbong TODA Zone)' : 'Select a service area';
         if (!vtRaw) return;
         const rows = Array.isArray(routesCache) ? routesCache : [];
         const filtered = rows.filter((r) => {
@@ -294,7 +292,9 @@ if ($rootUrl === '/') $rootUrl = '';
           }
           if (!res.ok || !data || !data.ok || !data.application_id) {
             const raw = (data && data.error) ? String(data.error) : (res.status ? ('http_' + res.status) : 'submit_failed');
-            const msg = raw === 'operator_inactive'
+            const msg = raw === 'operator_docs_not_verified' && data && Array.isArray(data.missing) && data.missing.length
+              ? ('Missing required operator documents: ' + data.missing.join(', '))
+              : raw === 'operator_inactive'
               ? 'Cannot submit: operator is inactive.'
               : raw === 'unauthorized'
                 ? 'Session expired. Please reload and log in again.'
@@ -379,27 +379,24 @@ if ($rootUrl === '/') $rootUrl = '';
       const operatorId = parseId(opEl ? opEl.value : '');
       if (!opDocsBox) return;
       if (!operatorId) {
-        opDocsBox.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400 italic">Select an operator to view verified documents.</div>';
+        opDocsBox.innerHTML = `
+          <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Documents submitted by the operator in Step 1 (Operator Portal):</div>
+          <div class="mt-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">Required uploads for tricycle operators:</div>
+          <ul class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            <li>Government ID</li>
+            <li>Barangay Clearance</li>
+            <li>Proof of Residency</li>
+            <li>Police Clearance (optional)</li>
+            <li>Application form</li>
+          </ul>
+          <div class="mt-3 text-xs text-slate-500 dark:text-slate-400 italic">Select an operator above to view their uploaded documents.</div>
+        `;
         return;
       }
       opDocsBox.innerHTML = '<div class="text-sm text-slate-500 dark:text-slate-400">Loading verified documents...</div>';
       try {
         const payload = await loadOperatorVerifiedDocs(operatorId);
         renderOperatorDocs(payload);
-        const vtEl = document.querySelector('#formSubmitApp select[name="vehicle_type"]');
-        if (vtEl && (!vtEl.value || vtEl.value === '')) {
-          const opType = (payload && payload.operator && payload.operator.operator_type) ? String(payload.operator.operator_type) : '';
-          const t = opType.toLowerCase();
-          let guess = '';
-          if (t.includes('toda') || t.includes('tricycle')) guess = 'Tricycle';
-          else if (t.includes('jeep')) guess = 'Jeepney';
-          else if (t.includes('uv')) guess = 'UV Express';
-          else if (t.includes('bus')) guess = 'Bus';
-          if (guess) {
-            vtEl.value = guess;
-            vtEl.dispatchEvent(new Event('change'));
-          }
-        }
       } catch (e) {
         opDocsBox.innerHTML = '<div class="text-sm text-rose-600">Failed to load operator documents.</div>';
       }
