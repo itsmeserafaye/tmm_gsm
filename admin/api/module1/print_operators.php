@@ -62,6 +62,10 @@ $office_addr = trim((string)(tmm_get_app_setting('office_address','') ?? ''));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
+$filterParts = [];
+$filterParts[] = 'Type: ' . (($type !== '' && $type !== 'Type') ? $type : 'All');
+$filterParts[] = 'Status: ' . (($status !== '' && $status !== 'Status') ? $status : 'All');
+$filterLabel = 'Filtered: ' . implode('. ', $filterParts) . '.';
 ?>
 <!doctype html>
 <html>
@@ -113,7 +117,7 @@ $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph
                 <?php if ($office_addr !== ''): ?>
                 <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
                 <?php endif; ?>
-                <div class="filters">Generated: <?php echo htmlspecialchars($now); ?> • Search: <?php echo htmlspecialchars($q ?: '-'); ?> • Type: <?php echo htmlspecialchars($type ?: 'All'); ?> • Status: <?php echo htmlspecialchars($status ?: 'All'); ?></div>
+                <div class="filters"><?php echo htmlspecialchars($filterLabel); ?></div>
               </div>
             </div>
             <div style="border-bottom:2px solid #e2e8f0;margin-top:4px"></div>
