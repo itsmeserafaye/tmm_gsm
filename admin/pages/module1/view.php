@@ -10,7 +10,7 @@ if ($plate !== '') {
   $stmt = $db->prepare("SELECT v.id AS vehicle_id, v.plate_number, v.vehicle_type, v.operator_id,
                                COALESCE(NULLIF(o.name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '') AS operator_display,
                                v.engine_no, v.chassis_no, v.make, v.model, v.year_model, v.fuel_type,
-                               v.or_number, v.cr_number, v.cr_issue_date, v.registered_owner, v.color,
+                               v.or_number, v.cr_number, v.or_date, v.or_expiry_date, v.cr_issue_date, v.registered_owner, v.color,
                                v.submitted_by_portal_user_id, v.submitted_by_name, v.submitted_at,
                                v.status, v.created_at
                         FROM vehicles v
@@ -127,6 +127,22 @@ if ($rootUrl === '/') $rootUrl = '';
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Year / Fuel</span>
                 <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars(trim((string)($v['year_model'] ?? '') . ' ' . (string)($v['fuel_type'] ?? '')) ?: '-'); ?></div>
               </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">OR Number</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_number'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Number</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['cr_number'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registration Date</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_date'] ?? '') ?: '-'); ?></div>
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expiration Date</span>
+                <div class="font-bold text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($v['or_expiry_date'] ?? '') ?: '-'); ?></div>
+              </div>
             </div>
           <?php else: ?>
             <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
@@ -175,6 +191,14 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="space-y-1">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">CR Issue Date</span>
                 <input name="cr_issue_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['cr_issue_date'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registration Date</span>
+                <input name="or_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['or_date'] ?? ''), ENT_QUOTES); ?>">
+              </div>
+              <div class="space-y-1">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Expiration Date</span>
+                <input name="or_expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold" value="<?php echo htmlspecialchars((string)($v['or_expiry_date'] ?? ''), ENT_QUOTES); ?>">
               </div>
               <div class="space-y-1">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Registered Owner</span>

@@ -26,6 +26,8 @@ $crNumberRaw = (string)($_POST['cr_number'] ?? '');
 $crNumber = strtoupper(preg_replace('/\s+/', '', trim($crNumberRaw)));
 $crNumber = preg_replace('/[^A-Z0-9\-]/', '', $crNumber);
 $crNumber = substr($crNumber, 0, 20);
+$orDate = trim((string)($_POST['or_date'] ?? ''));
+$orExpiryDate = trim((string)($_POST['or_expiry_date'] ?? ''));
 $crIssueDate = trim((string)($_POST['cr_issue_date'] ?? ''));
 $registeredOwner = trim((string)($_POST['registered_owner'] ?? ''));
 
@@ -36,6 +38,8 @@ if ($chassisNo !== '' && !preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $chassisNo)) { h
 if ($crIssueDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $crIssueDate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_cr_issue_date']); exit; }
 if ($orNumber !== '' && !preg_match('/^[0-9]{6,12}$/', $orNumber)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_or_number']); exit; }
 if ($crNumber !== '' && !preg_match('/^[A-Z0-9\-]{6,20}$/', $crNumber)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_cr_number']); exit; }
+if ($orDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $orDate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_or_date']); exit; }
+if ($orExpiryDate !== '' && !preg_match('/^\d{4}\-\d{2}\-\d{2}$/', $orExpiryDate)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'invalid_or_expiry_date']); exit; }
 
 $sets = [];
 $params = [];
@@ -56,6 +60,8 @@ if ($fuelType !== '') { $sets[] = "fuel_type=?"; $params[] = $fuelType; $types .
 if ($color !== '') { $sets[] = "color=?"; $params[] = $color; $types .= 's'; }
 if ($orNumber !== '') { $sets[] = "or_number=?"; $params[] = $orNumber; $types .= 's'; }
 if ($crNumber !== '') { $sets[] = "cr_number=?"; $params[] = $crNumber; $types .= 's'; }
+if ($orDate !== '') { $sets[] = "or_date=?"; $params[] = $orDate; $types .= 's'; }
+if ($orExpiryDate !== '') { $sets[] = "or_expiry_date=?"; $params[] = $orExpiryDate; $types .= 's'; }
 if ($crIssueDate !== '') { $sets[] = "cr_issue_date=?"; $params[] = $crIssueDate; $types .= 's'; }
 if ($registeredOwner !== '') { $sets[] = "registered_owner=?"; $params[] = $registeredOwner; $types .= 's'; }
 if (!$sets) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'nothing_to_update']); exit; }
