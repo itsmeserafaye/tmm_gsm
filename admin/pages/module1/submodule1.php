@@ -406,7 +406,9 @@ if ($rootUrl === '/') $rootUrl = '';
             <input type="hidden" name="assisted" value="1">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Operator Type (Required)</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Operator Type
+                </label>
                 <select name="operator_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option>Individual</option>
                   <option>Cooperative</option>
@@ -414,52 +416,68 @@ if ($rootUrl === '/') $rootUrl = '';
                 </select>
               </div>
               <div class="sm:col-span-2">
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name (Required)</label>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Name
+                </label>
                 <input name="name" required minlength="3" maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Juan Dela Cruz / ABC Cooperative / XYZ Transport Corp">
               </div>
             </div>
 
             <div class="space-y-3">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">House / Building / Street</label>
-                <input name="address_street" maxlength="160" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 Rizal St., Brgy Hall Bldg.">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> House / Building / Street
+                </label>
+                <input name="address_street" required maxlength="160" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 123 Rizal St., Brgy Hall Bldg.">
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Barangay</label>
-                  <select id="aeBrgy" name="address_barangay" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                    <span class="text-rose-600">*</span> Barangay
+                  </label>
+                  <select id="aeBrgy" name="address_barangay" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                     <option value="">Select barangay</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City / Municipality</label>
-                  <select id="aeCity" name="address_city" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                    <span class="text-rose-600">*</span> City / Municipality
+                  </label>
+                  <select id="aeCity" name="address_city" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                     <option value="">Select city / municipality</option>
                   </select>
                 </div>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Province</label>
-                  <select id="aeProv" name="address_province" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                    <span class="text-rose-600">*</span> Province
+                  </label>
+                  <select id="aeProv" name="address_province" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                     <option value="">Select province</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Postal Code</label>
-                  <input id="aePostal" name="address_postal_code" maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 4027">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                    <span class="text-rose-600">*</span> Postal Code
+                  </label>
+                  <input id="aePostal" name="address_postal_code" required maxlength="10" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 4027">
                 </div>
               </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact No</label>
-                <input name="contact_no" type="tel" inputmode="numeric" minlength="7" maxlength="20" pattern="^[0-9]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Contact No
+                </label>
+                <input name="contact_no" required type="tel" inputmode="numeric" minlength="7" maxlength="20" pattern="^[0-9]{7,20}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 09171234567">
               </div>
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Email</label>
-                <input name="email" type="email" maxlength="120" pattern="^(?!.*\\.\\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[A-Za-z]{2,}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com">
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                  <span class="text-rose-600">*</span> Email
+                </label>
+                <input name="email" required type="email" maxlength="120" pattern="^(?!.*\\.\\.)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[A-Za-z]{2,}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., juan.delacruz@email.com">
               </div>
             </div>
 
