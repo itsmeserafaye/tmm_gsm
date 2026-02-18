@@ -114,32 +114,31 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   <?php endif; ?>
 
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
-      <?php
-        $items = [];
-        if (has_permission('reports.export')) {
-          $qs = http_build_query(['type' => 'Parking', 'q' => $qFilter]);
-          $items[] = [
-            'href' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
-            'label' => 'Print',
-            'icon' => 'printer',
-            'attrs' => [
-              'data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
-              'data-report-name' => 'Parking List Report'
-            ]
-          ];
-        }
-        if ($items) tmm_render_export_toolbar($items, ['mb' => 'mb-0', 'label' => 'Report']);
-      ?>
-      <form method="GET" class="flex items-end gap-2">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <input type="hidden" name="page" value="parking/list">
-        <div class="flex-1 relative">
+        <div class="md:col-span-8">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-          <i data-lucide="search" class="absolute left-4 bottom-3 w-4 h-4 text-slate-400"></i>
-          <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border rounded-md bg-white dark:bg-slate-900/40 dark:text-white border-slate-200 dark:border-slate-700 placeholder:text-slate-400" placeholder="Parking name / location / address">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Parking name / location / address">
+          </div>
         </div>
-        <button class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Apply</button>
-        <a href="?page=parking/list" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">Reset</a>
+        <div class="md:col-span-4 flex items-center gap-2">
+          <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+          <a href="?page=parking/list" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </a>
+          <?php if (has_permission('reports.export')): ?>
+            <?php
+              $qs = http_build_query(['type' => 'Parking', 'q' => $qFilter]);
+              $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
+            ?>
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+            </a>
+          <?php endif; ?>
+        </div>
       </form>
     </div>
     </div>
@@ -198,17 +197,17 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
-    const search = document.getElementById('parkingSearchTerm');
-    const body = document.getElementById('parkingBody');
-    if (search && body) {
-      search.addEventListener('input', () => {
-        const q = (search.value || '').toString().trim().toLowerCase();
-        Array.from(body.querySelectorAll('tr')).forEach((tr) => {
-          const txt = (tr.textContent || '').toLowerCase();
-          tr.style.display = (!q || txt.includes(q)) ? '' : 'none';
-        });
-      });
-    }
+    // const search = document.getElementById('parkingSearchTerm');
+    // const body = document.getElementById('parkingBody');
+    // if (search && body) {
+    //   search.addEventListener('input', () => {
+    //     const q = (search.value || '').toString().trim().toLowerCase();
+    //     Array.from(body.querySelectorAll('tr')).forEach((tr) => {
+    //       const txt = (tr.textContent || '').toLowerCase();
+    //       tr.style.display = (!q || txt.includes(q)) ? '' : 'none';
+    //     });
+    //   });
+    // }
 
     const form = document.getElementById('formParking');
     const btn = document.getElementById('btnSaveParking');

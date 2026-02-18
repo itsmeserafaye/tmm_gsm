@@ -99,7 +99,7 @@ if ($taTerminalIdCol !== '') {
 }
 
 $terminalRows = [];
-$res = $db->query("SELECT
+$sqlTerm = "SELECT
   t.id,
   t.name,
   " . ($termHasCategory ? "t.category" : "NULL") . " AS category,
@@ -112,10 +112,45 @@ $res = $db->query("SELECT
 FROM terminals t
 LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
 LEFT JOIN routes r ON r.route_id=tr.route_id
-WHERE t.type <> 'Parking'
-GROUP BY t.id
-ORDER BY COALESCE(NULLIF(t.category,''), 'Unclassified') ASC, t.name ASC
-LIMIT 500");
+WHERE t.type <> 'Parking'";
+
+$params = [];
+$types = '';
+
+if ($qFilter !== '') {
+  $sqlTerm .= " AND (t.name LIKE ? OR t.location LIKE ? OR COALESCE(t.category,'') LIKE ?)";
+  $qv = '%' . $qFilter . '%';
+  $params[] = $qv;
+  $params[] = $qv;
+  $params[] = $qv;
+  $types .= 'sss';
+}
+if ($cityFilter !== '') {
+  $sqlTerm .= " AND t.city = ?";
+  $params[] = $cityFilter;
+  $types .= 's';
+}
+if ($catFilter !== '') {
+  $sqlTerm .= " AND t.category = ?";
+  $params[] = $catFilter;
+  $types .= 's';
+}
+
+$sqlTerm .= " GROUP BY t.id ORDER BY COALESCE(NULLIF(t.category,''), 'Unclassified') ASC, t.name ASC LIMIT 500";
+
+if ($types !== '') {
+  $stmt = $db->prepare($sqlTerm);
+  if ($stmt) {
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+  } else {
+    $res = false;
+  }
+} else {
+  $res = $db->query($sqlTerm);
+}
+
 if ($res) while ($r = $res->fetch_assoc()) $terminalRows[] = $r;
 
 $parkingRows = [];
@@ -235,33 +270,38 @@ if ($rootUrl === '/') $rootUrl = '';
             ];
             if ($exportItems) tmm_render_export_toolbar($exportItems, ['mb' => 'mb-0']);
           ?>
-          <form method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+          <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4">
             <input type="hidden" name="page" value="module5/submodule1">
-            <div class="sm:col-span-2">
+            <div class="md:col-span-4">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-              <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location / category">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location">
+              </div>
             </div>
-            <div>
+            <div class="md:col-span-3">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
               <select name="city" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="" <?php echo $cityFilter === '' ? 'selected' : ''; ?>>All</option>
+                <option value="" <?php echo $cityFilter === '' ? 'selected' : ''; ?>>All Cities</option>
                 <?php foreach ($cities as $c): ?>
                   <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $cityFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
-            <div>
+            <div class="md:col-span-3">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Category</label>
               <select name="category" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="" <?php echo $catFilter === '' ? 'selected' : ''; ?>>All</option>
+                <option value="" <?php echo $catFilter === '' ? 'selected' : ''; ?>>All Categories</option>
                 <?php foreach ($categories as $c): ?>
                   <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $catFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
-            <div class="sm:col-span-4 flex items-center justify-end">
-              <button class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Update Print Filters</button>
-              <a href="?page=module5/submodule1" class="ml-2 px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">Reset</a>
+            <div class="md:col-span-2 flex items-center gap-2">
+              <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+              <a href="?page=module5/submodule1" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              </a>
             </div>
           </form>
           <div id="modalImportTerminals" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
@@ -279,13 +319,10 @@ if ($rootUrl === '/') $rootUrl = '';
             </div>
           </div>
           <div class="flex items-center justify-between gap-3">
-            <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center p-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white">
+            <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold shadow-sm transition-all active:scale-[0.98]">
               <i data-lucide="plus" class="w-4 h-4"></i>
+              Create Terminal
             </button>
-            <div class="relative max-w-sm group flex-1">
-              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-              <input id="terminalSearchTerm" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search terminal name or location...">
-            </div>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -672,7 +709,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const formParking = document.getElementById('formParking');
     const btnSaveParking = document.getElementById('btnSaveParking');
 
-    const searchTerm = document.getElementById('terminalSearchTerm');
+    // const searchTerm = document.getElementById('terminalSearchTerm');
     const tbodyTerm = document.getElementById('termBodyTerminals');
     const searchParking = document.getElementById('terminalSearchParking');
     const tbodyParking = document.getElementById('termBodyParking');
@@ -866,7 +903,7 @@ if ($rootUrl === '/') $rootUrl = '';
       });
       if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
     }
-    if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
+    // if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
     if (searchParking) searchParking.addEventListener('input', () => filterRows(searchParking, tbodyParking));
 
     const modal = document.getElementById('terminalRoutesModal');
