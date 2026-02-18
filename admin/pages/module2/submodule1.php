@@ -567,10 +567,10 @@ if ($rootUrl === '/') $rootUrl = '';
       if (labelPart) return labelPart;
       const dt = (d && (d.doc_type || d.type)) ? String(d.doc_type || d.type) : '';
       const map = {
-        GovID: 'Valid Government ID',
+        GovID: 'Government ID',
         CDA: 'CDA Document',
         SEC: 'SEC Document',
-        BarangayCert: 'Proof of Address',
+        BarangayCert: 'Barangay Document',
         Others: 'Supporting Document',
       };
       return map[dt] || dt || 'Document';
