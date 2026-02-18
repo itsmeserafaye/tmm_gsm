@@ -195,6 +195,23 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 </div>
 
+<div id="ov-doc-viewer" class="fixed inset-0 z-[120] hidden">
+  <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm"></div>
+  <div class="fixed inset-0 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+        <div class="text-sm font-black text-slate-800 dark:text-white" id="ov-doc-viewer-title">Document</div>
+        <button type="button" id="ov-doc-viewer-close" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="flex-1 bg-slate-100 dark:bg-slate-900">
+        <iframe id="ov-doc-viewer-frame" src="" class="w-full h-full border-0 bg-white"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="op-pwd-modal" class="fixed inset-0 z-[110] hidden" role="dialog" aria-modal="true">
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeOpPwdModal()"></div>
     <div class="fixed inset-0 z-10 overflow-y-auto">
@@ -792,7 +809,7 @@ async function ovOpenModal(userId) {
         <div class="flex items-start justify-between gap-3">
           <div>
             <div class="text-sm font-black text-slate-900 dark:text-white">${ovEscape(k)}</div>
-            ${href ? `<a class="text-xs font-bold text-indigo-600 hover:underline" href="${ovEscape(href)}" target="_blank" rel="noopener">Open file</a>` : `<div class="text-xs text-slate-400 font-semibold">No upload</div>`}
+            ${href ? `<button type="button" class="text-xs font-bold text-indigo-600 hover:underline" data-ov-doc-url="${ovEscape(href)}" data-ov-doc-key="${ovEscape(k)}">Open file</button>` : `<div class="text-xs text-slate-400 font-semibold">No upload</div>`}
             ${remarksLine}
           </div>
           <span class="px-2 py-1 rounded-full text-[10px] font-black ${badge}">${ovEscape(st)}</span>
@@ -888,5 +905,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (approvalEl) approvalEl.addEventListener('change', () => ovFetchList());
   if (statusEl) statusEl.addEventListener('change', () => ovFetchList());
+
+  const viewer = document.getElementById('ov-doc-viewer');
+  const viewerTitle = document.getElementById('ov-doc-viewer-title');
+  const viewerFrame = document.getElementById('ov-doc-viewer-frame');
+  const viewerClose = document.getElementById('ov-doc-viewer-close');
+  if (viewer && viewerFrame) {
+    document.body.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-ov-doc-url]') : null;
+      if (!btn) return;
+      const url = btn.getAttribute('data-ov-doc-url') || '';
+      const key = btn.getAttribute('data-ov-doc-key') || '';
+      if (!url) return;
+      viewerFrame.src = url;
+      if (viewerTitle) viewerTitle.textContent = key || 'Document';
+      viewer.classList.remove('hidden');
+    });
+    if (viewerClose) {
+      viewerClose.addEventListener('click', () => {
+        viewer.classList.add('hidden');
+        viewerFrame.src = '';
+      });
+    }
+    viewer.addEventListener('click', (e) => {
+      if (e.target === viewer) {
+        viewer.classList.add('hidden');
+        viewerFrame.src = '';
+      }
+    });
+  }
 });
 </script>
