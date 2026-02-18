@@ -521,23 +521,129 @@ if ($tableFilterTs !== false) $tableFilterVer = (int)$tableFilterTs;
     else tmmInitAdminShell();
     window.addEventListener('resize', function () { initSidebar() });
 
-    // Global print handler used by export toolbar across modules
-    window.tmmPrintLink = function (elOrUrl) {
-      try {
-        var url = '';
-        if (typeof elOrUrl === 'string') {
-          url = elOrUrl;
-        } else if (elOrUrl && elOrUrl.getAttribute) {
-          url = elOrUrl.getAttribute('data-print-url') || elOrUrl.getAttribute('href') || '';
-        }
-        if (!url) return true;
-        var w = window.open(url, '_blank');
-        try { if (w && w.focus) w.focus(); } catch (e) {}
-        return false;
-      } catch (e) {
-        return true;
+    // Global print handler with pre-print modal for prepared/checked by details
+    (function(){
+      var modalEl = null;
+      function ensureModal() {
+        if (modalEl) return modalEl;
+        modalEl = document.createElement('div');
+        modalEl.id = 'tmm-print-modal';
+        modalEl.className = 'fixed inset-0 z-[160] hidden items-center justify-center p-4';
+        modalEl.innerHTML = [
+          '<div class="absolute inset-0 bg-slate-900/50" data-pm-close="1"></div>',
+          '<div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">',
+            '<div class="text-lg font-black text-slate-900 dark:text-white">Report Details</div>',
+            '<div id="tmm-pm-report" class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400"></div>',
+            '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">',
+              '<div>',
+                '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Prepared by Department</label>',
+                '<input id="tmm-pm-pb-dept" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+              '</div>',
+              '<div>',
+                '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Prepared by Name</label>',
+                '<input id="tmm-pm-pb-name" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+              '</div>',
+              '<div>',
+                '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Recipient Name</label>',
+                '<input id="tmm-pm-rc-name" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+              '</div>',
+              '<div>',
+                '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Recipient Position</label>',
+                '<input id="tmm-pm-rc-pos" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+              '</div>',
+              '<div class="sm:col-span-2">',
+                '<label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Recipient Department</label>',
+                '<input id="tmm-pm-rc-dept" type="text" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-sm font-semibold">',
+              '</div>',
+            '</div>',
+            '<div class="mt-6 flex items-center justify-end gap-2">',
+              '<button type="button" data-pm-close="1" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>',
+              '<button type="button" id="tmm-pm-continue" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Continue</button>',
+            '</div>',
+          '</div>'
+        ].join('');
+        document.body.appendChild(modalEl);
+        modalEl.addEventListener('click', function(e){
+          var t = e.target;
+          if (t && t.getAttribute && t.getAttribute('data-pm-close') === '1') hide();
+        });
+        return modalEl;
       }
-    };
+      function show(reportTitle) {
+        var m = ensureModal();
+        var rep = m.querySelector('#tmm-pm-report');
+        if (rep) rep.textContent = (reportTitle || 'Summary Report') + ' • ' + new Date().toLocaleString();
+        var v = localStorage;
+        m.querySelector('#tmm-pm-pb-name').value = v.getItem('tmm_pb_name') || '';
+        m.querySelector('#tmm-pm-pb-dept').value = v.getItem('tmm_pb_dept') || '';
+        m.querySelector('#tmm-pm-rc-name').value = v.getItem('tmm_rc_name') || '';
+        m.querySelector('#tmm-pm-rc-pos').value = v.getItem('tmm_rc_pos') || '';
+        m.querySelector('#tmm-pm-rc-dept').value = v.getItem('tmm_rc_dept') || '';
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+      }
+      function hide() {
+        if (!modalEl) return;
+        modalEl.classList.add('hidden');
+        modalEl.classList.remove('flex');
+      }
+      function collect() {
+        var m = ensureModal();
+        var data = {
+          pb_name: m.querySelector('#tmm-pm-pb-name').value.trim(),
+          pb_dept: m.querySelector('#tmm-pm-pb-dept').value.trim(),
+          rc_name: m.querySelector('#tmm-pm-rc-name').value.trim(),
+          rc_pos: m.querySelector('#tmm-pm-rc-pos').value.trim(),
+          rc_dept: m.querySelector('#tmm-pm-rc-dept').value.trim()
+        };
+        try {
+          var v = localStorage;
+          v.setItem('tmm_pb_name', data.pb_name);
+          v.setItem('tmm_pb_dept', data.pb_dept);
+          v.setItem('tmm_rc_name', data.rc_name);
+          v.setItem('tmm_rc_pos', data.rc_pos);
+          v.setItem('tmm_rc_dept', data.rc_dept);
+        } catch (e) {}
+        return data;
+      }
+      window.tmmPrintLink = function (elOrUrl) {
+        try {
+          var url = '';
+          var reportName = '';
+          if (typeof elOrUrl === 'string') {
+            url = elOrUrl;
+          } else if (elOrUrl && elOrUrl.getAttribute) {
+            url = elOrUrl.getAttribute('data-print-url') || elOrUrl.getAttribute('href') || '';
+            reportName = elOrUrl.getAttribute('data-report-name') || (elOrUrl.textContent ? (elOrUrl.textContent.trim() + ' Report') : 'Summary Report');
+          }
+          if (!url) return true;
+          show(reportName);
+          var btn = ensureModal().querySelector('#tmm-pm-continue');
+          var once = false;
+          var handler = function(){
+            if (once) return;
+            once = true;
+            var d = collect();
+            hide();
+            var q = new URLSearchParams(url.indexOf('?') >= 0 ? url.split('?')[1] : '');
+            q.set('pb_name', d.pb_name);
+            q.set('pb_dept', d.pb_dept);
+            q.set('rc_name', d.rc_name);
+            q.set('rc_pos', d.rc_pos);
+            q.set('rc_dept', d.rc_dept);
+            q.set('rep_title', reportName);
+            var final = url.split('?')[0] + '?' + q.toString();
+            var w = window.open(final, '_blank');
+            try { if (w && w.focus) w.focus(); } catch (e) {}
+          };
+          btn.removeEventListener('click', handler);
+          btn.addEventListener('click', handler, { once: true });
+          return false;
+        } catch (e) {
+          return true;
+        }
+      };
+    })();
   </script>
 </body>
 

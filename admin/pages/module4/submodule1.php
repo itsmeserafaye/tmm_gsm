@@ -125,7 +125,10 @@ $res = $db->query($sql);
           'href' => $rootUrl . '/admin/api/module4/print_registrations.php?' . http_build_query(['q' => $q, 'status' => $status]),
           'label' => 'Print',
           'icon' => 'printer',
-          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module4/print_registrations.php?' . http_build_query(['q' => $q, 'status' => $status])]
+          'attrs' => [
+            'data-print-url' => $rootUrl . '/admin/api/module4/print_registrations.php?' . http_build_query(['q' => $q, 'status' => $status]),
+            'data-report-name' => 'Vehicle Registration List'
+          ]
         ];
       }
       if (has_permission('module4.schedule')) {

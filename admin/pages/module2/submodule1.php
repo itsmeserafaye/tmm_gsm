@@ -287,7 +287,10 @@ if ($rootUrl === '/') $rootUrl = '';
           'href' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status]),
           'label' => 'Print',
           'icon' => 'printer',
-          'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status])]
+          'attrs' => [
+            'data-print-url' => $rootUrl . '/admin/api/module2/print_applications.php?' . http_build_query(['q' => $q, 'status' => $status]),
+            'data-report-name' => 'Franchise Applications Report'
+          ]
         ]
       ]); ?>
     <?php endif; ?>

@@ -201,7 +201,10 @@ if ($rootUrl === '/') $rootUrl = '';
                 'href' => $rootUrl . '/admin/api/module5/print_terminals.php',
                 'label' => 'Print',
                 'icon' => 'printer',
-                'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php']
+                'attrs' => [
+                  'data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php',
+                  'data-report-name' => 'Terminal List Report'
+                ]
               ];
             }
             $exportItems[] = [
