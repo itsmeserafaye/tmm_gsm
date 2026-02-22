@@ -118,13 +118,13 @@ function tmm_route_capacity_check(mysqli $db, int $routeDbId, int $wantUnits, in
 
   $want = $wantUnits > 0 ? $wantUnits : 1;
   if ($excludeApplicationId > 0) {
-    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS c
                            FROM franchise_applications
                            WHERE route_id=? AND application_id<>? AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('ii', $routeDbId, $excludeApplicationId);
   } else {
-    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS c
                            FROM franchise_applications
                            WHERE route_id=? AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
@@ -154,7 +154,7 @@ function tmm_service_area_capacity_check(mysqli $db, int $serviceAreaId, int $wa
   $want = $wantUnits > 0 ? $wantUnits : 1;
   $statusList = "('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')";
   if ($excludeApplicationId > 0) {
-    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS c
                            FROM franchise_applications
                            WHERE service_area_id=? AND application_id<>?
                              AND COALESCE(vehicle_type,'')='Tricycle'
@@ -162,7 +162,7 @@ function tmm_service_area_capacity_check(mysqli $db, int $serviceAreaId, int $wa
     if (!$stmtC) return ['ok' => false, 'error' => 'db_prepare_failed'];
     $stmtC->bind_param('ii', $serviceAreaId, $excludeApplicationId);
   } else {
-    $stmtC = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS c
+    $stmtC = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS c
                            FROM franchise_applications
                            WHERE service_area_id=?
                              AND COALESCE(vehicle_type,'')='Tricycle'

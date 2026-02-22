@@ -37,6 +37,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                fa.approved_route_ids,
                fa.route_id,
                fa.service_area_id,
+               fa.approved_service_area_id,
                COALESCE(r.route_id, sa.area_code) AS route_code,
                COALESCE(r.origin, sap.points, '') AS origin,
                COALESCE(r.destination, '') AS destination,
@@ -45,7 +46,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id
-        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
         LEFT JOIN (
           SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
           FROM tricycle_service_area_points

@@ -1881,7 +1881,7 @@ if ($action === 'puv_list_routes') {
                 GROUP BY area_id
               ) sap ON sap.area_id=sa.id
               LEFT JOIN (
-                SELECT service_area_id, COALESCE(SUM(vehicle_count),0) AS used_units
+                SELECT service_area_id, COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS used_units
                 FROM franchise_applications
                 WHERE COALESCE(vehicle_type,'')='Tricycle'
                   AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
@@ -1968,7 +1968,7 @@ if ($action === 'puv_list_franchise_applications') {
   $rows = [];
   try {
     $stmt = $db->prepare("SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
-                                 fa.route_id, fa.service_area_id, fa.vehicle_type,
+                                 fa.route_id, fa.service_area_id, fa.approved_service_area_id, fa.vehicle_type,
                                  fa.vehicle_count, fa.approved_vehicle_count,
                                  fa.representative_name, fa.status, fa.submitted_at, fa.approved_at,
                                  fa.reviewed_at, fa.review_decision, fa.review_notes,
@@ -1978,7 +1978,7 @@ if ($action === 'puv_list_franchise_applications') {
                                  fr.certificate_no, fr.issue_date, fr.expiry_date, fr.status AS franchise_status
                           FROM franchise_applications fa
                           LEFT JOIN routes r ON r.id=fa.route_id
-                          LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+                          LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
                           LEFT JOIN (
                             SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
                             FROM tricycle_service_area_points
@@ -2045,7 +2045,7 @@ if ($action === 'puv_get_franchise_application') {
                               fr.certificate_no, fr.issue_date, fr.expiry_date, fr.status AS franchise_status
                        FROM franchise_applications fa
                        LEFT JOIN routes r ON r.id=fa.route_id
-                       LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+                       LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
                        LEFT JOIN (
                          SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
                          FROM tricycle_service_area_points
@@ -2172,7 +2172,7 @@ if ($action === 'puv_submit_franchise_application') {
     op_send(false, ['error' => 'Selected service area / TODA zone is not active. Please choose another area.'], 400);
   }
 
-  $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+  $stmtU = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS used_units
                          FROM franchise_applications
                          WHERE service_area_id=? AND COALESCE(vehicle_type,'')='Tricycle'
                            AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");
