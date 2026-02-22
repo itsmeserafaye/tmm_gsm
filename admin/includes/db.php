@@ -1242,6 +1242,7 @@ function db()
     'approved_by_user_id' => "INT DEFAULT NULL",
     'approved_by_name' => "VARCHAR(150) DEFAULT NULL",
     'approved_vehicle_count' => "INT DEFAULT NULL",
+    'approved_service_area_id' => "INT DEFAULT NULL",
     'approved_route_ids' => "VARCHAR(255) DEFAULT NULL",
     'remarks' => "TEXT",
     'assigned_officer_id' => "INT",
@@ -1292,7 +1293,8 @@ function db()
     'approved_units' => "INT DEFAULT NULL",
     'issued_at' => "DATETIME DEFAULT NULL",
     'issued_by_user_id' => "INT DEFAULT NULL",
-    'issued_by_name' => "VARCHAR(150) DEFAULT NULL"
+    'issued_by_name' => "VARCHAR(150) DEFAULT NULL",
+    'remarks' => "TEXT"
   ];
   foreach ($frCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchises LIKE '$col'");

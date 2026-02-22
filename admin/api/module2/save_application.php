@@ -116,7 +116,7 @@ try {
             exit;
         }
 
-        $stmtU = $db->prepare("SELECT COALESCE(SUM(vehicle_count),0) AS used_units
+        $stmtU = $db->prepare("SELECT COALESCE(SUM(COALESCE(approved_vehicle_count, vehicle_count)),0) AS used_units
                                FROM franchise_applications
                                WHERE service_area_id=? AND COALESCE(vehicle_type,'')='Tricycle'
                                  AND status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')");

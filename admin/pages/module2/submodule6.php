@@ -14,7 +14,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.status, fa.submitt
                COALESCE(sa.area_name,'') AS area_name
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
-        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
         WHERE fa.status='Approved'
         ORDER BY fa.reviewed_at DESC, fa.submitted_at DESC, fa.application_id DESC
         LIMIT 600";
@@ -92,6 +92,10 @@ if ($rootUrl === '/') $rootUrl = '';
                 <div id="areaLabel" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
               </div>
               <div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Requested Units</div>
+                <div id="requestedUnits" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
+              </div>
+              <div>
                 <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Approved Units</div>
                 <div id="units" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
               </div>
@@ -108,12 +112,26 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Issuance</div>
             <form id="formIssue" class="space-y-4 mt-4" novalidate>
               <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Approved Route / Service Area</label>
+                <input id="approvedServicePick" name="approved_service_pick" list="approvedServicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select Service Area / TODA Zone">
+                <datalist id="approvedServicePickList"></datalist>
+                <div id="areaHint" class="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-semibold"></div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Approved Units</label>
+                <input name="approved_units" type="number" min="1" max="500" step="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Issue Date</label>
                 <input name="issue_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Validity (years)</label>
                 <input name="validity_years" type="number" min="1" max="5" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Remarks</label>
+                <textarea name="remarks" rows="4" maxlength="1500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Notes about approved units/service area decision"></textarea>
               </div>
               <button id="btnIssue" class="w-full px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Issue Franchise</button>
             </form>
@@ -135,8 +153,13 @@ if ($rootUrl === '/') $rootUrl = '';
     const appWrap = document.getElementById('appWrap');
     const formIssue = document.getElementById('formIssue');
     const btnIssue = document.getElementById('btnIssue');
+    const approvedSvcEl = document.getElementById('approvedServicePick');
+    const approvedSvcList = document.getElementById('approvedServicePickList');
+    const areaHint = document.getElementById('areaHint');
  
     let currentAppId = 0;
+    let servicesCache = null;
+    let currentRequestedAreaId = 0;
  
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -163,22 +186,102 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       return data.data;
     }
+
+    async function loadServices() {
+      if (servicesCache) return servicesCache;
+      const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error('routes_load_failed');
+      servicesCache = Array.isArray(data.data) ? data.data : [];
+      return servicesCache;
+    }
+
+    function rebuildServiceList() {
+      if (!approvedSvcList || !approvedSvcEl) return;
+      approvedSvcList.innerHTML = '';
+      const rows = Array.isArray(servicesCache) ? servicesCache : [];
+      const filtered = rows.filter((r) => (r && String(r.kind || '') === 'service_area'));
+      const seen = new Set();
+      filtered.forEach((r) => {
+        const id = Number(r.service_area_id || 0);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        const code = String(r.area_code || '');
+        const name = String(r.area_name || '');
+        const pts = String(r.points || '');
+        const cap = Number(r.authorized_units || 0);
+        const used = Number(r.used_units || 0);
+        const rem = Number(r.remaining_units || 0);
+        const label = `${code} • ${name}${pts ? ' • ' + pts : ''} • Slots ${used}/${cap} (Remaining ${rem})`;
+        const opt = document.createElement('option');
+        opt.value = `${id} - ${label}`;
+        approvedSvcList.appendChild(opt);
+      });
+    }
+
+    function parsePickId(s) {
+      const m = (s || '').toString().trim().match(/^(\d+)\s*-/);
+      if (!m) return 0;
+      return Number(m[1] || 0);
+    }
+
+    function updateAreaHint() {
+      if (!areaHint || !approvedSvcEl) return;
+      const id = parsePickId(approvedSvcEl.value);
+      if (!id) { areaHint.textContent = ''; return; }
+      const rows = Array.isArray(servicesCache) ? servicesCache : [];
+      const r = rows.find(x => String(x.kind || '') === 'service_area' && Number(x.service_area_id || 0) === id);
+      if (!r) { areaHint.textContent = ''; return; }
+      const cap = Number(r.authorized_units || 0);
+      const used = Number(r.used_units || 0);
+      const rem = Number(r.remaining_units || 0);
+      areaHint.textContent = `Available slot capacity: ${rem} • Existing authorized units: ${cap} • Used: ${used}`;
+    }
  
     async function render(app) {
       const id = Number(app.application_id || 0);
       currentAppId = id;
+      currentRequestedAreaId = Number(app.service_area_id || 0);
       document.getElementById('appTitle').textContent = 'APP-' + id + ' • ' + (app.franchise_ref_number || '');
       document.getElementById('appSub').textContent = (app.reviewed_at ? ('Reviewed: ' + String(app.reviewed_at).slice(0, 19).replace('T', ' ')) : '');
       document.getElementById('opName').textContent = app.operator_name || '-';
       const area = (app.route_code || '') + (app.origin ? (' • ' + app.origin) : '');
       document.getElementById('areaLabel').textContent = area || '-';
+      document.getElementById('requestedUnits').textContent = String(app.vehicle_count || 0);
       document.getElementById('units').textContent = String(app.approved_vehicle_count || app.vehicle_count || 0);
       document.getElementById('status').textContent = app.status || '-';
+
+      try {
+        await loadServices();
+        rebuildServiceList();
+        if (approvedSvcEl) {
+          const approvedAreaId = Number(app.approved_service_area_id || 0) || Number(app.service_area_id || 0);
+          if (approvedAreaId > 0) {
+            const rows = Array.isArray(servicesCache) ? servicesCache : [];
+            const r = rows.find(x => String(x.kind || '') === 'service_area' && Number(x.service_area_id || 0) === approvedAreaId);
+            if (r) {
+              const code = String(r.area_code || '');
+              const name = String(r.area_name || '');
+              const pts = String(r.points || '');
+              const cap = Number(r.authorized_units || 0);
+              const used = Number(r.used_units || 0);
+              const rem = Number(r.remaining_units || 0);
+              const label = `${code} • ${name}${pts ? ' • ' + pts : ''} • Slots ${used}/${cap} (Remaining ${rem})`;
+              approvedSvcEl.value = `${approvedAreaId} - ${label}`;
+            } else {
+              approvedSvcEl.value = `${approvedAreaId} - Service Area`;
+            }
+          }
+          updateAreaHint();
+        }
+      } catch (_) {}
  
       const today = new Date();
       const iso = today.toISOString().slice(0, 10);
       const issueInput = formIssue ? formIssue.querySelector('input[name="issue_date"]') : null;
       if (issueInput && !issueInput.value) issueInput.value = iso;
+      const unitsInput = formIssue ? formIssue.querySelector('input[name="approved_units"]') : null;
+      if (unitsInput) unitsInput.value = String(app.approved_vehicle_count || app.vehicle_count || 1);
  
       emptyState.classList.add('hidden');
       appWrap.classList.remove('hidden');
@@ -212,11 +315,16 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         if (!currentAppId) { showToast('Load an application first.', 'error'); return; }
         const fd = new FormData(formIssue);
+        const approvedAreaId = parsePickId(fd.get('approved_service_pick'));
+        const approvedUnits = Number(fd.get('approved_units') || 0);
         btnIssue.disabled = true;
         btnIssue.textContent = 'Issuing...';
         try {
           const post = new FormData();
           post.append('application_id', String(currentAppId));
+          post.append('approved_service_area_id', String(approvedAreaId || 0));
+          post.append('approved_units', String(approvedUnits || 0));
+          post.append('remarks', (fd.get('remarks') || '').toString());
           post.append('issue_date', (fd.get('issue_date') || '').toString());
           post.append('validity_years', (fd.get('validity_years') || '1').toString());
           const res = await fetch(rootUrl + '/admin/api/module2/issue_franchise.php', { method: 'POST', body: post });
@@ -227,6 +335,10 @@ if ($rootUrl === '/') $rootUrl = '';
               ? 'This application is already issued.'
               : err === 'invalid_status'
                 ? 'Only Approved applications can be issued.'
+                : err === 'service_area_over_capacity'
+                  ? 'No available slots in the selected service area.'
+                  : err === 'missing_service_area'
+                    ? 'Please select an approved service area.'
                 : 'Failed to issue franchise.';
             throw new Error(msg);
           }
@@ -242,6 +354,12 @@ if ($rootUrl === '/') $rootUrl = '';
           btnIssue.textContent = 'Issue Franchise';
         }
       });
+    }
+
+    if (approvedSvcEl) {
+      approvedSvcEl.addEventListener('change', updateAreaHint);
+      approvedSvcEl.addEventListener('blur', updateAreaHint);
+      approvedSvcEl.addEventListener('input', () => { if (areaHint) areaHint.textContent = ''; });
     }
  
     const pre = Number(prefillId ? prefillId.value : 0);

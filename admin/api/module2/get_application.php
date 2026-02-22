@@ -23,11 +23,12 @@ $sql = "SELECT fa.*,
                COALESCE(r.destination, '') AS destination,
                r.structure, r.distance_km, r.authorized_units, r.status AS route_status,
                sa.status AS service_area_status,
-               f.ltfrb_ref_no, f.decision_order_no, f.authority_type, f.issue_date, f.expiry_date AS franchise_expiry_date, f.status AS franchise_status
+               f.ltfrb_ref_no, f.decision_order_no, f.authority_type, f.issue_date, f.expiry_date AS franchise_expiry_date, f.status AS franchise_status,
+               f.certificate_no, f.approved_units, f.remarks AS franchise_remarks
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id
-        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
         LEFT JOIN (
           SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
           FROM tricycle_service_area_points
@@ -72,28 +73,11 @@ $tmmRouteLabel = function (array $r): string {
   if ($ro !== '' || $rd !== '') $label .= ' • ' . trim($ro . ' → ' . $rd);
   return $label;
 };
-$csv = trim((string)($row['approved_route_ids'] ?? ''));
-if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
-$ids = $tmmExtractRouteIds($csv);
-if ($ids) {
-  $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($x) => $x > 0)));
-  sort($ids);
-  $in = implode(',', $ids);
-  $resR = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS code, origin, destination FROM routes WHERE id IN ($in)");
-  $routeMap = [];
-  if ($resR) {
-    while ($r = $resR->fetch_assoc()) {
-      $id = (int)($r['id'] ?? 0);
-      if ($id <= 0) continue;
-      $routeMap[$id] = $r;
-    }
-  }
-  $labels = [];
-  foreach ($ids as $id) {
-    if (!isset($routeMap[$id])) continue;
-    $labels[] = $tmmRouteLabel($routeMap[$id]);
-  }
-  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
+$rid = (int)($row['route_id'] ?? 0);
+if ($rid > 0) {
+  $resR = $db->query("SELECT id, COALESCE(NULLIF(route_code,''), route_id) AS code, origin, destination FROM routes WHERE id=" . (int)$rid . " LIMIT 1");
+  $r = $resR ? $resR->fetch_assoc() : null;
+  $row['routes_display'] = $r ? $tmmRouteLabel($r) : '';
 } else {
   $row['routes_display'] = '';
 }

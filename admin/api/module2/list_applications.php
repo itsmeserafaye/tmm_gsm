@@ -27,6 +27,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                fa.route_id,
                fa.service_area_id,
+               fa.approved_service_area_id,
                fa.route_ids,
                fa.approved_route_ids,
                fa.vehicle_type,
@@ -38,7 +39,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN routes r ON r.id=fa.route_id
-        LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
+        LEFT JOIN tricycle_service_areas sa ON sa.id=COALESCE(fa.approved_service_area_id, fa.service_area_id)
         LEFT JOIN (
           SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
           FROM tricycle_service_area_points
@@ -100,9 +101,6 @@ $routeIds = [];
 foreach ($rows as $row) {
   $rid = (int)($row['route_id'] ?? 0);
   if ($rid > 0) $routeIds[$rid] = true;
-  $csv = trim((string)($row['approved_route_ids'] ?? ''));
-  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
-  foreach ($tmmExtractRouteIds($csv) as $id) $routeIds[$id] = true;
 }
 $routeMap = [];
 if ($routeIds) {
@@ -128,15 +126,12 @@ $tmmRouteLabel = function (array $r): string {
   return $label;
 };
 foreach ($rows as &$row) {
-  $csv = trim((string)($row['approved_route_ids'] ?? ''));
-  if ($csv === '') $csv = trim((string)($row['route_ids'] ?? ''));
-  $ids = $tmmExtractRouteIds($csv);
-  $labels = [];
-  foreach ($ids as $id) {
-    if (!isset($routeMap[$id])) continue;
-    $labels[] = $tmmRouteLabel($routeMap[$id]);
+  $rid = (int)($row['route_id'] ?? 0);
+  if ($rid > 0 && isset($routeMap[$rid])) {
+    $row['routes_display'] = $tmmRouteLabel($routeMap[$rid]);
+  } else {
+    $row['routes_display'] = '';
   }
-  $row['routes_display'] = $labels ? implode(' | ', $labels) : '';
 }
 unset($row);
 
