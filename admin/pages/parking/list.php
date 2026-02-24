@@ -7,13 +7,28 @@ $db = db();
 
 $canManage = has_permission('module5.manage_terminal');
 
+$qFilter = trim((string)($_GET['q'] ?? ''));
+
 $statParkingAreas = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Free' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Occupied' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments pp JOIN parking_slots ps ON ps.slot_id=pp.slot_id JOIN terminals t ON t.id=ps.terminal_id WHERE DATE(pp.paid_at)=CURDATE() AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 
 $parkingRows = [];
-$resP = $db->query("SELECT id, name, location, address, capacity FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
+if ($qFilter !== '') {
+  $sql = "SELECT id, name, location, address, capacity FROM terminals WHERE type='Parking' AND (name LIKE ? OR COALESCE(location,'') LIKE ? OR COALESCE(address,'') LIKE ?) ORDER BY name ASC LIMIT 500";
+  $stmt = $db->prepare($sql);
+  if ($stmt) {
+    $like = '%' . $qFilter . '%';
+    $stmt->bind_param('sss', $like, $like, $like);
+    $stmt->execute();
+    $resP = $stmt->get_result();
+  } else {
+    $resP = false;
+  }
+} else {
+  $resP = $db->query("SELECT id, name, location, address, capacity FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
+}
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -99,18 +114,47 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   <?php endif; ?>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-      <div class="relative max-w-sm group">
-        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-        <input id="parkingSearchTerm" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search parking name or location...">
-      </div>
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <input type="hidden" name="page" value="parking/list">
+        <div class="md:col-span-8">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Parking name / location / address">
+          </div>
+        </div>
+        <div class="md:col-span-4 flex items-center gap-2">
+          <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+          <a href="?page=parking/list" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </a>
+          <?php if (has_permission('reports.export')): ?>
+            <?php
+              $qs = http_build_query([
+                'type' => 'Parking',
+                'q' => $qFilter,
+                'owner' => $ownerFilter,
+                'operator' => $operatorFilter,
+                'permit_status' => $permitStatusFilter,
+                'agreement_type' => $agreementTypeFilter,
+                'valid_from' => $validFromFilter,
+                'valid_to' => $validToFilter,
+              ]);
+              $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
+            ?>
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+            </a>
+          <?php endif; ?>
+        </div>
+      </form>
+    </div>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
           <tr class="text-left text-slate-500 dark:text-slate-400">
-            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
@@ -162,17 +206,17 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
-    const search = document.getElementById('parkingSearchTerm');
-    const body = document.getElementById('parkingBody');
-    if (search && body) {
-      search.addEventListener('input', () => {
-        const q = (search.value || '').toString().trim().toLowerCase();
-        Array.from(body.querySelectorAll('tr')).forEach((tr) => {
-          const txt = (tr.textContent || '').toLowerCase();
-          tr.style.display = (!q || txt.includes(q)) ? '' : 'none';
-        });
-      });
-    }
+    // const search = document.getElementById('parkingSearchTerm');
+    // const body = document.getElementById('parkingBody');
+    // if (search && body) {
+    //   search.addEventListener('input', () => {
+    //     const q = (search.value || '').toString().trim().toLowerCase();
+    //     Array.from(body.querySelectorAll('tr')).forEach((tr) => {
+    //       const txt = (tr.textContent || '').toLowerCase();
+    //       tr.style.display = (!q || txt.includes(q)) ? '' : 'none';
+    //     });
+    //   });
+    // }
 
     const form = document.getElementById('formParking');
     const btn = document.getElementById('btnSaveParking');

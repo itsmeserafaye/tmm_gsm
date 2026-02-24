@@ -33,17 +33,28 @@ if ($rootUrl === '/') $rootUrl = '';
  
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="sm:col-span-2">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4">
+        <div class="md:col-span-5">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-          <input id="opsQ" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search terminal/category/city">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input id="opsQ" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search terminal/category/city">
+          </div>
         </div>
-        <div>
+        <div class="md:col-span-4">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Type</label>
           <select id="opsType" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
             <option value="Terminal" selected>Terminal</option>
             <option value="Parking">Parking</option>
           </select>
+        </div>
+        <div class="md:col-span-3">
+          <?php if (has_permission('reports.export')): ?>
+            <button type="button" id="btnPrintOps" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors shadow-sm" data-print-url="<?php echo htmlspecialchars($rootUrl . '/admin/api/module5/print_occupancy.php'); ?>" data-report-name="Operations Dashboard Report">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              Print Report
+            </button>
+          <?php endif; ?>
         </div>
       </div>
  
@@ -105,6 +116,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const kpiOcc = document.getElementById('kpiOcc');
     const kpiFree = document.getElementById('kpiFree');
     const kpiQueue = document.getElementById('kpiQueue');
+    const btnPrint = document.getElementById('btnPrintOps');
  
     let timer = null;
     let inflight = null;
@@ -185,6 +197,12 @@ if ($rootUrl === '/') $rootUrl = '';
     if (btnRefresh) btnRefresh.addEventListener('click', load);
     if (q) q.addEventListener('input', () => { load(); });
     if (type) type.addEventListener('change', () => { load(); });
+    if (btnPrint) btnPrint.addEventListener('click', () => {
+      const qs = new URLSearchParams();
+      qs.set('type', (type && type.value) ? type.value : 'Terminal');
+      if (q && q.value.trim() !== '') qs.set('q', q.value.trim());
+      btnPrint.setAttribute('data-print-url', rootUrl + '/admin/api/module5/print_occupancy.php?' + qs.toString());
+    }, { capture: true });
     load();
     schedule();
   })();

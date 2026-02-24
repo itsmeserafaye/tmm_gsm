@@ -103,6 +103,66 @@ input[type="file"][required]:not([data-tmm-no-file-ui="1"]):hover::file-selector
   background: rgb(71 85 105);
 }
 
+select:not([multiple]) {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem 1rem;
+  background-origin: content-box;
+  padding-right: 2.25rem;
+  line-height: normal;
+}
+
+select:not([multiple]) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+.dark select:not([multiple]) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+select + .pointer-events-none i[data-lucide="chevron-down"],
+select + .pointer-events-none {
+  display: none !important;
+}
+
+.relative:has(> select) > .pointer-events-none:has(> i[data-lucide="chevron-down"]) {
+  display: none !important;
+}
+.relative:has(> .tmm-select) > .pointer-events-none:has(> i[data-lucide="chevron-down"]) {
+  display: none !important;
+}
+
+/* Ensure readable width for selects in toolbars/filters */
+.tmm-select {
+  min-width: 10rem;
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .tmm-select {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Improve date input spacing so text, clear and calendar do not collide */
+input[type="date"] {
+  padding-right: 2.5rem;
+}
+input[type="date"]::-ms-clear,
+input[type="date"]::-ms-reveal {
+  display: none;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  padding-left: 0.5rem;
+}
+
 @media (max-width: 639px) {
   table.tmm-stack-table {
     width: 100%;

@@ -9,6 +9,10 @@ header('Content-Type: application/json');
 
 $status = trim((string)($_GET['status'] ?? 'Submitted'));
 $q = trim((string)($_GET['q'] ?? ''));
+$vehType = trim((string)($_GET['vehicle_type'] ?? ''));
+$month = (int)($_GET['month'] ?? 0);
+$year = (int)($_GET['year'] ?? 0);
+$operatorId = (int)($_GET['operator_id'] ?? 0);
 
 $allowed = ['Submitted','Approved','Rejected'];
 if (!in_array($status, $allowed, true)) $status = 'Submitted';
@@ -38,6 +42,26 @@ if ($q !== '') {
   $params[] = $like;
   $params[] = $like;
   $types .= 'sssss';
+}
+if ($vehType !== '') {
+  $conds[] = "s.vehicle_type=?";
+  $params[] = $vehType;
+  $types .= 's';
+}
+if ($month >= 1 && $month <= 12) {
+  $conds[] = "MONTH(s.submitted_at)=?";
+  $params[] = $month;
+  $types .= 'i';
+}
+if ($year >= 2000 && $year <= 2100) {
+  $conds[] = "YEAR(s.submitted_at)=?";
+  $params[] = $year;
+  $types .= 'i';
+}
+if ($operatorId > 0) {
+  $conds[] = "COALESCE(u.puv_operator_id,0)=?";
+  $params[] = $operatorId;
+  $types .= 'i';
 }
 if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
 $sql .= " ORDER BY s.submitted_at DESC, s.submission_id DESC LIMIT 300";

@@ -8,6 +8,7 @@ $db = db();
 $prefillApp = (int)($_GET['application_id'] ?? 0);
 $activeTab = (string)($_GET['tab'] ?? '');
 if ($activeTab === '') $activeTab = 'review';
+$q = trim((string)($_GET['q'] ?? ''));
 
 $erHasStatus = false;
 $erHasConditions = false;
@@ -40,9 +41,12 @@ $sqlEnd = "SELECT fa.application_id,
            LEFT JOIN routes r ON r.id=fa.route_id
            LEFT JOIN endorsement_records er ON er.application_id=fa.application_id
            WHERE fa.status IN ('LGU-Endorsed','Endorsed','Rejected')
-             AND COALESCE(NULLIF(fa.vehicle_type,''),'')<>'Tricycle'
-           ORDER BY COALESCE(fa.endorsed_at, fa.submitted_at) DESC
-           LIMIT 300";
+             AND COALESCE(NULLIF(fa.vehicle_type,''),'')<>'Tricycle'";
+if ($q !== '') {
+  $qv = $db->real_escape_string($q);
+  $sqlEnd .= " AND (fa.franchise_ref_number LIKE '%$qv%' OR COALESCE(NULLIF(o.name,''), o.full_name) LIKE '%$qv%' OR COALESCE(NULLIF(r.route_code,''), r.route_id) LIKE '%$qv%' OR COALESCE(r.origin,'') LIKE '%$qv%' OR COALESCE(r.destination,'') LIKE '%$qv%')";
+}
+$sqlEnd .= " ORDER BY COALESCE(fa.endorsed_at, fa.submitted_at) DESC LIMIT 300";
 $resEnd = $db->query($sqlEnd);
 if ($resEnd) while ($r = $resEnd->fetch_assoc()) $endorsedRows[] = $r;
 
@@ -264,6 +268,92 @@ if ($rootUrl === '/') $rootUrl = '';
         </table>
       </div>
     </div>
+<<<<<<< HEAD
+=======
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center gap-2">
+      <?php if (has_permission('reports.export')): ?>
+        <?php
+          $qs = http_build_query(['q' => $q]);
+          tmm_render_export_toolbar([[
+            'href' => $rootUrl . '/admin/api/module2/print_endorsements.php?' . $qs,
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'data-print-url' => $rootUrl . '/admin/api/module2/print_endorsements.php?' . $qs,
+              'data-report-name' => 'Endorsed Applications Report'
+            ]
+          ]], ['mb' => 'mb-0']);
+        ?>
+      <?php endif; ?>
+      <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+        <input type="hidden" name="page" value="module2/submodule3">
+        <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full sm:w-72 px-3 py-2 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search ref/operator/route…">
+        <button class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Apply</button>
+        <a href="?page=module2/submodule3" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold text-center">Reset</a>
+      </form>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+          <tr class="text-left text-slate-500 dark:text-slate-400">
+            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Application</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Operator</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Route</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Endorsement Status</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Conditions</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Endorsed At</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+          <?php if ($endorsedRows): ?>
+            <?php foreach ($endorsedRows as $row): ?>
+              <?php
+                $appId = (int)($row['application_id'] ?? 0);
+                $ref = (string)($row['franchise_ref_number'] ?? '');
+                $op = (string)($row['operator_name'] ?? '');
+                $rc = (string)($row['route_code'] ?? '');
+                $ro = (string)($row['origin'] ?? '');
+                $rd = (string)($row['destination'] ?? '');
+                $appSt = (string)($row['app_status'] ?? '');
+                $es = trim((string)($row['endorsement_status'] ?? ''));
+                if ($es === '') $es = ($appSt === 'Rejected') ? 'Rejected' : 'Endorsed (Complete)';
+                $cond = trim((string)($row['conditions'] ?? ''));
+                $badge = match($es) {
+                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
+                  'Endorsed (Conditional)' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
+                  'Endorsed (Complete)' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
+                  default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
+                };
+                $dt = (string)($row['endorsed_at'] ?? '');
+              ?>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                <td class="py-4 px-6">
+                  <div class="font-black text-slate-900 dark:text-white">APP-<?php echo $appId; ?></div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-1"><?php echo htmlspecialchars($ref); ?></div>
+                </td>
+                <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo htmlspecialchars($op); ?></td>
+                <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium"><?php echo htmlspecialchars($rc . ($ro !== '' || $rd !== '' ? (' • ' . trim($ro . ' → ' . $rd)) : '')); ?></td>
+                <td class="py-4 px-4">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($es); ?></span>
+                </td>
+                <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap"><?php echo htmlspecialchars($cond !== '' ? $cond : '-'); ?></td>
+                <td class="py-4 px-4 hidden md:table-cell text-xs text-slate-500 dark:text-slate-400 font-medium"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y', strtotime($dt)) : '-'); ?></td>
+                <td class="py-4 px-4 text-right whitespace-nowrap">
+                  <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId]); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Open">
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                  </a>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No endorsed applications yet.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+>>>>>>> main
 </div>
 
 <div id="modalFinalizeApproval" class="fixed inset-0 z-[200] hidden">

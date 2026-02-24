@@ -93,7 +93,10 @@ if ($rootUrl === '/') $rootUrl = '';
               'href' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
               'label' => 'Print',
               'icon' => 'printer',
-              'attrs' => ['data-print-url' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab])]
+              'attrs' => [
+                'data-print-url' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+                'data-report-name' => 'Parking Slots & Payments Report'
+              ]
             ]
           ];
           tmm_render_export_toolbar($export, ['mb' => 'mb-0']);

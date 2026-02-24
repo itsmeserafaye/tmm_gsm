@@ -340,10 +340,33 @@
       });
       applyInputTransform(el);
       setFieldValidityUI(el, false);
+      try {
+        var t = (el.getAttribute('type') || '').toLowerCase();
+        if (t === 'date') {
+          var prDate = parseFloat(window.getComputedStyle(el).paddingRight || '0') || 0;
+          if (prDate < 36) el.style.paddingRight = '2.5rem';
+        }
+      } catch (_) { }
       return;
     }
 
     if (el.tagName === 'SELECT') {
+      try {
+        el.classList && el.classList.add('tmm-select');
+        el.style.webkitAppearance = 'none';
+        el.style.mozAppearance = 'none';
+        el.style.appearance = 'none';
+        var pr = parseFloat(window.getComputedStyle(el).paddingRight || '0') || 0;
+        if (pr < 32) el.style.paddingRight = '2.25rem';
+        var wrap = el.parentElement;
+        for (var hop = 0; hop < 3 && wrap && !wrap.classList.contains('relative'); hop++) wrap = wrap.parentElement;
+        var scope = wrap || el.parentElement || el;
+        if (scope && scope.querySelectorAll) {
+          Array.prototype.slice.call(scope.querySelectorAll('.pointer-events-none i[data-lucide="chevron-down"], .pointer-events-none')).forEach(function (ico) {
+            ico.style.display = 'none';
+          });
+        }
+      } catch (_) { }
       el.addEventListener('change', function () {
         el.dataset.tmmTouched = '1';
         setFieldValidityUI(el, true);

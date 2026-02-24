@@ -1,119 +1,90 @@
 <?php
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_any_permission(['module1.read','reports.export']);
+require_any_permission(['module1.read','module1.write','reports.export']);
 $db = db();
 
+$status = trim((string)($_GET['status'] ?? 'Submitted'));
 $q = trim((string)($_GET['q'] ?? ''));
-$vehicleType = trim((string)($_GET['vehicle_type'] ?? ''));
-$routeCategory = trim((string)($_GET['route_category'] ?? ''));
-$status = trim((string)($_GET['status'] ?? ''));
+$vehType = trim((string)($_GET['vehicle_type'] ?? ''));
+$month = (int)($_GET['month'] ?? 0);
+$year = (int)($_GET['year'] ?? 0);
+$operatorId = (int)($_GET['operator_id'] ?? 0);
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
 if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
-$logo = $rootUrl . '/admin/includes/GSM_logo.png';
 
-$conds = ["1=1"];
+$allowedStatus = ['Submitted','Approved','Rejected'];
+if (!in_array($status, $allowedStatus, true)) $status = 'Submitted';
+
+$sql = "SELECT s.submitted_at, s.submission_id, s.plate_number, s.vehicle_type, s.cr_number, s.chassis_no,
+               s.status, s.submitted_by_name, s.approved_at, s.approved_by_name,
+               u.full_name AS portal_full_name, u.association_name AS portal_association_name,
+               u.puv_operator_id AS operator_id
+        FROM vehicle_record_submissions s
+        LEFT JOIN operator_portal_users u ON s.portal_user_id=u.id";
+$conds = [];
 $params = [];
 $types = '';
+
+if ($status !== '') { $conds[] = "s.status=?"; $params[] = $status; $types .= 's'; }
 if ($q !== '') {
-  $like = "%$q%";
-  $conds[] = "(r.route_id LIKE ? OR r.route_code LIKE ? OR r.route_name LIKE ? OR r.origin LIKE ? OR r.destination LIKE ? OR r.via LIKE ?)";
-  array_push($params, $like, $like, $like, $like, $like, $like);
-  $types .= 'ssssss';
+  $conds[] = "(s.plate_number LIKE ? OR s.vehicle_type LIKE ? OR s.submitted_by_name LIKE ? OR s.cr_number LIKE ? OR s.chassis_no LIKE ?)";
+  $like = '%' . $q . '%';
+  $params = array_merge($params, [$like,$like,$like,$like,$like]);
+  $types .= 'sssss';
 }
-if ($status !== '' && $status !== 'Status') {
-  $conds[] = "r.status=?";
-  $params[] = $status;
-  $types .= 's';
-}
-if ($routeCategory !== '') {
-  $conds[] = "r.route_category=?";
-  $params[] = $routeCategory;
-  $types .= 's';
-}
+if ($vehType !== '') { $conds[] = "s.vehicle_type=?"; $params[] = $vehType; $types .= 's'; }
+if ($month >= 1 && $month <= 12) { $conds[] = "MONTH(s.submitted_at)=?"; $params[] = $month; $types .= 'i'; }
+if ($year >= 2000 && $year <= 2100) { $conds[] = "YEAR(s.submitted_at)=?"; $params[] = $year; $types .= 'i'; }
+if ($operatorId > 0) { $conds[] = "COALESCE(u.puv_operator_id,0)=?"; $params[] = $operatorId; $types .= 'i'; }
+if ($conds) $sql .= " WHERE " . implode(" AND ", $conds);
+$sql .= " ORDER BY s.submitted_at DESC, s.submission_id DESC LIMIT 1000";
 
-$hasAlloc = false;
-$tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
-if ($tAlloc && $tAlloc->fetch_row()) $hasAlloc = true;
-
-if ($hasAlloc) {
-  if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
-    $conds[] = "EXISTS (SELECT 1 FROM route_vehicle_types aa WHERE aa.route_id=r.id AND aa.vehicle_type=? AND aa.vehicle_type<>'Tricycle')";
-    $params[] = $vehicleType;
-    $types .= 's';
-  }
-  $sql = "SELECT
-    r.id, r.route_id, r.route_code, r.route_name, r.route_category, r.origin, r.destination, r.via, r.structure, r.status,
-    a.vehicle_type, a.authorized_units, a.fare_min, a.fare_max, a.status AS allocation_status,
-    COALESCE(u.used_units,0) AS used_units
-  FROM routes r
-  LEFT JOIN route_vehicle_types a ON a.route_id=r.id AND a.vehicle_type<>'Tricycle'
-  LEFT JOIN (
-    SELECT route_id, vehicle_type, COALESCE(SUM(vehicle_count),0) AS used_units
-    FROM franchise_applications
-    WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
-    GROUP BY route_id, vehicle_type
-  ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
-  WHERE " . implode(' AND ', $conds) . "
-  ORDER BY r.status='Active' DESC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, a.vehicle_type ASC, r.id DESC
-  LIMIT 1000";
-} else {
-  if ($vehicleType !== '' && $vehicleType !== 'Vehicle type') {
-    $conds[] = "r.vehicle_type=?";
-    $params[] = $vehicleType;
-    $types .= 's';
-  }
-  $sql = "SELECT
-    r.id, r.route_id, r.route_code, r.route_name, r.vehicle_type, r.route_category, r.origin, r.destination, r.via, r.structure,
-    r.authorized_units, r.fare AS fare_min, r.fare AS fare_max, r.status, COALESCE(u.used_units,0) AS used_units
-  FROM routes r
-  LEFT JOIN (
-    SELECT route_id, COALESCE(SUM(vehicle_count),0) AS used_units
-    FROM franchise_applications
-    WHERE status IN ('Endorsed','LGU-Endorsed','Approved','LTFRB-Approved')
-    GROUP BY route_id
-  ) u ON u.route_id=r.id
-  WHERE " . implode(' AND ', $conds) . "
-  ORDER BY r.status='Active' DESC, COALESCE(NULLIF(r.route_code,''), r.route_id) ASC, r.id DESC
-  LIMIT 1000";
-}
-
+$res = null;
 if ($params) {
   $stmt = $db->prepare($sql);
-  $stmt->bind_param($types, ...$params);
-  $stmt->execute();
-  $res = $stmt->get_result();
+  if ($stmt) {
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+  } else {
+    $res = null;
+  }
 } else {
   $res = $db->query($sql);
 }
+
+header('Content-Type: text/html; charset=utf-8');
+$logo = $rootUrl . '/admin/includes/GSM_logo.png';
 $now = date('M d, Y H:i');
-$year = date('Y');
+$yearNow = date('Y');
 $pb_name = trim((string)($_GET['pb_name'] ?? ''));
 $pb_dept = trim((string)($_GET['pb_dept'] ?? ''));
 $rc_name = trim((string)($_GET['rc_name'] ?? ''));
 $rc_pos = trim((string)($_GET['rc_pos'] ?? ''));
 $rc_dept = trim((string)($_GET['rc_dept'] ?? ''));
-$rep_title = trim((string)($_GET['rep_title'] ?? 'Routes Report'));
+$rep_title = trim((string)($_GET['rep_title'] ?? 'Vehicle Encoding Submissions'));
 $office_addr = trim((string)(tmm_get_app_setting('office_address','1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.') ?? '1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.'));
 $office_email = trim((string)(tmm_get_app_setting('office_email','helpdesk@tmm.gov.ph') ?? 'helpdesk@tmm.gov.ph'));
 $office_contact = trim((string)(tmm_get_app_setting('office_contact','') ?? ''));
 $public_site = trim((string)(tmm_get_app_setting('public_website','tmm.govservph.com') ?? 'tmm.govservph.com'));
 $filterParts = [];
-$filterParts[] = 'Vehicle Type: ' . (($vehicleType !== '' && $vehicleType !== 'Vehicle type') ? $vehicleType : 'All');
-$filterParts[] = 'Category: ' . (($routeCategory !== '' && $routeCategory !== 'Category') ? $routeCategory : 'All');
-$filterParts[] = 'Status: ' . (($status !== '' && $status !== 'Status') ? $status : 'All');
+$filterParts[] = 'Status: ' . $status;
+$filterParts[] = 'Type: ' . ($vehType !== '' ? $vehType : 'All');
+$filterParts[] = 'Month: ' . ($month >= 1 && $month <= 12 ? date('F', mktime(0,0,0,$month,1)) : 'All');
+$filterParts[] = 'Year: ' . ($year >= 2000 && $year <= 2100 ? $year : 'All');
+if ($operatorId > 0) $filterParts[] = 'Operator ID: ' . $operatorId;
 $filterLabel = 'Filtered: ' . implode('. ', $filterParts) . '.';
-header('Content-Type: text/html; charset=utf-8');
 ?>
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Routes Report</title>
+  <title>Vehicle Encoding Submissions</title>
   <style>
     *{box-sizing:border-box}
     :root{--footer-height:18mm}
@@ -121,12 +92,12 @@ header('Content-Type: text/html; charset=utf-8');
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:#0f172a;margin:0}
     .wrap{padding:16px 16px calc(var(--footer-height) + 12px) 16px}
     table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #e2e8f0;padding:8px;font-size:12px;vertical-align:top}
+    th,td{border:1px solid #e2e8f0;padding:8px;font-size:12px}
     th{background:#f8fafc;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:#334155}
-    .logo{width:40px;height:40px;border-radius:8px;object-fit:cover}
     thead{display:table-header-group}
     tbody tr{page-break-inside:avoid;break-inside:avoid}
     .footer{border-top:2px solid #e2e8f0;padding:6px 16px;font-size:12px;color:#475569;text-align:center;position:fixed;left:0;right:0;bottom:0;height:var(--footer-height);background:#fff}
+    .logo{width:40px;height:40px;border-radius:8px;object-fit:cover}
     .rhead{display:flex;align-items:center;justify-content:center;gap:12px;text-align:center;padding:8px 0}
     .rtitle{display:flex;flex-direction:column;align-items:center}
     .rtitle .title{margin:0;font-weight:900;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
@@ -154,7 +125,7 @@ header('Content-Type: text/html; charset=utf-8');
               <img class="logo" src="<?php echo htmlspecialchars($logo, ENT_QUOTES); ?>">
               <div class="rtitle">
                 <div class="title">Transport & Mobility Management</div>
-                <div class="sub"><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Routes Report'); ?></div>
+                <div class="sub"><?php echo htmlspecialchars($rep_title !== '' ? $rep_title : 'Vehicle Encoding Submissions'); ?></div>
                 <?php if ($office_addr !== ''): ?>
                 <div class="addr"><?php echo htmlspecialchars($office_addr); ?></div>
                 <?php endif; ?>
@@ -199,55 +170,46 @@ header('Content-Type: text/html; charset=utf-8');
           </td>
         </tr>
         <tr>
-          <th style="width:12%">Code</th>
-          <th style="width:20%">Name</th>
-          <th style="width:28%">Route</th>
-          <?php if ($hasAlloc): ?>
-            <th style="width:12%">Vehicle</th>
-          <?php else: ?>
-            <th style="width:12%">Vehicle</th>
-          <?php endif; ?>
-          <th style="width:10%">Units</th>
-          <th style="width:10%">Remaining</th>
-          <th style="width:8%">Status</th>
+          <th style="width:16%">Submitted</th>
+          <th style="width:12%">Plate</th>
+          <th style="width:14%">Type</th>
+          <th style="width:18%">Submitted By</th>
+          <th style="width:12%">Status</th>
+          <th style="width:28%">Operator/Association</th>
+          <th style="width:10%">CR</th>
         </tr>
       </thead>
       <tbody>
         <?php if ($res && $res->num_rows > 0): ?>
           <?php while ($r = $res->fetch_assoc()): ?>
             <?php
-              $code = trim((string)($r['route_code'] ?? ''));
-              if ($code === '') $code = trim((string)($r['route_id'] ?? ''));
-              $name = (string)($r['route_name'] ?? '');
-              $route = trim((string)($r['origin'] ?? '')) . ' → ' . trim((string)($r['destination'] ?? ''));
-              $veh = (string)($r['vehicle_type'] ?? ($r['vehicle_type'] ?? ''));
-              $au = (int)($r['authorized_units'] ?? 0);
-              $used = (int)($r['used_units'] ?? 0);
-              $rem = $au > 0 ? max(0, $au - $used) : 0;
-              $st = (string)($r['status'] ?? '');
+              $assoc = trim((string)($r['portal_full_name'] ?? ''));
+              $an = trim((string)($r['portal_association_name'] ?? ''));
+              if ($an !== '') $assoc = $assoc !== '' ? ($assoc . ' / ' . $an) : $an;
+              if ($assoc === '') $assoc = '-';
             ?>
             <tr>
-              <td><?php echo htmlspecialchars($code, ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars($name !== '' ? $name : '-', ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars($route !== ' → ' ? $route : '-', ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars($veh !== '' ? $veh : '-', ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars($au > 0 ? (string)$au : '-', ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars((string)$rem, ENT_QUOTES); ?></td>
-              <td><?php echo htmlspecialchars($st !== '' ? $st : '-', ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars(!empty($r['submitted_at']) ? date('Y-m-d H:i', strtotime((string)$r['submitted_at'])) : '-', ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['plate_number'] ?? ''), ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['vehicle_type'] ?? ''), ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['submitted_by_name'] ?? ''), ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['status'] ?? ''), ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars($assoc, ENT_QUOTES); ?></td>
+              <td><?php echo htmlspecialchars((string)($r['cr_number'] ?? ''), ENT_QUOTES); ?></td>
             </tr>
           <?php endwhile; ?>
         <?php else: ?>
-          <tr><td colspan="7" style="text-align:center;color:#64748b;font-weight:700;padding:18px">No routes found</td></tr>
+          <tr><td colspan="7" style="text-align:center;color:#64748b;font-weight:700;padding:18px">No records found</td></tr>
         <?php endif; ?>
       </tbody>
     </table>
   </div>
   <div class="footer">
-    Transport & Mobility Management • <?php echo htmlspecialchars($office_email); ?><?php if ($office_contact !== '') echo ' • ' . htmlspecialchars($office_contact); ?> • <?php echo htmlspecialchars($public_site); ?> • © <?php echo htmlspecialchars($year); ?>
+    Transport & Mobility Management • <?php echo htmlspecialchars($office_email); ?><?php if ($office_contact !== '') echo ' • ' . htmlspecialchars($office_contact); ?> • <?php echo htmlspecialchars($public_site); ?> • © <?php echo htmlspecialchars($yearNow); ?>
   </div>
   <script>
-    (function(){
-      try{ window.print(); }catch(e){}
+    (function() {
+      try { window.print(); } catch (e) {}
       function tryClose(){ try{ if (window.opener && !window.opener.closed) window.close(); }catch(e){} }
       if ('onafterprint' in window) window.addEventListener('afterprint', function(){ setTimeout(tryClose, 50); });
       if (window.matchMedia) {

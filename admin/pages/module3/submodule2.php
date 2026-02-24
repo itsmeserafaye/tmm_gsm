@@ -8,6 +8,12 @@ $db = db();
 $pendingPay = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='Pending Payment'")->fetch_assoc()['c'] ?? 0);
 $paid = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='Paid'")->fetch_assoc()['c'] ?? 0);
 $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='Closed'")->fetch_assoc()['c'] ?? 0);
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$rootUrl = '';
+$pos = strpos($scriptName, '/admin/');
+if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
+if ($rootUrl === '/') $rootUrl = '';
 ?>
 
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-8">
@@ -129,6 +135,21 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
         <div class="text-sm text-slate-500 dark:text-slate-400">Track payment and closure status.</div>
       </div>
       <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+      <?php if (has_permission('reports.export')): ?>
+        <?php
+          $qs = http_build_query(['status' => '', 'from' => '', 'to' => '', 'q' => '']);
+          tmm_render_export_toolbar([[
+            'href' => ($rootUrl ?? '') . '/admin/api/module3/print_sts_tickets.php?' . $qs,
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'id' => 'btnPrintStsTickets',
+              'data-print-url' => ($rootUrl ?? '') . '/admin/api/module3/print_sts_tickets.php',
+              'data-report-name' => 'STS Tickets Report'
+            ]
+          ]], ['mb' => 'mb-0']);
+        ?>
+      <?php endif; ?>
         <select id="filterStatus" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           <option value="">All</option>
           <option value="Pending Payment">Pending Payment</option>
@@ -196,6 +217,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
     const linkedViolationSelect = document.getElementById('linkedViolationSelect');
     const fineAmountEl = formCreate ? formCreate.querySelector('input[name="fine_amount"]') : null;
     const dateIssuedEl = formCreate ? formCreate.querySelector('input[name="date_issued"]') : null;
+    const btnPrint = document.getElementById('btnPrintStsTickets');
  
     function openModal() {
       if (!modal) return;
@@ -349,6 +371,24 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM sts_tickets WHERE status='
         } finally {
           if (btnCreate) { btnCreate.disabled = false; btnCreate.textContent = 'Save'; }
         }
+      });
+    }
+
+    function buildPrintUrl() {
+      const qs = new URLSearchParams();
+      if (filterStatus && filterStatus.value) qs.set('status', filterStatus.value);
+      if (filterFrom && filterFrom.value) qs.set('from', filterFrom.value);
+      if (filterTo && filterTo.value) qs.set('to', filterTo.value);
+      if (filterQ && filterQ.value) qs.set('q', filterQ.value);
+      const base = (rootUrl || '') + '/admin/api/module3/print_sts_tickets.php';
+      return base + (qs.toString() ? ('?' + qs.toString()) : '');
+    }
+    if (btnPrint) {
+      btnPrint.addEventListener('click', function(e){
+        e.preventDefault();
+        const url = buildPrintUrl();
+        if (window.tmmPrintLink) window.tmmPrintLink({ getAttribute: () => url });
+        else window.open(url, '_blank');
       });
     }
 

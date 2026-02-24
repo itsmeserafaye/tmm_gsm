@@ -82,21 +82,37 @@ if ($rootUrl === '/') $rootUrl = '';
             'href' => $rootUrl . '/admin/api/module5/export_slots.php?' . http_build_query(['terminal_id' => $terminalId, 'format' => 'excel']),
             'label' => 'Excel',
             'icon' => 'file-spreadsheet'
+          ],
+          [
+            'href' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+            'label' => 'Print',
+            'icon' => 'printer',
+            'attrs' => [
+              'data-print-url' => $rootUrl . '/admin/api/module5/print_parking.php?' . http_build_query(['terminal_id' => $terminalId, 'tab' => $tab]),
+              'data-report-name' => 'Terminal Slots & Payments Report'
+            ]
           ]
         ], ['mb' => 'mb-0']); ?>
       <?php endif; ?>
-      <form class="flex flex-col sm:flex-row gap-3 items-end" method="GET">
+      <form class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end" method="GET">
         <input type="hidden" name="page" value="module5/submodule4">
         <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tab); ?>">
-        <div class="flex-1">
+        <div class="sm:col-span-10">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Terminal</label>
-          <select name="terminal_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <?php foreach ($terminals as $t): ?>
-              <option value="<?php echo (int)$t['id']; ?>" <?php echo (int)$t['id'] === $terminalId ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$t['name']); ?></option>
-            <?php endforeach; ?>
-          </select>
+          <div class="relative">
+            <select name="terminal_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold appearance-none cursor-pointer">
+              <?php foreach ($terminals as $t): ?>
+                <option value="<?php echo (int)$t['id']; ?>" <?php echo (int)$t['id'] === $terminalId ? 'selected' : ''; ?>><?php echo htmlspecialchars((string)$t['name']); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </div>
+          </div>
         </div>
-        <button class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold">Load</button>
+        <div class="sm:col-span-2">
+          <button class="w-full px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-semibold transition-colors shadow-sm">Load</button>
+        </div>
       </form>
 
       <div class="flex items-center gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
@@ -228,20 +244,39 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="font-black text-slate-900 dark:text-white">Payments History</div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-            <select id="payFilterExported" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="" selected>All</option>
-              <option value="pending">Pending</option>
-              <option value="exported">Exported</option>
-            </select>
-            <input id="payFilterFrom" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <input id="payFilterTo" type="date" class="w-full sm:w-auto px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <input id="payFilterQ" class="w-full sm:w-64 px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / OR / slot">
-            <button type="button" id="btnRefreshPayments" class="px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">
-              Refresh
-            </button>
+        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+          <div class="flex items-center justify-between mb-4">
+            <div class="font-black text-slate-900 dark:text-white">Payments History</div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select id="payFilterExported" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" selected>All</option>
+                <option value="pending">Pending</option>
+                <option value="exported">Exported</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From</label>
+              <input id="payFilterFrom" type="date" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To</label>
+              <input id="payFilterTo" type="date" class="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input id="payFilterQ" class="w-full pl-9 pr-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search plate / OR / slot">
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <button type="button" id="btnRefreshPayments" class="w-full px-4 py-2 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
         <div class="overflow-x-auto">

@@ -128,7 +128,7 @@ $closed = (int)($db->query("SELECT COUNT(*) AS c FROM violations WHERE workflow_
               'href' => ($rootUrl ?? '') . '/admin/api/module3/print_violations.php?' . $qs,
               'label' => 'Print',
               'icon' => 'printer',
-              'attrs' => ['id' => 'btnPrintViolations', 'data-print-url' => ($rootUrl ?? '') . '/admin/api/module3/print_violations.php']
+              'attrs' => ['id' => 'btnPrintViolations', 'data-print-url' => ($rootUrl ?? '') . '/admin/api/module3/print_violations.php', 'data-report-name' => 'Violations & Ticketing Report']
             ]], ['mb' => 'mb-0']);
           ?>
         <?php endif; ?>
