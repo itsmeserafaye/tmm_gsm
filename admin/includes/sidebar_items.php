@@ -26,7 +26,6 @@ $sidebarItems = [
     'icon' => 'shield-check',
     'subItems' => [
       ['id' => 'submodule1', 'label' => 'Franchise Applications', 'path' => '/module2/submodule1', 'anyPermissions' => ['module2.read','module2.endorse','module2.approve','module2.history','module2.apply']],
-      ['id' => 'submodule2', 'label' => 'Submit Franchise Application', 'path' => '/module2/submodule2', 'anyPermissions' => ['module2.apply']],
       ['id' => 'submodule7', 'label' => 'PUV Local Endorsement Application', 'path' => '/module2/submodule7', 'anyPermissions' => ['module2.apply']],
       ['id' => 'submodule4', 'label' => 'Staff Evaluation', 'path' => '/module2/submodule4', 'anyPermissions' => ['module2.franchises.manage']],
       ['id' => 'submodule6', 'label' => 'Issuance', 'path' => '/module2/submodule6', 'anyPermissions' => ['module2.franchises.manage']],

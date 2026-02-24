@@ -25,7 +25,7 @@ if ($resO) {
 require_once __DIR__ . '/../../includes/vehicle_types.php';
 $typesList = array_values(array_filter(vehicle_types(), function ($t) {
   $t = (string)$t;
-  return in_array($t, ['Jeepney','UV','Bus'], true);
+  return strcasecmp($t, 'Tricycle') !== 0 && strcasecmp($t, 'E-trike') !== 0 && strcasecmp($t, 'Motorized Pedicab') !== 0;
 }));
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -349,4 +349,3 @@ if ($rootUrl === '/') $rootUrl = '';
     }
   })();
 </script>
-

@@ -25,33 +25,23 @@ if ($operatorId <= 0 || $routeId <= 0 || $vehicleCount <= 0) {
   exit;
 }
 
-$allowed = vehicle_types();
-if (!in_array('UV', $allowed, true)) $allowed[] = 'UV';
-if (!in_array('Bus', $allowed, true)) $allowed[] = 'Bus';
-if (!in_array('Jeepney', $allowed, true)) $allowed[] = 'Jeepney';
-
 if ($vehicleTypeRaw === '' || strlen($vehicleTypeRaw) > 60) {
   echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
   exit;
 }
 
-$normType = null;
-$l = strtolower($vehicleTypeRaw);
-if (in_array($vehicleTypeRaw, ['Jeepney','UV','Bus'], true)) {
-  $normType = $vehicleTypeRaw;
-} elseif (str_contains($l, 'jeep')) {
-  $normType = 'Jeepney';
-} elseif (str_contains($l, 'bus')) {
-  $normType = 'Bus';
-} elseif (str_contains($l, 'uv') || str_contains($l, 'van') || str_contains($l, 'shuttle')) {
-  $normType = 'UV';
+$allowed = vehicle_types();
+$allowedSet = [];
+foreach ($allowed as $t) {
+  $allowedSet[strtolower((string)$t)] = (string)$t;
 }
-
+$vtLower = strtolower($vehicleTypeRaw);
+$normType = $allowedSet[$vtLower] ?? null;
 if ($normType === null) {
   echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
   exit;
 }
-if ($normType === 'Tricycle') {
+if (strcasecmp($normType, 'Tricycle') === 0 || strcasecmp($normType, 'E-trike') === 0 || strcasecmp($normType, 'Motorized Pedicab') === 0) {
   echo json_encode(['ok' => false, 'error' => 'tricycle_only']);
   exit;
 }
@@ -165,4 +155,3 @@ try {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => ($e->getMessage() === 'file_invalid' ? 'file_invalid' : 'db_error')]);
 }
-

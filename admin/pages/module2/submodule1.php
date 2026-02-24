@@ -5,6 +5,22 @@ require_any_permission(['module2.read','module2.apply','module2.endorse','module
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+$operators = [];
+$resO = $db->query("SELECT id, COALESCE(NULLIF(name,''), full_name) AS display_name, operator_type, status FROM operators ORDER BY created_at DESC LIMIT 800");
+if ($resO) {
+  while ($r = $resO->fetch_assoc()) {
+    $id = (int)($r['id'] ?? 0);
+    $nm = trim((string)($r['display_name'] ?? ''));
+    if ($id <= 0 || $nm === '') continue;
+    $operators[] = [
+      'id' => $id,
+      'display_name' => $nm,
+      'operator_type' => (string)($r['operator_type'] ?? ''),
+      'status' => (string)($r['status'] ?? ''),
+    ];
+  }
+}
+
 $hasFranchises = (bool)($db->query("SHOW TABLES LIKE 'franchises'")?->fetch_row());
 if ($hasFranchises) {
   @$db->query("UPDATE franchises SET status='Expired' WHERE status='Active' AND expiry_date IS NOT NULL AND expiry_date < CURDATE()");
@@ -224,10 +240,10 @@ if ($rootUrl === '/') $rootUrl = '';
       <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">Tricycle-only flow: Pending Review → Approved / Rejected / Returned for Correction → Active (issued) → Expired / Revoked.</p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="?page=module2/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+      <button type="button" id="btnOpenTriSubmit" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
         <i data-lucide="file-plus" class="w-4 h-4"></i>
         Submit Application
-      </a>
+      </button>
       <a href="?page=module2/submodule4" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
         <i data-lucide="clipboard-check" class="w-4 h-4"></i>
         Staff Evaluation
@@ -500,6 +516,73 @@ if ($rootUrl === '/') $rootUrl = '';
         </button>
       </div>
       <div id="modalAppBody" class="p-6 max-h-[80vh] overflow-y-auto"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modalTriSubmit" class="fixed inset-0 z-[210] hidden">
+  <div id="modalTriSubmitBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalTriSubmitPanel" class="w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white">Submit Tricycle Franchise Application</div>
+        <button type="button" id="modalTriSubmitClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6 max-h-[80vh] overflow-y-auto">
+        <form id="formTriSubmit" class="space-y-5" novalidate>
+          <input type="hidden" name="vehicle_type" value="Tricycle">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                <span class="text-rose-600">*</span> Operator
+              </label>
+              <input name="operator_pick" list="triOperatorPickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select from list (e.g., 123 - Juan Dela Cruz)">
+              <datalist id="triOperatorPickList">
+                <?php foreach ($operators as $o): ?>
+                  <option value="<?php echo htmlspecialchars($o['id'] . ' - ' . $o['display_name'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($o['operator_type'] . ' • ' . $o['status']); ?></option>
+                <?php endforeach; ?>
+              </datalist>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+              <span class="text-rose-600">*</span> Service Area / TODA Zone
+            </label>
+            <input id="triServicePick" name="service_pick" list="triServicePickList" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Select Service Area / TODA Zone">
+            <datalist id="triServicePickList"></datalist>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">
+                <span class="text-rose-600">*</span> Requested number of units
+              </label>
+              <input name="vehicle_count" type="number" min="1" max="500" step="1" value="1" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 5">
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Upload Requirements</div>
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+              <div class="text-sm text-slate-700 dark:text-slate-100 font-semibold">Required uploads for tricycle operators:</div>
+              <ul class="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                <li>Government ID</li>
+                <li>Barangay Clearance</li>
+                <li>Proof of Residency</li>
+                <li>Police Clearance (optional)</li>
+                <li>Application form</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button id="btnTriSubmit" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Submit</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>
