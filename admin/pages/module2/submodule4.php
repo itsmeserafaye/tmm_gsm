@@ -11,11 +11,15 @@ $apps = [];
 $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.status, fa.submitted_at,
                COALESCE(NULLIF(o.name,''), o.full_name) AS operator_name,
                COALESCE(sa.area_code,'') AS area_code,
-               COALESCE(sa.area_name,'') AS area_name
+               COALESCE(sa.area_name,'') AS area_name,
+               fa.vehicle_type,
+               fa.submitted_channel
         FROM franchise_applications fa
         LEFT JOIN operators o ON o.id=fa.operator_id
         LEFT JOIN tricycle_service_areas sa ON sa.id=fa.service_area_id
         WHERE fa.status IN ('Pending Review','Returned for Correction')
+          AND (fa.vehicle_type IS NULL OR fa.vehicle_type='Tricycle')
+          AND COALESCE(NULLIF(fa.submitted_channel,''),'')<>'PUV_LOCAL_ENDORSEMENT'
         ORDER BY fa.submitted_at DESC, fa.application_id DESC
         LIMIT 600";
 $res = $db->query($sql);
