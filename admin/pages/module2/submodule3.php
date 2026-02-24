@@ -433,10 +433,20 @@ if ($rootUrl === '/') $rootUrl = '';
 
     async function fetchPendingLtfrbApps(q) {
       const url = rootUrl + '/admin/api/module2/list_applications.php?status=' + encodeURIComponent('Submitted') + '&limit=200&q=' + encodeURIComponent(q || '') + '&vehicle_type=' + encodeURIComponent('PUV');
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!data || !data.ok) return [];
-      return Array.isArray(data.data) ? data.data : [];
+      try {
+        const res = await fetch(url);
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        let data = null;
+        if (ct.includes('application/json')) {
+          data = await res.json().catch(() => null);
+        } else {
+          return [];
+        }
+        if (!data || !data.ok) return [];
+        return Array.isArray(data.data) ? data.data : [];
+      } catch (_) {
+        return [];
+      }
     }
 
     async function refreshAppDropdown(q) {
@@ -445,9 +455,16 @@ if ($rootUrl === '/') $rootUrl = '';
       if (appDropdownList) {
         appDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500 italic">Loading…</div>';
       }
-      const items = await fetchPendingLtfrbApps(qq);
-      lastPickItems = Array.isArray(items) ? items : [];
-      renderDropdownItems(lastPickItems);
+      try {
+        const items = await fetchPendingLtfrbApps(qq);
+        lastPickItems = Array.isArray(items) ? items : [];
+        renderDropdownItems(lastPickItems);
+      } catch (err) {
+        lastPickItems = [];
+        if (appDropdownList) {
+          appDropdownList.innerHTML = '<div class="px-4 py-3 text-sm text-rose-600">Failed to load applications.</div>';
+        }
+      }
     }
 
     function setDropdownLabel(text) {
