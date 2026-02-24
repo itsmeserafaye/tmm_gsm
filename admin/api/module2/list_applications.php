@@ -18,6 +18,7 @@ if ($hasFranchises) {
 
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
+$vehicleFilter = trim((string)($_GET['vehicle_type'] ?? ''));
 $excludeStatus = trim((string)($_GET['exclude_status'] ?? ''));
 $limit = (int)($_GET['limit'] ?? 100);
 if ($limit <= 0) $limit = 100;
@@ -62,6 +63,15 @@ if ($status !== '' && $status !== 'Status') {
   $conds[] = "fa.status=?";
   $params[] = $status;
   $types .= 's';
+}
+if ($vehicleFilter !== '') {
+  if (strcasecmp($vehicleFilter, 'PUV') === 0) {
+    $conds[] = "COALESCE(NULLIF(fa.vehicle_type,''),'')<>'Tricycle'";
+  } else {
+    $conds[] = "fa.vehicle_type=?";
+    $params[] = $vehicleFilter;
+    $types .= 's';
+  }
 }
 if ($excludeStatus !== '') {
   $conds[] = "fa.status<>?";
