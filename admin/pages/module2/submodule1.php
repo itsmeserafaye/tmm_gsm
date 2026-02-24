@@ -54,6 +54,8 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                fa.route_id,
                fa.service_area_id,
                fa.approved_service_area_id,
+               fa.vehicle_type,
+               fa.submitted_channel,
                COALESCE(r.route_id, sa.area_code) AS route_code,
                COALESCE(r.origin, sap.points, '') AS origin,
                COALESCE(r.destination, '') AS destination,
@@ -427,6 +429,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <?php foreach ($appRows as $row): ?>
               <?php
                 $appId = (int)($row['application_id'] ?? 0);
+                $vehType = (string)($row['vehicle_type'] ?? '');
                 $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
                 $st = (string)($row['status'] ?? '');
                 $badge = match($st) {
@@ -449,6 +452,16 @@ if ($rootUrl === '/') $rootUrl = '';
                   <?php echo htmlspecialchars((string)($row['operator_name'] ?? '')); ?>
                   <?php if (!empty($row['representative_name'] ?? '')): ?>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Rep: <?php echo htmlspecialchars((string)$row['representative_name']); ?></div>
+                  <?php endif; ?>
+                  <?php
+                    $vehLabel = trim((string)($row['vehicle_type'] ?? ''));
+                    $channelLabel = trim((string)($row['submitted_channel'] ?? ''));
+                    $isPuvEndorse = ($vehLabel !== '' && strcasecmp($vehLabel, 'Tricycle') !== 0) || strcasecmp($channelLabel, 'PUV_LOCAL_ENDORSEMENT') === 0;
+                  ?>
+                  <?php if ($isPuvEndorse): ?>
+                    <div class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[11px] font-black tracking-wide">
+                      PUV Local Endorsement
+                    </div>
                   <?php endif; ?>
                 </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-medium">
@@ -482,15 +495,25 @@ if ($rootUrl === '/') $rootUrl = '';
                     <button type="button" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" data-app-view="1" data-app-id="<?php echo (int)$appId; ?>" title="View Details">
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
-                    <?php if (has_permission('module2.franchises.manage') && in_array($st, ['Pending Review','Returned for Correction'], true)): ?>
-                      <a href="?<?php echo http_build_query(['page'=>'module2/submodule4','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="Staff Evaluation">
-                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
-                      </a>
-                    <?php endif; ?>
-                    <?php if (has_permission('module2.franchises.manage') && $st === 'Approved'): ?>
-                      <a href="?<?php echo http_build_query(['page'=>'module2/submodule6','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" title="Issue Franchise">
-                        <i data-lucide="badge-check" class="w-4 h-4"></i>
-                      </a>
+                    <?php if (has_permission('module2.franchises.manage')): ?>
+                      <?php if (strcasecmp($vehType, 'Tricycle') === 0): ?>
+                        <?php if (in_array($st, ['Pending Review','Returned for Correction'], true)): ?>
+                          <a href="?<?php echo http_build_query(['page'=>'module2/submodule4','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="Staff Evaluation">
+                            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                          </a>
+                        <?php endif; ?>
+                        <?php if ($st === 'Approved'): ?>
+                          <a href="?<?php echo http_build_query(['page'=>'module2/submodule6','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" title="Issue Franchise">
+                            <i data-lucide="badge-check" class="w-4 h-4"></i>
+                          </a>
+                        <?php endif; ?>
+                      <?php else: ?>
+                        <?php if ($st === 'Submitted'): ?>
+                          <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId,'tab'=>'review']); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all" title="PUV Local Endorsement / Permit">
+                            <i data-lucide="file-check-2" class="w-4 h-4"></i>
+                          </a>
+                        <?php endif; ?>
+                      <?php endif; ?>
                     <?php endif; ?>
                   </div>
                 </td>
