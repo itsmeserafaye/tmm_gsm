@@ -19,6 +19,7 @@ if ($hasFranchises) {
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? ''));
 $vehicleFilter = trim((string)($_GET['vehicle_type'] ?? ''));
+$submittedChannel = trim((string)($_GET['submitted_channel'] ?? ''));
 $excludeStatus = trim((string)($_GET['exclude_status'] ?? ''));
 $limit = (int)($_GET['limit'] ?? 100);
 if ($limit <= 0) $limit = 100;
@@ -32,6 +33,7 @@ $sql = "SELECT fa.application_id, fa.franchise_ref_number, fa.operator_id,
                fa.route_ids,
                fa.approved_route_ids,
                fa.vehicle_type,
+               fa.submitted_channel,
                COALESCE(NULLIF(r.route_code,''), r.route_id, sa.area_code) AS route_code,
                COALESCE(r.origin, sap.points, '') AS origin,
                COALESCE(r.destination, '') AS destination,
@@ -72,6 +74,11 @@ if ($vehicleFilter !== '') {
     $params[] = $vehicleFilter;
     $types .= 's';
   }
+}
+if ($submittedChannel !== '') {
+  $conds[] = "fa.submitted_channel=?";
+  $params[] = $submittedChannel;
+  $types .= 's';
 }
 if ($excludeStatus !== '') {
   $conds[] = "fa.status<>?";
