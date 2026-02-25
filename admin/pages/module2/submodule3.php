@@ -432,7 +432,10 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     async function fetchPendingLtfrbApps(q) {
-      const url = rootUrl + '/admin/api/module2/list_applications.php?status=' + encodeURIComponent('Submitted') + '&limit=200&q=' + encodeURIComponent(q || '') + '&vehicle_type=' + encodeURIComponent('PUV');
+      const url = rootUrl + '/admin/api/module2/list_applications.php?limit=200'
+        + '&q=' + encodeURIComponent(q || '')
+        + '&vehicle_type=' + encodeURIComponent('PUV')
+        + '&submitted_channel=' + encodeURIComponent('PUV_LOCAL_ENDORSEMENT');
       try {
         const res = await fetch(url);
         const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -443,7 +446,12 @@ if ($rootUrl === '/') $rootUrl = '';
           return [];
         }
         if (!data || !data.ok) return [];
-        return Array.isArray(data.data) ? data.data : [];
+        const rows = Array.isArray(data.data) ? data.data : [];
+        const allowedStatus = new Set(['Submitted','Pending Review','Returned for Correction']);
+        return rows.filter((row) => {
+          const st = (row && row.status) ? String(row.status) : '';
+          return allowedStatus.has(st);
+        });
       } catch (_) {
         return [];
       }
