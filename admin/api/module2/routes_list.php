@@ -6,15 +6,19 @@ $db = db();
 header('Content-Type: application/json');
 require_any_permission(['module2.read','module2.endorse','module2.approve','module2.history']);
 
-  $useAlloc = false;
-  $tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
-  if ($tAlloc && $tAlloc->num_rows > 0) {
-    $cAlloc = $db->query("SELECT COUNT(*) AS c FROM route_vehicle_types");
-    if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
-  }
+$useAlloc = false;
+$tAlloc = $db->query("SHOW TABLES LIKE 'route_vehicle_types'");
+if ($tAlloc && $tAlloc->num_rows > 0) {
+  $cAlloc = $db->query("SELECT COUNT(*) AS c FROM route_vehicle_types");
+  if ($cAlloc && (int)($cAlloc->fetch_assoc()['c'] ?? 0) > 0) $useAlloc = true;
+}
+
+$hasLptrp = false;
+$tLptrp = $db->query("SHOW TABLES LIKE 'lptrp_routes'");
+if ($tLptrp && $tLptrp->fetch_row()) $hasLptrp = true;
 
 if ($useAlloc) {
-  $res = $db->query("SELECT
+  $sql = "SELECT
   r.id AS route_db_id,
   r.route_id,
   COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code,
@@ -40,9 +44,14 @@ LEFT JOIN (
   WHERE status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
   GROUP BY route_id, vehicle_type
 ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
-WHERE r.status='Active'
+WHERE r.status='Active'";
+  if ($hasLptrp) {
+    $sql .= " AND EXISTS (SELECT 1 FROM lptrp_routes lr WHERE lr.route_code = r.route_id)";
+  }
+  $sql .= "
 ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC, a.vehicle_type ASC
-LIMIT 2000");
+LIMIT 2000";
+  $res = $db->query($sql);
 } else {
   $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('fare_min','fare_max')");
   $hasFareMin = false;
@@ -57,7 +66,7 @@ LIMIT 2000");
   $fareMinExpr = $hasFareMin ? "COALESCE(r.fare_min, r.fare)" : "r.fare";
   $fareMaxExpr = $hasFareMax ? "COALESCE(r.fare_max, r.fare)" : "r.fare";
 
-  $res = $db->query("SELECT
+  $sql = "SELECT
     r.id AS route_db_id,
     r.route_id,
     COALESCE(NULLIF(r.route_code,''), r.route_id) AS route_code,
@@ -77,10 +86,15 @@ LIMIT 2000");
     GREATEST(COALESCE(r.authorized_units, r.max_vehicle_limit, 0) - COALESCE(SUM(COALESCE(fa.approved_vehicle_count, fa.vehicle_count)),0), 0) AS remaining_units
   FROM routes r
   LEFT JOIN franchise_applications fa ON fa.route_id=r.id AND fa.status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
-  WHERE r.status='Active' AND COALESCE(r.vehicle_type,'')<>'Tricycle'
+  WHERE r.status='Active' AND COALESCE(r.vehicle_type,'')<>'Tricycle'";
+  if ($hasLptrp) {
+    $sql .= " AND EXISTS (SELECT 1 FROM lptrp_routes lr WHERE lr.route_code = r.route_id)";
+  }
+  $sql .= "
   GROUP BY r.id
   ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC
-  LIMIT 2000");
+  LIMIT 2000";
+  $res = $db->query($sql);
 }
 
 $rows = [];
