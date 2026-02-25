@@ -250,9 +250,20 @@ if ($rootUrl === '/') $rootUrl = '';
                   </td>
                   <td class="py-3 px-4 hidden lg:table-cell text-xs text-slate-500 dark:text-slate-400 font-medium"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y', strtotime($dt)) : '-'); ?></td>
                   <td class="py-3 px-4 text-right whitespace-nowrap">
-                    <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId,'tab'=>'review']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Open">
-                      <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                    </a>
+                    <button type="button"
+                            class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="View"
+                            data-view-app="1"
+                            data-app-id="<?php echo $appId; ?>"
+                            data-ref="<?php echo htmlspecialchars($ref, ENT_QUOTES); ?>"
+                            data-operator="<?php echo htmlspecialchars($op, ENT_QUOTES); ?>"
+                            data-route="<?php echo htmlspecialchars($routeLabel, ENT_QUOTES); ?>"
+                            data-units="<?php echo $units; ?>"
+                            data-status="<?php echo htmlspecialchars($es, ENT_QUOTES); ?>"
+                            data-endorsed="<?php echo htmlspecialchars($dt, ENT_QUOTES); ?>"
+                            data-conditions="<?php echo htmlspecialchars((string)($row['conditions'] ?? ''), ENT_QUOTES); ?>">
+                      <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -263,6 +274,59 @@ if ($rootUrl === '/') $rootUrl = '';
         </table>
       </div>
     </div>
+</div>
+
+<div id="modalViewEndorsement" class="fixed inset-0 z-[200] hidden">
+  <div id="modalViewEndorsementBackdrop" class="absolute inset-0 bg-slate-900/50 opacity-0 transition-opacity"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div id="modalViewEndorsementPanel" class="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl transform scale-95 opacity-0 transition-all">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div class="font-black text-slate-900 dark:text-white">Endorsement Details</div>
+        <button type="button" id="modalViewEndorsementClose" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Application</div>
+            <div id="viewAppId" class="mt-1 font-black">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Reference</div>
+            <div id="viewRef" class="mt-1">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Operator</div>
+            <div id="viewOperator" class="mt-1">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Route</div>
+            <div id="viewRoute" class="mt-1">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Units</div>
+            <div id="viewUnits" class="mt-1">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Endorsement Status</div>
+            <div id="viewStatus" class="mt-1">-</div>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Endorsed At</div>
+            <div id="viewEndorsed" class="mt-1">-</div>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Conditions / Notes</div>
+          <div id="viewConditions" class="mt-2 whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3">-</div>
+        </div>
+        <div class="flex items-center justify-end">
+          <button type="button" id="btnViewClose" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="modalFinalizeApproval" class="fixed inset-0 z-[200] hidden">
@@ -735,5 +799,53 @@ if ($rootUrl === '/') $rootUrl = '';
     if (<?php echo json_encode($prefillApp > 0); ?>) {
       formLoad.dispatchEvent(new Event('submit'));
     }
+
+    // View Modal logic (history action)
+    const viewModal = document.getElementById('modalViewEndorsement');
+    const viewBackdrop = document.getElementById('modalViewEndorsementBackdrop');
+    const viewPanel = document.getElementById('modalViewEndorsementPanel');
+    const viewCloseBtn = document.getElementById('modalViewEndorsementClose');
+    const btnViewClose = document.getElementById('btnViewClose');
+    function openViewModal() {
+      if (!viewModal || !viewBackdrop || !viewPanel) return;
+      viewModal.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        viewBackdrop.classList.remove('opacity-0');
+        viewPanel.classList.remove('opacity-0');
+        viewPanel.classList.remove('scale-95');
+      });
+      try { window.lucide && window.lucide.createIcons && window.lucide.createIcons(); } catch (e) {}
+    }
+    function closeViewModal() {
+      if (!viewModal || !viewBackdrop || !viewPanel) return;
+      viewBackdrop.classList.add('opacity-0');
+      viewPanel.classList.add('opacity-0');
+      viewPanel.classList.add('scale-95');
+      setTimeout(() => viewModal.classList.add('hidden'), 150);
+    }
+    function setViewField(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val && String(val).trim() !== '' ? String(val) : '-';
+    }
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      if (!t) return;
+      const btn = t.closest && t.closest('[data-view-app]');
+      if (!btn) return;
+      e.preventDefault();
+      const ds = btn.dataset || {};
+      setViewField('viewAppId', 'APP-' + (ds.appId || ''));
+      setViewField('viewRef', ds.ref || '');
+      setViewField('viewOperator', ds.operator || '');
+      setViewField('viewRoute', ds.route || '');
+      setViewField('viewUnits', ds.units || '');
+      setViewField('viewStatus', ds.status || '');
+      setViewField('viewEndorsed', ds.endorsed ? (String(ds.endorsed).slice(0,10)) : '-');
+      setViewField('viewConditions', ds.conditions || '');
+      openViewModal();
+    });
+    if (viewBackdrop) viewBackdrop.addEventListener('click', closeViewModal);
+    if (viewCloseBtn) viewCloseBtn.addEventListener('click', closeViewModal);
+    if (btnViewClose) btnViewClose.addEventListener('click', closeViewModal);
   })();
 </script>
