@@ -155,9 +155,12 @@ try {
   $db->commit();
   echo json_encode(['ok' => true, 'application_id' => $appId, 'reference' => $frRef]);
 } catch (Throwable $e) {
-  if ($db->errno === 0) {
-    try { $db->rollback(); } catch (Throwable $_) {}
-  }
+  try { $db->rollback(); } catch (Throwable $_) {}
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => ($e->getMessage() === 'file_invalid' ? 'file_invalid' : 'db_error')]);
+  $code = (string)$e->getMessage();
+  if ($code === 'file_invalid' || $code === 'db_prepare_failed' || $code === 'insert_failed') {
+    echo json_encode(['ok' => false, 'error' => $code]);
+  } else {
+    echo json_encode(['ok' => false, 'error' => 'db_error']);
+  }
 }
