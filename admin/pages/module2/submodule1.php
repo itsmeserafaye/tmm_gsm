@@ -831,18 +831,6 @@ if ($rootUrl === '/') $rootUrl = '';
                       <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Submitted</div>
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.submitted_at)}</div>
                     </div>
-                    <div>
-                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LGU-Endorsed</div>
-                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.endorsed_at)}</div>
-                    </div>
-                    <div>
-                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB-Approved</div>
-                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${formatDate(a.approved_at)}</div>
-                    </div>
-                    <div>
-                      <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Ref</div>
-                      <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">${(a.ltfrb_ref_no || '-').toString()}</div>
-                    </div>
                     <div class="sm:col-span-2">
                       <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Remarks</div>
                       <div class="mt-1 text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">${(a.remarks || '').toString() || '-'}</div>
