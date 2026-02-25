@@ -158,9 +158,5 @@ try {
   try { $db->rollback(); } catch (Throwable $_) {}
   http_response_code(500);
   $code = (string)$e->getMessage();
-  if ($code === 'file_invalid' || $code === 'db_prepare_failed' || $code === 'insert_failed') {
-    echo json_encode(['ok' => false, 'error' => $code]);
-  } else {
-    echo json_encode(['ok' => false, 'error' => 'db_error']);
-  }
+  echo json_encode(['ok' => false, 'error' => $code !== '' ? $code : 'db_error']);
 }
