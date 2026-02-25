@@ -1228,7 +1228,7 @@ function db()
     'fee_receipt_id' => "VARCHAR(100)",
     'representative_name' => "VARCHAR(150) DEFAULT NULL",
     'validation_notes' => "TEXT",
-    'lptrp_status' => "ENUM('Draft','Submitted','Under Evaluation','For Correction','Approved','Active','Rejected','Suspended','Expired') DEFAULT 'Draft'",
+    'lptrp_status' => "ENUM('Draft','Submitted','Under Evaluation','For Correction','Approved','Active','Rejected','Suspended','Expired','Passed','Failed','Warning','Pending') DEFAULT 'Draft'",
     'coop_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'endorsed_at' => "DATETIME DEFAULT NULL",
     'endorsed_until' => "DATE DEFAULT NULL",
@@ -1252,6 +1252,14 @@ function db()
     'review_decision' => "VARCHAR(32) DEFAULT NULL",
     'review_notes' => "TEXT"
   ];
+  $lptrpCol = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE 'lptrp_status'");
+  if ($lptrpCol && ($row = $lptrpCol->fetch_assoc())) {
+    $t = (string) ($row['Type'] ?? '');
+    if (stripos($t, 'draft') === false || stripos($t, 'submitted') === false || stripos($t, 'under evaluation') === false || stripos($t, 'for correction') === false || stripos($t, 'approved') === false || stripos($t, 'active') === false || stripos($t, 'rejected') === false || stripos($t, 'suspended') === false || stripos($t, 'expired') === false) {
+      $conn->query("ALTER TABLE franchise_applications MODIFY COLUMN lptrp_status ENUM('Draft','Submitted','Under Evaluation','For Correction','Approved','Active','Rejected','Suspended','Expired','Passed','Failed','Warning','Pending') DEFAULT 'Draft'");
+    }
+  }
+
   foreach ($faCols as $col => $def) {
     $check = $conn->query("SHOW COLUMNS FROM franchise_applications LIKE '$col'");
     if ($check && $check->num_rows == 0) {
