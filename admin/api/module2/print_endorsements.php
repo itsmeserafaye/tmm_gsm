@@ -170,8 +170,9 @@ $filterLabel = 'Filtered: ' . ($q !== '' ? ('Query: ' . $q) : 'All records') . '
               $ro = (string)($row['origin'] ?? '');
               $rd = (string)($row['destination'] ?? '');
               $appSt = (string)($row['app_status'] ?? '');
-              $es = trim((string)($row['endorsement_status'] ?? ''));
-              if ($es === '') $es = ($appSt === 'Rejected') ? 'Rejected' : 'Endorsed (Complete)';
+              $esRaw = trim((string)($row['endorsement_status'] ?? ''));
+              if ($esRaw === '') $esRaw = ($appSt === 'Rejected') ? 'Rejected' : 'Endorsed (Complete)';
+              $es = (strcasecmp($esRaw, 'Rejected') === 0) ? 'Rejected' : 'Approved';
               $dt = (string)($row['endorsed_at'] ?? '');
               $routeLabel = $rc . (($ro !== '' || $rd !== '') ? (' • ' . trim($ro . ' → ' . $rd)) : '');
             ?>
