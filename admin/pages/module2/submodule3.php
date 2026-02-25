@@ -324,6 +324,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnEndorseReject = document.getElementById('btnEndorseReject');
     const approvedUnitsInput = document.getElementById('approvedUnits');
     const approvedUnitsHint = document.getElementById('approvedUnitsHint');
+    const formApprove = null;
     const tabButtons = document.querySelectorAll('[data-tab]');
 
     let currentAppId = 0;
