@@ -81,12 +81,12 @@ try {
   if ($submittedByName === '') $submittedByName = 'Staff';
 
   $stmtIns = $db->prepare("INSERT INTO franchise_applications
-    (franchise_ref_number, operator_id, route_id, service_area_id, vehicle_type, route_ids, vehicle_count, representative_name, status, submitted_at, submitted_by_user_id, submitted_by_name, submitted_channel, validation_notes)
-    VALUES (?, ?, ?, NULL, ?, ?, ?, NULL, 'Submitted', NOW(), ?, ?, 'PUV_LOCAL_ENDORSEMENT', ?)");
+    (franchise_ref_number, operator_id, route_id, service_area_id, vehicle_type, route_ids, vehicle_count, representative_name, status, lptrp_status, submitted_at, submitted_by_user_id, submitted_by_name, submitted_channel, validation_notes)
+    VALUES (?, ?, ?, NULL, ?, ?, ?, NULL, 'Submitted', 'Submitted', NOW(), ?, ?, 'PUV_LOCAL_ENDORSEMENT', ?)");
   if (!$stmtIns) throw new Exception('db_prepare_failed');
 
   $routeIdsVal = 'ROUTE:' . (string)$routeId;
-  $stmtIns->bind_param('siisssiss', $frRef, $operatorId, $routeId, $normType, $routeIdsVal, $vehicleCount, $submittedByUserId, $submittedByName, $vehicleNotes);
+  $stmtIns->bind_param('siisssisss', $frRef, $operatorId, $routeId, $normType, $routeIdsVal, $vehicleCount, $submittedByUserId, $submittedByName, $vehicleNotes);
   if (!$stmtIns->execute()) throw new Exception('insert_failed');
   $appId = (int)$stmtIns->insert_id;
   $stmtIns->close();

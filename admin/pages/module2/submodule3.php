@@ -110,6 +110,29 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Application</div>
               <div id="appTitle" class="mt-2 text-lg font-black text-slate-900 dark:text-white">-</div>
               <div id="appSub" class="mt-1 text-sm text-slate-600 dark:text-slate-300">-</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Local Endorsement Status</div>
+                  <div id="lptrpStatusView" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
+                </div>
+                <div>
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Update Status</label>
+                  <div class="flex items-center gap-2">
+                    <select id="lptrpStatusSelect" class="flex-1 px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold">
+                      <option>Draft</option>
+                      <option>Submitted</option>
+                      <option>Under Evaluation</option>
+                      <option>For Correction</option>
+                      <option>Approved</option>
+                      <option>Active</option>
+                      <option>Rejected</option>
+                      <option>Suspended</option>
+                      <option>Expired</option>
+                    </select>
+                    <button id="btnLptrpSave" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Save</button>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -136,21 +159,17 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="space-y-4">
             <div id="sectionEndorse" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Endorse</div>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Local Endorsement Approval</div>
               <form id="formEndorse" class="space-y-4 mt-4" novalidate>
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Endorsement Status</label>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Decision</label>
                   <select name="endorsement_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                    <?php foreach (['Endorsed (Complete)','Endorsed (Conditional)','Rejected'] as $s): ?>
+                    <?php foreach (['Approved','Rejected'] as $s): ?>
                       <option value="<?php echo htmlspecialchars($s); ?>"><?php echo htmlspecialchars($s); ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Conditions (optional)</label>
-                  <textarea name="conditions" rows="3" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Subject to passing vehicle inspection&#10;Subject to submission of OR/CR and insurance&#10;Subject to LTFRB CPC / PA issuance"></textarea>
-                </div>
-                <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Verified documents; ready for approval."></textarea>
+                <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Documents complete; units and route verified."></textarea>
                 <button id="btnEndorse" class="w-full px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Save Endorsement</button>
               </form>
             </div>
@@ -363,6 +382,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     let currentAppId = 0;
     let currentStatus = '';
+    let currentLptrpStatus = '';
     let pickTimer = null;
     let lastPickQuery = '';
     let lastPickItems = [];
@@ -557,6 +577,7 @@ if ($rootUrl === '/') $rootUrl = '';
     function render(a) {
       currentAppId = Number(a.application_id || 0);
       currentStatus = (a.status || '').toString().trim();
+      currentLptrpStatus = (a.lptrp_status || '').toString().trim();
       if (appIdInput) appIdInput.value = String(currentAppId);
       setDropdownLabel(optionLabel(a));
       document.getElementById('appTitle').textContent = 'APP-' + currentAppId;
@@ -568,6 +589,10 @@ if ($rootUrl === '/') $rootUrl = '';
       document.getElementById('routeMeta').textContent = 'Route status: ' + (a.route_status || '-');
       document.getElementById('vehCount').textContent = String(Number(a.vehicle_count || 0));
       document.getElementById('appStatus').textContent = currentStatus || '-';
+      const lpv = document.getElementById('lptrpStatusView');
+      if (lpv) lpv.textContent = currentLptrpStatus || '-';
+      const lps = document.getElementById('lptrpStatusSelect');
+      if (lps && currentLptrpStatus) lps.value = currentLptrpStatus;
       window.__currentRouteId = Number(a.route_id || 0) || 0;
       if (formApprove) {
         const typeEl = formApprove.querySelector('select[name="authority_type"]');
@@ -607,6 +632,33 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
+    const btnLptrpSave = document.getElementById('btnLptrpSave');
+    if (btnLptrpSave) {
+      btnLptrpSave.addEventListener('click', async () => {
+        const sel = document.getElementById('lptrpStatusSelect');
+        const val = sel ? (sel.value || '') : '';
+        if (!currentAppId || !val) { showToast('Pick an application and status.', 'error'); return; }
+        btnLptrpSave.disabled = true;
+        btnLptrpSave.textContent = 'Saving...';
+        try {
+          const fd = new FormData();
+          fd.append('application_id', String(currentAppId));
+          fd.append('lptrp_status', val);
+          const res = await fetch(rootUrl + '/admin/api/module2/update_lptrp_status.php', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'update_failed');
+          currentLptrpStatus = val;
+          const lpv2 = document.getElementById('lptrpStatusView');
+          if (lpv2) lpv2.textContent = currentLptrpStatus || '-';
+          showToast('Local endorsement status updated.');
+        } catch (err) {
+          showToast(err.message || 'Failed', 'error');
+        }
+        btnLptrpSave.disabled = false;
+        btnLptrpSave.textContent = 'Save';
+      });
+    }
+
     if (tabButtons && tabButtons.length) {
       tabButtons.forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -625,7 +677,6 @@ if ($rootUrl === '/') $rootUrl = '';
       formEndorse.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!currentAppId) return;
-        if (currentStatus !== 'Submitted') { showToast('Only Submitted applications can be endorsed.', 'error'); return; }
         btnEndorse.disabled = true;
         btnEndorse.textContent = 'Saving...';
         try {
@@ -635,6 +686,12 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
           showToast('Endorsement saved.');
+          try {
+            const fd2 = new FormData();
+            fd2.append('application_id', String(currentAppId));
+            fd2.append('lptrp_status', 'Approved');
+            await fetch(rootUrl + '/admin/api/module2/update_lptrp_status.php', { method: 'POST', body: fd2 });
+          } catch (_) {}
           const params = new URLSearchParams(window.location.search || '');
           params.set('page', 'module2/submodule3');
           params.set('tab', 'history');
