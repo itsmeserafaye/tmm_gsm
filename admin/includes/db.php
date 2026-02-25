@@ -1228,7 +1228,7 @@ function db()
     'fee_receipt_id' => "VARCHAR(100)",
     'representative_name' => "VARCHAR(150) DEFAULT NULL",
     'validation_notes' => "TEXT",
-    'lptrp_status' => "VARCHAR(50) DEFAULT 'Pending'",
+    'lptrp_status' => "ENUM('Draft','Submitted','Under Evaluation','For Correction','Approved','Active','Rejected','Suspended','Expired') DEFAULT 'Draft'",
     'coop_status' => "VARCHAR(50) DEFAULT 'Pending'",
     'endorsed_at' => "DATETIME DEFAULT NULL",
     'endorsed_until' => "DATE DEFAULT NULL",

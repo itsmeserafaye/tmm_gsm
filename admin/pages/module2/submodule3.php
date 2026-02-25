@@ -392,26 +392,22 @@ if ($rootUrl === '/') $rootUrl = '';
     function setEnabled() {
       const sectionEndorse = document.getElementById('sectionEndorse');
       const sectionApprove = document.getElementById('sectionApprove');
-      
-      // Endorse Section: Visible only if status is Submitted
       if (sectionEndorse) {
-        if (currentStatus === 'Submitted') {
+        if (['Submitted','Pending Review','Returned for Correction'].includes(currentStatus)) {
           sectionEndorse.classList.remove('hidden');
-          btnEndorse.disabled = false;
+          if (btnEndorse) btnEndorse.disabled = false;
         } else {
           sectionEndorse.classList.add('hidden');
-          btnEndorse.disabled = true;
+          if (btnEndorse) btnEndorse.disabled = true;
         }
       }
-
-      // Approve Section: Visible only if endorsed or already issued (for corrections)
       if (sectionApprove) {
-        if (['Endorsed', 'LGU-Endorsed', 'Approved', 'LTFRB-Approved', 'PA Issued', 'CPC Issued'].includes(currentStatus)) {
+        if (['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued'].includes(currentStatus)) {
           sectionApprove.classList.remove('hidden');
-          btnApprove.disabled = false;
+          if (btnApprove) btnApprove.disabled = false;
         } else {
           sectionApprove.classList.add('hidden');
-          btnApprove.disabled = true;
+          if (btnApprove) btnApprove.disabled = true;
         }
       }
     }
