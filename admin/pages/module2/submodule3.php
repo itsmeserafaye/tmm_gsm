@@ -143,51 +143,18 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Local Endorsement Approval</div>
               <form id="formEndorse" class="space-y-4 mt-4" novalidate>
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Decision</label>
-                  <select name="endorsement_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                    <?php foreach (['Approved','Rejected'] as $s): ?>
-                      <option value="<?php echo htmlspecialchars($s); ?>"><?php echo htmlspecialchars($s); ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </div>
-                <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Documents complete; units and route verified."></textarea>
-                <button id="btnEndorse" class="w-full px-4 py-2.5 rounded-md bg-violet-700 hover:bg-violet-800 text-white font-semibold">Save Endorsement</button>
-              </form>
-            </div>
-            <div id="sectionApprove" class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hidden">
-              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">LTFRB Issuance Entry (PA / CPC)</div>
-              <form id="formApprove" class="space-y-4 mt-4" novalidate>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Authority Type</label>
-                  <select name="authority_type" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                    <?php foreach (['PA','CPC'] as $t): ?>
-                      <option value="<?php echo htmlspecialchars($t); ?>"><?php echo htmlspecialchars($t); ?></option>
-                    <?php endforeach; ?>
-                  </select>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Approved Units</label>
+                  <input id="approvedUnits" name="approved_units" type="number" min="1" max="500" step="1" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <div id="approvedUnitsHint" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400"></div>
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">LTFRB Reference No</label>
-                  <input name="ltfrb_ref_no" required maxlength="40" pattern="^[0-9](?:[0-9/]|-){2,39}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 2026-0001">
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Notes</label>
+                  <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Documents complete; units and route verified."></textarea>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Decision Order No</label>
-                  <input name="decision_order_no" required maxlength="40" pattern="^[0-9]{3,40}$" inputmode="numeric" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 1002003">
+                <div class="flex items-center gap-2">
+                  <button type="button" id="btnEndorseApprove" class="flex-1 px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Approve</button>
+                  <button type="button" id="btnEndorseReject" class="flex-1 px-4 py-2.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-semibold">Reject</button>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Issue Date</label>
-                  <input name="issue_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Validity starts here (LTFRB issuance date).</div>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Expiry Date</label>
-                  <input name="expiry_date" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                  <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Auto-computed for PA (1 year). Required for CPC.</div>
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Remarks</label>
-                  <input name="remarks" maxlength="200" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Valid until expiry date">
-                </div>
-                <button id="btnApprove" class="w-full px-4 py-2.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Save Approval</button>
               </form>
             </div>
           </div>
@@ -356,9 +323,10 @@ if ($rootUrl === '/') $rootUrl = '';
     const appDetails = document.getElementById('appDetails');
     const emptyState = document.getElementById('emptyState');
     const formEndorse = document.getElementById('formEndorse');
-    const formApprove = document.getElementById('formApprove');
-    const btnEndorse = document.getElementById('btnEndorse');
-    const btnApprove = document.getElementById('btnApprove');
+    const btnEndorseApprove = document.getElementById('btnEndorseApprove');
+    const btnEndorseReject = document.getElementById('btnEndorseReject');
+    const approvedUnitsInput = document.getElementById('approvedUnits');
+    const approvedUnitsHint = document.getElementById('approvedUnitsHint');
     const tabButtons = document.querySelectorAll('[data-tab]');
 
     let currentAppId = 0;
@@ -392,23 +360,11 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function setEnabled() {
       const sectionEndorse = document.getElementById('sectionEndorse');
-      const sectionApprove = document.getElementById('sectionApprove');
       if (sectionEndorse) {
         if (['Submitted','Pending Review','Returned for Correction'].includes(currentStatus)) {
           sectionEndorse.classList.remove('hidden');
-          if (btnEndorse) btnEndorse.disabled = false;
         } else {
           sectionEndorse.classList.add('hidden');
-          if (btnEndorse) btnEndorse.disabled = true;
-        }
-      }
-      if (sectionApprove) {
-        if (['Endorsed','LGU-Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued'].includes(currentStatus)) {
-          sectionApprove.classList.remove('hidden');
-          if (btnApprove) btnApprove.disabled = false;
-        } else {
-          sectionApprove.classList.add('hidden');
-          if (btnApprove) btnApprove.disabled = true;
         }
       }
     }
@@ -568,12 +524,13 @@ if ($rootUrl === '/') $rootUrl = '';
       const routeLabel = (a.route_code || '-') + ((a.origin || a.destination) ? (' • ' + (a.origin || '') + ' → ' + (a.destination || '')) : '');
       document.getElementById('routeLabel').textContent = routeLabel;
       document.getElementById('routeMeta').textContent = 'Route status: ' + (a.route_status || '-');
-      document.getElementById('vehCount').textContent = String(Number(a.vehicle_count || 0));
+      const requestedUnits = Number(a.vehicle_count || 0) || 1;
+      document.getElementById('vehCount').textContent = String(requestedUnits);
       document.getElementById('appStatus').textContent = currentStatus || '-';
       const lpv = document.getElementById('lptrpStatusView');
       if (lpv) lpv.textContent = currentLptrpStatus || '-';
-      const lps = document.getElementById('lptrpStatusSelect');
-      if (lps && currentLptrpStatus) lps.value = currentLptrpStatus;
+      if (approvedUnitsInput) approvedUnitsInput.value = String(requestedUnits);
+      if (approvedUnitsHint) approvedUnitsHint.textContent = 'Requested: ' + String(requestedUnits) + ' unit' + (requestedUnits === 1 ? '' : 's');
       window.__currentRouteId = Number(a.route_id || 0) || 0;
       if (formApprove) {
         const typeEl = formApprove.querySelector('select[name="authority_type"]');
@@ -654,25 +611,38 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
-    if (formEndorse) {
-      formEndorse.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!currentAppId) return;
-        btnEndorse.disabled = true;
-        btnEndorse.textContent = 'Saving...';
+    function submitEndorse(decision) {
+      if (!formEndorse || !currentAppId) return;
+      const isApprove = decision === 'Approved';
+      const btn = isApprove ? btnEndorseApprove : btnEndorseReject;
+      if (!btn) return;
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.textContent = isApprove ? 'Approving...' : 'Rejecting...';
+      (async () => {
         try {
           const fd = new FormData(formEndorse);
           fd.append('application_id', String(currentAppId));
+          fd.append('endorsement_status', decision);
           const res = await fetch(rootUrl + '/admin/api/module2/endorse_app.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'endorse_failed');
-          showToast('Endorsement saved.');
-          try {
+          if (isApprove) {
             const fd2 = new FormData();
             fd2.append('application_id', String(currentAppId));
             fd2.append('lptrp_status', 'Approved');
+            if (approvedUnitsInput) {
+              const au = Number(approvedUnitsInput.value || 0);
+              if (au > 0) fd2.append('approved_units', String(au));
+            }
             await fetch(rootUrl + '/admin/api/module2/update_lptrp_status.php', { method: 'POST', body: fd2 });
-          } catch (_) {}
+          } else {
+            const fd2 = new FormData();
+            fd2.append('application_id', String(currentAppId));
+            fd2.append('lptrp_status', 'Rejected');
+            await fetch(rootUrl + '/admin/api/module2/update_lptrp_status.php', { method: 'POST', body: fd2 });
+          }
+          showToast(isApprove ? 'Endorsement approved.' : 'Endorsement rejected.');
           const params = new URLSearchParams(window.location.search || '');
           params.set('page', 'module2/submodule3');
           params.set('tab', 'history');
@@ -681,10 +651,21 @@ if ($rootUrl === '/') $rootUrl = '';
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
         } finally {
-          btnEndorse.textContent = 'Save Endorsement';
-          setEnabled();
+          btn.disabled = false;
+          btn.textContent = orig;
         }
+      })();
+    }
+
+    if (btnEndorseApprove) {
+      btnEndorseApprove.addEventListener('click', () => {
+        const au = Number(approvedUnitsInput ? approvedUnitsInput.value : 0) || 0;
+        if (au <= 0) { showToast('Set approved units before approving.', 'error'); return; }
+        submitEndorse('Approved');
       });
+    }
+    if (btnEndorseReject) {
+      btnEndorseReject.addEventListener('click', () => submitEndorse('Rejected'));
     }
 
     if (formApprove) {
