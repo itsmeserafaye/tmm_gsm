@@ -73,7 +73,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
     <div class="border-b border-slate-200 dark:border-slate-700 px-6 pt-4">
       <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
         <button type="button" data-tab="review" class="px-3 py-1.5 rounded-lg <?php echo $activeTab === 'review' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-300'; ?>">To Review</button>
