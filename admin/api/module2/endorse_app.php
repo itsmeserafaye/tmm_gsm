@@ -26,7 +26,7 @@ if ($app_id === 0) {
 
 $db->begin_transaction();
 try {
-    $stmtA = $db->prepare("SELECT application_id, franchise_ref_number, operator_id, route_id, vehicle_count, status FROM franchise_applications WHERE application_id=? FOR UPDATE");
+$stmtA = $db->prepare("SELECT application_id, franchise_ref_number, operator_id, route_id, vehicle_count, status, vehicle_type, submitted_channel FROM franchise_applications WHERE application_id=? FOR UPDATE");
     if (!$stmtA) {
         throw new Exception('db_prepare_failed');
     }
@@ -47,7 +47,13 @@ try {
         echo json_encode(['ok' => true, 'message' => 'Application already endorsed']);
         exit;
     }
-    if ($curStatus !== 'Submitted') {
+    $vehType = (string)($app['vehicle_type'] ?? '');
+    $channel = (string)($app['submitted_channel'] ?? '');
+    $puvLocal = strcasecmp($channel, 'PUV_LOCAL_ENDORSEMENT') === 0 || ($vehType !== '' && stripos($vehType, 'tricycle') === false);
+    $allowedStatuses = $puvLocal
+        ? ['Submitted','Pending Review','Returned for Correction']
+        : ['Submitted'];
+    if (!in_array($curStatus, $allowedStatuses, true)) {
         $db->rollback();
         echo json_encode(['ok' => false, 'error' => 'invalid_status']);
         exit;
