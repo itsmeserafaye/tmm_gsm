@@ -260,8 +260,7 @@ if ($rootUrl === '/') $rootUrl = '';
                             data-route="<?php echo htmlspecialchars($routeLabel, ENT_QUOTES); ?>"
                             data-units="<?php echo $units; ?>"
                             data-status="<?php echo htmlspecialchars($es, ENT_QUOTES); ?>"
-                            data-endorsed="<?php echo htmlspecialchars($dt, ENT_QUOTES); ?>"
-                            data-conditions="<?php echo htmlspecialchars((string)($row['conditions'] ?? ''), ENT_QUOTES); ?>">
+                            data-endorsed="<?php echo htmlspecialchars($dt, ENT_QUOTES); ?>">
                       <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
                   </td>
@@ -318,8 +317,10 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
         </div>
         <div>
-          <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Conditions / Notes</div>
-          <div id="viewConditions" class="mt-2 whitespace-pre-wrap bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3">-</div>
+          <div class="text-xs font-bold text-slate-500 dark:text-slate-400">Uploaded Documents</div>
+          <div id="viewDocsList" class="mt-2 space-y-2">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 italic text-sm">No documents found.</div>
+          </div>
         </div>
         <div class="flex items-center justify-end">
           <button type="button" id="btnViewClose" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Close</button>
@@ -841,7 +842,42 @@ if ($rootUrl === '/') $rootUrl = '';
       setViewField('viewUnits', ds.units || '');
       setViewField('viewStatus', ds.status || '');
       setViewField('viewEndorsed', ds.endorsed ? (String(ds.endorsed).slice(0,10)) : '-');
-      setViewField('viewConditions', ds.conditions || '');
+      // Load documents
+      const list = document.getElementById('viewDocsList');
+      if (list) {
+        list.innerHTML = '<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 italic text-sm">Loading documents…</div>';
+        (async () => {
+          try {
+            const id = Number(ds.appId || 0);
+            const res = await fetch(rootUrl + '/admin/api/module2/list_application_docs.php?application_id=' + encodeURIComponent(String(id)));
+            const data = await res.json();
+            const rows = (data && data.ok && Array.isArray(data.data)) ? data.data : [];
+            if (!rows.length) {
+              list.innerHTML = '<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 italic text-sm">No documents found.</div>';
+              return;
+            }
+            const items = rows.map((r) => {
+              const typ = String(r.type || '').toUpperCase() || 'DOCUMENT';
+              const at = (r.uploaded_at || '').toString().slice(0, 10);
+              const p = String(r.file_path || '');
+              const url = /^https?:\/\//i.test(p) ? p : (rootUrl + (p.startsWith('/') ? '' : '/') + p);
+              const ver = Number(r.verified || 0) === 1 ? '<span class="ml-2 text-[10px] font-bold text-emerald-600">Verified</span>' : '';
+              return `
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                  <div class="text-sm font-semibold">
+                    <span class="text-slate-800 dark:text-slate-200">${typ}</span>
+                    <span class="text-slate-500 dark:text-slate-400 text-xs ml-2">${at || ''}</span>
+                    ${ver}
+                  </div>
+                  <a href="${url}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold hover:bg-black transition">Open</a>
+                </div>`;
+            }).join('');
+            list.innerHTML = items;
+          } catch (err) {
+            list.innerHTML = '<div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-sm">Failed to load documents.</div>';
+          }
+        })();
+      }
       openViewModal();
     });
     if (viewBackdrop) viewBackdrop.addEventListener('click', closeViewModal);
