@@ -580,7 +580,7 @@ if ($rootUrl === '/') $rootUrl = '';
       closeDropdown();
     });
 
-    function render(a) {
+    async function render(a) {
       currentAppId = Number(a.application_id || 0);
       currentStatus = (a.status || '').toString().trim();
       currentLptrpStatus = (a.lptrp_status || '').toString().trim();
