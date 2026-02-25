@@ -35,7 +35,8 @@ $statTotal = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications"
 $statPendingReview = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Pending Review'")->fetch_assoc()['c'] ?? 0);
 $statReturned = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Returned for Correction'")->fetch_assoc()['c'] ?? 0);
 $statApproved = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Approved'")->fetch_assoc()['c'] ?? 0);
-$statActive = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Active'")->fetch_assoc()['c'] ?? 0);
+// Treat LGU-Endorsed PUV applications as Active together with issued tricycle franchises
+$statActive = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Active' OR (status='LGU-Endorsed' AND (vehicle_type IS NULL OR vehicle_type<>'Tricycle'))")->fetch_assoc()['c'] ?? 0);
 $statExpired = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Expired'")->fetch_assoc()['c'] ?? 0);
 $statRevoked = (int)($db->query("SELECT COUNT(*) AS c FROM franchise_applications WHERE status='Revoked'")->fetch_assoc()['c'] ?? 0);
 
@@ -431,15 +432,19 @@ if ($rootUrl === '/') $rootUrl = '';
                 $appId = (int)($row['application_id'] ?? 0);
                 $vehType = (string)($row['vehicle_type'] ?? '');
                 $isHighlight = $highlightAppId > 0 && $highlightAppId === $appId;
-                $st = (string)($row['status'] ?? '');
+                $rawStatus = (string)($row['status'] ?? '');
+                $isPuvEndorse = (($vehType !== '' && strcasecmp($vehType, 'Tricycle') !== 0) || strcasecmp((string)($row['submitted_channel'] ?? ''), 'PUV_LOCAL_ENDORSEMENT') === 0);
+                // Collapse internal statuses into: Active / Inactive / Expired
+                if ($rawStatus === 'Expired') {
+                  $st = 'Expired';
+                } elseif ($rawStatus === 'Active' || ($rawStatus === 'LGU-Endorsed' && $isPuvEndorse)) {
+                  $st = 'Active';
+                } else {
+                  $st = 'Inactive';
+                }
                 $badge = match($st) {
                   'Active' => 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20',
-                  'Approved' => 'bg-blue-100 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-300 dark:ring-blue-500/20',
-                  'Pending Review' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                  'Returned for Correction' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
-                  'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   'Expired' => 'bg-slate-200 text-slate-700 ring-slate-600/20 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-500/20',
-                  'Revoked' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                   default => 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400'
                 };
               ?>
@@ -453,11 +458,11 @@ if ($rootUrl === '/') $rootUrl = '';
                   <?php if (!empty($row['representative_name'] ?? '')): ?>
                     <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">Rep: <?php echo htmlspecialchars((string)$row['representative_name']); ?></div>
                   <?php endif; ?>
-                  <?php
-                    $vehLabel = trim((string)($row['vehicle_type'] ?? ''));
-                    $channelLabel = trim((string)($row['submitted_channel'] ?? ''));
-                    $isPuvEndorse = ($vehLabel !== '' && strcasecmp($vehLabel, 'Tricycle') !== 0) || strcasecmp($channelLabel, 'PUV_LOCAL_ENDORSEMENT') === 0;
-                  ?>
+                    <?php
+                      $vehLabel = trim((string)($row['vehicle_type'] ?? ''));
+                      $channelLabel = trim((string)($row['submitted_channel'] ?? ''));
+                      $isPuvEndorse = ($vehLabel !== '' && strcasecmp($vehLabel, 'Tricycle') !== 0) || strcasecmp($channelLabel, 'PUV_LOCAL_ENDORSEMENT') === 0;
+                    ?>
                   <?php if ($isPuvEndorse): ?>
                     <div class="mt-1 inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[11px] font-black tracking-wide">
                       PUV Local Endorsement
@@ -497,18 +502,18 @@ if ($rootUrl === '/') $rootUrl = '';
                     </button>
                     <?php if (has_permission('module2.franchises.manage')): ?>
                       <?php if (strcasecmp($vehType, 'Tricycle') === 0): ?>
-                        <?php if (in_array($st, ['Pending Review','Returned for Correction'], true)): ?>
+                        <?php if (in_array($rawStatus, ['Pending Review','Returned for Correction'], true)): ?>
                           <a href="?<?php echo http_build_query(['page'=>'module2/submodule4','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" title="Staff Evaluation">
                             <i data-lucide="clipboard-check" class="w-4 h-4"></i>
                           </a>
                         <?php endif; ?>
-                        <?php if ($st === 'Approved'): ?>
+                        <?php if ($rawStatus === 'Approved'): ?>
                           <a href="?<?php echo http_build_query(['page'=>'module2/submodule6','application_id'=>$appId]); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all" title="Issue Franchise">
                             <i data-lucide="badge-check" class="w-4 h-4"></i>
                           </a>
                         <?php endif; ?>
                       <?php else: ?>
-                        <?php if ($st === 'Submitted'): ?>
+                        <?php if ($rawStatus === 'Submitted'): ?>
                           <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId,'tab'=>'review']); ?>" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-500 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all" title="PUV Local Endorsement / Permit">
                             <i data-lucide="file-check-2" class="w-4 h-4"></i>
                           </a>
