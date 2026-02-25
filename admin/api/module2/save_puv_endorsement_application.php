@@ -92,7 +92,22 @@ try {
   if (!$stmtIns) throw new Exception('db_prepare_failed');
 
   $routeIdsVal = 'ROUTE:' . (string)$routeId;
-  $stmtIns->bind_param('siisssisss', $frRef, $operatorId, $routeId, $normType, $routeIdsVal, $vehicleCount, $submittedByUserId, $submittedByName, $vehicleNotes);
+  $opIdStr = (string)$operatorId;
+  $routeIdStr = (string)$routeId;
+  $vehCountStr = (string)$vehicleCount;
+  $submittedByUserIdStr = (string)$submittedByUserId;
+  $stmtIns->bind_param(
+    'sssssssss',
+    $frRef,
+    $opIdStr,
+    $routeIdStr,
+    $normType,
+    $routeIdsVal,
+    $vehCountStr,
+    $submittedByUserIdStr,
+    $submittedByName,
+    $vehicleNotes
+  );
   if (!$stmtIns->execute()) throw new Exception('insert_failed');
   $appId = (int)$stmtIns->insert_id;
   $stmtIns->close();
