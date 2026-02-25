@@ -148,6 +148,13 @@ if ($rootUrl === '/') $rootUrl = '';
                   <div id="approvedUnitsHint" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400"></div>
                 </div>
                 <div>
+                  <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Approved Route</label>
+                  <select id="approvedRouteSelect" name="approved_route_id" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                    <option value="">Use requested route</option>
+                  </select>
+                  <div id="approvedRouteHint" class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400"></div>
+                </div>
+                <div>
                   <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Notes</label>
                   <textarea name="notes" rows="4" maxlength="500" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Documents complete; units and route verified."></textarea>
                 </div>
@@ -324,7 +331,8 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnEndorseReject = document.getElementById('btnEndorseReject');
     const approvedUnitsInput = document.getElementById('approvedUnits');
     const approvedUnitsHint = document.getElementById('approvedUnitsHint');
-    const formApprove = null;
+    const approvedRouteSelect = document.getElementById('approvedRouteSelect');
+    const approvedRouteHint = document.getElementById('approvedRouteHint');
     const tabButtons = document.querySelectorAll('[data-tab]');
 
     let currentAppId = 0;
@@ -333,6 +341,69 @@ if ($rootUrl === '/') $rootUrl = '';
     let pickTimer = null;
     let lastPickQuery = '';
     let lastPickItems = [];
+    let routesCache = null;
+
+    function normalizeVehicleCategory(v) {
+      const s = (v || '').toString().trim();
+      if (!s) return '';
+      if (['Tricycle','Jeepney','UV','Bus'].includes(s)) return s;
+      const l = s.toLowerCase();
+      if (l.includes('tricycle') || l.includes('e-trike') || l.includes('pedicab')) return 'Tricycle';
+      if (l.includes('jeepney')) return 'Jeepney';
+      if (l.includes('bus') || l.includes('mini-bus')) return 'Bus';
+      if (l.includes('uv') || l.includes('van') || l.includes('shuttle')) return 'UV';
+      return '';
+    }
+
+    async function loadRoutes() {
+      if (routesCache) return routesCache;
+      const res = await fetch(rootUrl + '/admin/api/module2/routes_list.php');
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error('routes_load_failed');
+      routesCache = Array.isArray(data.data) ? data.data : [];
+      return routesCache;
+    }
+
+    function populateApprovedRouteSelect(vehicleType, currentRouteDbId, requestedRouteLabel) {
+      if (!approvedRouteSelect) return;
+      approvedRouteSelect.innerHTML = '';
+      const optDefault = document.createElement('option');
+      optDefault.value = '';
+      optDefault.textContent = 'Use requested route';
+      approvedRouteSelect.appendChild(optDefault);
+      const rows = Array.isArray(routesCache) ? routesCache : [];
+      const cat = normalizeVehicleCategory(vehicleType);
+      const options = rows.filter((r) => {
+        if (!r) return false;
+        const kind = String(r.kind || 'route');
+        if (kind !== 'route') return false;
+        const rv = String(r.vehicle_type || '');
+        if (!cat) return true;
+        return normalizeVehicleCategory(rv) === cat;
+      });
+      const seen = new Set();
+      options.forEach((r) => {
+        const id = Number(r.route_db_id || r.id || 0);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        const code = String(r.route_code || r.route_id || '');
+        const name = String(r.route_name || '');
+        const od = [String(r.origin || ''), String(r.destination || '')].filter(Boolean).join(' → ');
+        const label = [code, name].filter(Boolean).join(' • ') + (od ? ' • ' + od : '');
+        const opt = document.createElement('option');
+        opt.value = String(id);
+        opt.textContent = label;
+        approvedRouteSelect.appendChild(opt);
+      });
+      if (currentRouteDbId) {
+        approvedRouteSelect.value = String(currentRouteDbId);
+      } else {
+        approvedRouteSelect.value = '';
+      }
+      if (approvedRouteHint) {
+        approvedRouteHint.textContent = requestedRouteLabel ? ('Requested: ' + requestedRouteLabel) : '';
+      }
+    }
 
     function escapeHtml(s) {
       return String(s ?? '')
@@ -530,6 +601,12 @@ if ($rootUrl === '/') $rootUrl = '';
       if (approvedUnitsInput) approvedUnitsInput.value = String(requestedUnits);
       if (approvedUnitsHint) approvedUnitsHint.textContent = 'Requested: ' + String(requestedUnits) + ' unit' + (requestedUnits === 1 ? '' : 's');
       window.__currentRouteId = Number(a.route_id || 0) || 0;
+      try {
+        await loadRoutes();
+        populateApprovedRouteSelect(String(a.vehicle_type || ''), window.__currentRouteId, routeLabel);
+      } catch (_) {
+        if (approvedRouteHint && routeLabel) approvedRouteHint.textContent = 'Requested: ' + routeLabel;
+      }
       appDetails.classList.remove('hidden');
       emptyState.classList.add('hidden');
       setEnabled();
@@ -618,6 +695,10 @@ if ($rootUrl === '/') $rootUrl = '';
             if (approvedUnitsInput) {
               const au = Number(approvedUnitsInput.value || 0);
               if (au > 0) fd2.append('approved_units', String(au));
+            }
+            if (approvedRouteSelect) {
+              const rid = Number(approvedRouteSelect.value || 0);
+              if (rid > 0) fd2.append('approved_route_id', String(rid));
             }
             await fetch(rootUrl + '/admin/api/module2/update_lptrp_status.php', { method: 'POST', body: fd2 });
           } else {

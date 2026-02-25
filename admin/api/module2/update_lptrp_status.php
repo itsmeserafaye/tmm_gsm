@@ -23,6 +23,9 @@ if (!$app) { echo json_encode(['ok'=>false,'error'=>'application_not_found']); e
 $prev = (string)($app['lptrp_status'] ?? '');
 $routeId = (int)($app['route_id'] ?? 0);
 $vehCount = (int)($app['vehicle_count'] ?? 0);
+$approvedUnits = isset($_POST['approved_units']) ? (int)$_POST['approved_units'] : 0;
+if ($approvedUnits <= 0) $approvedUnits = $vehCount;
+$approvedRouteDbId = isset($_POST['approved_route_id']) ? (int)$_POST['approved_route_id'] : 0;
 
 $stmtU = $db->prepare("UPDATE franchise_applications SET lptrp_status=? WHERE application_id=?");
 if (!$stmtU) { echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
@@ -43,8 +46,9 @@ if ($status === 'Approved') {
   }
   $stmtA = $db->prepare("UPDATE franchise_applications SET approved_route_ids=?, approved_vehicle_count=? WHERE application_id=?");
   if ($stmtA) {
-    $rid = $routeId > 0 ? ('ROUTE:' . (string)$routeId) : null;
-    $stmtA->bind_param('sii', $rid, $vehCount, $id);
+    $routeDbId = $approvedRouteDbId > 0 ? $approvedRouteDbId : $routeId;
+    $rid = $routeDbId > 0 ? ('ROUTE:' . (string)$routeDbId) : null;
+    $stmtA->bind_param('sii', $rid, $approvedUnits, $id);
     $stmtA->execute();
     $stmtA->close();
   }
