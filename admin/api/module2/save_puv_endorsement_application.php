@@ -30,18 +30,24 @@ if ($vehicleTypeRaw === '' || strlen($vehicleTypeRaw) > 60) {
   exit;
 }
 
-$allowed = vehicle_types();
-$allowedSet = [];
-foreach ($allowed as $t) {
-  $allowedSet[strtolower((string)$t)] = (string)$t;
+function tmm_normalize_puv_vehicle_category($v) {
+  $s = trim((string)$v);
+  if ($s === '') return '';
+  if (in_array($s, ['Tricycle','Jeepney','UV','Bus'], true)) return $s;
+  $l = strtolower($s);
+  if (strpos($l, 'tricycle') !== false || strpos($l, 'e-trike') !== false || strpos($l, 'pedicab') !== false) return 'Tricycle';
+  if (strpos($l, 'jeepney') !== false) return 'Jeepney';
+  if (strpos($l, 'bus') !== false || strpos($l, 'mini-bus') !== false) return 'Bus';
+  if (strpos($l, 'uv') !== false || strpos($l, 'van') !== false || strpos($l, 'shuttle') !== false) return 'UV';
+  return '';
 }
-$vtLower = strtolower($vehicleTypeRaw);
-$normType = $allowedSet[$vtLower] ?? null;
-if ($normType === null) {
+
+$normType = tmm_normalize_puv_vehicle_category($vehicleTypeRaw);
+if ($normType === '') {
   echo json_encode(['ok' => false, 'error' => 'invalid_vehicle_type']);
   exit;
 }
-if (strcasecmp($normType, 'Tricycle') === 0 || strcasecmp($normType, 'E-trike') === 0 || strcasecmp($normType, 'Motorized Pedicab') === 0) {
+if ($normType === 'Tricycle') {
   echo json_encode(['ok' => false, 'error' => 'tricycle_only']);
   exit;
 }
