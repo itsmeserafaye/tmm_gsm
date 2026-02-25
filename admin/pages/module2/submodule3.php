@@ -167,7 +167,7 @@ if ($rootUrl === '/') $rootUrl = '';
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div class="text-sm font-black text-slate-900 dark:text-white">Endorsed Applications</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400">LGU-Endorsed / Rejected records for non-tricycle PUVs with endorsement status and conditions.</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400">LGU-Endorsed / Rejected records for non-tricycle PUVs with endorsement status.</div>
         </div>
         <?php if (has_permission('reports.export')): ?>
           <?php
@@ -191,7 +191,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <button class="w-full sm:w-auto px-4 py-2 rounded-md bg-slate-900 dark:bg-slate-700 text-white text-sm font-semibold">Apply</button>
         <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','tab'=>'history']); ?>" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold text-center">Reset</a>
       </form>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto lg:overflow-x-visible">
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
             <tr class="text-left text-slate-500 dark:text-slate-400">
@@ -201,7 +201,6 @@ if ($rootUrl === '/') $rootUrl = '';
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Route</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Units</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Endorsement Status</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Conditions</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Endorsed At</th>
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
             </tr>
@@ -221,7 +220,6 @@ if ($rootUrl === '/') $rootUrl = '';
                   $appSt = (string)($row['app_status'] ?? '');
                   $es = trim((string)($row['endorsement_status'] ?? ''));
                   if ($es === '') $es = ($appSt === 'Rejected') ? 'Rejected' : 'Endorsed (Complete)';
-                  $cond = trim((string)($row['conditions'] ?? ''));
                   $badge = match($es) {
                     'Rejected' => 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20',
                     'Endorsed (Conditional)' => 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20',
@@ -244,7 +242,6 @@ if ($rootUrl === '/') $rootUrl = '';
                   <td class="py-3 px-4">
                     <span class="px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($es); ?></span>
                   </td>
-                  <td class="py-3 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold whitespace-pre-wrap"><?php echo htmlspecialchars($cond !== '' ? $cond : '-'); ?></td>
                   <td class="py-3 px-4 hidden lg:table-cell text-xs text-slate-500 dark:text-slate-400 font-medium"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y', strtotime($dt)) : '-'); ?></td>
                   <td class="py-3 px-4 text-right whitespace-nowrap">
                     <a href="?<?php echo http_build_query(['page'=>'module2/submodule3','application_id'=>$appId,'tab'=>'review']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" title="Open">
@@ -254,7 +251,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <tr><td colspan="9" class="py-10 text-center text-slate-500 font-medium italic">No endorsed applications yet.</td></tr>
+              <tr><td colspan="8" class="py-10 text-center text-slate-500 font-medium italic">No endorsed applications yet.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>
