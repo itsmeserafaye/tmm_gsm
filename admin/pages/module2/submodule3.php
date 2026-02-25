@@ -110,28 +110,9 @@ if ($rootUrl === '/') $rootUrl = '';
               <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Application</div>
               <div id="appTitle" class="mt-2 text-lg font-black text-slate-900 dark:text-white">-</div>
               <div id="appSub" class="mt-1 text-sm text-slate-600 dark:text-slate-300">-</div>
-              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Local Endorsement Status</div>
-                  <div id="lptrpStatusView" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
-                </div>
-                <div>
-                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Update Status</label>
-                  <div class="flex items-center gap-2">
-                    <select id="lptrpStatusSelect" class="flex-1 px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-semibold">
-                      <option>Draft</option>
-                      <option>Submitted</option>
-                      <option>Under Evaluation</option>
-                      <option>For Correction</option>
-                      <option>Approved</option>
-                      <option>Active</option>
-                      <option>Rejected</option>
-                      <option>Suspended</option>
-                      <option>Expired</option>
-                    </select>
-                    <button id="btnLptrpSave" class="px-3 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold">Save</button>
-                  </div>
-                </div>
+              <div class="mt-3">
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Local Endorsement Status</div>
+                <div id="lptrpStatusView" class="mt-1 font-bold text-slate-900 dark:text-white">-</div>
               </div>
             </div>
             <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
