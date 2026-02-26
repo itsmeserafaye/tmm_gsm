@@ -293,13 +293,28 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json().catch(() => null);
           if (!res.ok || !data || !data.ok) {
             const err = (data && data.error) ? String(data.error) : 'save_failed';
-            const msg = err === 'notes_required'
-              ? 'Notes are required when returning for correction.'
-              : err === 'operator_docs_not_verified' && data && Array.isArray(data.missing) && data.missing.length
-                ? ('Missing required operator documents: ' + data.missing.join(', '))
-                : err === 'service_area_over_capacity'
-                  ? 'No available slots in the selected service area.'
-                  : 'Failed to save decision.';
+            let msg = 'Failed to save decision.';
+            if (err === 'notes_required') {
+              msg = 'Notes are required when returning for correction.';
+            } else if (err === 'operator_docs_not_verified' && data && Array.isArray(data.missing) && data.missing.length) {
+              msg = 'Missing required operator documents: ' + data.missing.join(', ');
+            } else if (err === 'operator_docs_missing') {
+              msg = 'Upload and verify the required operator documents before approving.';
+            } else if (err === 'operator_invalid') {
+              msg = 'Operator must be approved and verified before this application can be decided.';
+            } else if (err === 'operator_under_review') {
+              msg = 'Operator is under review and cannot be approved for new franchises.';
+            } else if (err === 'service_area_over_capacity') {
+              msg = 'No available slots in the selected service area.';
+            } else if (err === 'service_area_inactive') {
+              msg = 'The selected service area is inactive. Pick an active service area.';
+            } else if (err === 'service_area_not_found') {
+              msg = 'Service area record was not found. Check the configured service area.';
+            } else if (err === 'invalid_status') {
+              msg = 'Only Pending Review or Returned applications can be decided here.';
+            } else if (err === 'tricycle_only') {
+              msg = 'Staff Evaluation only applies to tricycle franchise applications.';
+            }
             throw new Error(msg);
           }
           showToast('Decision saved.');
