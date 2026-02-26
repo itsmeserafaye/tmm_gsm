@@ -133,5 +133,7 @@ try {
 } catch (Throwable $e) {
   $db->rollback();
   http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'db_error']);
+  $msg = $e->getMessage();
+  if (!is_string($msg) || $msg === '') $msg = 'db_error';
+  echo json_encode(['ok' => false, 'error' => 'db_error:' . $msg]);
 }
