@@ -92,7 +92,7 @@ try {
                              remarks=CASE WHEN ?<>'' THEN ? ELSE remarks END
                          WHERE application_id=?");
   if (!$stmtU) throw new Exception('db_prepare_failed');
-  $stmtU->bind_param('siissssssi', $decision, $approvedCount, $reviewedByUserId, $reviewedByName, $decision, $notes, $notes, $notes, $appId);
+  $stmtU->bind_param('siisssssi', $decision, $approvedCount, $reviewedByUserId, $reviewedByName, $decision, $notes, $notes, $notes, $appId);
   $stmtU->execute();
   $stmtU->close();
  
