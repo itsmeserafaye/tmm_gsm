@@ -168,6 +168,9 @@ if ($format !== 'pdf') {
       .row{display:flex;gap:16px;flex-wrap:wrap}
       .col{flex:1;min-width:240px}
       a{color:#2563eb}
+      .status-pass{background:#dcfce7;color:#166534;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
+      .status-fail{background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
+      .status-na{background:#e5e7eb;color:#374151;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
     </style>
   </head>
   <body>
@@ -241,9 +244,18 @@ if ($format !== 'pdf') {
           <?php foreach ($grouped as $cat => $rows): ?>
             <tr><th colspan="2" style="background:#f8fafc"><?php echo htmlspecialchars($cat); ?></th></tr>
             <?php foreach ($rows as $c): ?>
+              <?php
+                $label = (string)($c['item_label'] ?? '');
+                if ($label === '') $label = (string)($c['item_code'] ?? '');
+                $stRaw = strtoupper(trim((string)($c['status'] ?? '')));
+                $stClass = 'status-na';
+                $stText = $stRaw !== '' ? $stRaw : 'NA';
+                if ($stRaw === 'PASS') $stClass = 'status-pass';
+                elseif ($stRaw === 'FAIL') $stClass = 'status-fail';
+              ?>
               <tr>
-                <td><?php echo htmlspecialchars(((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''))); ?></td>
-                <td><?php echo htmlspecialchars((string)($c['status'] ?? '')); ?></td>
+                <td><?php echo htmlspecialchars($label); ?></td>
+                <td><span class="<?php echo $stClass; ?>"><?php echo htmlspecialchars($stText); ?></span></td>
               </tr>
             <?php endforeach; ?>
           <?php endforeach; ?>
