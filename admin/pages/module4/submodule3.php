@@ -224,11 +224,11 @@ if ($rootUrl === '/') $rootUrl = '';
             ]], ['mb' => 'mb-0']);
           ?>
         <?php endif; ?>
-        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end mb-6">
+        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-6">
           <input type="hidden" name="page" value="module4/submodule3">
           
           <!-- Search -->
-          <div class="sm:col-span-2 lg:col-span-3">
+          <div class="md:col-span-2 lg:col-span-2">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
             <div class="relative group">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -239,7 +239,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Status -->
-          <div class="sm:col-span-2 lg:col-span-3">
+          <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
             <div class="relative">
               <select name="list_status" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -256,7 +256,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Month -->
-          <div class="lg:col-span-2">
+          <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Month</label>
             <div class="relative">
               <select name="month" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -272,7 +272,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Year -->
-          <div class="lg:col-span-2">
+          <div>
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
             <div class="relative">
               <select name="year" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -288,7 +288,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Buttons -->
-          <div class="sm:col-span-2 lg:col-span-2 flex items-center gap-2">
+          <div class="md:col-span-2 lg:col-span-1 flex items-center gap-2">
             <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
               <i data-lucide="filter" class="w-4 h-4"></i>
               Apply
@@ -352,7 +352,17 @@ if ($rootUrl === '/') $rootUrl = '';
                   </td>
                   <td class="py-3 px-4">
                     <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $stBadge; ?>"><?php echo htmlspecialchars($st !== '' ? $st : '-'); ?></span>
-                    <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo $isReady ? 'Ready' : 'Upcoming'; ?></div>
+                    <?php
+                      $subStatus = '';
+                      if ($st === 'Completed') {
+                        $subStatus = 'Completed';
+                      } elseif ($isOverdue) {
+                        $subStatus = 'Overdue';
+                      } else {
+                        $subStatus = $isReady ? 'Ready' : 'Upcoming';
+                      }
+                    ?>
+                    <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($subStatus); ?></div>
                   </td>
                   <td class="py-3 px-4 text-right">
                     <div class="flex items-center justify-end gap-2">
@@ -371,9 +381,9 @@ if ($rootUrl === '/') $rootUrl = '';
                           <i data-lucide="calendar-clock" class="w-4 h-4"></i>
                         </a>
                       <?php endif; ?>
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View">
+                      <button type="button" data-view-inspection="1" data-schedule-id="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View Result">
                         <i data-lucide="eye" class="w-4 h-4"></i>
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -435,9 +445,9 @@ if ($rootUrl === '/') $rootUrl = '';
                         <a href="?<?php echo http_build_query(['page' => 'module4/submodule3', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-blue-700 hover:bg-blue-800 text-white" title="Reschedule">
                           <i data-lucide="calendar-clock" class="w-4 h-4"></i>
                         </a>
-                        <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View">
+                        <button type="button" data-view-inspection="1" data-schedule-id="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40" title="View Result">
                           <i data-lucide="eye" class="w-4 h-4"></i>
-                        </a>
+                        </button>
                         <?php if (has_permission('module4.inspections.manage')): ?>
                           <button type="button" data-cancel-sid="<?php echo $sid; ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-rose-600 hover:bg-rose-700 text-white" title="Cancel">
                             <i data-lucide="x-circle" class="w-4 h-4"></i>
@@ -453,6 +463,23 @@ if ($rootUrl === '/') $rootUrl = '';
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalViewInspection" class="fixed inset-0 z-[225] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5 flex flex-col max-h-[90vh]">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-lg font-black text-slate-900 dark:text-white">Inspection Result</div>
+          <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Checklist and outcome for the selected schedule.</div>
+        </div>
+        <button type="button" id="btnCloseViewInspection" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="flex-1 bg-slate-50 dark:bg-slate-900/40">
+        <iframe id="inspectionReportFrame" src="" class="w-full h-[70vh] border-0 bg-white dark:bg-slate-900"></iframe>
       </div>
     </div>
   </div>
@@ -574,6 +601,9 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehiclePickSearch = document.getElementById('vehiclePickSearch');
     const vehiclePickList = document.getElementById('vehiclePickList');
     const vehicleIdHidden = document.getElementById('vehicleIdHidden');
+    const modalViewInspection = document.getElementById('modalViewInspection');
+    const btnCloseViewInspection = document.getElementById('btnCloseViewInspection');
+    const inspectionReportFrame = document.getElementById('inspectionReportFrame');
 
     if (scheduleDate && !scheduleDate.value) {
       const d = new Date();
@@ -617,6 +647,22 @@ if ($rootUrl === '/') $rootUrl = '';
     let vehiclePickTimer = null;
     let vehiclePickInflight = null;
 
+    function openViewInspection(scheduleId) {
+      if (!modalViewInspection || !inspectionReportFrame) return;
+      const sid = Number(scheduleId || 0);
+      if (!sid) return;
+      inspectionReportFrame.src = rootUrl + '/admin/api/module4/inspection_report.php?format=html&schedule_id=' + encodeURIComponent(String(sid));
+      modalViewInspection.classList.remove('hidden');
+      modalViewInspection.classList.add('flex');
+    }
+
+    function closeViewInspection() {
+      if (!modalViewInspection || !inspectionReportFrame) return;
+      inspectionReportFrame.src = '';
+      modalViewInspection.classList.add('hidden');
+      modalViewInspection.classList.remove('flex');
+    }
+
     function openVehiclePick() {
       if (!vehiclePickPanel) return;
       vehiclePickPanel.classList.remove('hidden');
@@ -625,6 +671,28 @@ if ($rootUrl === '/') $rootUrl = '';
         try { vehiclePickSearch.focus(); } catch (_) {}
       }
       loadVehiclePick((vehiclePickSearch && vehiclePickSearch.value) ? vehiclePickSearch.value : '');
+    }
+
+    function bindViewButtons(scope) {
+      if (!scope) return;
+      scope.querySelectorAll('[data-view-inspection="1"]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const sid = btn.getAttribute('data-schedule-id') || btn.dataset.scheduleId || '';
+          openViewInspection(sid);
+        });
+      });
+    }
+
+    bindViewButtons(document);
+
+    if (btnCloseViewInspection && modalViewInspection) {
+      btnCloseViewInspection.addEventListener('click', closeViewInspection);
+      modalViewInspection.addEventListener('click', (e) => {
+        if (e && e.target === modalViewInspection) closeViewInspection();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape' && !modalViewInspection.classList.contains('hidden')) closeViewInspection();
+      });
     }
 
     function closeVehiclePick() {
