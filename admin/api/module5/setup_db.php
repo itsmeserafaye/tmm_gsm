@@ -77,6 +77,47 @@ $queries = [
         status ENUM('Available', 'Full', 'Restricted', 'Maintenance') DEFAULT 'Available',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE SET NULL
+    )",
+
+    // Facility Owners (Added for Module 5 Enhancement)
+    "CREATE TABLE IF NOT EXISTS facility_owners (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        type ENUM('Person', 'Cooperative', 'Company', 'Government', 'Other') DEFAULT 'Other',
+        contact_info VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )",
+
+    // Facility Agreements (Added for Module 5 Enhancement)
+    "CREATE TABLE IF NOT EXISTS facility_agreements (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        terminal_id INT NOT NULL,
+        owner_id INT NOT NULL,
+        agreement_type ENUM('MOA', 'Lease Contract', 'Rental Agreement', 'Other') DEFAULT 'MOA',
+        reference_no VARCHAR(100),
+        rent_amount DECIMAL(15, 2) DEFAULT 0.00,
+        rent_frequency ENUM('Monthly', 'Weekly', 'Annual', 'One-time') DEFAULT 'Monthly',
+        terms_summary TEXT,
+        start_date DATE,
+        end_date DATE,
+        status ENUM('Active', 'Expired', 'Expiring Soon', 'Terminated') DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE,
+        FOREIGN KEY (owner_id) REFERENCES facility_owners(id) ON DELETE CASCADE
+    )",
+
+    // Facility Documents (Added for Module 5 Enhancement)
+    "CREATE TABLE IF NOT EXISTS facility_documents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        terminal_id INT NOT NULL,
+        agreement_id INT NULL,
+        doc_type ENUM('Business Permit', 'Barangay Clearance', 'Terminal Permit', 'MOA', 'Contract', 'Other') DEFAULT 'Other',
+        permit_number VARCHAR(100),
+        valid_until DATE,
+        file_path VARCHAR(255) NOT NULL,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE,
+        FOREIGN KEY (agreement_id) REFERENCES facility_agreements(id) ON DELETE SET NULL
     )"
 ];
 
