@@ -43,22 +43,60 @@ if ($vehicleId <= 0 && $plate !== '') {
 }
 
 $onFile = ['cr' => false, 'or' => false, 'insurance' => false, 'emission' => false];
+$docs = ['cr' => null, 'or' => null, 'insurance' => null, 'emission' => null];
 if ($vehicleId > 0) {
   $res = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
   if ($res && $res->fetch_row()) {
-    $stmtD = $db->prepare("SELECT doc_type FROM vehicle_documents WHERE vehicle_id=?");
-    if ($stmtD) {
-      $stmtD->bind_param('i', $vehicleId);
-      $stmtD->execute();
-      $r = $stmtD->get_result();
-      while ($r && ($row = $r->fetch_assoc())) {
-        $t = strtoupper(trim((string)($row['doc_type'] ?? '')));
-        if ($t === 'CR' || $t === 'ORCR') $onFile['cr'] = true;
-        if ($t === 'OR' || $t === 'ORCR') $onFile['or'] = true;
-        if ($t === 'INSURANCE') $onFile['insurance'] = true;
-        if ($t === 'EMISSION') $onFile['emission'] = true;
+    $schema = '';
+    $schRes = $db->query("SELECT DATABASE() AS db");
+    if ($schRes) $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: '');
+    $hasCol = function(string $table, string $col) use ($db, $schema): bool {
+      if ($schema === '') return false;
+      $t = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
+      if (!$t) return false;
+      $t->bind_param('sss', $schema, $table, $col);
+      $t->execute();
+      $res = $t->get_result();
+      $ok = (bool)($res && $res->fetch_row());
+      $t->close();
+      return $ok;
+    };
+    $idCol = $hasCol('vehicle_documents','doc_id') ? 'doc_id' : ($hasCol('vehicle_documents','id') ? 'id' : '');
+    $typeCol = $hasCol('vehicle_documents','doc_type') ? 'doc_type' : ($hasCol('vehicle_documents','type') ? 'type' : '');
+    $pathCol = $hasCol('vehicle_documents','file_path') ? 'file_path' : '';
+    $verCol = $hasCol('vehicle_documents','is_verified') ? 'is_verified'
+      : ($hasCol('vehicle_documents','verified') ? 'verified'
+      : ($hasCol('vehicle_documents','isApproved') ? 'isApproved' : ''));
+    $hasVehId = $hasCol('vehicle_documents','vehicle_id');
+    $hasPlate = $hasCol('vehicle_documents','plate_number');
+    if ($idCol !== '' && $typeCol !== '' && $pathCol !== '' && ($hasVehId || $hasPlate)) {
+      $where = $hasVehId ? "vehicle_id=?" : "plate_number=?";
+      $idVal = $hasVehId ? $vehicleId : $plate;
+      $stmtD = $db->prepare("SELECT {$idCol} AS id, {$typeCol} AS doc_type, {$pathCol} AS file_path, " . ($verCol !== '' ? "COALESCE({$verCol},0)" : "0") . " AS is_verified FROM vehicle_documents WHERE {$where} ORDER BY {$idCol} DESC");
+      if ($stmtD) {
+        if ($hasVehId) $stmtD->bind_param('i', $idVal); else $stmtD->bind_param('s', $idVal);
+        $stmtD->execute();
+        $r = $stmtD->get_result();
+        while ($r && ($row = $r->fetch_assoc())) {
+          $t = strtoupper(trim((string)($row['doc_type'] ?? '')));
+          $slot = null;
+          if ($t === 'CR' || $t === 'ORCR') $slot = 'cr';
+          if ($t === 'OR' || $t === 'ORCR') $slot = 'or';
+          if ($t === 'INSURANCE') $slot = 'insurance';
+          if ($t === 'EMISSION') $slot = 'emission';
+          if ($slot === null) continue;
+          if (!$docs[$slot]) {
+            $onFile[$slot] = true;
+            $docs[$slot] = [
+              'id' => (int)($row['id'] ?? 0),
+              'doc_type' => $t,
+              'file_path' => (string)($row['file_path'] ?? ''),
+              'is_verified' => (int)($row['is_verified'] ?? 0),
+            ];
+          }
+        }
+        $stmtD->close();
       }
-      $stmtD->close();
     }
   }
 }
@@ -69,5 +107,6 @@ echo json_encode([
   'vehicle_id' => $vehicleId,
   'plate_number' => $plate,
   'on_file' => $onFile,
+  'docs' => $docs,
 ]);
 ?>

@@ -58,10 +58,7 @@ if (!is_dir($uploadDir)) {
 }
 
 $map = [
-  'doc_or' => 'DOC_OR',
-  'doc_cr' => 'DOC_CR',
   'doc_cmvi' => 'DOC_CMVI',
-  'doc_ctpl' => 'DOC_CTPL',
 ];
 
 $allowedExt = ['jpg','jpeg','png','pdf'];
@@ -73,10 +70,7 @@ if (!is_dir($vehUploadsDir)) {
   @mkdir($vehUploadsDir, 0777, true);
 }
 $vehMap = [
-  'DOC_OR' => 'OR',
-  'DOC_CR' => 'CR',
   'DOC_CMVI' => 'Emission',
-  'DOC_CTPL' => 'Insurance',
 ];
 
 foreach ($map as $field => $code) {
