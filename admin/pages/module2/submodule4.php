@@ -277,6 +277,23 @@ if ($rootUrl === '/') $rootUrl = '';
       btnLoad.textContent = 'Loading...';
       try {
         const app = await loadApp(id);
+        const st = (app.status || '').toString();
+        const veh = (app.vehicle_type || '').toString();
+        const channel = (app.submitted_channel || '').toString();
+        const isTri = (veh === '' || veh === 'Tricycle');
+        const isLocalEndorse = channel.toUpperCase() === 'PUV_LOCAL_ENDORSEMENT';
+        if (!isTri || isLocalEndorse) {
+          showToast('Staff Evaluation is only for tricycle applications submitted via Franchise Applications.', 'error');
+          emptyState.classList.remove('hidden');
+          appWrap.classList.add('hidden');
+          return;
+        }
+        if (st !== 'Pending Review' && st !== 'Returned for Correction') {
+          showToast('Only Pending Review or Returned applications can be evaluated here. This application is already decided.', 'error');
+          emptyState.classList.remove('hidden');
+          appWrap.classList.add('hidden');
+          return;
+        }
         await render(app);
       } catch (e) {
         showToast('Failed to load application.', 'error');
