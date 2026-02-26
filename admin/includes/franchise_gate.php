@@ -218,7 +218,12 @@ function tmm_can_review_tricycle_application(mysqli $db, int $operatorId, int $s
   $op = $stmtO->get_result()->fetch_assoc();
   $stmtO->close();
   if (!$op) return ['ok' => false, 'error' => 'operator_not_found'];
-  if (!tmm_operator_is_valid_row($op)) return ['ok' => false, 'error' => 'operator_invalid'];
+  $opStatus = (string)($op['status'] ?? '');
+  $wfStatus = (string)($op['workflow_status'] ?? '');
+  $vsStatus = (string)($op['verification_status'] ?? '');
+  if ($opStatus === 'Inactive' || $wfStatus === 'Inactive' || $vsStatus === 'Inactive') {
+    return ['ok' => false, 'error' => 'operator_invalid'];
+  }
   $riskLevel = (string)($op['risk_level'] ?? 'Low');
   if ($riskLevel === 'High') return ['ok' => false, 'error' => 'operator_under_review'];
 
