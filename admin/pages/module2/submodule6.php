@@ -335,15 +335,28 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json().catch(() => null);
           if (!res.ok || !data || !data.ok) {
             const err = (data && data.error) ? String(data.error) : 'issue_failed';
-            const msg = err === 'already_issued'
-              ? 'This application is already issued.'
-              : err === 'invalid_status'
-                ? 'Only Approved applications can be issued.'
-                : err === 'service_area_over_capacity'
-                  ? 'No available slots in the selected service area.'
-                  : err === 'missing_service_area'
-                    ? 'Please select an approved service area.'
-                : 'Failed to issue franchise.';
+            let msg;
+            if (err === 'already_issued') {
+              msg = 'This application is already issued.';
+            } else if (err === 'invalid_status') {
+              msg = 'Only Approved applications can be issued.';
+            } else if (err === 'service_area_over_capacity') {
+              msg = 'No available slots in the selected service area.';
+            } else if (err === 'missing_service_area') {
+              msg = 'Please select an approved service area.';
+            } else if (err === 'service_area_inactive') {
+              msg = 'The selected service area is inactive. Pick an active service area.';
+            } else if (err === 'service_area_not_found') {
+              msg = 'Service area record was not found. Check the configured service area.';
+            } else if (err === 'tricycle_only') {
+              msg = 'Issuance applies only to tricycle applications.';
+            } else if (err === 'application_not_found') {
+              msg = 'Application record was not found. Reload the page and try again.';
+            } else if (err === 'invalid_issue_date') {
+              msg = 'Issue date is invalid. Please pick a valid date.';
+            } else {
+              msg = 'Failed to issue franchise (' + err + ').';
+            }
             throw new Error(msg);
           }
           showToast('Franchise issued. Certificate: ' + String(data.certificate_no || '-'));

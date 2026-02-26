@@ -109,7 +109,7 @@ try {
                          (application_id, issue_date, expiry_date, status, certificate_no, approved_units, issued_at, issued_by_user_id, issued_by_name, remarks)
                          VALUES (?, ?, ?, 'Active', ?, ?, NOW(), ?, ?, ?)");
   if (!$stmtF) throw new Exception('db_prepare_failed');
-  $stmtF->bind_param('isssiisss', $appId, $issueDate, $expiry, $certificateNo, $approvedUnits, $issuedByUserId, $issuedByName, $remarks);
+  $stmtF->bind_param('isssiiss', $appId, $issueDate, $expiry, $certificateNo, $approvedUnits, $issuedByUserId, $issuedByName, $remarks);
   if (!$stmtF->execute()) throw new Exception('insert_failed');
   $stmtF->close();
  

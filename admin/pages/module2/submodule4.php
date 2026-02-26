@@ -239,7 +239,25 @@ if ($rootUrl === '/') $rootUrl = '';
       const area = (app.route_code || '') + (app.origin ? (' • ' + app.origin) : '');
       document.getElementById('areaLabel').textContent = area || '-';
       document.getElementById('units').textContent = String(app.vehicle_count || 0);
-      document.getElementById('status').textContent = app.status || '-';
+      const st = (app.status || '').toString();
+      document.getElementById('status').textContent = st || '-';
+
+      const editable = (st === 'Pending Review' || st === 'Returned for Correction');
+      if (formDecision && btnSaveDecision) {
+        const decSel = formDecision.querySelector('select[name="decision"]');
+        const notesEl = formDecision.querySelector('textarea[name="notes"]');
+        if (editable) {
+          btnSaveDecision.disabled = false;
+          btnSaveDecision.textContent = 'Save Decision';
+          if (decSel) decSel.disabled = false;
+          if (notesEl) notesEl.disabled = false;
+        } else {
+          btnSaveDecision.disabled = true;
+          btnSaveDecision.textContent = 'Decision Saved';
+          if (decSel) decSel.disabled = true;
+          if (notesEl) notesEl.disabled = true;
+        }
+      }
  
       emptyState.classList.add('hidden');
       appWrap.classList.remove('hidden');
