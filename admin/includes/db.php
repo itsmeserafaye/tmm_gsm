@@ -1311,6 +1311,15 @@ function db()
     }
   }
 
+  $frIdCol = $conn->query("SHOW COLUMNS FROM franchises LIKE 'franchise_id'");
+  if ($frIdCol && ($row = $frIdCol->fetch_assoc())) {
+    $extra = (string)($row['Extra'] ?? '');
+    $key = (string)($row['Key'] ?? '');
+    if (stripos($extra, 'auto_increment') === false || $key !== 'PRI') {
+      $conn->query("ALTER TABLE franchises MODIFY COLUMN franchise_id INT AUTO_INCREMENT PRIMARY KEY");
+    }
+  }
+
   $idxFrUniq = $conn->query("SHOW INDEX FROM franchises WHERE Key_name='uniq_franchise_app'");
   if (!$idxFrUniq || $idxFrUniq->num_rows == 0) {
     $conn->query("ALTER TABLE franchises ADD UNIQUE KEY uniq_franchise_app (application_id)");
