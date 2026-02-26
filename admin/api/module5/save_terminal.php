@@ -53,6 +53,32 @@ if ($colRes2 && $colRes2->fetch_row()) $hasCategory = true;
 
 $categoryFinal = $category !== '' ? $category : null;
 
+// Ensure schema compatibility
+// 1. Check/Add 'city' column
+$checkCity = $db->query("SHOW COLUMNS FROM terminals LIKE 'city'");
+if ($checkCity && $checkCity->num_rows == 0) {
+    $db->query("ALTER TABLE terminals ADD COLUMN city VARCHAR(100) AFTER location");
+}
+$hasCity = true;
+
+// 2. Check/Add 'category' column
+$checkCat = $db->query("SHOW COLUMNS FROM terminals LIKE 'category'");
+if ($checkCat && $checkCat->num_rows == 0) {
+    $db->query("ALTER TABLE terminals ADD COLUMN category VARCHAR(100) AFTER capacity");
+}
+$hasCategory = true;
+
+// 3. Ensure 'type' column supports 'Parking'
+$checkType = $db->query("SHOW COLUMNS FROM terminals LIKE 'type'");
+if ($checkType) {
+    $row = $checkType->fetch_assoc();
+    $typeType = strtolower($row['Type']);
+    // If it's an ENUM and doesn't contain 'parking', modify it
+    if (strpos($typeType, 'enum') !== false && strpos($typeType, "'parking'") === false) {
+        $db->query("ALTER TABLE terminals MODIFY COLUMN type ENUM('Terminal', 'Parking', 'LoadingBay', 'Other') DEFAULT 'Terminal'");
+    }
+}
+
 if ($terminalPk > 0) {
   $chk = $db->prepare("SELECT id FROM terminals WHERE id=? LIMIT 1");
   if (!$chk) {
@@ -70,55 +96,27 @@ if ($terminalPk > 0) {
     exit;
   }
 
-  if ($hasCity && $hasCategory) {
-    $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, city=?, address=?, type=?, capacity=?, category=? WHERE id=?");
-  } elseif ($hasCity) {
-    $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, city=?, address=?, type=?, capacity=? WHERE id=?");
-  } elseif ($hasCategory) {
-    $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, address=?, type=?, capacity=?, category=? WHERE id=?");
-  } else {
-    $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, address=?, type=?, capacity=? WHERE id=?");
+  $stmt = $db->prepare("UPDATE terminals SET name=?, location=?, city=?, address=?, type=?, capacity=?, category=? WHERE id=?");
+  if (!$stmt) {
+      http_response_code(500);
+      echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_prepare_update_failed: ' . $db->error]);
+      exit;
   }
+  $stmt->bind_param('sssssisi', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal, $terminalPk);
+
 } else {
-  if ($hasCity && $hasCategory) {
-    $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?, ?)");
-  } elseif ($hasCity) {
-    $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity) VALUES (?, ?, ?, ?, ?, ?)");
-  } elseif ($hasCategory) {
-    $stmt = $db->prepare("INSERT INTO terminals (name, location, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?)");
-  } else {
-    $stmt = $db->prepare("INSERT INTO terminals (name, location, address, type, capacity) VALUES (?, ?, ?, ?, ?)");
+  $stmt = $db->prepare("INSERT INTO terminals (name, location, city, address, type, capacity, category) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  if (!$stmt) {
+      http_response_code(500);
+      echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_prepare_insert_failed: ' . $db->error]);
+      exit;
   }
+  $stmt->bind_param('sssssis', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal);
 }
-if (!$stmt) {
-  http_response_code(500);
-  echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_prepare_failed']);
-  exit;
-}
-if ($terminalPk > 0) {
-  if ($hasCity && $hasCategory) {
-    $stmt->bind_param('sssssisi', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal, $terminalPk);
-  } elseif ($hasCity) {
-    $stmt->bind_param('sssssii', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $terminalPk);
-  } elseif ($hasCategory) {
-    $stmt->bind_param('ssssisi', $name, $locationFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal, $terminalPk);
-  } else {
-    $stmt->bind_param('ssssii', $name, $locationFinal, $addressFinal, $typeFinal, $capacity, $terminalPk);
-  }
-} else {
-  if ($hasCity && $hasCategory) {
-    $stmt->bind_param('sssssis', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal);
-  } elseif ($hasCity) {
-    $stmt->bind_param('sssssi', $name, $locationFinal, $cityFinal, $addressFinal, $typeFinal, $capacity);
-  } elseif ($hasCategory) {
-    $stmt->bind_param('ssssis', $name, $locationFinal, $addressFinal, $typeFinal, $capacity, $categoryFinal);
-  } else {
-    $stmt->bind_param('ssssi', $name, $locationFinal, $addressFinal, $typeFinal, $capacity);
-  }
-}
+
 if (!$stmt->execute()) {
   http_response_code(500);
-  echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_error']);
+  echo json_encode(['success' => false, 'ok' => false, 'message' => 'db_execute_failed: ' . $stmt->error]);
   exit;
 }
 $terminalId = $terminalPk > 0 ? $terminalPk : (int)$stmt->insert_id;
@@ -134,8 +132,10 @@ try {
       $fname = 'terminal_' . $terminalId . '_permit_' . time() . '.' . $ext;
       $dest = rtrim($uploads_dir, '/\\') . DIRECTORY_SEPARATOR . $fname;
       if (move_uploaded_file($_FILES['permit_file']['tmp_name'], $dest)) {
-        if (tmm_scan_file_for_viruses($dest)) {
-          // Insert into terminal_permits if table exists
+        if (function_exists('tmm_scan_file_for_viruses')) {
+            tmm_scan_file_for_viruses($dest);
+        }
+        // Insert into terminal_permits if table exists
           $chk = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
           if ($chk && $chk->fetch_row()) {
             $cols = [];

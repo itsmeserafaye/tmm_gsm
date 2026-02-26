@@ -11,17 +11,61 @@ if ($checkTable && $checkTable->num_rows == 0) {
     $db->query("CREATE TABLE IF NOT EXISTS terminal_contracts (
         id INT AUTO_INCREMENT PRIMARY KEY,
         terminal_id INT NOT NULL,
+        owner_type VARCHAR(50),
         owner_name VARCHAR(255) NOT NULL,
-        contract_start DATE NOT NULL,
-        contract_end DATE NOT NULL,
-        monthly_rent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-        contract_file VARCHAR(255) NULL,
+        owner_contact VARCHAR(255),
+        agreement_type VARCHAR(50),
+        agreement_reference_no VARCHAR(100),
+        start_date DATE,
+        end_date DATE,
+        rent_amount DECIMAL(15, 2) DEFAULT 0.00,
+        rent_frequency VARCHAR(50),
+        terms_summary TEXT,
+        permit_type VARCHAR(100),
+        permit_number VARCHAR(100),
+        permit_valid_until DATE,
+        moa_file_url VARCHAR(255),
+        contract_file_url VARCHAR(255),
+        permit_file_url VARCHAR(255),
+        other_attachments TEXT,
         status ENUM('Active','Expired','Terminated') NOT NULL DEFAULT 'Active',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         KEY idx_terminal (terminal_id),
         KEY idx_status (status)
     )");
+} else {
+    // Ensure columns exist
+    $cols = [
+        'owner_type'=>'VARCHAR(50)', 
+        'owner_contact'=>'VARCHAR(255)', 
+        'agreement_type'=>'VARCHAR(50)', 
+        'agreement_reference_no'=>'VARCHAR(100)', 
+        'rent_frequency'=>'VARCHAR(50)', 
+        'terms_summary'=>'TEXT',
+        'permit_type'=>'VARCHAR(100)', 
+        'permit_number'=>'VARCHAR(100)', 
+        'permit_valid_until'=>'DATE',
+        'moa_file_url'=>'VARCHAR(255)', 
+        'contract_file_url'=>'VARCHAR(255)', 
+        'permit_file_url'=>'VARCHAR(255)',
+        'other_attachments'=>'TEXT',
+        'start_date'=>'DATE',
+        'end_date'=>'DATE',
+        'rent_amount'=>'DECIMAL(15, 2) DEFAULT 0.00'
+    ];
+    foreach ($cols as $col => $def) {
+        $c = $db->query("SHOW COLUMNS FROM terminal_contracts LIKE '$col'");
+        if ($c && $c->num_rows == 0) {
+            $db->query("ALTER TABLE terminal_contracts ADD COLUMN $col $def");
+        }
+    }
+}
+
+// Ensure terminals has category
+$c = $db->query("SHOW COLUMNS FROM terminals LIKE 'category'");
+if ($c && $c->num_rows == 0) {
+    $db->query("ALTER TABLE terminals ADD COLUMN category VARCHAR(100) AFTER capacity");
 }
 
 $canManage = has_permission('module5.manage_terminal');
@@ -293,8 +337,17 @@ if ($rootUrl === '/') $rootUrl = '';
 </div>
 
 <script>
+<?php
+if (!isset($rootUrl)) {
+    $scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
+    $dir = dirname($scriptName);
+    $rootUrl = ($dir === '/' || $dir === '\\') ? '' : rtrim($dir, '/\\');
+    // Remove /admin/pages/parking to get to root
+    $rootUrl = str_replace('/admin/pages/parking', '', $rootUrl);
+}
+?>
 (function() {
-  const rootUrl = <?php echo json_encode($rootUrl); ?>;
+  const rootUrl = "<?php echo $rootUrl; ?>";
   const modal = document.getElementById('contractDetailsModal');
   const backdrop = document.getElementById('contractModalBackdrop');
   const closeBtn = document.getElementById('contractModalClose');

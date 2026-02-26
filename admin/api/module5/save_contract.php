@@ -50,6 +50,25 @@ foreach ($fileFields as $field) {
     }
 }
 
+// Handle other_attachments (multiple files)
+$newOtherAttachments = [];
+if (isset($_FILES['other_attachments']) && is_array($_FILES['other_attachments']['name'])) {
+    $count = count($_FILES['other_attachments']['name']);
+    for ($i = 0; $i < $count; $i++) {
+        if (($_FILES['other_attachments']['error'][$i] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $name = $_FILES['other_attachments']['name'][$i];
+            $tmp = $_FILES['other_attachments']['tmp_name'][$i];
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (in_array($ext, $allowedExt)) {
+                $filename = 'TERM' . $terminalId . '_OTHER_' . time() . '_' . $i . '.' . $ext;
+                if (move_uploaded_file($tmp, $uploadDir . $filename)) {
+                    $newOtherAttachments[] = 'uploads/contracts/' . $filename;
+                }
+            }
+        }
+    }
+}
+
 // Variables
 $ownerType = $_POST['owner_type'] ?? 'Other';
 $ownerContact = $_POST['owner_contact'] ?? '';
@@ -77,8 +96,18 @@ if ($contractId > 0) {
     $moaUrl = $newFiles['moa_file_url'] ?? ($existing['moa_file_url'] ?? null);
     $contractUrl = $newFiles['contract_file_url'] ?? ($existing['contract_file_url'] ?? null);
     $permitUrl = $newFiles['permit_file_url'] ?? ($existing['permit_file_url'] ?? null);
-    // TODO: Handle appending other attachments properly
-    $otherJson = $existing['other_attachments'] ?? '[]'; 
+    
+    // Handle appending other attachments properly
+    $otherJson = $existing['other_attachments'] ?? '[]';
+    $currentAttachments = json_decode($otherJson, true);
+    if (!is_array($currentAttachments)) $currentAttachments = [];
+    
+    // Add new files to the list
+    if (!empty($newOtherAttachments)) {
+        $currentAttachments = array_merge($currentAttachments, $newOtherAttachments);
+    }
+    
+    $otherJson = json_encode(array_values($currentAttachments)); 
 
     $upd = $db->prepare("UPDATE terminal_contracts SET 
         owner_type=?, owner_name=?, owner_contact=?, 
@@ -110,6 +139,12 @@ if ($contractId > 0) {
     $moaUrl = $newFiles['moa_file_url'] ?? null;
     $contractUrl = $newFiles['contract_file_url'] ?? null;
     $permitUrl = $newFiles['permit_file_url'] ?? null;
+    
+    if (!empty($newOtherAttachments)) {
+        $otherJson = json_encode(array_values($newOtherAttachments));
+    } else {
+        $otherJson = '[]';
+    }
     
     $ins = $db->prepare("INSERT INTO terminal_contracts (
         terminal_id, owner_type, owner_name, owner_contact, 
