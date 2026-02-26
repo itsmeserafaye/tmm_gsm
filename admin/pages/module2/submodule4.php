@@ -293,7 +293,7 @@ if ($rootUrl === '/') $rootUrl = '';
           const data = await res.json().catch(() => null);
           if (!res.ok || !data || !data.ok) {
             const err = (data && data.error) ? String(data.error) : 'save_failed';
-            let msg = 'Failed to save decision.';
+            let msg;
             if (err === 'notes_required') {
               msg = 'Notes are required when returning for correction.';
             } else if (err === 'operator_docs_not_verified' && data && Array.isArray(data.missing) && data.missing.length) {
@@ -314,6 +314,8 @@ if ($rootUrl === '/') $rootUrl = '';
               msg = 'Only Pending Review or Returned applications can be decided here.';
             } else if (err === 'tricycle_only') {
               msg = 'Staff Evaluation only applies to tricycle franchise applications.';
+            } else {
+              msg = 'Failed to save decision (' + err + ').';
             }
             throw new Error(msg);
           }
