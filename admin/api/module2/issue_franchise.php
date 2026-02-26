@@ -110,7 +110,10 @@ try {
                          VALUES (?, ?, ?, 'Active', ?, ?, NOW(), ?, ?, ?)");
   if (!$stmtF) throw new Exception('db_prepare_failed');
   $stmtF->bind_param('isssiiss', $appId, $issueDate, $expiry, $certificateNo, $approvedUnits, $issuedByUserId, $issuedByName, $remarks);
-  if (!$stmtF->execute()) throw new Exception('insert_failed');
+  if (!$stmtF->execute()) {
+    $err = $stmtF->error;
+    throw new Exception('insert_failed:' . ($err ?: ''));
+  }
   $stmtF->close();
  
   $stmtU = $db->prepare("UPDATE franchise_applications
