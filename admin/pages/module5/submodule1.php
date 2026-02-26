@@ -5,172 +5,34 @@ require_permission('module5.manage_terminal');
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
-$initialTab = 'terminals';
-
-$statTerminals = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
-$statAssignments = (int)($db->query("SELECT COUNT(*) AS c FROM terminal_assignments WHERE terminal_id IS NOT NULL")->fetch_assoc()['c'] ?? 0);
-$statTerminalSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Free' AND t.type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
-$statTerminalSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Occupied' AND t.type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
-$statTerminalPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments pp JOIN parking_slots ps ON ps.slot_id=pp.slot_id JOIN terminals t ON t.id=ps.terminal_id WHERE DATE(pp.paid_at)=CURDATE() AND t.type <> 'Parking'")->fetch_assoc()['c'] ?? 0);
-
-$statParkingAreas = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type='Parking'")->fetch_assoc()['c'] ?? 0);
-$statParkingSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Free' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
-$statParkingSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Occupied' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
-$statParkingPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments pp JOIN parking_slots ps ON ps.slot_id=pp.slot_id JOIN terminals t ON t.id=ps.terminal_id WHERE DATE(pp.paid_at)=CURDATE() AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
-
-$hasRouteCode = false;
-$colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME IN ('route_code','vehicle_type')");
-if ($colRes) {
-  while ($c = $colRes->fetch_assoc()) {
-    $cn = (string)($c['COLUMN_NAME'] ?? '');
-    if ($cn === 'route_code') $hasRouteCode = true;
-  }
-}
-$routeLabelExpr = $hasRouteCode ? "COALESCE(NULLIF(r.route_code,''), r.route_id)" : "r.route_id";
-
-$allRoutes = [];
-$hasRoutesTable = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' LIMIT 1");
-if ($hasRoutesTable && $hasRoutesTable->fetch_row()) {
-  $hasRouteStatus = (bool)($db->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' AND COLUMN_NAME='status' LIMIT 1")?->fetch_row());
-  $statusCond = $hasRouteStatus ? " WHERE COALESCE(status,'Active')='Active'" : "";
-  $resRoutes = $db->query("SELECT route_id, route_code, route_name, vehicle_type, origin, destination FROM routes" . $statusCond . " ORDER BY COALESCE(NULLIF(route_name,''), COALESCE(NULLIF(route_code,''), route_id)) ASC LIMIT 2000");
-  if ($resRoutes) {
-    while ($r = $resRoutes->fetch_assoc()) {
-      $rid = trim((string)($r['route_id'] ?? ''));
-      $rcode = trim((string)($r['route_code'] ?? ''));
-      $ref = $hasRouteCode ? ($rcode !== '' ? $rcode : $rid) : $rid;
-      if ($ref === '') continue;
-      $allRoutes[] = [
-        'ref' => $ref,
-        'route_id' => $rid,
-        'route_code' => $rcode,
-        'route_name' => (string)($r['route_name'] ?? ''),
-        'vehicle_type' => (string)($r['vehicle_type'] ?? ''),
-        'origin' => (string)($r['origin'] ?? ''),
-        'destination' => (string)($r['destination'] ?? ''),
-      ];
-    }
-  }
-}
-
-$taCols = [];
-$taColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments'");
-if ($taColRes) {
-  while ($c = $taColRes->fetch_assoc()) {
-    $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
-  }
-}
-$taTerminalIdCol = isset($taCols['terminal_id']) ? 'terminal_id' : '';
-$taTerminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : '');
-
-$termCols = [];
-$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category')");
-if ($termColRes) {
-  while ($c = $termColRes->fetch_assoc()) {
-    $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
-  }
-}
-$termHasCity = isset($termCols['city']);
-$termHasAddress = isset($termCols['address']);
-$termHasCategory = isset($termCols['category']);
+$canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
-$cityFilter = trim((string)($_GET['city'] ?? ''));
-$catFilter = trim((string)($_GET['category'] ?? ''));
-$cities = [];
-$categories = [];
-if ($termHasCity) {
-  $resCities = $db->query("SELECT DISTINCT TRIM(COALESCE(city,'')) AS city FROM terminals WHERE type <> 'Parking' AND COALESCE(city,'') <> '' ORDER BY city ASC LIMIT 200");
-  if ($resCities) while ($r = $resCities->fetch_assoc()) { $c = trim((string)($r['city'] ?? '')); if ($c !== '') $cities[] = $c; }
-}
-if ($termHasCategory) {
-  $resCats = $db->query("SELECT DISTINCT TRIM(COALESCE(category,'')) AS category FROM terminals WHERE type <> 'Parking' AND COALESCE(category,'') <> '' ORDER BY category ASC LIMIT 200");
-  if ($resCats) while ($r = $resCats->fetch_assoc()) { $c = trim((string)($r['category'] ?? '')); if ($c !== '') $categories[] = $c; }
-}
 
-$assignCountByTerminalId = [];
-$assignCountByTerminalName = [];
-if ($taTerminalIdCol !== '') {
-  $resA = $db->query("SELECT terminal_id, COUNT(*) AS c FROM terminal_assignments WHERE terminal_id IS NOT NULL GROUP BY terminal_id");
-  if ($resA) while ($r = $resA->fetch_assoc()) $assignCountByTerminalId[(int)($r['terminal_id'] ?? 0)] = (int)($r['c'] ?? 0);
-} elseif ($taTerminalNameCol !== '') {
-  $resA = $db->query("SELECT $taTerminalNameCol AS terminal_name, COUNT(*) AS c FROM terminal_assignments WHERE COALESCE($taTerminalNameCol,'')<>'' GROUP BY $taTerminalNameCol");
-  if ($resA) while ($r = $resA->fetch_assoc()) $assignCountByTerminalName[(string)($r['terminal_name'] ?? '')] = (int)($r['c'] ?? 0);
-}
+// Stats
+$statTerminals = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type != 'Parking'")->fetch_assoc()['c'] ?? 0);
+// You can add more stats here if needed
 
 $terminalRows = [];
-$sqlTerm = "SELECT
-  t.id,
-  t.name,
-  " . ($termHasCategory ? "t.category" : "NULL") . " AS category,
-  t.location,
-  " . ($termHasCity ? "t.city" : "NULL") . " AS city,
-  " . ($termHasAddress ? "t.address" : "NULL") . " AS address,
-  t.capacity,
-  COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
-  COUNT(DISTINCT tr.route_id) AS route_count
-FROM terminals t
-LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
-LEFT JOIN routes r ON r.route_id=tr.route_id
-WHERE t.type <> 'Parking'";
-
-$params = [];
-$types = '';
+$sql = "SELECT t.id, t.name, t.location, t.address, t.capacity, t.type,
+        (SELECT owner_name FROM terminal_contracts tc WHERE tc.terminal_id = t.id ORDER BY tc.id DESC LIMIT 1) AS owner_name
+        FROM terminals t
+        WHERE t.type != 'Parking' ";
 
 if ($qFilter !== '') {
-  $sqlTerm .= " AND (t.name LIKE ? OR t.location LIKE ? OR COALESCE(t.category,'') LIKE ?)";
-  $qv = '%' . $qFilter . '%';
-  $params[] = $qv;
-  $params[] = $qv;
-  $params[] = $qv;
-  $types .= 'sss';
-}
-if ($cityFilter !== '') {
-  $sqlTerm .= " AND t.city = ?";
-  $params[] = $cityFilter;
-  $types .= 's';
-}
-if ($catFilter !== '') {
-  $sqlTerm .= " AND t.category = ?";
-  $params[] = $catFilter;
-  $types .= 's';
+    $sql .= " AND (t.name LIKE ? OR COALESCE(t.location,'') LIKE ? OR COALESCE(t.address,'') LIKE ?) ";
 }
 
-$sqlTerm .= " GROUP BY t.id ORDER BY COALESCE(NULLIF(t.category,''), 'Unclassified') ASC, t.name ASC LIMIT 500";
+$sql .= " ORDER BY t.name ASC LIMIT 500";
 
-if ($types !== '') {
-  $stmt = $db->prepare($sqlTerm);
-  if ($stmt) {
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $res = $stmt->get_result();
-  } else {
-    $res = false;
-  }
-} else {
-  $res = $db->query($sqlTerm);
+$stmt = $db->prepare($sql);
+if ($qFilter !== '') {
+    $like = '%' . $qFilter . '%';
+    $stmt->bind_param('sss', $like, $like, $like);
 }
-
-if ($res) while ($r = $res->fetch_assoc()) $terminalRows[] = $r;
-
-$parkingRows = [];
-$resP = $db->query("SELECT id, name, location, capacity FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
-if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
-
-$permCountByTerminal = [];
-try {
-  $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
-  if ($chkPerm && $chkPerm->fetch_row()) {
-    $resPerm = $db->query("SELECT terminal_id, COUNT(*) AS c FROM terminal_permits GROUP BY terminal_id");
-    if ($resPerm) {
-      while ($row = $resPerm->fetch_assoc()) {
-        $tid = (int)($row['terminal_id'] ?? 0);
-        $c = (int)($row['c'] ?? 0);
-        if ($tid > 0) $permCountByTerminal[$tid] = $c;
-      }
-    }
-  }
-} catch (Throwable $e) {}
+$stmt->execute();
+$resT = $stmt->get_result();
+if ($resT) while ($r = $resT->fetch_assoc()) $terminalRows[] = $r;
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -182,538 +44,132 @@ if ($rootUrl === '/') $rootUrl = '';
 <div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal List</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create terminals and view assignments, slots, and payments.</p>
+      <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Terminal Management</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage public transport terminals and contracts.</p>
     </div>
     <div class="flex items-center gap-3">
-      <a href="?page=module5/submodule2" class="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
-        <i data-lucide="link" class="w-4 h-4"></i>
-        Assign Vehicle
+      <a href="?page=parking/list" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <i data-lucide="car" class="w-4 h-4"></i>
+        Parking Management
       </a>
     </div>
   </div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="px-6 pt-5 pb-0">
-      <div class="flex items-center gap-6 border-b border-slate-200 dark:border-slate-700">
-        <button type="button" id="tabBtnTerminals" role="tab" aria-selected="true" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700">
-          Terminals
-        </button>
-        <?php if (false): ?>
-          <button type="button" id="tabBtnParking" role="tab" aria-selected="false" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
-            Parking
-          </button>
-        <?php endif; ?>
-      </div>
-    </div>
-
-    <div id="tabPanelTerminals" role="tabpanel" class="p-6 space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Terminals</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTerminals; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Assignments</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statAssignments; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Free Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTerminalSlotsFree; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Occupied Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTerminalSlotsOccupied; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Payments Today</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTerminalPaymentsToday; ?></div>
-        </div>
-      </div>
-
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 space-y-3">
-          <?php
-            $exportItems = [];
-            if (has_permission('reports.export')) {
-              $qs = http_build_query([
-                'q' => $qFilter,
-                'city' => $cityFilter,
-                'category' => $catFilter,
-                'type' => 'Terminal'
-              ]);
-              $exportItems[] = [
-                'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php',
-                'label' => 'CSV',
-                'icon' => 'download'
-              ];
-              $exportItems[] = [
-                'href' => $rootUrl . '/admin/api/module5/export_terminals_csv.php?format=excel',
-                'label' => 'Excel',
-                'icon' => 'file-spreadsheet'
-              ];
-              $exportItems[] = [
-                'href' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
-                'label' => 'Print',
-                'icon' => 'printer',
-                'attrs' => [
-                  'data-print-url' => $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs,
-                  'data-report-name' => 'Terminal List Report'
-                ]
-              ];
-            }
-            $exportItems[] = [
-              'tag' => 'button',
-              'label' => 'Import',
-              'icon' => 'upload',
-              'attrs' => ['id' => 'btnImportTerminals']
-            ];
-            if ($exportItems) tmm_render_export_toolbar($exportItems, ['mb' => 'mb-0']);
-          ?>
-          <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-4">
-            <input type="hidden" name="page" value="module5/submodule1">
-            <div class="md:col-span-4">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-              <div class="relative">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location">
-              </div>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
-              <select name="city" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="" <?php echo $cityFilter === '' ? 'selected' : ''; ?>>All Cities</option>
-                <?php foreach ($cities as $c): ?>
-                  <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $cityFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Category</label>
-              <select name="category" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="" <?php echo $catFilter === '' ? 'selected' : ''; ?>>All Categories</option>
-                <?php foreach ($categories as $c): ?>
-                  <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $catFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="md:col-span-2 flex items-center gap-2">
-              <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
-              <a href="?page=module5/submodule1" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
-                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-              </a>
-            </div>
-          </form>
-          <div id="modalImportTerminals" class="fixed inset-0 z-[140] hidden items-center justify-center p-4">
-            <div class="absolute inset-0 bg-slate-900/50" data-import-close="1"></div>
-            <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-6">
-              <div class="text-lg font-black text-slate-900 dark:text-white">Import Terminals</div>
-              <div class="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">Upload a CSV file.</div>
-              <div class="mt-4">
-                <input id="fileImportTerminals" type="file" accept=".csv,text/csv" class="w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
-              </div>
-              <div class="mt-5 flex items-center justify-end gap-2">
-                <button type="button" id="btnCancelImportTerminals" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
-                <button type="button" id="btnUploadImportTerminals" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Upload</button>
-              </div>
-            </div>
-          </div>
-          <div class="flex items-center justify-between gap-3">
-            <button type="button" id="btnOpenCreateTerminal" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold shadow-sm transition-all active:scale-[0.98]">
-              <i data-lucide="plus" class="w-4 h-4"></i>
-              Create Terminal
-            </button>
-          </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-              <tr class="text-left text-slate-500 dark:text-slate-400">
-                <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden lg:table-cell">Routes</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Assigned</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y-2 divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800" id="termBodyTerminals">
-              <?php if ($terminalRows): ?>
-                <?php $currentCat = null; ?>
-                <?php foreach ($terminalRows as $t): ?>
-                  <?php
-                    $cat = trim((string)($t['category'] ?? ''));
-                    if ($cat === '') $cat = 'Unclassified';
-                  ?>
-                  <?php if ($currentCat !== $cat): ?>
-                    <?php $currentCat = $cat; ?>
-                    <tr data-group="1" class="bg-blue-100/90 dark:bg-blue-900/25 border-t-2 border-blue-300 dark:border-blue-700">
-                      <td colspan="6" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-blue-900 dark:text-blue-100">
-                        <span class="inline-flex items-center gap-2">
-                          <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
-                          <?php echo htmlspecialchars($currentCat); ?>
-                        </span>
-                      </td>
-                    </tr>
-                  <?php endif; ?>
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
-                      <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
-                      <?php
-                        $tidBadge = (int)($t['id'] ?? 0);
-                        $pc = (int)($permCountByTerminal[$tidBadge] ?? 0);
-                        $hasPermit = $pc > 0;
-                      ?>
-                      <span class="ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black <?php echo $hasPermit ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300'; ?>">
-                        <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
-                      </span>
-                    </td>
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden lg:table-cell text-xs text-slate-600 dark:text-slate-300 font-semibold">
-                      <?php $rc = (int)($t['route_count'] ?? 0); ?>
-                      <?php if ($rc > 0): ?>
-                          <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-[11px] font-black"><?php echo $rc; ?></span>
-                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>"
-                            class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                            title="View routes">
-                            <i data-lucide="list" class="w-4 h-4"></i>
-                            <span class="sr-only">View routes</span>
-                          </button>
-                        </div>
-                      <?php else: ?>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[11px] font-bold text-slate-400">No routes mapped</span>
-                          <button type="button" data-terminal-routes="<?php echo (int)($t['id'] ?? 0); ?>" class="text-[11px] font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">Map</button>
-                        </div>
-                      <?php endif; ?>
-                    </td>
-                    <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
-                      <?php
-                        $tid = (int)($t['id'] ?? 0);
-                        $tname = (string)($t['name'] ?? '');
-                        $cnt = $taTerminalIdCol !== '' ? (int)($assignCountByTerminalId[$tid] ?? 0) : (int)($assignCountByTerminalName[$tname] ?? 0);
-                      ?>
-                      <div class="flex items-center gap-2">
-                        <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 text-xs font-black"><?php echo $cnt; ?></span>
-                        <button type="button" data-terminal-vehicles="<?php echo $tid; ?>" class="text-xs font-black text-blue-700 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">View</button>
-                      </div>
-                    </td>
-                    <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
-                    <td class="py-4 px-4 text-right whitespace-nowrap">
-                      <?php
-                        $editPayload = [
-                          'id' => (int)($t['id'] ?? 0),
-                          'name' => (string)($t['name'] ?? ''),
-                          'city' => (string)($t['city'] ?? ''),
-                          'location' => (string)($t['location'] ?? ''),
-                          'address' => (string)($t['address'] ?? ''),
-                          'capacity' => (int)($t['capacity'] ?? 0),
-                          'category' => (string)($t['category'] ?? ''),
-                        ];
-                      ?>
-                      <div class="inline-flex items-center justify-end gap-1">
-                        <button type="button" title="Edit" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" data-terminal-edit="1" data-terminal="<?php echo htmlspecialchars(json_encode($editPayload), ENT_QUOTES); ?>">
-                          <i data-lucide="pencil" class="w-4 h-4"></i>
-                          <span class="sr-only">Edit</span>
-                        </button>
-                        <a title="Slots" aria-label="Slots" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                          <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                          <span class="sr-only">Slots</span>
-                        </a>
-                        <a title="Payments" aria-label="Payments" href="?page=module5/submodule4&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                          <i data-lucide="credit-card" class="w-4 h-4"></i>
-                          <span class="sr-only">Payments</span>
-                        </a>
-                        <a title="Assign" aria-label="Assign" href="?page=module5/submodule2&terminal_id=<?php echo (int)($t['id'] ?? 0); ?>" class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                          <i data-lucide="link" class="w-4 h-4"></i>
-                          <span class="sr-only">Assign</span>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <tr><td colspan="6" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <?php if (false): ?>
-    <div id="tabPanelParking" role="tabpanel" class="p-6 space-y-6 hidden">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Parking Areas</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingAreas; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Free Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingSlotsFree; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Occupied Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingSlotsOccupied; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Payments Today</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingPaymentsToday; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo ($statParkingSlotsFree + $statParkingSlotsOccupied); ?></div>
-        </div>
-      </div>
-
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              <i data-lucide="plus" class="w-5 h-5"></i>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Parking</h2>
-          </div>
-        </div>
-        <div class="p-6">
-          <form id="formParking" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
-            <input type="hidden" name="type" value="Parking">
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
-              <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., MCU Parking">
-            </div>
-            <div class="md:col-span-5">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
-              <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Caloocan City">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
-              <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., EDSA, Monumento">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
-              <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 50">
-            </div>
-            <div class="md:col-span-12 flex items-center justify-end gap-2">
-              <button id="btnSaveParking" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="relative max-w-sm group">
-            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-            <input id="terminalSearchParking" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search parking name or location...">
-          </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-              <tr class="text-left text-slate-500 dark:text-slate-400">
-                <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800" id="termBodyParking">
-              <?php if ($parkingRows): ?>
-                <?php foreach ($parkingRows as $t): ?>
-                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                    <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
-                    <td class="py-4 px-4 text-right">
-                      <a title="Slots" aria-label="Slots" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                        <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                        <span class="sr-only">Slots</span>
-                      </a>
-                      <a title="Payments" aria-label="Payments" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                        <i data-lucide="credit-card" class="w-4 h-4"></i>
-                        <span class="sr-only">Payments</span>
-                      </a>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <tr><td colspan="4" class="py-12 text-center text-slate-500 font-medium italic">No parking areas yet.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <?php endif; ?>
-  </div>
-
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div id="terminalRoutesModal" class="fixed inset-0 z-[200] hidden">
-    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div>
-            <div class="text-sm font-black text-slate-900 dark:text-white">Routes & Fares</div>
-            <div id="terminalRoutesModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
-          </div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-            <button type="button" id="btnEditTerminalRoutes" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">Edit</button>
-            <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
-              <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-        <div id="terminalRoutesView" class="p-4 overflow-x-auto overflow-y-auto flex-1">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr class="text-left text-slate-500 dark:text-slate-400">
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Route</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">From</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">To</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Fare</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Manage</th>
-              </tr>
-            </thead>
-            <tbody id="terminalRoutesModalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div id="terminalRoutesEdit" class="hidden p-4 overflow-y-auto flex-1 space-y-3">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-            <input id="terminalRoutesEditSearch" class="w-full sm:flex-1 px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Search route...">
-            <button type="button" id="btnTerminalRoutesSelectAll" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">All</button>
-            <button type="button" id="btnTerminalRoutesClearAll" class="w-full sm:w-auto px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-black hover:bg-slate-200 dark:hover:bg-slate-700">None</button>
-          </div>
-          <div id="terminalRoutesEditList" class="space-y-2"></div>
-        </div>
-        <div id="terminalRoutesEditFooter" class="hidden p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2">
-          <button type="button" id="btnTerminalRoutesCancel" class="px-4 py-2.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-black hover:bg-slate-200 dark:hover:bg-slate-700">Cancel</button>
-          <button type="button" id="btnTerminalRoutesSave" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-black">Save</button>
-        </div>
-      </div>
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Terminals</div>
+      <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statTerminals; ?></div>
     </div>
   </div>
 
-  <div id="terminalVehiclesModal" class="fixed inset-0 z-[200] hidden">
-    <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div>
-            <div class="text-sm font-black text-slate-900 dark:text-white">Assigned Vehicles</div>
-            <div id="terminalVehiclesModalSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
+  <?php if ($canManage): ?>
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+        <div class="flex items-center gap-3">
+          <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            <i data-lucide="plus" class="w-5 h-5"></i>
           </div>
-          <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Terminal</h2>
         </div>
-        <div class="p-4 overflow-x-auto overflow-y-auto flex-1">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-              <tr class="text-left text-slate-500 dark:text-slate-400">
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Plate</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Operator</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs">Type</th>
-                <th class="py-3 px-3 font-black uppercase tracking-widest text-xs text-right">Assigned</th>
-              </tr>
-            </thead>
-            <tbody id="terminalVehiclesModalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="terminalCreateModal" class="fixed inset-0 z-[200] hidden">
-  <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
-  <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div class="w-full max-w-3xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
-      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
-        <div id="terminalCreateModalTitle" class="text-sm font-black text-slate-900 dark:text-white">Create Terminal</div>
-        <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
       </div>
       <div class="p-6">
         <form id="formTerminal" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
           <input type="hidden" name="type" value="Terminal">
-          <input type="hidden" name="id" value="">
-          <div class="md:col-span-4">
+          <div class="md:col-span-3">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
-            <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Victory Liner - Caloocan (Monumento)">
+            <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Central Terminal">
           </div>
           <div class="md:col-span-4">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
-            <input name="city" required maxlength="100" value="Caloocan City" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Caloocan City">
-          </div>
-          <div class="md:col-span-4">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Classification</label>
-            <select name="category" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-              <option value="">Select</option>
-              <?php foreach (['Provincial Bus Terminal','City Transport Hub','District Transport Terminal','Barangay Transport Terminal'] as $c): ?>
-                <option value="<?php echo htmlspecialchars($c); ?>"><?php echo htmlspecialchars($c); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="md:col-span-8">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
-            <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Monumento">
+            <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., City Center">
           </div>
-          <div class="md:col-span-4">
+          <div class="md:col-span-3">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
-            <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Optional">
+            <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Main St.">
           </div>
-          <div class="md:col-span-4">
+          <div class="md:col-span-2">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
             <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
           </div>
-          <div class="md:col-span-8">
-            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA / Legal Permit (PDF/JPG/PNG)</label>
-            <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-800">
-            <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Optional on create; upload here when editing to attach legal proof for this terminal.</div>
-          </div>
-          <div class="md:col-span-8 flex items-center justify-end gap-2">
-            <button type="button" id="btnCancelCreateTerminal" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+          <div class="md:col-span-12 flex items-center justify-end gap-2">
             <button id="btnSaveTerminal" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
           </div>
         </form>
       </div>
     </div>
+  <?php endif; ?>
+
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+        <input type="hidden" name="page" value="module5/submodule1">
+        <div class="md:col-span-8">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location">
+          </div>
+        </div>
+        <div class="md:col-span-4 flex items-center gap-2">
+          <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+          <a href="?page=module5/submodule1" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+          <tr class="text-left text-slate-500 dark:text-slate-400">
+            <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Owner</th>
+            <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800" id="terminalBody">
+          <?php if ($terminalRows): ?>
+            <?php foreach ($terminalRows as $t): ?>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
+                  <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
+                  <div class="md:hidden text-xs text-slate-500 font-normal mt-1"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></div>
+                </td>
+                <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? ($t['address'] ?? ''))); ?></td>
+                <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">
+                  <?php if (!empty($t['owner_name'])): ?>
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold">
+                      <?php echo htmlspecialchars($t['owner_name']); ?>
+                    </span>
+                  <?php else: ?>
+                    <span class="text-slate-400 text-xs italic">--</span>
+                  <?php endif; ?>
+                </td>
+                <td class="py-4 px-4 text-right">
+                  <button type="button" class="view-contract-details inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2" data-terminal-id="<?php echo $t['id']; ?>" title="Contract Details">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                  </button>
+                  <!-- Add other actions like Edit/Delete if needed -->
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <tr><td colspan="4" class="py-12 text-center text-slate-500 font-medium italic">No terminals found.</td></tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <script>
-  (function(){
+  (function () {
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
-    const initialTab = <?php echo json_encode($initialTab); ?>;
-    const allRoutes = <?php echo json_encode($allRoutes); ?>;
-
-    const tabBtnTerminals = document.getElementById('tabBtnTerminals');
-    const tabBtnParking = document.getElementById('tabBtnParking');
-    const panelTerminals = document.getElementById('tabPanelTerminals');
-    const panelParking = document.getElementById('tabPanelParking');
-
-    const terminalCreateModal = document.getElementById('terminalCreateModal');
-    const btnOpenCreateTerminal = document.getElementById('btnOpenCreateTerminal');
-    const btnCancelCreateTerminal = document.getElementById('btnCancelCreateTerminal');
-
-    const formTerminal = document.getElementById('formTerminal');
-    const btnSaveTerminal = document.getElementById('btnSaveTerminal');
-    const formParking = document.getElementById('formParking');
-    const btnSaveParking = document.getElementById('btnSaveParking');
-
-    // const searchTerm = document.getElementById('terminalSearchTerm');
-    const tbodyTerm = document.getElementById('termBodyTerminals');
-    const searchParking = document.getElementById('terminalSearchParking');
-    const tbodyParking = document.getElementById('termBodyParking');
-
+    
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
       if (!container) return;
@@ -727,474 +183,437 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
-    const btnImportTerminals = document.getElementById('btnImportTerminals');
-    const modalImportTerminals = document.getElementById('modalImportTerminals');
-    const fileImportTerminals = document.getElementById('fileImportTerminals');
-    const btnCancelImportTerminals = document.getElementById('btnCancelImportTerminals');
-    const btnUploadImportTerminals = document.getElementById('btnUploadImportTerminals');
-    if (btnImportTerminals && modalImportTerminals && fileImportTerminals && btnCancelImportTerminals && btnUploadImportTerminals) {
-      const closeImport = () => modalImportTerminals.classList.add('hidden');
-      const openImport = () => {
-        fileImportTerminals.value = '';
-        btnUploadImportTerminals.disabled = false;
-        modalImportTerminals.classList.remove('hidden');
-      };
-      btnImportTerminals.addEventListener('click', openImport);
-      btnCancelImportTerminals.addEventListener('click', closeImport);
-      modalImportTerminals.querySelectorAll('[data-import-close="1"]').forEach((el) => el.addEventListener('click', closeImport));
-      btnUploadImportTerminals.addEventListener('click', async () => {
-        const f = fileImportTerminals.files && fileImportTerminals.files[0] ? fileImportTerminals.files[0] : null;
-        if (!f) { showToast('Please choose a CSV file.', 'error'); return; }
-        const fd = new FormData();
-        fd.append('file', f);
-        btnUploadImportTerminals.disabled = true;
-        try {
-          const res = await fetch(rootUrl + '/admin/api/module5/import_terminals.php', { method: 'POST', body: fd });
-          const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
-          showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
-          closeImport();
-          setTimeout(() => { window.location.reload(); }, 600);
-        } catch (e) {
-          showToast(e.message || 'Import failed', 'error');
-          btnUploadImportTerminals.disabled = false;
-        }
-      });
-    }
-
-    function openCreateTerminalModal() {
-      if (!terminalCreateModal) return;
-      const title = document.getElementById('terminalCreateModalTitle');
-      if (title) title.textContent = 'Create Terminal';
-      terminalCreateModal.classList.remove('hidden');
-      if (window.lucide) window.lucide.createIcons();
-      try { if (formTerminal) formTerminal.reset(); } catch (e) {}
-      if (formTerminal) {
-        const idEl = formTerminal.querySelector('input[name="id"]');
-        if (idEl) idEl.value = '';
-      }
-    }
-    function closeCreateTerminalModal() {
-      if (!terminalCreateModal) return;
-      terminalCreateModal.classList.add('hidden');
-    }
-    if (btnOpenCreateTerminal) btnOpenCreateTerminal.addEventListener('click', openCreateTerminalModal);
-    if (btnCancelCreateTerminal) btnCancelCreateTerminal.addEventListener('click', closeCreateTerminalModal);
-    if (terminalCreateModal) {
-      const closeBtn = terminalCreateModal.querySelector('[data-modal-close]');
-      const backdrop = terminalCreateModal.querySelector('[data-modal-backdrop]');
-      if (closeBtn) closeBtn.addEventListener('click', closeCreateTerminalModal);
-      if (backdrop) backdrop.addEventListener('click', closeCreateTerminalModal);
-    }
-
-    function parseTerminalPayload(el) {
-      try { return JSON.parse(el.getAttribute('data-terminal') || '{}'); } catch (e) { return {}; }
-    }
-
-    function openEditTerminalModal(t) {
-      if (!terminalCreateModal || !formTerminal) return;
-      const title = document.getElementById('terminalCreateModalTitle');
-      if (title) title.textContent = 'Edit Terminal';
-      terminalCreateModal.classList.remove('hidden');
-      if (window.lucide) window.lucide.createIcons();
-
-      const set = (name, value) => {
-        const el = formTerminal.querySelector(`[name="${name}"]`);
-        if (!el) return;
-        el.value = (value === null || value === undefined) ? '' : String(value);
-      };
-      set('id', t.id || '');
-      set('name', t.name || '');
-      set('city', t.city || 'Caloocan City');
-      set('category', t.category || '');
-      set('location', t.location || '');
-      set('address', t.address || '');
-      set('capacity', (t.capacity !== null && t.capacity !== undefined) ? t.capacity : 0);
-    }
-
-    Array.from(document.querySelectorAll('[data-terminal-edit="1"]')).forEach((btn) => {
-      btn.addEventListener('click', () => openEditTerminalModal(parseTerminalPayload(btn)));
-    });
-
-    function setActiveTab(tab) {
-      const isTerm = tab === 'terminals';
-      if (panelTerminals) panelTerminals.classList.toggle('hidden', !isTerm);
-      if (panelParking) panelParking.classList.toggle('hidden', isTerm);
-      if (tabBtnTerminals) {
-        tabBtnTerminals.setAttribute('aria-selected', isTerm ? 'true' : 'false');
-        tabBtnTerminals.className = isTerm
-          ? 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700'
-          : 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200';
-      }
-      if (tabBtnParking) {
-        tabBtnParking.setAttribute('aria-selected', isTerm ? 'false' : 'true');
-        tabBtnParking.className = !isTerm
-          ? 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700'
-          : 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200';
-      }
-      try { localStorage.setItem('module5_list_tab', tab); } catch (e) {}
-    }
-
-    if (tabBtnTerminals) tabBtnTerminals.addEventListener('click', () => setActiveTab('terminals'));
-    if (tabBtnParking) tabBtnParking.addEventListener('click', () => setActiveTab('parking'));
-
-    let saved = '';
-    try { saved = localStorage.getItem('module5_list_tab') || ''; } catch (e) {}
-    setActiveTab(saved === 'parking' || initialTab === 'parking' ? 'parking' : 'terminals');
-
-    async function saveTerminal(formEl, btnEl) {
-      if (!formEl || !btnEl) return;
-      btnEl.disabled = true;
-      btnEl.textContent = 'Saving...';
-      try {
-        const res = await fetch(rootUrl + '/admin/api/module5/save_terminal.php', { method: 'POST', body: new FormData(formEl) });
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error((data && data.message) ? data.message : 'save_failed');
-        showToast('Saved.');
-        closeCreateTerminalModal();
-        setTimeout(() => { window.location.reload(); }, 400);
-      } catch (err) {
-        showToast(err.message || 'Failed', 'error');
-        btnEl.disabled = false;
-        btnEl.textContent = 'Save';
-      }
-    }
-
-    if (formTerminal && btnSaveTerminal) {
-      formTerminal.addEventListener('submit', async (e) => {
+    const form = document.getElementById('formTerminal');
+    const btn = document.getElementById('btnSaveTerminal');
+    if (form && btn) {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!formTerminal.checkValidity()) { formTerminal.reportValidity(); return; }
-        await saveTerminal(formTerminal, btnSaveTerminal);
-      });
-    }
-
-    if (formParking && btnSaveParking) {
-      formParking.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!formParking.checkValidity()) { formParking.reportValidity(); return; }
-        await saveTerminal(formParking, btnSaveParking);
-      });
-    }
-
-    function filterRows(searchEl, tbodyEl) {
-      if (!searchEl || !tbodyEl) return;
-      const q = (searchEl.value || '').trim().toLowerCase();
-      const rows = Array.from(tbodyEl.querySelectorAll('tr'));
-      rows.forEach(function (tr) {
-        if (tr.getAttribute('data-group') === '1') return;
-        const tds = tr.querySelectorAll('td');
-        if (!tds || tds.length < 2) return;
-        const name = (tds[0].textContent || '').toLowerCase();
-        const loc = (tds[1].textContent || '').toLowerCase();
-        const ok = q === '' || name.includes(q) || loc.includes(q);
-        tr.style.display = ok ? '' : 'none';
-      });
-
-      let activeHeader = null;
-      let hasVisible = false;
-      rows.forEach((tr) => {
-        if (tr.getAttribute('data-group') === '1') {
-          if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
-          activeHeader = tr;
-          hasVisible = false;
-          return;
-        }
-        if (tr.style.display !== 'none') hasVisible = true;
-      });
-      if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
-    }
-    // if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
-    if (searchParking) searchParking.addEventListener('input', () => filterRows(searchParking, tbodyParking));
-
-    const modal = document.getElementById('terminalRoutesModal');
-    const modalBody = document.getElementById('terminalRoutesModalBody');
-    const modalSub = document.getElementById('terminalRoutesModalSub');
-    const routesView = document.getElementById('terminalRoutesView');
-    const routesEdit = document.getElementById('terminalRoutesEdit');
-    const routesEditFooter = document.getElementById('terminalRoutesEditFooter');
-    const btnEditTerminalRoutes = document.getElementById('btnEditTerminalRoutes');
-    const routesEditSearch = document.getElementById('terminalRoutesEditSearch');
-    const routesEditList = document.getElementById('terminalRoutesEditList');
-    const btnRoutesSelectAll = document.getElementById('btnTerminalRoutesSelectAll');
-    const btnRoutesClearAll = document.getElementById('btnTerminalRoutesClearAll');
-    const btnRoutesCancel = document.getElementById('btnTerminalRoutesCancel');
-    const btnRoutesSave = document.getElementById('btnTerminalRoutesSave');
-
-    let currentTerminalId = 0;
-    let currentTerminalName = '';
-    let selectedRouteRefs = new Set();
-    let lastFilter = '';
-    function openModal() { if (modal) modal.classList.remove('hidden'); }
-    function closeModal() { if (modal) modal.classList.add('hidden'); }
-    if (modal) {
-      const closeBtn = modal.querySelector('[data-modal-close]');
-      const backdrop = modal.querySelector('[data-modal-backdrop]');
-      if (closeBtn) closeBtn.addEventListener('click', closeModal);
-      if (backdrop) backdrop.addEventListener('click', closeModal);
-    }
-
-    function setRoutesMode(mode) {
-      const isEdit = mode === 'edit';
-      if (routesView) routesView.classList.toggle('hidden', isEdit);
-      if (routesEdit) routesEdit.classList.toggle('hidden', !isEdit);
-      if (routesEditFooter) routesEditFooter.classList.toggle('hidden', !isEdit);
-      if (btnEditTerminalRoutes) btnEditTerminalRoutes.textContent = isEdit ? 'Back' : 'Edit';
-    }
-
-    function getRouteLabel(r) {
-      const name = (r && r.route_name) ? String(r.route_name) : '';
-      const ref = (r && r.ref) ? String(r.ref) : '';
-      return name ? (ref ? (name + ' (' + ref + ')') : name) : (ref || '-');
-    }
-
-    function computeFilteredRoutes(filterText) {
-      const q = (filterText || '').trim().toLowerCase();
-      return (Array.isArray(allRoutes) ? allRoutes : []).filter((r) => {
-        const ref = (r && r.ref) ? String(r.ref) : '';
-        const name = (r && r.route_name) ? String(r.route_name) : '';
-        const origin = (r && r.origin) ? String(r.origin) : '';
-        const dest = (r && r.destination) ? String(r.destination) : '';
-        const vt = (r && r.vehicle_type) ? String(r.vehicle_type) : '';
-        const hay = (ref + ' ' + name + ' ' + origin + ' ' + dest + ' ' + vt).toLowerCase();
-        return q === '' || hay.includes(q);
-      });
-    }
-
-    function renderRoutesEdit(filterText) {
-      if (!routesEditList) return;
-      lastFilter = (filterText || '').toString();
-      const items = computeFilteredRoutes(lastFilter);
-      if (!items.length) {
-        routesEditList.innerHTML = '<div class="py-8 text-center text-slate-500 font-medium italic">No routes found.</div>';
-        return;
-      }
-      routesEditList.innerHTML = items.map((r) => {
-        const ref = (r && r.ref) ? String(r.ref) : '';
-        const checked = ref && selectedRouteRefs.has(ref) ? 'checked' : '';
-        const label = getRouteLabel(r);
-        const sub = [r.origin, r.destination].filter(Boolean).join(' → ');
-        const vt = (r.vehicle_type || '').toString();
-        const subText = [sub, vt ? ('Type: ' + vt) : ''].filter(Boolean).join(' • ');
-        const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        return `
-          <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-            <input type="checkbox" class="mt-1 w-4 h-4" data-route-ref="${esc(ref)}" ${checked}>
-            <div class="min-w-0">
-              <div class="font-black text-slate-900 dark:text-white truncate">${esc(label)}</div>
-              <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold truncate">${esc(subText || '')}</div>
-            </div>
-          </label>
-        `;
-      }).join('');
-      routesEditList.querySelectorAll('input[data-route-ref]').forEach((el) => {
-        el.addEventListener('change', () => {
-          const ref = (el.getAttribute('data-route-ref') || '').toString();
-          if (!ref) return;
-          if (el.checked) selectedRouteRefs.add(ref);
-          else selectedRouteRefs.delete(ref);
-        });
-      });
-    }
-
-    async function showTerminalRoutes(terminalId) {
-      if (!modalBody) return;
-      currentTerminalId = Number(terminalId || 0);
-      currentTerminalName = '';
-      selectedRouteRefs = new Set();
-      setRoutesMode('view');
-      modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
-      if (modalSub) modalSub.textContent = 'Terminal ID: ' + String(terminalId);
-      openModal();
-      try {
-        const res = await fetch(rootUrl + '/admin/api/module5/terminal_routes.php?terminal_id=' + encodeURIComponent(String(terminalId)));
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-        const rows = Array.isArray(data.data) ? data.data : [];
-        if (rows[0] && rows[0].terminal_name) currentTerminalName = String(rows[0].terminal_name);
-        rows.forEach((r) => {
-          const ref = (r && r.route_ref) ? String(r.route_ref) : '';
-          if (ref) selectedRouteRefs.add(ref);
-        });
-        if (modalSub) modalSub.textContent = (currentTerminalName ? currentTerminalName : 'Routes') + ' • ' + rows.length + ' route(s)';
-        if (!rows.length) {
-          modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-slate-500 font-medium italic">No routes mapped.</td></tr>';
-        } else {
-          modalBody.innerHTML = rows.map(r => {
-          const code = (r.route_code || r.route_ref || '-').toString();
-          const name = (r.route_name || '').toString();
-          const vt = (r.vehicle_type || '').toString();
-          const routeLabel = `
-            <div class="font-black text-slate-900 dark:text-white">${code}</div>
-            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">${[name && name !== code ? name : '', vt ? ('Type: ' + vt) : ''].filter(Boolean).join(' • ')}</div>
-          `;
-          const origin = (r.origin || '-').toString();
-          const dest = (r.destination || '-').toString();
-          const min = (r.fare_min === null || r.fare_min === undefined || r.fare_min === '') ? null : Number(r.fare_min);
-          const max = (r.fare_max === null || r.fare_max === undefined || r.fare_max === '') ? null : Number(r.fare_max);
-          let fare = '-';
-          if (min !== null && !Number.isNaN(min)) {
-            const maxv = (max !== null && !Number.isNaN(max)) ? max : min;
-            fare = Math.abs(min - maxv) < 0.001 ? ('₱' + min.toFixed(2)) : ('₱' + min.toFixed(2) + ' – ' + maxv.toFixed(2));
-          } else if (r.fare !== null && r.fare !== undefined && String(r.fare).trim() !== '') {
-            const fv = String(r.fare).trim();
-            const n = Number(fv);
-            fare = Number.isNaN(n) ? ('₱' + fv) : ('₱' + n.toFixed(2));
-          }
-          const manage = r.route_db_id
-            ? `<a target="_blank" rel="noopener" title="Open Route Assignment"
-                 href="?page=module2/submodule5&route_id=${Number(r.route_db_id)}"
-                 class="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                 <i data-lucide="settings" class="w-4 h-4"></i>
-               </a>`
-            : '-';
-          return `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <td class="py-3 px-3">${routeLabel}</td>
-              <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${origin}</td>
-              <td class="py-3 px-3 text-slate-600 dark:text-slate-300">${dest}</td>
-              <td class="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">${fare}</td>
-              <td class="py-3 px-3 text-right">${manage}</td>
-            </tr>
-          `;
-          }).join('');
-        }
-        if (window.lucide) window.lucide.createIcons();
-      } catch (e) {
-        modalBody.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-rose-600 font-semibold">Failed to load routes.</td></tr>';
-      }
-    }
-
-    Array.from(document.querySelectorAll('[data-terminal-routes]')).forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.getAttribute('data-terminal-routes') || 0);
-        if (id > 0) showTerminalRoutes(id);
-      });
-    });
-
-    if (btnEditTerminalRoutes) {
-      btnEditTerminalRoutes.addEventListener('click', () => {
-        const isEdit = routesEdit && !routesEdit.classList.contains('hidden');
-        if (isEdit) setRoutesMode('view');
-        else {
-          setRoutesMode('edit');
-          if (routesEditSearch) routesEditSearch.value = '';
-          renderRoutesEdit('');
-          if (routesEditSearch) routesEditSearch.focus();
-        }
-      });
-    }
-
-    if (routesEditSearch) {
-      routesEditSearch.addEventListener('input', () => {
-        renderRoutesEdit(routesEditSearch.value || '');
-      });
-    }
-
-    if (btnRoutesSelectAll) {
-      btnRoutesSelectAll.addEventListener('click', () => {
-        const items = computeFilteredRoutes(lastFilter);
-        items.forEach((r) => {
-          const ref = (r && r.ref) ? String(r.ref) : '';
-          if (ref) selectedRouteRefs.add(ref);
-        });
-        renderRoutesEdit(lastFilter);
-      });
-    }
-
-    if (btnRoutesClearAll) {
-      btnRoutesClearAll.addEventListener('click', () => {
-        const items = computeFilteredRoutes(lastFilter);
-        items.forEach((r) => {
-          const ref = (r && r.ref) ? String(r.ref) : '';
-          if (ref) selectedRouteRefs.delete(ref);
-        });
-        renderRoutesEdit(lastFilter);
-      });
-    }
-
-    if (btnRoutesCancel) {
-      btnRoutesCancel.addEventListener('click', () => {
-        setRoutesMode('view');
-      });
-    }
-
-    if (btnRoutesSave) {
-      btnRoutesSave.addEventListener('click', async () => {
-        const id = Number(currentTerminalId || 0);
-        if (!id) return;
-        btnRoutesSave.disabled = true;
-        const prevText = btnRoutesSave.textContent;
-        btnRoutesSave.textContent = 'Saving...';
+        if (!form.checkValidity()) { form.reportValidity(); return; }
+        btn.disabled = true;
+        const original = btn.textContent;
+        btn.textContent = 'Saving...';
         try {
-          const fd = new FormData();
-          fd.append('terminal_id', String(id));
-          fd.append('routes', JSON.stringify(Array.from(selectedRouteRefs.values())));
-          const res = await fetch(rootUrl + '/admin/api/module5/save_terminal_routes.php', { method: 'POST', body: fd });
-          const data = await res.json();
-          if (!data || !data.ok) throw new Error((data && (data.message || data.error)) ? (data.message || data.error) : 'save_failed');
-          showToast('Routes updated.');
-          setTimeout(() => { window.location.reload(); }, 400);
+          // Using the same endpoint as Parking since they are both Terminals
+          const res = await fetch(rootUrl + '/admin/api/module5/save_terminal.php', { method: 'POST', body: new FormData(form) });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.message) ? data.message : 'save_failed');
+          showToast('Terminal saved.');
+          setTimeout(() => { window.location.reload(); }, 250);
         } catch (err) {
-          showToast(err.message || 'Failed', 'error');
-          btnRoutesSave.disabled = false;
-          btnRoutesSave.textContent = prevText;
+          showToast((err && err.message) ? err.message : 'Failed', 'error');
+          btn.disabled = false;
+          btn.textContent = original;
         }
       });
     }
 
-    const vModal = document.getElementById('terminalVehiclesModal');
-    const vModalBody = document.getElementById('terminalVehiclesModalBody');
-    const vModalSub = document.getElementById('terminalVehiclesModalSub');
-    function openVModal() { if (vModal) vModal.classList.remove('hidden'); }
-    function closeVModal() { if (vModal) vModal.classList.add('hidden'); }
-    if (vModal) {
-      const closeBtn = vModal.querySelector('[data-modal-close]');
-      const backdrop = vModal.querySelector('[data-modal-backdrop]');
-      if (closeBtn) closeBtn.addEventListener('click', closeVModal);
-      if (backdrop) backdrop.addEventListener('click', closeVModal);
-    }
+    if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+  })();
+</script>
 
-    async function showTerminalVehicles(terminalId) {
-      if (!vModalBody) return;
-      vModalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
-      if (vModalSub) vModalSub.textContent = 'Terminal ID: ' + String(terminalId);
-      openVModal();
-      try {
-        const res = await fetch(rootUrl + '/admin/api/module5/terminal_assignments.php?terminal_id=' + encodeURIComponent(String(terminalId)));
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-        const rows = Array.isArray(data.data) ? data.data : [];
-        if (!rows.length) {
-          vModalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">No assigned vehicles.</td></tr>';
-          return;
-        }
-        if (vModalSub) vModalSub.textContent = (rows[0].terminal_name ? String(rows[0].terminal_name) : 'Assignments') + ' • ' + rows.length + ' vehicle(s)';
-        vModalBody.innerHTML = rows.map(r => {
-          const plate = (r.plate_number || '-').toString();
-          const op = (r.operator_name || '-').toString();
-          const vt = (r.vehicle_type || '-').toString();
-          const at = (r.assigned_at || '').toString();
-          const dt = at ? new Date(at) : null;
-          const atText = dt && !isNaN(dt.getTime()) ? dt.toLocaleString() : (at || '-');
-          return `
-            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <td class="py-3 px-3 font-black text-slate-900 dark:text-white">${plate}</td>
-              <td class="py-3 px-3 text-slate-600 dark:text-slate-300 font-semibold">${op}</td>
-              <td class="py-3 px-3 text-slate-600 dark:text-slate-300 font-semibold">${vt}</td>
-              <td class="py-3 px-3 text-right text-slate-600 dark:text-slate-300 font-semibold">${atText}</td>
-            </tr>
-          `;
-        }).join('');
-      } catch (e) {
-        vModalBody.innerHTML = '<tr><td colspan="4" class="py-10 text-center text-rose-600 font-semibold">Failed to load assigned vehicles.</td></tr>';
+<!-- Contract Details Modal -->
+<div id="contractDetailsModal" class="fixed inset-0 z-[150] hidden">
+  <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" id="contractModalBackdrop"></div>
+  <div class="relative flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div>
+          <h3 class="text-xl font-bold text-slate-900 dark:text-white" id="contractModalTitle">Terminal Agreement</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-1" id="contractModalSubtitle">Manage owner and contract details.</p>
+        </div>
+        <button type="button" id="contractModalClose" class="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-6" id="contractModalContent">
+        <!-- Content injected by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const modal = document.getElementById('contractDetailsModal');
+  const backdrop = document.getElementById('contractModalBackdrop');
+  const closeBtn = document.getElementById('contractModalClose');
+  const content = document.getElementById('contractModalContent');
+  
+  let currentTerminalId = 0;
+  let currentContractData = null;
+
+  function openModal() { modal.classList.remove('hidden'); }
+  function closeModal() { modal.classList.add('hidden'); }
+  
+  if (backdrop) backdrop.addEventListener('click', closeModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.view-contract-details')) {
+      const btn = e.target.closest('.view-contract-details');
+      const tid = btn.dataset.terminalId;
+      if (tid) {
+        currentTerminalId = tid;
+        fetchContractDetails(tid);
       }
     }
+  });
 
-    Array.from(document.querySelectorAll('[data-terminal-vehicles]')).forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.getAttribute('data-terminal-vehicles') || 0);
-        if (id > 0) showTerminalVehicles(id);
+  async function fetchContractDetails(tid) {
+    openModal();
+    content.innerHTML = '<div class="flex items-center justify-center py-12"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div></div>';
+    
+    try {
+      const res = await fetch(`admin/api/module5/get_contract.php?terminal_id=${tid}`);
+      const json = await res.json();
+      if (json.success) {
+        currentContractData = json.data;
+        renderViewMode();
+      } else {
+        content.innerHTML = `<div class="text-center py-8 text-red-500">Failed to load details: ${json.message}</div>`;
+      }
+    } catch (e) {
+      console.error(e);
+      content.innerHTML = '<div class="text-center py-8 text-red-500">Error loading details.</div>';
+    }
+  }
+
+  function renderViewMode() {
+    const d = currentContractData || {};
+    const hasData = !!d.id;
+    
+    let html = `
+      <div class="flex justify-end mb-4">
+        <button type="button" id="btnEditContract" class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors">
+          <i data-lucide="pencil" class="w-4 h-4"></i>
+          ${hasData ? 'Edit Details' : 'Add Details'}
+        </button>
+      </div>
+    `;
+
+    if (!hasData) {
+      html += `
+        <div class="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+          <p class="text-slate-500 dark:text-slate-400 font-medium">No agreement details found for this terminal.</p>
+          <p class="text-sm text-slate-400 mt-1">Click "Add Details" to set up owner and contract information.</p>
+        </div>
+      `;
+    } else {
+      // Owner Info
+      html += `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Owner Information</h4>
+            <div class="space-y-3">
+              <div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Name</span>
+                <span class="text-base font-bold text-slate-900 dark:text-white">${d.owner_name || '-'}</span>
+              </div>
+              <div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Type</span>
+                <span class="text-sm text-slate-700 dark:text-slate-300">${d.owner_type || '-'}</span>
+              </div>
+              <div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Contact</span>
+                <span class="text-sm text-slate-700 dark:text-slate-300">${d.owner_contact || '-'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Agreement Details</h4>
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Type</span>
+                  <span class="text-sm font-bold text-slate-900 dark:text-white">${d.agreement_type || '-'}</span>
+                </div>
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Reference No.</span>
+                  <span class="text-sm text-slate-700 dark:text-slate-300">${d.agreement_reference_no || '-'}</span>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Rent Amount</span>
+                  <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">₱${Number(d.rent_amount || 0).toLocaleString()} <span class="text-xs font-normal text-slate-500">/ ${d.rent_frequency || 'Monthly'}</span></span>
+                </div>
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Status</span>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${d.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${d.status || 'Active'}</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Coverage</span>
+                <div class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <span>${d.start_date || '?'}</span>
+                  <i data-lucide="arrow-right" class="w-3 h-3 text-slate-400"></i>
+                  <span>${d.end_date || '?'}</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">Duration: ${d.duration_display || '-'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+           <div>
+            <h4 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Permit & Legal</h4>
+            <div class="space-y-3">
+              <div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Permit Type</span>
+                <span class="text-sm text-slate-700 dark:text-slate-300">${d.permit_type || '-'}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Permit Number</span>
+                  <span class="text-sm text-slate-700 dark:text-slate-300">${d.permit_number || '-'}</span>
+                </div>
+                <div>
+                  <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block">Valid Until</span>
+                  <span class="text-sm text-slate-700 dark:text-slate-300">${d.permit_valid_until || '-'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Documents</h4>
+            <div class="space-y-2">
+              ${renderDocLink('MOA', d.moa_file_url)}
+              ${renderDocLink('Contract', d.contract_file_url)}
+              ${renderDocLink('Permit', d.permit_file_url)}
+            </div>
+             <div class="mt-4">
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-2">Other Attachments</span>
+                <div class="flex flex-wrap gap-2">
+                   ${renderOtherDocs(d.other_attachments)}
+                </div>
+             </div>
+          </div>
+        </div>
+        
+        ${d.terms_summary ? `
+        <div class="mb-8">
+           <h4 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-2">Terms Summary</h4>
+           <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-md text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">${d.terms_summary}</div>
+        </div>
+        ` : ''}
+      `;
+    }
+
+    content.innerHTML = html;
+    lucide.createIcons();
+
+    const editBtn = document.getElementById('btnEditContract');
+    if (editBtn) editBtn.addEventListener('click', renderEditMode);
+  }
+
+  function renderDocLink(label, url) {
+    if (!url) return `
+      <div class="flex items-center justify-between p-2 rounded border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+        <span class="text-sm font-medium text-slate-500">${label}</span>
+        <span class="text-xs text-slate-400 italic">Not uploaded</span>
+      </div>
+    `;
+    return `
+      <a href="${url}" target="_blank" class="flex items-center justify-between p-2 rounded border border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors group">
+        <span class="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4"></i> ${label}
+        </span>
+        <i data-lucide="external-link" class="w-4 h-4 text-blue-400 group-hover:text-blue-600"></i>
+      </a>
+    `;
+  }
+
+  function renderOtherDocs(json) {
+    if (!json) return '<span class="text-xs text-slate-400 italic">None</span>';
+    try {
+      const docs = JSON.parse(json);
+      if (!Array.isArray(docs) || docs.length === 0) return '<span class="text-xs text-slate-400 italic">None</span>';
+      return docs.map((url, i) => `
+        <a href="${url}" target="_blank" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">
+          <i data-lucide="paperclip" class="w-3 h-3"></i> File ${i+1}
+        </a>
+      `).join('');
+    } catch (e) { return ''; }
+  }
+
+  function renderEditMode() {
+    const d = currentContractData || {};
+    
+    content.innerHTML = `
+      <form id="contractForm" class="space-y-6">
+        <input type="hidden" name="terminal_id" value="${currentTerminalId}">
+        <input type="hidden" name="contract_id" value="${d.id || ''}">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Owner Section -->
+          <div class="space-y-4">
+            <h4 class="font-bold text-slate-900 dark:text-white border-b pb-2">Owner Information</h4>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Owner Name <span class="text-red-500">*</span></label>
+              <input type="text" name="owner_name" value="${d.owner_name || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700" required>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+               <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Type</label>
+                <select name="owner_type" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+                  ${['Person','Cooperative','Company','Government','Other'].map(o => `<option value="${o}" ${d.owner_type === o ? 'selected' : ''}>${o}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Contact</label>
+                <input type="text" name="owner_contact" value="${d.owner_contact || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+              </div>
+            </div>
+          </div>
+
+          <!-- Agreement Section -->
+          <div class="space-y-4">
+            <h4 class="font-bold text-slate-900 dark:text-white border-b pb-2">Agreement</h4>
+             <div class="grid grid-cols-2 gap-4">
+               <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Type</label>
+                <select name="agreement_type" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+                  ${['MOA','Lease Contract','Rental Agreement','Other'].map(o => `<option value="${o}" ${d.agreement_type === o ? 'selected' : ''}>${o}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Ref No.</label>
+                <input type="text" name="agreement_reference_no" value="${d.agreement_reference_no || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Rent Amount</label>
+                <input type="number" step="0.01" name="rent_amount" value="${d.rent_amount || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Frequency</label>
+                <select name="rent_frequency" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+                   ${['Monthly','Weekly','Annual','One-time'].map(o => `<option value="${o}" ${d.rent_frequency === o ? 'selected' : ''}>${o}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <div class="space-y-4">
+            <h4 class="font-bold text-slate-900 dark:text-white border-b pb-2">Coverage</h4>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Start Date</label>
+                <input type="date" name="start_date" value="${d.start_date || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">End Date</label>
+                <input type="date" name="end_date" value="${d.end_date || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+              </div>
+            </div>
+             <div>
+               <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Status</label>
+               <select name="status" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+                  ${['Active','Expired','Expiring Soon'].map(o => `<option value="${o}" ${d.status === o ? 'selected' : ''}>${o}</option>`).join('')}
+               </select>
+             </div>
+           </div>
+
+           <div class="space-y-4">
+            <h4 class="font-bold text-slate-900 dark:text-white border-b pb-2">Permit</h4>
+            <div>
+               <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Permit Type</label>
+               <select name="permit_type" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+                  ${['Business Permit','Barangay Clearance','Terminal Permit','Other'].map(o => `<option value="${o}" ${d.permit_type === o ? 'selected' : ''}>${o}</option>`).join('')}
+               </select>
+             </div>
+             <div class="grid grid-cols-2 gap-4">
+               <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Permit No.</label>
+                <input type="text" name="permit_number" value="${d.permit_number || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+               </div>
+               <div>
+                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Valid Until</label>
+                <input type="date" name="permit_valid_until" value="${d.permit_valid_until || ''}" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">
+               </div>
+             </div>
+           </div>
+        </div>
+
+        <div class="space-y-4">
+          <h4 class="font-bold text-slate-900 dark:text-white border-b pb-2">Documents (Upload to replace)</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-500 mb-1">MOA</label>
+              <input type="file" name="moa_file" accept=".pdf,.jpg,.png" class="w-full text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Contract</label>
+              <input type="file" name="contract_file" accept=".pdf,.jpg,.png" class="w-full text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Permit</label>
+              <input type="file" name="permit_file" accept=".pdf,.jpg,.png" class="w-full text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Other Attachments</label>
+            <input type="file" name="other_attachments[]" multiple accept=".pdf,.jpg,.png" class="w-full text-sm">
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Terms Summary</label>
+          <textarea name="terms_summary" rows="3" class="w-full px-3 py-2 border rounded-md dark:bg-slate-800 dark:border-slate-700">${d.terms_summary || ''}</textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t">
+          <button type="button" id="btnCancelEdit" class="px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <button type="submit" id="btnSaveContract" class="px-6 py-2 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-bold shadow-sm">Save Details</button>
+        </div>
+      </form>
+    `;
+    
+    document.getElementById('btnCancelEdit').addEventListener('click', renderViewMode);
+    document.getElementById('contractForm').addEventListener('submit', handleSave);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSaveContract');
+    const form = e.target;
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    try {
+      const fd = new FormData(form);
+      const res = await fetch('admin/api/module5/save_contract.php', {
+        method: 'POST',
+        body: fd
       });
-    });
-  })();
+      const json = await res.json();
+      
+      if (json.success) {
+        // Reload details
+        await fetchContractDetails(currentTerminalId);
+        // Optional: Update table row if owner name changed (requires page reload or DOM update)
+        // For now, just show success.
+        // showToast('Saved successfully');
+      } else {
+        alert('Error: ' + json.message);
+        btn.disabled = false;
+        btn.textContent = 'Save Details';
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Save failed.');
+      btn.disabled = false;
+      btn.textContent = 'Save Details';
+    }
+  }
+
+})();
 </script>
