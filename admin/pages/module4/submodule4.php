@@ -339,38 +339,33 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div class="mt-6">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Document Presentation (Upload)</div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Document Presentation (Vehicle Records)</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">Certificate of Registration (CR)</div>
               <div id="docStatusCr" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
-              <div class="mt-2">
-                <input name="doc_cr" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
-              </div>
+              <div id="docActionsCr" class="mt-2 flex items-center gap-2 text-xs"></div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">Official Receipt (OR)</div>
               <div id="docStatusOr" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
-              <div class="mt-2">
-                <input name="doc_or" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
-              </div>
+              <div id="docActionsOr" class="mt-2 flex items-center gap-2 text-xs"></div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">CMVI / PMVIC Certificate</div>
               <div id="docStatusCmvi" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
-              <div class="mt-2">
+              <div id="docActionsCmvi" class="mt-2 flex items-center gap-2 text-xs"></div>
+              <div class="mt-3">
                 <input name="doc_cmvi" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
               </div>
             </div>
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
               <div class="text-sm font-black text-slate-900 dark:text-white">CTPL Insurance</div>
               <div id="docStatusCtpl" class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Required</div>
-              <div class="mt-2">
-                <input name="doc_ctpl" type="file" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf" class="w-full text-sm">
-              </div>
+              <div id="docActionsCtpl" class="mt-2 flex items-center gap-2 text-xs"></div>
             </div>
           </div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 mt-2">Documents are uploaded after the checklist is saved.</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 mt-2">Statuses reflect uploads in Vehicle Records. Only the CMVI / PMVIC certificate can be uploaded here; it will also be linked to vehicle documents.</div>
         </div>
 
         <div>
@@ -415,7 +410,14 @@ if ($rootUrl === '/') $rootUrl = '';
       emission: document.getElementById('docStatusCmvi'),
       insurance: document.getElementById('docStatusCtpl'),
     };
+    const docActions = {
+      cr: document.getElementById('docActionsCr'),
+      or: document.getElementById('docActionsOr'),
+      emission: document.getElementById('docActionsCmvi'),
+      insurance: document.getElementById('docActionsCtpl'),
+    };
     window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
+    let docMeta = { cr: null, or: null, emission: null, insurance: null };
 
     function openModal() {
       if (!modal) return;
@@ -470,23 +472,52 @@ if ($rootUrl === '/') $rootUrl = '';
       if (btnDownloadReport) btnDownloadReport.disabled = !has;
     }
 
-    function setDocStatusText(key, onFile) {
+    function renderDocRow(key) {
       const el = docStatus[key];
-      if (!el) return;
-      if (onFile) {
-        el.textContent = 'On file (vehicle records)';
-        el.className = 'mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300';
-      } else {
-        el.textContent = 'Required';
-        el.className = 'mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400';
+      const act = docActions[key];
+      const onFile = !!(window.__tmm_docOnFile && window.__tmm_docOnFile[key]);
+      const meta = docMeta[key];
+      if (el) {
+        if (onFile) {
+          const isV = meta && Number(meta.is_verified || 0) === 1;
+          el.textContent = isV ? 'On file (vehicle records) • Verified' : 'On file (vehicle records) • Pending verification';
+          el.className = isV
+            ? 'mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300'
+            : 'mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400';
+        } else {
+          el.textContent = 'Required';
+          el.className = 'mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400';
+        }
       }
+      if (!act) return;
+      act.innerHTML = '';
+      if (!meta || !meta.file_path || !meta.id) return;
+      const href = rootUrl + '/admin/uploads/' + encodeURIComponent(meta.file_path || '');
+      const isV = Number(meta.is_verified || 0) === 1;
+      const badge = isV
+        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      const btnLabel = isV ? 'Mark Pending' : 'Verify';
+      const next = isV ? '0' : '1';
+      act.innerHTML = `
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${badge}">${isV ? 'Verified' : 'Pending'}</span>
+        <button type="button" class="px-3 py-1.5 rounded-md text-xs font-bold border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                data-doc-verify-veh="1" data-doc-id="${String(meta.id || '')}" data-doc-next="${next}">
+          ${btnLabel}
+        </button>
+        <a href="${href}" target="_blank" rel="noopener"
+           class="inline-flex items-center px-2 py-1.5 rounded-md text-xs font-semibold text-slate-600 dark:text-slate-200 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800">
+          View
+        </a>
+      `;
     }
 
     async function loadDocStatus() {
       const sid = getScheduleId();
       if (!sid) {
         window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
-        ['cr','or','emission','insurance'].forEach((k) => setDocStatusText(k, false));
+        docMeta = { cr: null, or: null, emission: null, insurance: null };
+        ['cr','or','emission','insurance'].forEach((k) => renderDocRow(k));
         return;
       }
       try {
@@ -494,19 +525,44 @@ if ($rootUrl === '/') $rootUrl = '';
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) throw new Error('load_failed');
         const onFile = data.on_file || {};
+        const docs = data.docs || {};
         window.__tmm_docOnFile = {
           cr: !!onFile.cr,
           or: !!onFile.or,
           emission: !!onFile.emission,
           insurance: !!onFile.insurance,
         };
-        setDocStatusText('cr', window.__tmm_docOnFile.cr);
-        setDocStatusText('or', window.__tmm_docOnFile.or);
-        setDocStatusText('emission', window.__tmm_docOnFile.emission);
-        setDocStatusText('insurance', window.__tmm_docOnFile.insurance);
+        docMeta = {
+          cr: docs.cr || null,
+          or: docs.or || null,
+          emission: docs.emission || null,
+          insurance: docs.insurance || null,
+        };
+        ['cr','or','emission','insurance'].forEach((k) => renderDocRow(k));
+        document.querySelectorAll('[data-doc-verify-veh="1"]').forEach((b) => {
+          b.addEventListener('click', async () => {
+            const id = b.getAttribute('data-doc-id') || '';
+            const next = b.getAttribute('data-doc-next') || '';
+            if (!id) return;
+            const fd = new FormData();
+            fd.append('doc_id', id);
+            fd.append('source', 'vehicle_documents');
+            fd.append('is_verified', next);
+            try {
+              const rr = await fetch(rootUrl + '/admin/api/module1/verify_document.php', { method: 'POST', body: fd });
+              const dd = await rr.json().catch(() => null);
+              if (!dd || !dd.ok) throw new Error((dd && dd.error) ? dd.error : 'verify_failed');
+              showToast('Updated document verification.');
+              await loadDocStatus();
+            } catch (e) {
+              showToast('Failed to update document verification.', 'error');
+            }
+          });
+        });
       } catch (e) {
         window.__tmm_docOnFile = { cr: false, or: false, emission: false, insurance: false };
-        ['cr','or','emission','insurance'].forEach((k) => setDocStatusText(k, false));
+        docMeta = { cr: null, or: null, emission: null, insurance: null };
+        ['cr','or','emission','insurance'].forEach((k) => renderDocRow(k));
       }
     }
 
