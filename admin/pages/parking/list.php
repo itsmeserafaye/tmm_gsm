@@ -5,6 +5,25 @@ require_any_permission(['module5.manage_terminal', 'module5.parking_fees']);
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+// Auto-create terminal_contracts table if missing
+$checkTable = $db->query("SHOW TABLES LIKE 'terminal_contracts'");
+if ($checkTable && $checkTable->num_rows == 0) {
+    $db->query("CREATE TABLE IF NOT EXISTS terminal_contracts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        terminal_id INT NOT NULL,
+        owner_name VARCHAR(255) NOT NULL,
+        contract_start DATE NOT NULL,
+        contract_end DATE NOT NULL,
+        monthly_rent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        contract_file VARCHAR(255) NULL,
+        status ENUM('Active','Expired','Terminated') NOT NULL DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_terminal (terminal_id),
+        KEY idx_status (status)
+    )");
+}
+
 $canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));

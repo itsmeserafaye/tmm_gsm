@@ -77,6 +77,22 @@ $queries = [
         status ENUM('Available', 'Full', 'Restricted', 'Maintenance') DEFAULT 'Available',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE SET NULL
+    )",
+
+    // Terminal Contracts
+    "CREATE TABLE IF NOT EXISTS terminal_contracts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        terminal_id INT NOT NULL,
+        owner_name VARCHAR(255) NOT NULL,
+        contract_start DATE NOT NULL,
+        contract_end DATE NOT NULL,
+        monthly_rent DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        contract_file VARCHAR(255) NULL,
+        status ENUM('Active','Expired','Terminated') NOT NULL DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_terminal (terminal_id),
+        KEY idx_status (status)
     )"
 ];
 
