@@ -14,9 +14,26 @@ $statParkingSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slot
 $statParkingSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Occupied' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments pp JOIN parking_slots ps ON ps.slot_id=pp.slot_id JOIN terminals t ON t.id=ps.terminal_id WHERE DATE(pp.paid_at)=CURDATE() AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 
+$ownerNameExpr = "NULL";
+$faExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements' LIMIT 1")?->fetch_row());
+$foExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_owners' LIMIT 1")?->fetch_row());
+if ($faExists && $foExists) {
+  $faCols = [];
+  $resCols = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements'");
+  if ($resCols) while ($c = $resCols->fetch_assoc()) $faCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+  $tidCol = isset($faCols['terminal_id']) ? 'terminal_id' : (isset($faCols['facility_id']) ? 'facility_id' : '');
+  $statusCol = isset($faCols['status']) ? 'status' : '';
+  $createdCol = isset($faCols['created_at']) ? 'created_at' : '';
+  if ($tidCol !== '') {
+    $order = $statusCol !== '' ? "FIELD(fa.$statusCol, 'Active', 'Expiring Soon', 'Expired', 'Terminated'), " : '';
+    $order .= $createdCol !== '' ? "fa.$createdCol DESC" : "fa.id DESC";
+    $ownerNameExpr = "(SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.$tidCol = terminals.id ORDER BY $order LIMIT 1)";
+  }
+}
+
 $parkingRows = [];
 if ($qFilter !== '') {
-  $sql = "SELECT id, name, location, address, capacity, (SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.terminal_id = terminals.id ORDER BY FIELD(fa.status, 'Active', 'Expiring Soon', 'Expired') LIMIT 1) as owner_name FROM terminals WHERE type='Parking' AND (name LIKE ? OR COALESCE(location,'') LIKE ? OR COALESCE(address,'') LIKE ?) ORDER BY name ASC LIMIT 500";
+  $sql = "SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE type='Parking' AND (name LIKE ? OR COALESCE(location,'') LIKE ? OR COALESCE(address,'') LIKE ?) ORDER BY name ASC LIMIT 500";
   $stmt = $db->prepare($sql);
   if ($stmt) {
     $like = '%' . $qFilter . '%';
@@ -27,7 +44,7 @@ if ($qFilter !== '') {
     $resP = false;
   }
 } else {
-  $resP = $db->query("SELECT id, name, location, address, capacity, (SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.terminal_id = terminals.id ORDER BY FIELD(fa.status, 'Active', 'Expiring Soon', 'Expired') LIMIT 1) as owner_name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
+  $resP = $db->query("SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
 }
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
 
@@ -231,6 +248,7 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   <?php endif; ?>
 
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
       <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <input type="hidden" name="page" value="parking/list">
@@ -251,12 +269,6 @@ if ($rootUrl === '/') $rootUrl = '';
               $qs = http_build_query([
                 'type' => 'Parking',
                 'q' => $qFilter,
-                'owner' => $ownerFilter,
-                'operator' => $operatorFilter,
-                'permit_status' => $permitStatusFilter,
-                'agreement_type' => $agreementTypeFilter,
-                'valid_from' => $validFromFilter,
-                'valid_to' => $validToFilter,
               ]);
               $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
             ?>
@@ -266,7 +278,6 @@ if ($rootUrl === '/') $rootUrl = '';
           <?php endif; ?>
         </div>
       </form>
-    </div>
     </div>
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
@@ -319,7 +330,7 @@ if ($rootUrl === '/') $rootUrl = '';
               </tr>
             <?php endforeach; ?>
           <?php else: ?>
-            <tr><td colspan="4" class="py-12 text-center text-slate-500 font-medium italic">No parking areas yet.</td></tr>
+            <tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">No parking areas yet.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
