@@ -514,7 +514,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </label>
           <input type="hidden" name="vehicle_id" id="vehicleIdHidden" value="">
           <div class="relative">
-            <input id="vehiclePick" name="vehicle_pick" required minlength="1" readonly value="<?php echo htmlspecialchars(($editVehiclePick !== '' ? $editVehiclePick : ($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : '')))); ?>" data-tmm-uppercase="1" class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase cursor-pointer" placeholder="Select a vehicle (uninspected)">
+            <input id="vehiclePick" name="vehicle_pick" required minlength="1" readonly value="<?php echo htmlspecialchars(($editVehiclePick !== '' ? $editVehiclePick : ($reinspectPrefillText !== '' ? $reinspectPrefillText : ($prefillVehicleText !== '' ? $prefillVehicleText : '')))); ?>" data-tmm-uppercase="1" class="w-full px-4 py-2.5 pr-10 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase cursor-pointer" placeholder="Select a vehicle">
             <button type="button" id="vehiclePickToggle" class="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
               <i data-lucide="chevron-down" class="w-4 h-4"></i>
             </button>
@@ -720,7 +720,7 @@ if ($rootUrl === '/') $rootUrl = '';
       qs.set('limit', '200');
       vehiclePickList.innerHTML = `<div class="p-3 text-sm text-slate-500 dark:text-slate-400">Loading...</div>`;
       try {
-        const res = await fetch(rootUrl + '/admin/api/module4/search_uninspected_vehicles.php?' + qs.toString(), { signal: vehiclePickInflight.signal });
+        const res = await fetch(rootUrl + '/admin/api/module4/search_vehicles.php?' + qs.toString(), { signal: vehiclePickInflight.signal });
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         const rows = Array.isArray(data.data) ? data.data : [];
