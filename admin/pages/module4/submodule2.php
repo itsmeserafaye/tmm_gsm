@@ -128,7 +128,7 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-2">
-          <button id="btnRegister" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
+          <button id="btnRegister" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Register</button>
         </div>
       </form>
     </div>
@@ -363,17 +363,17 @@ if ($rootUrl === '/') $rootUrl = '';
         const post = new FormData(form);
         post.set('vehicle_id', String(vehicleId));
         btn.disabled = true;
-        btn.textContent = 'Saving...';
+        btn.textContent = 'Registering...';
         try {
           const res = await fetch(rootUrl + '/admin/api/module4/register_vehicle.php', { method: 'POST', body: post });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-          showToast('Registration saved.');
+          showToast('Vehicle registered.');
           setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 400);
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
           btn.disabled = false;
-          btn.textContent = 'Save';
+          btn.textContent = 'Register';
         }
       });
     }

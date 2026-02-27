@@ -73,6 +73,22 @@ $vehMap = [
   'DOC_CMVI' => 'Emission',
 ];
 
+$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+$vdColMap = [];
+$vdColsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
+while ($vdColsRes && ($r = $vdColsRes->fetch_assoc())) {
+  $f = (string)($r['Field'] ?? '');
+  if ($f === '') continue;
+  $vdColMap[strtolower($f)] = $f;
+}
+$vdVehIdCol = $vdColMap['vehicle_id'] ?? '';
+$vdTypeCol = $vdColMap['doc_type'] ?? ($vdColMap['type'] ?? '');
+$vdPathCol = $vdColMap['file_path'] ?? '';
+$vdUploadedAtCol = $vdColMap['uploaded_at'] ?? '';
+$vdVerCol = $vdColMap['is_verified'] ?? ($vdColMap['verified'] ?? ($vdColMap['isapproved'] ?? ''));
+$vdVerifiedByCol = $vdColMap['verified_by'] ?? '';
+$vdVerifiedAtCol = $vdColMap['verified_at'] ?? '';
+
 foreach ($map as $field => $code) {
   if (!isset($_FILES[$field])) continue;
   $f = $_FILES[$field];
@@ -147,11 +163,41 @@ foreach ($map as $field => $code) {
       if (!$safeVeh) {
         @unlink($vehDest);
       } else {
-        $stmtVd = $db->prepare("INSERT INTO vehicle_documents (vehicle_id, doc_type, file_path, uploaded_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)");
-        if ($stmtVd) {
-          $stmtVd->bind_param('iss', $vehicleId, $vehType, $vehFilename);
-          $stmtVd->execute();
-          $stmtVd->close();
+        if ($vdVehIdCol !== '' && $vdTypeCol !== '' && $vdPathCol !== '') {
+          $cols = [$vdVehIdCol, $vdTypeCol, $vdPathCol];
+          $vals = ['?', '?', '?'];
+          $types = 'iss';
+          $params = [$vehicleId, $vehType, $vehFilename];
+          if ($vdUploadedAtCol !== '') {
+            $cols[] = $vdUploadedAtCol;
+            $vals[] = 'CURRENT_TIMESTAMP';
+          }
+          if ($vdVerCol !== '') {
+            $cols[] = $vdVerCol;
+            $vals[] = '1';
+          }
+          if ($vdVerifiedByCol !== '') {
+            $cols[] = $vdVerifiedByCol;
+            if ($userId > 0) {
+              $vals[] = '?';
+              $types .= 'i';
+              $params[] = $userId;
+            } else {
+              $vals[] = 'NULL';
+            }
+          }
+          if ($vdVerifiedAtCol !== '') {
+            $cols[] = $vdVerifiedAtCol;
+            $vals[] = 'NOW()';
+          }
+          $colSql = implode(', ', array_map(fn($c) => "`{$c}`", $cols));
+          $valSql = implode(', ', $vals);
+          $stmtVd = $db->prepare("INSERT INTO vehicle_documents ({$colSql}) VALUES ({$valSql})");
+          if ($stmtVd) {
+            $stmtVd->bind_param($types, ...$params);
+            $stmtVd->execute();
+            $stmtVd->close();
+          }
         }
       }
     }
