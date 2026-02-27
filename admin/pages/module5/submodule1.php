@@ -171,11 +171,9 @@ if ($types !== '') {
 
 if ($res) while ($r = $res->fetch_assoc()) $terminalRows[] = $r;
 
+
 $parkingRows = [];
-$ownerNameExprParking = $ownerNameExpr;
-if ($ownerNameExprParking !== 'NULL') $ownerNameExprParking = str_replace('t.id', 'terminals.id', $ownerNameExprParking);
-$resP = $db->query("SELECT id, name, location, capacity, $ownerNameExprParking AS owner_name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
-if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
+
 
 $permCountByTerminal = [];
 try {
@@ -219,11 +217,7 @@ if ($rootUrl === '/') $rootUrl = '';
         <button type="button" id="tabBtnTerminals" role="tab" aria-selected="true" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700">
           Terminals
         </button>
-        <?php if (true): ?>
-          <button type="button" id="tabBtnParking" role="tab" aria-selected="false" class="py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">
-            Parking
-          </button>
-        <?php endif; ?>
+
       </div>
     </div>
 
@@ -483,131 +477,7 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     </div>
 
-    <?php if (true): ?>
-    <div id="tabPanelParking" role="tabpanel" class="p-6 space-y-6 hidden">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Parking Areas</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingAreas; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Free Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingSlotsFree; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Occupied Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingSlotsOccupied; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Payments Today</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo $statParkingPaymentsToday; ?></div>
-        </div>
-        <div class="p-5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Slots</div>
-          <div class="mt-2 text-2xl font-bold text-slate-900 dark:text-white"><?php echo ($statParkingSlotsFree + $statParkingSlotsOccupied); ?></div>
-        </div>
-      </div>
 
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="flex items-center gap-3">
-            <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              <i data-lucide="plus" class="w-5 h-5"></i>
-            </div>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Parking</h2>
-          </div>
-        </div>
-        <div class="p-6">
-          <form id="formParking" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate>
-            <input type="hidden" name="type" value="Parking">
-            <div class="md:col-span-3">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Name</label>
-              <input name="name" required minlength="3" maxlength="80" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., MCU Parking">
-            </div>
-            <div class="md:col-span-5">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
-              <input name="location" required maxlength="120" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Caloocan City">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Address</label>
-              <input name="address" maxlength="180" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., EDSA, Monumento">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
-              <input name="capacity" type="number" min="0" max="5000" step="1" value="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 50">
-            </div>
-            <div class="md:col-span-12 flex items-center justify-end gap-2">
-              <button id="btnSaveParking" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
-          <div class="relative max-w-sm group">
-            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
-            <input id="terminalSearchParking" class="w-full pl-10 pr-4 py-2.5 text-sm font-semibold border-0 rounded-md bg-white dark:bg-slate-900/40 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400" placeholder="Search parking name or location...">
-          </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-              <tr class="text-left text-slate-500 dark:text-slate-400">
-                <th class="py-4 px-6 font-black uppercase tracking-widest text-xs">Name</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Owner</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs">Capacity</th>
-                <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800" id="termBodyParking">
-              <?php if ($parkingRows): ?>
-                <?php foreach ($parkingRows as $t): ?>
-                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
-                    <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
-                      <?php $owner = trim((string)($t['owner_name'] ?? '')); ?>
-                      <?php if ($owner): ?>
-                        <div class="flex items-center gap-2">
-                          <span><?php echo htmlspecialchars($owner); ?></span>
-                          <button type="button" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" data-terminal-info="<?php echo (int)($t['id'] ?? 0); ?>" title="View Details">
-                            <i data-lucide="info" class="w-4 h-4"></i>
-                          </button>
-                          <button type="button" class="text-slate-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 transition-colors" data-terminal-agreement="<?php echo (int)($t['id'] ?? 0); ?>" title="Edit Details">
-                            <i data-lucide="pencil" class="w-4 h-4"></i>
-                          </button>
-                        </div>
-                      <?php else: ?>
-                        <span class="text-slate-400 italic text-xs">Unspecified</span>
-                        <button type="button" class="ml-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" data-terminal-agreement="<?php echo (int)($t['id'] ?? 0); ?>" title="Add Details">
-                          <i data-lucide="plus-circle" class="w-4 h-4 inline"></i>
-                        </button>
-                      <?php endif; ?>
-                    </td>
-                    <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? '')); ?></td>
-                    <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
-                    <td class="py-4 px-4 text-right">
-                      <a title="Slots" aria-label="Slots" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
-                        <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                        <span class="sr-only">Slots</span>
-                      </a>
-                      <a title="Payments" aria-label="Payments" href="?page=module5/submodule3&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'payments']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                        <i data-lucide="credit-card" class="w-4 h-4"></i>
-                        <span class="sr-only">Payments</span>
-                      </a>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">No parking areas yet.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <?php endif; ?>
   </div>
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
@@ -1006,9 +876,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const allRoutes = <?php echo json_encode($allRoutes); ?>;
 
     const tabBtnTerminals = document.getElementById('tabBtnTerminals');
-    const tabBtnParking = document.getElementById('tabBtnParking');
     const panelTerminals = document.getElementById('tabPanelTerminals');
-    const panelParking = document.getElementById('tabPanelParking');
 
     const terminalCreateModal = document.getElementById('terminalCreateModal');
     const btnOpenCreateTerminal = document.getElementById('btnOpenCreateTerminal');
@@ -1016,13 +884,9 @@ if ($rootUrl === '/') $rootUrl = '';
 
     const formTerminal = document.getElementById('formTerminal');
     const btnSaveTerminal = document.getElementById('btnSaveTerminal');
-    const formParking = document.getElementById('formParking');
-    const btnSaveParking = document.getElementById('btnSaveParking');
 
     // const searchTerm = document.getElementById('terminalSearchTerm');
     const tbodyTerm = document.getElementById('termBodyTerminals');
-    const searchParking = document.getElementById('terminalSearchParking');
-    const tbodyParking = document.getElementById('termBodyParking');
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -1173,16 +1037,9 @@ if ($rootUrl === '/') $rootUrl = '';
     function setActiveTab(tab) {
       const isTerm = tab === 'terminals';
       if (panelTerminals) panelTerminals.classList.toggle('hidden', !isTerm);
-      if (panelParking) panelParking.classList.toggle('hidden', isTerm);
       if (tabBtnTerminals) {
         tabBtnTerminals.setAttribute('aria-selected', isTerm ? 'true' : 'false');
         tabBtnTerminals.className = isTerm
-          ? 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700'
-          : 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200';
-      }
-      if (tabBtnParking) {
-        tabBtnParking.setAttribute('aria-selected', isTerm ? 'false' : 'true');
-        tabBtnParking.className = !isTerm
           ? 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-blue-700 text-blue-700'
           : 'py-3 text-sm font-black uppercase tracking-widest border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-200';
       }
@@ -1190,11 +1047,10 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (tabBtnTerminals) tabBtnTerminals.addEventListener('click', () => setActiveTab('terminals'));
-    if (tabBtnParking) tabBtnParking.addEventListener('click', () => setActiveTab('parking'));
 
     let saved = '';
     try { saved = localStorage.getItem('module5_list_tab') || ''; } catch (e) {}
-    setActiveTab(saved === 'parking' || initialTab === 'parking' ? 'parking' : 'terminals');
+    setActiveTab('terminals');
 
     async function saveTerminal(formEl, btnEl) {
       if (!formEl || !btnEl) return;
@@ -1219,14 +1075,6 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         if (!formTerminal.checkValidity()) { formTerminal.reportValidity(); return; }
         await saveTerminal(formTerminal, btnSaveTerminal);
-      });
-    }
-
-    if (formParking && btnSaveParking) {
-      formParking.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!formParking.checkValidity()) { formParking.reportValidity(); return; }
-        await saveTerminal(formParking, btnSaveParking);
       });
     }
 
@@ -1258,7 +1106,6 @@ if ($rootUrl === '/') $rootUrl = '';
       if (activeHeader) activeHeader.style.display = hasVisible ? '' : 'none';
     }
     // if (searchTerm) searchTerm.addEventListener('input', () => filterRows(searchTerm, tbodyTerm));
-    if (searchParking) searchParking.addEventListener('input', () => filterRows(searchParking, tbodyParking));
 
     const modal = document.getElementById('terminalRoutesModal');
     const modalBody = document.getElementById('terminalRoutesModalBody');
