@@ -197,6 +197,18 @@ foreach ($map as $field => $code) {
             $stmtVd->bind_param($types, ...$params);
             $stmtVd->execute();
             $stmtVd->close();
+            if ($vdVerCol !== '') {
+              $verifySql = "UPDATE vehicle_documents SET `{$vdVerCol}`=1" .
+                           ($vdVerifiedByCol !== '' ? ", `{$vdVerifiedByCol}`=" . ($userId > 0 ? (int)$userId : "NULL") : "") .
+                           ($vdVerifiedAtCol !== '' ? ", `{$vdVerifiedAtCol}`=NOW()" : "") .
+                           " WHERE `{$vdVehIdCol}`=? AND UPPER(`{$vdTypeCol}`)='EMISSION' AND `{$vdPathCol}`=? LIMIT 1";
+              $stmtUpd = $db->prepare($verifySql);
+              if ($stmtUpd) {
+                $stmtUpd->bind_param('is', $vehicleId, $vehFilename);
+                $stmtUpd->execute();
+                $stmtUpd->close();
+              }
+            }
           }
         }
       }

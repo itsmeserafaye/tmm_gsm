@@ -40,13 +40,7 @@ $sql = "SELECT v.id, v.plate_number" .
        {$opNameExpr} AS operator_name
         FROM vehicles v
         LEFT JOIN operators o ON o.id={$opIdExpr}
-        WHERE " . ($vehHasRecordStatus ? "COALESCE(v.record_status,'') <> 'Archived' AND " : "") . "
-          COALESCE({$opIdExpr}, 0) > 0";
-
-if ($hasSchedulesTable && $schHasStatus && ($schHasVehicleId || $schHasPlate)) {
-  $match = $schHasVehicleId ? "s.vehicle_id=v.id" : "s.plate_number=v.plate_number";
-  $sql .= " AND EXISTS (SELECT 1 FROM inspection_schedules s WHERE $match AND s.status='Completed')";
-}
+        WHERE " . ($vehHasRecordStatus ? "COALESCE(v.record_status,'') <> 'Archived'" : "1=1");
 
 $params = [];
 $types = '';
