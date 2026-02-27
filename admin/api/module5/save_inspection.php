@@ -5,6 +5,18 @@ $db = db();
 header('Content-Type: application/json');
 require_permission('parking.manage');
 
+// Ensure table exists
+$db->query("CREATE TABLE IF NOT EXISTS terminal_inspections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    terminal_id INT NOT NULL,
+    inspector_name VARCHAR(255),
+    inspection_date DATE,
+    location TEXT,
+    status ENUM('Passed', 'Failed', 'Pending') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+) ENGINE=InnoDB");
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid method']);
     exit;

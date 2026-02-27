@@ -6,6 +6,64 @@ $db = db();
 header('Content-Type: application/json');
 require_permission('module5.manage_terminal');
 
+// Auto-fix missing tables
+$db->query("CREATE TABLE IF NOT EXISTS terminals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    city VARCHAR(100),
+    address TEXT,
+    type VARCHAR(50) DEFAULT 'Terminal',
+    capacity INT DEFAULT 0,
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_owners` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `type` varchar(50) DEFAULT 'Person',
+  `contact_info` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_agreements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `owner_id` int(11) DEFAULT NULL,
+  `agreement_type` varchar(50) DEFAULT 'MOA',
+  `reference_no` varchar(100) DEFAULT NULL,
+  `rent_amount` decimal(12,2) DEFAULT '0.00',
+  `rent_frequency` varchar(50) DEFAULT 'Monthly',
+  `status` varchar(50) DEFAULT 'Active',
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `terms_summary` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `owner_id` (`owner_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_documents` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `agreement_id` int(11) DEFAULT NULL,
+  `doc_type` varchar(50) DEFAULT 'Document',
+  `file_path` varchar(255) NOT NULL,
+  `uploaded_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `agreement_id` (`agreement_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid method']);
     exit;

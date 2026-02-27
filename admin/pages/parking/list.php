@@ -5,6 +5,65 @@ require_any_permission(['module5.manage_terminal', 'module5.parking_fees']);
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+// Auto-fix missing tables
+$db->query("CREATE TABLE IF NOT EXISTS terminals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    city VARCHAR(100),
+    address TEXT,
+    type VARCHAR(50) DEFAULT 'Terminal',
+    capacity INT DEFAULT 0,
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_owners` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `type` varchar(50) DEFAULT 'Person',
+  `contact_info` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_agreements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `owner_id` int(11) DEFAULT NULL,
+  `agreement_type` varchar(50) DEFAULT 'MOA',
+  `reference_no` varchar(100) DEFAULT NULL,
+  `rent_amount` decimal(12,2) DEFAULT '0.00',
+  `rent_frequency` varchar(50) DEFAULT 'Monthly',
+  `status` varchar(50) DEFAULT 'Active',
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `terms_summary` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `owner_id` (`owner_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_documents` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `agreement_id` int(11) DEFAULT NULL,
+  `doc_type` varchar(50) DEFAULT 'Document',
+  `file_path` varchar(255) NOT NULL,
+  `uploaded_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `agreement_id` (`agreement_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+
 $canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
@@ -30,6 +89,7 @@ if ($faExists && $foExists) {
     $ownerNameExpr = "(SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.$tidCol = terminals.id ORDER BY $order LIMIT 1)";
   }
 }
+if ($ownerNameExpr !== 'NULL') $ownerNameExpr = str_replace('t.id', 'terminals.id', $ownerNameExpr);
 
 $parkingRows = [];
 if ($qFilter !== '') {
@@ -96,15 +156,16 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <?php if ($canManage): ?>
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-      <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <div id="btnToggleCreateParking" class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
         <div class="flex items-center gap-3">
           <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
             <i data-lucide="plus" class="w-5 h-5"></i>
           </div>
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Parking Area</h2>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white flex-1">Create Parking Area</h2>
+          <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400"></i>
         </div>
       </div>
-      <div class="p-6">
+      <div id="createParkingPanel" class="p-6 hidden">
         <form id="formParking" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate enctype="multipart/form-data">
           <input type="hidden" name="type" value="Parking">
           <input type="hidden" name="id" value="">
@@ -537,9 +598,25 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
+    // --- Enhanced Logic ---
+    // Toggle Create Parking
+    const btnToggle = document.getElementById('btnToggleCreateParking');
+    const panelCreate = document.getElementById('createParkingPanel');
+    if (btnToggle && panelCreate) {
+      btnToggle.addEventListener('click', () => {
+        panelCreate.classList.toggle('hidden');
+        // Rotate chevron if possible
+        const icon = btnToggle.querySelector('.lucide-chevron-down') || btnToggle.querySelector('[data-lucide="chevron-down"]');
+        if (icon) {
+            const isHidden = panelCreate.classList.contains('hidden');
+            icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+            icon.style.transition = 'transform 0.2s';
+        }
+      });
+    }
+
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
 
-    // --- Enhanced Logic ---
     // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
