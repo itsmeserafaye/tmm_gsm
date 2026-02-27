@@ -322,14 +322,27 @@ if ($rootUrl === '/') $rootUrl = '';
                 <?php foreach ($items as $code => $label): ?>
                   <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
                     <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($label); ?></div>
-                    <div class="mt-2">
-                      <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
-                      <select name="items[<?php echo htmlspecialchars($code); ?>]" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                        <?php $sel = $existing[$code] ?? 'NA'; ?>
-                        <option value="Pass" <?php echo $sel === 'PASS' ? 'selected' : ''; ?>>Pass</option>
-                        <option value="Fail" <?php echo $sel === 'FAIL' ? 'selected' : ''; ?>>Fail</option>
-                        <option value="NA" <?php echo $sel === 'NA' ? 'selected' : ''; ?>>N/A</option>
-                      </select>
+                    <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
+                    <?php $sel = strtoupper((string)($existing[$code] ?? 'NA')); ?>
+                    <div class="mt-3 flex items-center gap-2 flex-wrap">
+                      <label class="inline-flex items-center">
+                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="Pass" <?php echo $sel === 'PASS' ? 'checked' : ''; ?> class="sr-only peer">
+                        <span class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600">
+                          ✓ Pass
+                        </span>
+                      </label>
+                      <label class="inline-flex items-center">
+                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="Fail" <?php echo $sel === 'FAIL' ? 'checked' : ''; ?> class="sr-only peer">
+                        <span class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-600">
+                          ✕ Fail
+                        </span>
+                      </label>
+                      <label class="inline-flex items-center">
+                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="NA" <?php echo ($sel === 'NA' || $sel === '') ? 'checked' : ''; ?> class="sr-only peer">
+                        <span class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer peer-checked:bg-slate-200 peer-checked:text-slate-800 peer-checked:border-slate-300 dark:peer-checked:bg-slate-700 dark:peer-checked:text-slate-100 dark:peer-checked:border-slate-600">
+                          N/A
+                        </span>
+                      </label>
                     </div>
                   </div>
                 <?php endforeach; ?>
@@ -588,12 +601,8 @@ if ($rootUrl === '/') $rootUrl = '';
     }
     if (btnAllPass && form) {
       btnAllPass.addEventListener('click', () => {
-        const list = Array.from(form.querySelectorAll('select[name^="items["]'));
-        list.forEach((s) => {
-          const opts = Array.from(s.options || []);
-          const hasPass = opts.some((o) => (o.value || '') === 'Pass');
-          if (hasPass) s.value = 'Pass';
-        });
+        const list = Array.from(form.querySelectorAll('input[type="radio"][value="Pass"][name^="items["]'));
+        list.forEach((r) => { r.checked = true; });
         const overall = form.querySelector('select[name="overall_status"]');
         if (overall) overall.value = 'Passed';
         showToast('All checklist items set to Pass.');
@@ -619,12 +628,15 @@ if ($rootUrl === '/') $rootUrl = '';
             'RW_WIPERS',
             'RW_MIRRORS',
             'RW_LEAKS',
-            'PS_DOORS'
+            'PS_DOORS',
+            'SE_EXT',
+            'SE_EWD'
           ]);
           const requiredMissing = [];
           const requiredNotPass = [];
           const codeToLabel = {};
-          Array.from(form.querySelectorAll('input[type="hidden"][name^="labels["]')).forEach((inp) => {
+          const labelInputs = Array.from(form.querySelectorAll('input[type="hidden"][name^="labels["]'));
+          labelInputs.forEach((inp) => {
             const name = String(inp.getAttribute('name') || '');
             const m = name.match(/^labels\[(.+)\]$/);
             if (!m) return;
@@ -632,18 +644,30 @@ if ($rootUrl === '/') $rootUrl = '';
             const lbl = String(inp.value || '').trim();
             if (code && lbl) codeToLabel[code] = lbl;
           });
-          Array.from(form.querySelectorAll('select[name^="items["]')).forEach((s) => {
-            const name = String(s.getAttribute('name') || '');
-            const m = name.match(/^items\[(.+)\]$/);
-            if (!m) return;
-            const code = String(m[1] || '');
-            if (!required.has(code)) return;
-            const v = String(s.value || '');
-            if (v === 'NA' || v === '') requiredMissing.push(code);
-            else if (v !== 'Pass') requiredNotPass.push(code);
+          const esc = (s) => {
+            if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(s || ''));
+            return String(s || '').replace(/([\\[\\]\"'\\\\])/g, '\\\\$1');
+          };
+          const getVal = (code) => {
+            const q = 'input[type="radio"][name="' + esc('items[' + code + ']') + '"]:checked';
+            const el = form.querySelector(q);
+            return el ? String(el.value || '') : 'NA';
+          };
+          const codes = labelInputs.map((inp) => {
+            const name = String(inp.getAttribute('name') || '');
+            const m = name.match(/^labels\[(.+)\]$/);
+            return m ? String(m[1] || '') : '';
+          }).filter((c) => c);
+          codes.forEach((code) => {
+            const v = getVal(code);
+            if (required.has(code)) {
+              if (v === 'NA' || v === '') requiredMissing.push(code);
+              else if (v !== 'Pass') requiredNotPass.push(code);
+            }
+            if (!fd.has('items[' + code + ']')) fd.append('items[' + code + ']', v || 'NA');
           });
-          const anyFail = Array.from(form.querySelectorAll('select[name^="items["]')).some((s) => (s.value || '') === 'Fail');
-          const allPassOrNA = Array.from(form.querySelectorAll('select[name^="items["]')).every((s) => (s.value || '') !== 'Fail');
+          const anyFail = codes.some((code) => getVal(code) === 'Fail');
+          const allPassOrNA = codes.every((code) => getVal(code) !== 'Fail');
           const docOnFile = window.__tmm_docOnFile || {};
           const docMissing = [];
           const docMap = [
@@ -663,13 +687,6 @@ if ($rootUrl === '/') $rootUrl = '';
             btn.disabled = false; btn.textContent = 'Submit Result';
             return;
           }
-
-          // Inject DOC items into FormData so backend sees them as "Pass"
-          // We already validated they are present (uploaded or on file) above.
-          fd.append('items[DOC_CR]', 'Pass');
-          fd.append('items[DOC_OR]', 'Pass');
-          fd.append('items[DOC_CMVI]', 'Pass');
-          fd.append('items[DOC_CTPL]', 'Pass');
 
           if (requiredMissing.length) {
             const names = requiredMissing.map((c) => codeToLabel[c] || c);

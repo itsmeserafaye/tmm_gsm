@@ -144,9 +144,68 @@ $catFor = function (string $code): string {
   if (strpos($c, 'PS_') === 0) return 'Passenger Safety';
   if (strpos($c, 'SE_') === 0) return 'Safety Equipment (LGU Check)';
   if (strpos($c, 'LGU_') === 0) return 'Operational Compliance (LGU)';
-  if (strpos($c, 'DOC_') === 0) return 'Document Presentation (For Verification Only)';
   return 'Other / Legacy Items';
 };
+
+$docOnFile = ['cr' => false, 'or' => false, 'insurance' => false, 'emission' => false];
+$docMeta = ['cr' => null, 'or' => null, 'insurance' => null, 'emission' => null];
+if ($vehicleId > 0 || $plate !== '') {
+  $vd = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
+  if ($vd && $vd->fetch_row()) {
+    $schema = '';
+    $schRes = $db->query("SELECT DATABASE() AS db");
+    if ($schRes) $schema = (string)(($schRes->fetch_assoc()['db'] ?? '') ?: '');
+    $hasCol = function(string $table, string $col) use ($db, $schema): bool {
+      if ($schema === '') return false;
+      $t = $db->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1");
+      if (!$t) return false;
+      $t->bind_param('sss', $schema, $table, $col);
+      $t->execute();
+      $res = $t->get_result();
+      $ok = (bool)($res && $res->fetch_row());
+      $t->close();
+      return $ok;
+    };
+    $idCol = $hasCol('vehicle_documents','doc_id') ? 'doc_id' : ($hasCol('vehicle_documents','id') ? 'id' : '');
+    $typeCol = $hasCol('vehicle_documents','doc_type') ? 'doc_type' : ($hasCol('vehicle_documents','type') ? 'type' : '');
+    $pathCol = $hasCol('vehicle_documents','file_path') ? 'file_path' : '';
+    $verCol = $hasCol('vehicle_documents','is_verified') ? 'is_verified'
+      : ($hasCol('vehicle_documents','verified') ? 'verified'
+      : ($hasCol('vehicle_documents','isApproved') ? 'isApproved' : ''));
+    $hasVehId = $hasCol('vehicle_documents','vehicle_id');
+    $hasPlate = $hasCol('vehicle_documents','plate_number');
+    if ($idCol !== '' && $typeCol !== '' && $pathCol !== '' && ($hasVehId || $hasPlate)) {
+      $where = $hasVehId ? "vehicle_id=?" : "plate_number=?";
+      $plateKey = $vehiclePlate !== '' ? $vehiclePlate : $plate;
+      $stmtD = $db->prepare("SELECT {$idCol} AS id, {$typeCol} AS doc_type, {$pathCol} AS file_path, " . ($verCol !== '' ? "COALESCE({$verCol},0)" : "0") . " AS is_verified FROM vehicle_documents WHERE {$where} ORDER BY {$idCol} DESC");
+      if ($stmtD) {
+        if ($hasVehId) $stmtD->bind_param('i', $vehicleId);
+        else $stmtD->bind_param('s', $plateKey);
+        $stmtD->execute();
+        $r = $stmtD->get_result();
+        while ($r && ($row = $r->fetch_assoc())) {
+          $t = strtoupper(trim((string)($row['doc_type'] ?? '')));
+          $slot = null;
+          if ($t === 'CR' || $t === 'ORCR') $slot = 'cr';
+          if ($t === 'OR' || $t === 'ORCR') $slot = 'or';
+          if ($t === 'INSURANCE') $slot = 'insurance';
+          if ($t === 'EMISSION') $slot = 'emission';
+          if ($slot === null) continue;
+          if (!$docMeta[$slot]) {
+            $docOnFile[$slot] = true;
+            $docMeta[$slot] = [
+              'id' => (int)($row['id'] ?? 0),
+              'doc_type' => $t,
+              'file_path' => (string)($row['file_path'] ?? ''),
+              'is_verified' => (int)($row['is_verified'] ?? 0),
+            ];
+          }
+        }
+        $stmtD->close();
+      }
+    }
+  }
+}
 
 if ($format !== 'pdf') {
   header('Content-Type: text/html; charset=utf-8');
@@ -159,57 +218,143 @@ if ($format !== 'pdf') {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title><?php echo htmlspecialchars($title); ?></title>
     <style>
-      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:#0f172a}
+      body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f8fafc;color:#0f172a}
+      .page{max-width:980px;margin:24px auto;padding:0 20px 32px 20px}
+      .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+      .title{font-size:22px;font-weight:900;margin:0}
+      .sub{color:#64748b;font-size:12px}
+      .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-top:14px}
+      .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+      .col{grid-column:span 4}
+      .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#64748b;font-weight:800}
+      .value{margin-top:4px;font-size:13px;font-weight:700;color:#0f172a}
+      .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:#e2e8f0;font-size:12px;font-weight:800;color:#0f172a}
+      .badge-pass{background:#dcfce7;color:#166534}
+      .badge-fail{background:#fee2e2;color:#b91c1c}
+      .badge-pend{background:#fef3c7;color:#92400e}
+      a{color:#2563eb;text-decoration:none}
+      a:hover{text-decoration:underline}
+      table{border-collapse:separate;border-spacing:0;width:100%;margin-top:10px}
+      th,td{border-bottom:1px solid #e2e8f0;padding:10px 10px;font-size:13px;vertical-align:top}
+      th{background:#f8fafc;text-align:left;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:900}
+      .sectionTitle{margin:0 0 6px 0;font-size:14px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#0f172a}
       .muted{color:#64748b}
-      table{border-collapse:collapse;width:100%;margin-top:12px}
-      th,td{border:1px solid #cbd5e1;padding:8px;font-size:13px}
-      th{background:#f1f5f9;text-align:left}
-      .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#e2e8f0;font-size:12px}
-      .row{display:flex;gap:16px;flex-wrap:wrap}
-      .col{flex:1;min-width:240px}
-      a{color:#2563eb}
-      .status-pass{background:#dcfce7;color:#166534;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
-      .status-fail{background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
-      .status-na{background:#e5e7eb;color:#374151;border-radius:999px;padding:2px 8px;font-weight:600;font-size:12px;display:inline-block}
+      .pill{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:900}
+      .pass{background:#dcfce7;color:#166534}
+      .fail{background:#fee2e2;color:#b91c1c}
+      .na{background:#e5e7eb;color:#374151}
+      .docok{background:#dcfce7;color:#166534}
+      .docpend{background:#fef3c7;color:#92400e}
+      .docmiss{background:#e5e7eb;color:#374151}
+      @media print{
+        body{background:#fff}
+        .page{margin:0;max-width:none;padding:0 16px 24px 16px}
+        .card{break-inside:avoid-page}
+      }
     </style>
   </head>
   <body>
-    <h1 style="margin:0 0 6px 0;"><?php echo htmlspecialchars($title); ?></h1>
-    <div class="muted">Generated: <?php echo htmlspecialchars(date('Y-m-d H:i')); ?></div>
+    <div class="page">
+      <div class="topbar">
+        <div>
+          <h1 class="title"><?php echo htmlspecialchars($title); ?></h1>
+          <div class="sub">Generated: <?php echo htmlspecialchars(date('Y-m-d H:i')); ?></div>
+        </div>
+        <div>
+          <?php
+            $bClass = 'badge';
+            $ov = strtolower($overall);
+            if ($ov === 'passed') $bClass .= ' badge-pass';
+            elseif ($ov === 'failed') $bClass .= ' badge-fail';
+            elseif ($ov !== '') $bClass .= ' badge-pend';
+          ?>
+          <span class="<?php echo $bClass; ?>"><?php echo htmlspecialchars($overall !== '' ? $overall : '-'); ?></span>
+        </div>
+      </div>
 
-    <div style="margin-top:16px" class="row">
-      <div class="col">
-        <div><b>Schedule</b>: SCH-<?php echo (int)$scheduleId; ?> <?php if ($scheduleLabel !== ''): ?> <span class="muted">• <?php echo htmlspecialchars($scheduleLabel); ?></span><?php endif; ?></div>
-        <div><b>Schedule Status</b>: <span class="badge"><?php echo htmlspecialchars($status !== '' ? $status : '-'); ?></span></div>
-        <div><b>Location</b>: <?php echo htmlspecialchars((string)($schedule['location'] ?? '-')); ?></div>
-        <div><b>Inspection Type</b>: <?php echo htmlspecialchars((string)($schedule['inspection_type'] ?? '-')); ?></div>
+      <div class="card">
+        <div class="grid">
+          <div class="col">
+            <div class="label">Schedule</div>
+            <div class="value">SCH-<?php echo (int)$scheduleId; ?> <?php if ($scheduleLabel !== ''): ?> <span class="muted">• <?php echo htmlspecialchars($scheduleLabel); ?></span><?php endif; ?></div>
+            <div class="label" style="margin-top:10px">Schedule Status</div>
+            <div class="value"><span class="badge"><?php echo htmlspecialchars($status !== '' ? $status : '-'); ?></span></div>
+          </div>
+          <div class="col">
+            <div class="label">Plate</div>
+            <div class="value"><?php echo htmlspecialchars($vehiclePlate !== '' ? $vehiclePlate : '-'); ?></div>
+            <div class="label" style="margin-top:10px">Operator</div>
+            <div class="value"><?php echo htmlspecialchars($operatorName !== '' ? $operatorName : '-'); ?></div>
+          </div>
+          <div class="col">
+            <div class="label">Route</div>
+            <div class="value"><?php echo htmlspecialchars($routeId !== '' ? $routeId : '-'); ?></div>
+            <div class="label" style="margin-top:10px">Inspector</div>
+            <div class="value"><?php echo htmlspecialchars($inspectorName !== '' ? $inspectorName : '-'); ?></div>
+          </div>
+          <div class="col">
+            <div class="label">Location</div>
+            <div class="value"><?php echo htmlspecialchars((string)($schedule['location'] ?? '-') ?: '-'); ?></div>
+            <div class="label" style="margin-top:10px">Inspection Type</div>
+            <div class="value"><?php echo htmlspecialchars((string)($schedule['inspection_type'] ?? '-') ?: '-'); ?></div>
+          </div>
+          <div class="col">
+            <div class="label">Submitted At</div>
+            <div class="value"><?php echo htmlspecialchars($submittedAt !== '' ? $submittedAt : '-'); ?></div>
+            <div class="label" style="margin-top:10px">Certificate Ref</div>
+            <div class="value"><?php echo htmlspecialchars($certRef !== '' ? $certRef : '-'); ?></div>
+          </div>
+          <div class="col">
+            <div class="label">Valid Until</div>
+            <div class="value"><?php echo htmlspecialchars(($certInfo && !empty($certInfo['valid_until'])) ? (string)$certInfo['valid_until'] : '-'); ?></div>
+            <div class="label" style="margin-top:10px">OR/CR</div>
+            <div class="value"><?php echo htmlspecialchars($reg ? (string)($reg['orcr_no'] ?? '-') : '-'); ?><?php if ($reg): ?> <span class="muted">• <?php echo htmlspecialchars((string)($reg['orcr_date'] ?? '-') ); ?></span><?php endif; ?></div>
+          </div>
+        </div>
       </div>
-      <div class="col">
-        <div><b>Plate</b>: <?php echo htmlspecialchars($vehiclePlate); ?></div>
-        <div><b>Operator</b>: <?php echo htmlspecialchars($operatorName !== '' ? $operatorName : '-'); ?></div>
-        <div><b>Route</b>: <?php echo htmlspecialchars($routeId !== '' ? $routeId : '-'); ?></div>
-        <div><b>Inspector</b>: <?php echo htmlspecialchars($inspectorName !== '' ? $inspectorName : '-'); ?></div>
-      </div>
-      <div class="col">
-        <div><b>Overall Result</b>: <span class="badge"><?php echo htmlspecialchars($overall !== '' ? $overall : '-'); ?></span></div>
-        <div><b>Submitted At</b>: <?php echo htmlspecialchars($submittedAt !== '' ? $submittedAt : '-'); ?></div>
-        <div><b>Certificate Ref</b>: <?php echo htmlspecialchars($certRef !== '' ? $certRef : '-'); ?></div>
-        <?php if ($certInfo && !empty($certInfo['valid_until'])): ?>
-          <div><b>Valid Until</b>: <?php echo htmlspecialchars((string)$certInfo['valid_until']); ?></div>
-        <?php endif; ?>
-        <?php if ($reg): ?>
-          <div><b>OR/CR</b>: <?php echo htmlspecialchars((string)($reg['orcr_no'] ?? '-') ); ?> <span class="muted">• <?php echo htmlspecialchars((string)($reg['orcr_date'] ?? '-') ); ?></span></div>
-        <?php endif; ?>
-      </div>
-    </div>
 
-    <h2 style="margin:18px 0 6px 0;">Checklist</h2>
+      <div class="card">
+        <div class="sectionTitle">Document Presentation</div>
+        <div class="muted" style="font-size:12px">Status reflects uploads in Vehicle Records.</div>
+        <table>
+          <thead>
+            <tr><th style="width:28%">Document</th><th style="width:32%">Status</th><th>File</th></tr>
+          </thead>
+          <tbody>
+            <?php
+              $docRows = [
+                'cr' => 'Certificate of Registration (CR)',
+                'or' => 'Official Receipt (OR)',
+                'emission' => 'CMVI / PMVIC Certificate',
+                'insurance' => 'CTPL Insurance',
+              ];
+              foreach ($docRows as $k => $lbl):
+                $m = $docMeta[$k];
+                $on = !empty($docOnFile[$k]);
+                $isV = $m && ((int)($m['is_verified'] ?? 0) === 1);
+                $cls = $on ? ($isV ? 'pill docok' : 'pill docpend') : 'pill docmiss';
+                $txt = $on ? ($isV ? 'On file • Verified' : 'On file • Pending verification') : 'Missing';
+                $path = $m ? (string)($m['file_path'] ?? '') : '';
+                $url = $path !== '' ? ($rootUrl . '/admin/uploads/' . ltrim($path, '/')) : '';
+            ?>
+              <tr>
+                <td style="font-weight:900"><?php echo htmlspecialchars($lbl); ?></td>
+                <td><span class="<?php echo $cls; ?>"><?php echo htmlspecialchars($txt); ?></span></td>
+                <td><?php echo $url !== '' ? ('<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">' . htmlspecialchars(basename($path)) . '</a>') : '<span class="muted">-</span>'; ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="sectionTitle">Checklist</div>
     <?php if (!$checklist): ?>
       <div class="muted">No checklist data.</div>
     <?php else: ?>
-      <div class="muted">LGU checklist record for local operational monitoring. This does not replace LTO/CMVI testing or LTFRB franchise evaluation.</div>
+      <div class="muted" style="font-size:12px">LGU operational inspection checklist record.</div>
       <?php if (strtolower($overall) === 'failed'): ?>
-        <div style="margin-top:8px"><a href="<?php echo htmlspecialchars($rootUrl . '/admin/index.php?page=module4/submodule3&reinspect_of=' . (int)$scheduleId); ?>">Reschedule Reinspection</a></div>
+        <div style="margin-top:10px"><a href="<?php echo htmlspecialchars($rootUrl . '/admin/index.php?page=module4/submodule3&reinspect_of=' . (int)$scheduleId); ?>">Reschedule Reinspection</a></div>
       <?php endif; ?>
       <table>
         <thead>
@@ -220,6 +365,7 @@ if ($format !== 'pdf') {
             $grouped = [];
             foreach ($checklist as $c) {
               $code = (string)($c['item_code'] ?? '');
+              if (strpos(strtoupper(trim($code)), 'DOC_') === 0) continue;
               $cat = $catFor($code);
               if (!isset($grouped[$cat])) $grouped[$cat] = [];
               $grouped[$cat][] = $c;
@@ -228,8 +374,7 @@ if ($format !== 'pdf') {
               'Roadworthiness (Visual Check)',
               'Passenger Safety',
               'Safety Equipment (LGU Check)',
-              'Operational Compliance (LGU)',
-              'Document Presentation (For Verification Only)'
+              'Operational Compliance (LGU)'
             ];
             // Sort grouped keys based on $order, putting others at the end
             uksort($grouped, function($a, $b) use ($order) {
@@ -248,10 +393,10 @@ if ($format !== 'pdf') {
                 $label = (string)($c['item_label'] ?? '');
                 if ($label === '') $label = (string)($c['item_code'] ?? '');
                 $stRaw = strtoupper(trim((string)($c['status'] ?? '')));
-                $stClass = 'status-na';
+                $stClass = 'pill na';
                 $stText = $stRaw !== '' ? $stRaw : 'NA';
-                if ($stRaw === 'PASS') $stClass = 'status-pass';
-                elseif ($stRaw === 'FAIL') $stClass = 'status-fail';
+                if ($stRaw === 'PASS') $stClass = 'pill pass';
+                elseif ($stRaw === 'FAIL') $stClass = 'pill fail';
               ?>
               <tr>
                 <td><?php echo htmlspecialchars($label); ?></td>
@@ -262,24 +407,39 @@ if ($format !== 'pdf') {
         </tbody>
       </table>
     <?php endif; ?>
+      </div>
 
-    <h2 style="margin:18px 0 6px 0;">Remarks</h2>
-    <div><?php echo nl2br(htmlspecialchars($remarks !== '' ? $remarks : '-')); ?></div>
+      <div class="card">
+        <div class="sectionTitle">Remarks</div>
+        <div style="font-size:13px;line-height:1.5"><?php echo nl2br(htmlspecialchars($remarks !== '' ? $remarks : '-')); ?></div>
+      </div>
 
-    <h2 style="margin:18px 0 6px 0;">Photos</h2>
-    <?php if (!$photos): ?>
-      <div class="muted">No photos uploaded.</div>
-    <?php else: ?>
-      <ul>
-        <?php foreach ($photos as $p): ?>
-          <?php
-            $path = (string)($p['file_path'] ?? '');
-            $url = $path !== '' ? ($rootUrl . '/admin/uploads/' . ltrim($path, '/')) : '';
-          ?>
-          <li><?php echo $url !== '' ? ('<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">' . htmlspecialchars(basename($path)) . '</a>') : htmlspecialchars(basename($path)); ?></li>
-        <?php endforeach; ?>
-      </ul>
-    <?php endif; ?>
+      <div class="card">
+        <div class="sectionTitle">Photos</div>
+        <?php if (!$photos): ?>
+          <div class="muted">No photos uploaded.</div>
+        <?php else: ?>
+          <table>
+            <thead>
+              <tr><th style="width:70%">File</th><th>Uploaded</th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ($photos as $p): ?>
+                <?php
+                  $path = (string)($p['file_path'] ?? '');
+                  $url = $path !== '' ? ($rootUrl . '/admin/uploads/' . ltrim($path, '/')) : '';
+                  $at = (string)($p['uploaded_at'] ?? '');
+                ?>
+                <tr>
+                  <td><?php echo $url !== '' ? ('<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">' . htmlspecialchars(basename($path)) . '</a>') : htmlspecialchars(basename($path)); ?></td>
+                  <td><?php echo htmlspecialchars($at !== '' ? $at : '-'); ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php endif; ?>
+      </div>
+    </div>
   </body>
   </html>
   <?php
@@ -300,16 +460,33 @@ $lines[] = 'Overall Result: ' . ($overall !== '' ? $overall : '-') . ' • Submi
 if ($certRef !== '') $lines[] = 'Certificate Ref: ' . $certRef;
 if ($certInfo && !empty($certInfo['valid_until'])) $lines[] = 'Valid Until: ' . (string)$certInfo['valid_until'];
 $lines[] = str_repeat('-', 94);
+$lines[] = 'DOCUMENT PRESENTATION';
+$lines[] = str_repeat('-', 94);
+$docRows = [
+  'cr' => 'Certificate of Registration (CR)',
+  'or' => 'Official Receipt (OR)',
+  'emission' => 'CMVI / PMVIC Certificate',
+  'insurance' => 'CTPL Insurance',
+];
+foreach ($docRows as $k => $lbl) {
+  $m = $docMeta[$k];
+  $on = !empty($docOnFile[$k]);
+  $isV = $m && ((int)($m['is_verified'] ?? 0) === 1);
+  $txt = $on ? ($isV ? 'ON FILE (VERIFIED)' : 'ON FILE (PENDING)') : 'MISSING';
+  $lines[] = sprintf("%-60s %s", substr($lbl, 0, 60), $txt);
+}
+$lines[] = '';
+$lines[] = str_repeat('-', 94);
 $lines[] = 'CHECKLIST';
 $lines[] = str_repeat('-', 94);
-$lines[] = 'LGU note: This checklist is for local operational monitoring; it does not replace LTO/CMVI testing or LTFRB evaluation.';
-$lines[] = 'Rule: Overall PASSED requires all required LGU items to be PASS (not N/A).';
-$lines[] = 'If FAILED: Proceed to correction period, then reschedule as REINSPECTION.';
+$lines[] = 'Rule: Overall PASSED requires required LGU items to be PASS (not N/A).';
+$lines[] = 'If FAILED: Proceed to correction, then reschedule as REINSPECTION.';
 $lines[] = '';
 if ($checklist) {
   $grouped = [];
   foreach ($checklist as $c) {
     $code = (string)($c['item_code'] ?? '');
+    if (strpos(strtoupper(trim($code)), 'DOC_') === 0) continue;
     $cat = $catFor($code);
     if (!isset($grouped[$cat])) $grouped[$cat] = [];
     $grouped[$cat][] = $c;
@@ -318,8 +495,7 @@ if ($checklist) {
     'Roadworthiness (Visual Check)',
     'Passenger Safety',
     'Safety Equipment (LGU Check)',
-    'Operational Compliance (LGU)',
-    'Document Presentation (For Verification Only)'
+    'Operational Compliance (LGU)'
   ];
   uksort($grouped, function($a, $b) use ($order) {
     $ia = array_search($a, $order);
