@@ -193,6 +193,29 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <div class="md:col-span-4">
+      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6 space-y-4">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Schedule Actions</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Create, reschedule, and review inspection status.</div>
+          </div>
+          <button type="button" id="btnOpenScheduleModal2" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+            <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
+          </button>
+          <button type="button" id="btnOpenOverdueList" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+            Overdue / No-Show
+            <span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"><?php echo (int)count($overdueRows); ?></span>
+          </button>
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Viewing results opens in a modal with the generated report and PDF download.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="md:col-span-8">
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
       <div class="space-y-3">
@@ -201,9 +224,6 @@ if ($rootUrl === '/') $rootUrl = '';
             <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
             <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
           </div>
-          <button type="button" id="btnOpenScheduleModal" class="w-full sm:w-auto px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold text-sm">
-            <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
-          </button>
         </div>
         <?php if (has_permission('reports.export')): ?>
           <?php
@@ -396,6 +416,8 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     </div>
   </div>
+    </div>
+  </div>
 
   <div id="modalOverdue" class="fixed inset-0 z-[220] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <div class="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
@@ -585,6 +607,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const btn = document.getElementById('btnSchedule');
     const modalSchedule = document.getElementById('modalSchedule');
     const btnOpenScheduleModal = document.getElementById('btnOpenScheduleModal');
+    const btnOpenScheduleModal2 = document.getElementById('btnOpenScheduleModal2');
     const btnCloseScheduleModal = document.getElementById('btnCloseScheduleModal');
     const filterForm = document.getElementById('scheduleFilterForm');
     const scheduledTbody = document.getElementById('scheduledTbody');
@@ -896,6 +919,7 @@ if ($rootUrl === '/') $rootUrl = '';
       closeVehiclePick();
     }
     if (btnOpenScheduleModal) btnOpenScheduleModal.addEventListener('click', openScheduleModal);
+    if (btnOpenScheduleModal2) btnOpenScheduleModal2.addEventListener('click', openScheduleModal);
     if (btnCloseScheduleModal) btnCloseScheduleModal.addEventListener('click', closeScheduleModal);
     if (modalSchedule) {
       modalSchedule.addEventListener('click', (e) => { if (e && e.target === modalSchedule) closeScheduleModal(); });
@@ -1015,6 +1039,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     const modal = document.getElementById('modalOverdue');
+    const btnOpenOverdueList = document.getElementById('btnOpenOverdueList');
     function openOverdueModal(focusSid) {
       if (!modal) return;
       modal.classList.remove('hidden');
@@ -1034,6 +1059,7 @@ if ($rootUrl === '/') $rootUrl = '';
       modal.classList.remove('flex');
       try { document.body.style.overflow = ''; } catch (e) { }
     }
+    if (btnOpenOverdueList) btnOpenOverdueList.addEventListener('click', () => openOverdueModal(''));
     if (modal) {
       modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeOverdueModal));
       modal.addEventListener('click', (e) => {
