@@ -271,34 +271,20 @@ $hasOrDoc = true;
 $hasInsuranceDoc = true;
 
 $frOk = false;
-$stmtF = $db->prepare("SELECT f.franchise_id
-                       FROM franchises f
-                       JOIN franchise_applications a ON a.application_id=f.application_id
-                       WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active')
-                         AND f.status='Active'
-                         AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
+// 1) Active franchise application for this operator
+$stmtA = $db->prepare("SELECT application_id
+                       FROM franchise_applications
+                       WHERE operator_id=? AND status='Active'
+                       ORDER BY application_id DESC
                        LIMIT 1");
-if ($stmtF) {
-  $stmtF->bind_param('i', $operatorId);
-  $stmtF->execute();
-  $fr = $stmtF->get_result()->fetch_assoc();
-  $stmtF->close();
-  if ($fr) $frOk = true;
+if ($stmtA) {
+  $stmtA->bind_param('i', $operatorId);
+  $stmtA->execute();
+  $rowA = $stmtA->get_result()->fetch_assoc();
+  $stmtA->close();
+  if ($rowA) $frOk = true;
 }
-if (!$frOk) {
-  $stmtA = $db->prepare("SELECT application_id
-                         FROM franchise_applications
-                         WHERE operator_id=? AND status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active')
-                         ORDER BY application_id DESC
-                         LIMIT 1");
-  if ($stmtA) {
-    $stmtA->bind_param('i', $operatorId);
-    $stmtA->execute();
-    $rowA = $stmtA->get_result()->fetch_assoc();
-    $stmtA->close();
-    if ($rowA) $frOk = true;
-  }
-}
+// 2) Active franchise application referenced by this vehicle's franchise_id
 if (!$frOk && $hasCol('vehicles', 'franchise_id')) {
   $stmtFv = $db->prepare("SELECT franchise_id FROM vehicles WHERE id=? LIMIT 1");
   if ($stmtFv) {
@@ -308,7 +294,7 @@ if (!$frOk && $hasCol('vehicles', 'franchise_id')) {
     $stmtFv->close();
     $frRef = trim((string)($rowFv['franchise_id'] ?? ''));
     if ($frRef !== '') {
-      $stmtFa = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? AND status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active') LIMIT 1");
+      $stmtFa = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? AND status='Active' LIMIT 1");
       if ($stmtFa) {
         $stmtFa->bind_param('s', $frRef);
         $stmtFa->execute();
