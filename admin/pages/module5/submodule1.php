@@ -74,6 +74,23 @@ $termHasCity = isset($termCols['city']);
 $termHasAddress = isset($termCols['address']);
 $termHasCategory = isset($termCols['category']);
 
+$ownerNameExpr = "NULL";
+$faExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements' LIMIT 1")?->fetch_row());
+$foExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_owners' LIMIT 1")?->fetch_row());
+if ($faExists && $foExists) {
+  $faCols = [];
+  $resCols = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements'");
+  if ($resCols) while ($c = $resCols->fetch_assoc()) $faCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+  $tidCol = isset($faCols['terminal_id']) ? 'terminal_id' : (isset($faCols['facility_id']) ? 'facility_id' : '');
+  $statusCol = isset($faCols['status']) ? 'status' : '';
+  $createdCol = isset($faCols['created_at']) ? 'created_at' : '';
+  if ($tidCol !== '') {
+    $order = $statusCol !== '' ? "FIELD(fa.$statusCol, 'Active', 'Expiring Soon', 'Expired', 'Terminated'), " : '';
+    $order .= $createdCol !== '' ? "fa.$createdCol DESC" : "fa.id DESC";
+    $ownerNameExpr = "(SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.$tidCol = t.id ORDER BY $order LIMIT 1)";
+  }
+}
+
 $qFilter = trim((string)($_GET['q'] ?? ''));
 $cityFilter = trim((string)($_GET['city'] ?? ''));
 $catFilter = trim((string)($_GET['category'] ?? ''));
@@ -107,7 +124,7 @@ $sqlTerm = "SELECT
   " . ($termHasCity ? "t.city" : "NULL") . " AS city,
   " . ($termHasAddress ? "t.address" : "NULL") . " AS address,
   t.capacity,
-  (SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.terminal_id = t.id ORDER BY FIELD(fa.status, 'Active', 'Expiring Soon', 'Expired') LIMIT 1) as owner_name,
+  $ownerNameExpr AS owner_name,
   COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
   COUNT(DISTINCT tr.route_id) AS route_count
 FROM terminals t
@@ -350,7 +367,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   <?php if ($currentCat !== $cat): ?>
                     <?php $currentCat = $cat; ?>
                     <tr data-group="1" class="bg-blue-100/90 dark:bg-blue-900/25 border-t-2 border-blue-300 dark:border-blue-700">
-                      <td colspan="6" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-blue-900 dark:text-blue-100">
+                      <td colspan="7" class="py-3 px-6 text-xs font-black uppercase tracking-widest text-blue-900 dark:text-blue-100">
                         <span class="inline-flex items-center gap-2">
                           <span class="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                           <?php echo htmlspecialchars($currentCat); ?>
@@ -358,6 +375,7 @@ if ($rootUrl === '/') $rootUrl = '';
                       </td>
                     </tr>
                   <?php endif; ?>
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
                       <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
                       <?php
@@ -369,7 +387,6 @@ if ($rootUrl === '/') $rootUrl = '';
                         <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
                       </span>
                     </td>
-                    <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
                     <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
                       <?php $owner = trim((string)($t['owner_name'] ?? '')); ?>
                       <?php if ($owner): ?>
@@ -451,7 +468,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="6" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
+                <tr><td colspan="7" class="py-12 text-center text-slate-500 font-medium italic">No terminals yet.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
