@@ -46,6 +46,37 @@ if (!$term) {
   exit;
 }
 
+$db->query("CREATE TABLE IF NOT EXISTS routes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  route_id VARCHAR(64) UNIQUE,
+  route_name VARCHAR(128),
+  max_vehicle_limit INT DEFAULT 50,
+  status VARCHAR(32) DEFAULT 'Active',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  route_code VARCHAR(64) DEFAULT NULL,
+  via TEXT DEFAULT NULL,
+  vehicle_type ENUM('Tricycle','Jeepney','UV','Bus') DEFAULT NULL,
+  origin VARCHAR(100) DEFAULT NULL,
+  destination VARCHAR(100) DEFAULT NULL,
+  structure ENUM('Loop','Point-to-Point') DEFAULT NULL,
+  distance_km DECIMAL(10,2) DEFAULT NULL,
+  authorized_units INT DEFAULT NULL,
+  approved_by VARCHAR(128) DEFAULT NULL,
+  approved_date DATE DEFAULT NULL
+) ENGINE=InnoDB");
+
+$db->query("CREATE TABLE IF NOT EXISTS terminal_routes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  terminal_id INT NOT NULL,
+  route_id VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_terminal_route (terminal_id, route_id),
+  INDEX idx_terminal (terminal_id),
+  INDEX idx_route (route_id),
+  FOREIGN KEY (terminal_id) REFERENCES terminals(id) ON DELETE CASCADE
+) ENGINE=InnoDB");
+
 $hasRoutes = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='routes' LIMIT 1");
 $hasTermRoutes = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_routes' LIMIT 1");
 if (!$hasRoutes || !$hasRoutes->fetch_row() || !$hasTermRoutes || !$hasTermRoutes->fetch_row()) {

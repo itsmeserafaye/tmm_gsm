@@ -5,6 +5,65 @@ require_any_permission(['module5.manage_terminal', 'module5.parking_fees']);
 require_once __DIR__ . '/../../includes/db.php';
 $db = db();
 
+// Auto-fix missing tables
+$db->query("CREATE TABLE IF NOT EXISTS terminals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    city VARCHAR(100),
+    address TEXT,
+    type VARCHAR(50) DEFAULT 'Terminal',
+    capacity INT DEFAULT 0,
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_owners` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `type` varchar(50) DEFAULT 'Person',
+  `contact_info` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_agreements` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `owner_id` int(11) DEFAULT NULL,
+  `agreement_type` varchar(50) DEFAULT 'MOA',
+  `reference_no` varchar(100) DEFAULT NULL,
+  `rent_amount` decimal(12,2) DEFAULT '0.00',
+  `rent_frequency` varchar(50) DEFAULT 'Monthly',
+  `status` varchar(50) DEFAULT 'Active',
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `terms_summary` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `owner_id` (`owner_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+$db->query("CREATE TABLE IF NOT EXISTS `facility_documents` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `terminal_id` int(11) DEFAULT NULL,
+  `facility_id` int(11) DEFAULT NULL,
+  `agreement_id` int(11) DEFAULT NULL,
+  `doc_type` varchar(50) DEFAULT 'Document',
+  `file_path` varchar(255) NOT NULL,
+  `uploaded_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `terminal_id` (`terminal_id`),
+  KEY `agreement_id` (`agreement_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+
 $canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
@@ -30,6 +89,7 @@ if ($faExists && $foExists) {
     $ownerNameExpr = "(SELECT fo.name FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id = fo.id WHERE fa.$tidCol = terminals.id ORDER BY $order LIMIT 1)";
   }
 }
+if ($ownerNameExpr !== 'NULL') $ownerNameExpr = str_replace('t.id', 'terminals.id', $ownerNameExpr);
 
 $parkingRows = [];
 if ($qFilter !== '') {
@@ -47,6 +107,52 @@ if ($qFilter !== '') {
   $resP = $db->query("SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
 }
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
+
+$permCountByTerminal = [];
+try {
+  $idSet = [];
+  foreach ($parkingRows as $r) {
+    $tid = (int)($r['id'] ?? 0);
+    if ($tid > 0) $idSet[$tid] = true;
+  }
+
+  if ($idSet) {
+    $chkDocs = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents' LIMIT 1");
+    if ($chkDocs && $chkDocs->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['type']) ? 'type' : (isset($cols['document_type']) ? 'document_type' : ''));
+      if ($tidCol !== '' && $typeCol !== '') {
+        $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM facility_documents WHERE LOWER(COALESCE($typeCol,'')) LIKE '%permit%' GROUP BY $tidCol");
+        if ($resPerm) {
+          while ($row = $resPerm->fetch_assoc()) {
+            $tid = (int)($row['tid'] ?? 0);
+            if ($tid > 0 && isset($idSet[$tid])) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + (int)($row['c'] ?? 0);
+          }
+        }
+      }
+    }
+
+    $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+    if ($chkPerm && $chkPerm->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      if ($tidCol !== '') {
+        $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM terminal_permits GROUP BY $tidCol");
+        if ($resPerm) {
+          while ($row = $resPerm->fetch_assoc()) {
+            $tid = (int)($row['tid'] ?? 0);
+            if ($tid > 0 && isset($idSet[$tid])) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + (int)($row['c'] ?? 0);
+          }
+        }
+      }
+    }
+  }
+} catch (Throwable $e) {}
 
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
@@ -96,15 +202,16 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <?php if ($canManage): ?>
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-      <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
+      <div id="btnToggleCreateParking" class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
         <div class="flex items-center gap-3">
           <div class="p-1.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
             <i data-lucide="plus" class="w-5 h-5"></i>
           </div>
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">Create Parking Area</h2>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white flex-1">Create Parking Area</h2>
+          <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400"></i>
         </div>
       </div>
-      <div class="p-6">
+      <div id="createParkingPanel" class="p-6 hidden">
         <form id="formParking" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate enctype="multipart/form-data">
           <input type="hidden" name="type" value="Parking">
           <input type="hidden" name="id" value="">
@@ -272,7 +379,7 @@ if ($rootUrl === '/') $rootUrl = '';
               ]);
               $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
             ?>
-            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report">
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report" onclick="return window.tmmPrintLink && window.tmmPrintLink(this);">
               <i data-lucide="printer" class="w-4 h-4"></i>
             </a>
           <?php endif; ?>
@@ -294,7 +401,17 @@ if ($rootUrl === '/') $rootUrl = '';
           <?php if ($parkingRows): ?>
             <?php foreach ($parkingRows as $t): ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
+                <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
+                  <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
+                  <?php
+                    $tidBadge = (int)($t['id'] ?? 0);
+                    $pc = (int)($permCountByTerminal[$tidBadge] ?? 0);
+                    $hasPermit = $pc > 0;
+                  ?>
+                  <span class="ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black <?php echo $hasPermit ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300'; ?>">
+                    <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
+                  </span>
+                </td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
                   <?php $owner = trim((string)($t['owner_name'] ?? '')); ?>
                   <?php if ($owner): ?>
@@ -321,10 +438,12 @@ if ($rootUrl === '/') $rootUrl = '';
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? ($t['address'] ?? ''))); ?></td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
-                  <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2" data-parking-edit="<?php echo (int)($t['id'] ?? 0); ?>">
-                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                    <span class="sr-only">Edit</span>
-                  </button>
+                  <?php if ($canManage): ?>
+                    <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2" data-parking-edit="<?php echo (int)($t['id'] ?? 0); ?>">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                      <span class="sr-only">Edit</span>
+                    </button>
+                  <?php endif; ?>
                   <a title="Slots" aria-label="Slots" href="?page=parking/slots-payments&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="layout-grid" class="w-4 h-4"></i>
                     <span class="sr-only">Slots</span>
@@ -537,9 +656,25 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
 
+    // --- Enhanced Logic ---
+    // Toggle Create Parking
+    const btnToggle = document.getElementById('btnToggleCreateParking');
+    const panelCreate = document.getElementById('createParkingPanel');
+    if (btnToggle && panelCreate) {
+      btnToggle.addEventListener('click', () => {
+        panelCreate.classList.toggle('hidden');
+        // Rotate chevron if possible
+        const icon = btnToggle.querySelector('.lucide-chevron-down') || btnToggle.querySelector('[data-lucide="chevron-down"]');
+        if (icon) {
+            const isHidden = panelCreate.classList.contains('hidden');
+            icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+            icon.style.transition = 'transform 0.2s';
+        }
+      });
+    }
+
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
 
-    // --- Enhanced Logic ---
     // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -742,9 +877,15 @@ if ($rootUrl === '/') $rootUrl = '';
     document.addEventListener('click', async (e) => {
        const btn = e.target.closest('[data-parking-edit]');
        if (!btn) return;
+       if (!canManage) { showToast('You do not have permission to edit parking areas.', 'error'); return; }
        const id = btn.getAttribute('data-parking-edit');
        if (!id) return;
        
+       if (panelCreate && panelCreate.classList.contains('hidden')) {
+          if (btnToggle) btnToggle.click();
+          else panelCreate.classList.remove('hidden');
+       }
+
        if (form) {
           form.scrollIntoView({ behavior: 'smooth' });
           form.reset();
@@ -791,13 +932,17 @@ if ($rootUrl === '/') $rootUrl = '';
                    set('terms_summary', a.terms_summary);
                 }
                 
-                const title = document.querySelector('h2');
+                const title = document.querySelector('#btnToggleCreateParking h2');
                 if (title) title.textContent = 'Edit Parking Area';
+             } else {
+                throw new Error((data && data.message) ? data.message : 'Failed to load parking details.');
              }
           } catch (err) {
-             console.error(err);
+             showToast((err && err.message) ? err.message : 'Failed to load details.', 'error');
              if (saveBtn) saveBtn.textContent = originalText;
           }
+       } else {
+          showToast('Edit form is not available on this page.', 'error');
        }
     });
   })();
