@@ -299,6 +299,26 @@ if (!$frOk) {
     if ($rowA) $frOk = true;
   }
 }
+if (!$frOk && $hasCol('vehicles', 'franchise_id')) {
+  $stmtFv = $db->prepare("SELECT franchise_id FROM vehicles WHERE id=? LIMIT 1");
+  if ($stmtFv) {
+    $stmtFv->bind_param('i', $vehicleId);
+    $stmtFv->execute();
+    $rowFv = $stmtFv->get_result()->fetch_assoc();
+    $stmtFv->close();
+    $frRef = trim((string)($rowFv['franchise_id'] ?? ''));
+    if ($frRef !== '') {
+      $stmtFa = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? AND status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active') LIMIT 1");
+      if ($stmtFa) {
+        $stmtFa->bind_param('s', $frRef);
+        $stmtFa->execute();
+        $fa = $stmtFa->get_result()->fetch_assoc();
+        $stmtFa->close();
+        if ($fa) $frOk = true;
+      }
+    }
+  }
+}
 if (!$frOk) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
