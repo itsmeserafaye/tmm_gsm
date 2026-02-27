@@ -34,9 +34,32 @@ if (!$schedule) {
 
 $plate = (string)($schedule['plate_number'] ?? '');
 $vehicleId = (int)($schedule['vehicle_id'] ?? 0);
+$hasColSimple = function (string $table, string $col) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && $r->num_rows > 0;
+};
 $vehicle = null;
 if ($vehicleId > 0) {
-  $stmtV = $db->prepare("SELECT id, plate_number, operator_name, coop_name, franchise_id, route_id, inspection_status, inspection_cert_ref, inspection_passed_at FROM vehicles WHERE id=? LIMIT 1");
+  $vehHasVehicleType = $hasColSimple('vehicles', 'vehicle_type');
+  $vehHasEngine = $hasColSimple('vehicles', 'engine_no');
+  $vehHasChassis = $hasColSimple('vehicles', 'chassis_no');
+  $vehHasMake = $hasColSimple('vehicles', 'make');
+  $vehHasModel = $hasColSimple('vehicles', 'model');
+  $vehHasYear = $hasColSimple('vehicles', 'year_model');
+  $vehHasColor = $hasColSimple('vehicles', 'color');
+  $vehHasOwner = $hasColSimple('vehicles', 'registered_owner');
+  $stmtV = $db->prepare("SELECT id, plate_number, operator_name, coop_name, franchise_id, route_id, inspection_status, inspection_cert_ref, inspection_passed_at" .
+                        ($vehHasVehicleType ? ", vehicle_type" : ", '' AS vehicle_type") .
+                        ($vehHasEngine ? ", engine_no" : ", '' AS engine_no") .
+                        ($vehHasChassis ? ", chassis_no" : ", '' AS chassis_no") .
+                        ($vehHasMake ? ", make" : ", '' AS make") .
+                        ($vehHasModel ? ", model" : ", '' AS model") .
+                        ($vehHasYear ? ", year_model" : ", '' AS year_model") .
+                        ($vehHasColor ? ", color" : ", '' AS color") .
+                        ($vehHasOwner ? ", registered_owner" : ", '' AS registered_owner") .
+                        " FROM vehicles WHERE id=? LIMIT 1");
   if ($stmtV) {
     $stmtV->bind_param('i', $vehicleId);
     $stmtV->execute();
@@ -446,43 +469,210 @@ if ($format !== 'pdf') {
   exit;
 }
 
-$title = 'Inspection Checklist & Result SCH-' . (int)$scheduleId;
-$lines = [];
-$lines[] = $title;
-$lines[] = 'Generated: ' . date('Y-m-d H:i');
-$lines[] = 'Plate: ' . ($vehiclePlate !== '' ? $vehiclePlate : '-');
-$lines[] = 'Operator: ' . ($operatorName !== '' ? $operatorName : '-');
-$lines[] = 'Route: ' . ($routeId !== '' ? $routeId : '-');
-$lines[] = 'Inspector: ' . ($inspectorName !== '' ? $inspectorName : '-');
-$lines[] = 'Schedule: ' . ($scheduleLabel !== '' ? $scheduleLabel : '-') . ' • Status: ' . ($status !== '' ? $status : '-');
-$lines[] = 'Location: ' . ((string)($schedule['location'] ?? '-'));
-$lines[] = 'Overall Result: ' . ($overall !== '' ? $overall : '-') . ' • Submitted: ' . ($submittedAt !== '' ? $submittedAt : '-');
-if ($certRef !== '') $lines[] = 'Certificate Ref: ' . $certRef;
-if ($certInfo && !empty($certInfo['valid_until'])) $lines[] = 'Valid Until: ' . (string)$certInfo['valid_until'];
-$lines[] = str_repeat('-', 94);
-$lines[] = 'DOCUMENT PRESENTATION';
-$lines[] = str_repeat('-', 94);
-$docRows = [
-  'cr' => 'Certificate of Registration (CR)',
-  'or' => 'Official Receipt (OR)',
-  'emission' => 'CMVI / PMVIC Certificate',
-  'insurance' => 'CTPL Insurance',
-];
-foreach ($docRows as $k => $lbl) {
-  $m = $docMeta[$k];
-  $on = !empty($docOnFile[$k]);
-  $isV = $m && ((int)($m['is_verified'] ?? 0) === 1);
-  $txt = $on ? ($isV ? 'ON FILE (VERIFIED)' : 'ON FILE (PENDING)') : 'MISSING';
-  $lines[] = sprintf("%-60s %s", substr($lbl, 0, 60), $txt);
+$title = 'Inspection Checklist & Result - SCH-' . (int)$scheduleId;
+$org = 'Transport & Mobility Management';
+$logoFs = __DIR__ . '/../../includes/GSM_logo.png';
+$officeAddr = trim((string)(tmm_get_app_setting('office_address', '1071 Brgy. Kaligayahan, Quirino Highway, Novaliches, Quezon City.') ?? ''));
+$generatedAt = date('M d, Y H:i');
+
+$vehType = $vehicle ? trim((string)($vehicle['vehicle_type'] ?? '')) : '';
+$vehMake = $vehicle ? trim((string)($vehicle['make'] ?? '')) : '';
+$vehModel = $vehicle ? trim((string)($vehicle['model'] ?? '')) : '';
+$vehYear = $vehicle ? trim((string)($vehicle['year_model'] ?? '')) : '';
+$vehColor = $vehicle ? trim((string)($vehicle['color'] ?? '')) : '';
+$vehEngine = $vehicle ? trim((string)($vehicle['engine_no'] ?? '')) : '';
+$vehChassis = $vehicle ? trim((string)($vehicle['chassis_no'] ?? '')) : '';
+$vehOwner = $vehicle ? trim((string)($vehicle['registered_owner'] ?? '')) : '';
+$vehCoop = $vehicle ? trim((string)($vehicle['coop_name'] ?? '')) : '';
+$vehFranchise = $vehicle ? trim((string)($vehicle['franchise_id'] ?? '')) : '';
+
+$vehDescParts = [];
+if ($vehType !== '') $vehDescParts[] = $vehType;
+if ($vehMake !== '' || $vehModel !== '') $vehDescParts[] = trim($vehMake . ' ' . $vehModel);
+if ($vehYear !== '') $vehDescParts[] = $vehYear;
+if ($vehColor !== '') $vehDescParts[] = $vehColor;
+$vehDesc = $vehDescParts ? implode(' • ', $vehDescParts) : '';
+
+$toWin1252 = function ($s) {
+  $s = (string)$s;
+  if (function_exists('iconv')) {
+    $v = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $s);
+    if ($v !== false && $v !== null) return $v;
+  }
+  return $s;
+};
+$pdfEsc = function ($s) use ($toWin1252) {
+  $s = $toWin1252($s);
+  $s = str_replace("\\", "\\\\", $s);
+  $s = str_replace("(", "\\(", $s);
+  $s = str_replace(")", "\\)", $s);
+  $s = preg_replace("/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/", "", $s);
+  return $s;
+};
+
+$logoJpeg = null;
+$logoW = 0;
+$logoH = 0;
+if (is_file($logoFs) && function_exists('imagecreatefrompng')) {
+  $im = @imagecreatefrompng($logoFs);
+  if ($im) {
+    $logoW = (int)imagesx($im);
+    $logoH = (int)imagesy($im);
+    ob_start();
+    imagejpeg($im, null, 85);
+    $logoJpeg = ob_get_clean();
+    imagedestroy($im);
+  }
 }
-$lines[] = '';
-$lines[] = str_repeat('-', 94);
-$lines[] = 'CHECKLIST';
-$lines[] = str_repeat('-', 94);
-$lines[] = 'Rule: Overall PASSED requires required LGU items to be PASS (not N/A).';
-$lines[] = 'If FAILED: Proceed to correction, then reschedule as REINSPECTION.';
-$lines[] = '';
-if ($checklist) {
+
+$pageWidth = 595;
+$pageHeight = 842;
+$mLeft = 40;
+$mRight = 40;
+$mTop = 40;
+$mBottom = 42;
+$contentPages = [];
+$pageNo = 0;
+$content = '';
+$y = $pageHeight - $mTop;
+
+$setFill = function (int $r, int $g, int $b) {
+  return (sprintf('%.3f %.3f %.3f rg', $r / 255, $g / 255, $b / 255)) . "\n";
+};
+$setStroke = function (int $r, int $g, int $b) {
+  return (sprintf('%.3f %.3f %.3f RG', $r / 255, $g / 255, $b / 255)) . "\n";
+};
+$drawLine = function (float $x1, float $y1, float $x2, float $y2, float $w = 1.0) {
+  return $w . " w\n" . $x1 . " " . $y1 . " m\n" . $x2 . " " . $y2 . " l\nS\n";
+};
+$drawRect = function (float $x, float $y, float $w, float $h, bool $fill = false, bool $stroke = true) {
+  $op = '';
+  if ($fill && $stroke) $op = "B";
+  elseif ($fill) $op = "f";
+  else $op = "S";
+  return $x . " " . $y . " " . $w . " " . $h . " re\n" . $op . "\n";
+};
+$wrap = function (string $text, int $maxChars): array {
+  $t = trim(preg_replace('/\s+/', ' ', (string)$text));
+  if ($t === '') return ['-'];
+  $words = preg_split('/\s+/', $t) ?: [];
+  $lines = [];
+  $cur = '';
+  foreach ($words as $w) {
+    $test = $cur === '' ? $w : ($cur . ' ' . $w);
+    if (strlen($test) <= $maxChars) {
+      $cur = $test;
+      continue;
+    }
+    if ($cur !== '') $lines[] = $cur;
+    $cur = $w;
+  }
+  if ($cur !== '') $lines[] = $cur;
+  return $lines ?: ['-'];
+};
+$text = function (float $x, float $y, string $font, int $size, string $txt, int $r = 15, int $g = 23, int $b = 42) use ($pdfEsc, $setFill) {
+  return $setFill($r, $g, $b) . "BT\n/{$font} {$size} Tf\n1 0 0 1 {$x} {$y} Tm\n(" . $pdfEsc($txt) . ") Tj\nET\n";
+};
+
+$startPage = function () use (&$contentPages, &$content, &$y, &$pageNo, $pageHeight, $mTop, $mLeft, $pageWidth, $mRight, $drawLine, $setStroke, $text, $logoJpeg, $logoW, $logoH, $org, $title, $officeAddr, $generatedAt, $overall) {
+  if ($content !== '') $contentPages[] = $content;
+  $content = '';
+  $pageNo++;
+  $y = $pageHeight - $mTop;
+  $content .= $setStroke(226, 232, 240);
+  $logoBox = 40;
+  if ($logoJpeg && $logoW > 0 && $logoH > 0) {
+    $content .= "q\n{$logoBox} 0 0 {$logoBox} {$mLeft} " . ($y - $logoBox) . " cm\n/Im1 Do\nQ\n";
+  }
+  $xText = $mLeft + ($logoJpeg ? ($logoBox + 12) : 0);
+  $content .= $text($xText, $y - 18, 'F2', 14, $org);
+  if ($officeAddr !== '') $content .= $text($xText, $y - 32, 'F1', 9, $officeAddr, 71, 85, 105);
+  $content .= $text($xText, $y - 52, 'F2', 16, $title);
+  $badge = strtoupper($overall !== '' ? $overall : 'N/A');
+  $badgeColor = $badge === 'PASSED' ? [22, 101, 52] : ($badge === 'FAILED' ? [185, 28, 28] : [146, 64, 14]);
+  $content .= $text($pageWidth - $mRight - 140, $y - 52, 'F2', 12, $badge, $badgeColor[0], $badgeColor[1], $badgeColor[2]);
+  $content .= $text($pageWidth - $mRight - 140, $y - 66, 'F1', 9, 'Generated: ' . $generatedAt, 71, 85, 105);
+  $content .= $drawLine($mLeft, $y - 76, $pageWidth - $mRight, $y - 76, 1);
+  $y = $y - 92;
+};
+
+$startPage();
+
+$sectionTitle = function (string $label) use (&$content, &$y, $mLeft, $pageWidth, $mRight, $mBottom, $setFill, $setStroke, $drawRect, $text, $wrap, $startPage) {
+  if ($y < $mBottom + 60) $startPage();
+  $content .= $setStroke(226, 232, 240);
+  $content .= $setFill(248, 250, 252);
+  $content .= $drawRect($mLeft, $y - 22, ($pageWidth - $mLeft - $mRight), 22, true, true);
+  $content .= $text($mLeft + 10, $y - 16, 'F2', 10, strtoupper($label), 30, 41, 59);
+  $y -= 34;
+};
+
+$kvBlock = function (array $rows, int $cols = 2) use (&$content, &$y, $mLeft, $pageWidth, $mRight, $mBottom, $setStroke, $setFill, $drawRect, $text, $wrap, $startPage) {
+  $w = $pageWidth - $mLeft - $mRight;
+  $colW = $cols > 1 ? ($w / $cols) : $w;
+  $lineH = 13;
+  $maxChars = (int)floor(($colW - 20) / 5.6);
+  $rowLines = [];
+  $maxRowH = 0;
+  foreach ($rows as $row) {
+    $valLines = $wrap((string)($row[1] ?? ''), max(20, $maxChars));
+    $rowLines[] = $valLines;
+    $rh = max(1, count($valLines)) * $lineH + 16;
+    if ($rh > $maxRowH) $maxRowH = $rh;
+  }
+  $needH = $maxRowH * (int)ceil(count($rows) / $cols) + 14;
+  if ($y < $mBottom + $needH) $startPage();
+  $content .= $setStroke(226, 232, 240);
+  $content .= $setFill(255, 255, 255);
+  $content .= $drawRect($mLeft, $y - $needH, $w, $needH, true, true);
+  $x0 = $mLeft + 10;
+  $y0 = $y - 18;
+  for ($i = 0; $i < count($rows); $i++) {
+    $r = $rows[$i];
+    $c = $i % $cols;
+    $rr = (int)floor($i / $cols);
+    $x = $x0 + $c * $colW;
+    $yy = $y0 - $rr * $maxRowH;
+    $content .= $text($x, $yy, 'F2', 8, strtoupper((string)($r[0] ?? '')), 100, 116, 139);
+    $valLines = $rowLines[$i];
+    $vy = $yy - 12;
+    foreach ($valLines as $ln) {
+      $content .= $text($x, $vy, 'F1', 11, (string)$ln);
+      $vy -= $lineH;
+    }
+  }
+  $y -= ($needH + 16);
+};
+
+$sectionTitle('Operator and Vehicle');
+$kv = [];
+$kv[] = ['Operator Name', $operatorName !== '' ? $operatorName : '-'];
+if ($vehCoop !== '') $kv[] = ['Cooperative', $vehCoop];
+if ($vehFranchise !== '') $kv[] = ['Franchise ID', $vehFranchise];
+if ($routeId !== '') $kv[] = ['Route', $routeId];
+if ($vehOwner !== '') $kv[] = ['Registered Owner', $vehOwner];
+$kv[] = ['Plate Number', $vehiclePlate !== '' ? $vehiclePlate : '-'];
+if ($vehDesc !== '') $kv[] = ['Vehicle Details', $vehDesc];
+if ($vehEngine !== '') $kv[] = ['Engine No.', $vehEngine];
+if ($vehChassis !== '') $kv[] = ['Chassis No.', $vehChassis];
+$kvBlock($kv, 2);
+
+$sectionTitle('Inspection Details');
+$det = [];
+$det[] = ['Schedule', 'SCH-' . (int)$scheduleId . ($scheduleLabel !== '' ? (' • ' . $scheduleLabel) : '')];
+$det[] = ['Location', (string)($schedule['location'] ?? '-') ?: '-'];
+$det[] = ['Inspection Type', (string)($schedule['inspection_type'] ?? '-') ?: '-'];
+$det[] = ['Inspector', $inspectorName !== '' ? $inspectorName : '-'];
+$det[] = ['Schedule Status', $status !== '' ? $status : '-'];
+$det[] = ['Submitted At', $submittedAt !== '' ? $submittedAt : '-'];
+if ($certRef !== '') $det[] = ['Certificate Ref', $certRef];
+if ($certInfo && !empty($certInfo['valid_until'])) $det[] = ['Valid Until', (string)$certInfo['valid_until']];
+$kvBlock($det, 2);
+
+$sectionTitle('Checklist and Result');
+if (!$checklist) {
+  $kvBlock([['Checklist', 'No checklist data.']], 1);
+} else {
   $grouped = [];
   foreach ($checklist as $c) {
     $code = (string)($c['item_code'] ?? '');
@@ -507,63 +697,45 @@ if ($checklist) {
   });
 
   foreach ($grouped as $cat => $rows) {
-    $lines[] = strtoupper($cat);
+    $sectionTitle($cat);
     foreach ($rows as $c) {
-      $lbl = ((string)($c['item_label'] ?? '') !== '' ? (string)$c['item_label'] : (string)($c['item_code'] ?? ''));
-      $st = (string)($c['status'] ?? '');
-      $lines[] = sprintf("%-70s %s", substr($lbl, 0, 70), substr($st, 0, 20));
+      $label = (string)($c['item_label'] ?? '');
+      if ($label === '') $label = (string)($c['item_code'] ?? '');
+      $stRaw = strtoupper(trim((string)($c['status'] ?? '')));
+      if ($stRaw === '') $stRaw = 'NA';
+      $stColor = $stRaw === 'PASS' ? [22, 101, 52] : ($stRaw === 'FAIL' ? [185, 28, 28] : [55, 65, 81]);
+      $w = $pageWidth - $mLeft - $mRight;
+      $labelMaxChars = (int)floor(($w - 120) / 5.6);
+      $labelLines = $wrap($label, max(24, $labelMaxChars));
+      $rowH = max(1, count($labelLines)) * 13 + 10;
+      if ($y < $mBottom + $rowH + 20) $startPage();
+      $content .= $setStroke(226, 232, 240);
+      $content .= $drawLine($mLeft, $y, $pageWidth - $mRight, $y, 1);
+      $yy = $y - 18;
+      foreach ($labelLines as $ln) {
+        $content .= $text($mLeft + 10, $yy, 'F1', 10, (string)$ln);
+        $yy -= 13;
+      }
+      $content .= $text($pageWidth - $mRight - 70, $y - 18, 'F2', 10, $stRaw, $stColor[0], $stColor[1], $stColor[2]);
+      $y -= $rowH;
     }
-    $lines[] = '';
-  }
-} else {
-  $lines[] = 'No checklist data.';
-}
-$lines[] = str_repeat('-', 94);
-$lines[] = 'REMARKS';
-$lines[] = str_repeat('-', 94);
-if ($remarks !== '') {
-  foreach (preg_split("/\r\n|\n|\r/", $remarks) as $rl) {
-    $lines[] = substr((string)$rl, 0, 94);
-  }
-} else {
-  $lines[] = '-';
-}
-
-$pageWidth = 595;
-$pageHeight = 842;
-$marginLeft = 36;
-$startY = 806;
-$leading = 10;
-$maxLines = 70;
-
-$pages = [];
-$cur = [];
-foreach ($lines as $ln) {
-  $cur[] = (string)$ln;
-  if (count($cur) >= $maxLines) {
-    $pages[] = $cur;
-    $cur = [];
+    $content .= $setStroke(226, 232, 240);
+    $content .= $drawLine($mLeft, $y, $pageWidth - $mRight, $y, 1);
+    $y -= 14;
   }
 }
-if ($cur) $pages[] = $cur;
-if (!$pages) $pages[] = ['No data.'];
 
-$toWin1252 = function ($s) {
-  $s = (string)$s;
-  if (function_exists('iconv')) {
-    $v = @iconv('UTF-8', 'Windows-1252//TRANSLIT', $s);
-    if ($v !== false && $v !== null) return $v;
-  }
-  return $s;
-};
-$pdfEsc = function ($s) use ($toWin1252) {
-  $s = $toWin1252($s);
-  $s = str_replace("\\", "\\\\", $s);
-  $s = str_replace("(", "\\(", $s);
-  $s = str_replace(")", "\\)", $s);
-  $s = preg_replace("/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/", "", $s);
-  return $s;
-};
+$sectionTitle('Remarks');
+$rem = $remarks !== '' ? $remarks : '-';
+$remLines = $wrap($rem, 110);
+foreach ($remLines as $ln) {
+  if ($y < $mBottom + 24) $startPage();
+  $content .= $text($mLeft + 10, $y, 'F1', 10, (string)$ln, 30, 41, 59);
+  $y -= 13;
+}
+
+if ($content !== '') $contentPages[] = $content;
+if (!$contentPages) $contentPages[] = $text($mLeft, $pageHeight - $mTop - 40, 'F1', 12, 'No data.');
 
 $objects = [];
 $addObj = function ($body) use (&$objects) {
@@ -573,23 +745,27 @@ $addObj = function ($body) use (&$objects) {
 
 $catalogId = $addObj('');
 $pagesId = $addObj('');
-$fontId = $addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>");
+$font1Id = $addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+$font2Id = $addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+$imgId = 0;
+if ($logoJpeg && $logoW > 0 && $logoH > 0) {
+  $imgId = $addObj("<< /Type /XObject /Subtype /Image /Width {$logoW} /Height {$logoH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($logoJpeg) . " >>\nstream\n" . $logoJpeg . "\nendstream");
+}
 
 $pageObjIds = [];
-foreach ($pages as $pageLines) {
-  $content = "BT\n/F1 9 Tf\n" . $leading . " TL\n1 0 0 1 " . $marginLeft . " " . $startY . " Tm\n";
-  foreach ($pageLines as $ln) {
-    $content .= "(" . $pdfEsc($ln) . ") Tj\nT*\n";
-  }
-  $content .= "ET\n";
-  $contentObjId = $addObj("<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream");
-  $pageObjId = $addObj("<< /Type /Page /Parent " . $pagesId . " 0 R /MediaBox [0 0 " . $pageWidth . " " . $pageHeight . "] /Resources << /Font << /F1 " . $fontId . " 0 R >> >> /Contents " . $contentObjId . " 0 R >>");
+foreach ($contentPages as $c) {
+  $contentObjId = $addObj("<< /Length " . strlen($c) . " >>\nstream\n" . $c . "endstream");
+  $resParts = [];
+  $resParts[] = "/Font << /F1 {$font1Id} 0 R /F2 {$font2Id} 0 R >>";
+  if ($imgId > 0) $resParts[] = "/XObject << /Im1 {$imgId} 0 R >>";
+  $resources = "<< " . implode(' ', $resParts) . " >>";
+  $pageObjId = $addObj("<< /Type /Page /Parent {$pagesId} 0 R /MediaBox [0 0 {$pageWidth} {$pageHeight}] /Resources {$resources} /Contents {$contentObjId} 0 R >>");
   $pageObjIds[] = $pageObjId;
 }
 
-$kids = implode(' ', array_map(function ($id) { return $id . " 0 R"; }, $pageObjIds));
-$objects[$pagesId - 1] = "<< /Type /Pages /Count " . count($pageObjIds) . " /Kids [ " . $kids . " ] >>";
-$objects[$catalogId - 1] = "<< /Type /Catalog /Pages " . $pagesId . " 0 R >>";
+$kids = implode(' ', array_map(fn($id) => $id . " 0 R", $pageObjIds));
+$objects[$pagesId - 1] = "<< /Type /Pages /Count " . count($pageObjIds) . " /Kids [ {$kids} ] >>";
+$objects[$catalogId - 1] = "<< /Type /Catalog /Pages {$pagesId} 0 R >>";
 
 $pdf = "%PDF-1.4\n";
 $offsets = [0];
@@ -603,7 +779,7 @@ $pdf .= "0000000000 65535 f \n";
 for ($i = 1; $i <= count($objects); $i++) {
   $pdf .= str_pad((string)$offsets[$i], 10, '0', STR_PAD_LEFT) . " 00000 n \n";
 }
-$pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root " . $catalogId . " 0 R >>\nstartxref\n" . $xrefPos . "\n%%EOF";
+$pdf .= "trailer\n<< /Size " . (count($objects) + 1) . " /Root {$catalogId} 0 R >>\nstartxref\n{$xrefPos}\n%%EOF";
 
 header('Content-Type: application/pdf');
 header('Content-Disposition: attachment; filename="inspection_report_sch_' . (int)$scheduleId . '_' . date('Ymd_His') . '.pdf"');
