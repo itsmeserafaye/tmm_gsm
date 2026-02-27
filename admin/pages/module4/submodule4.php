@@ -392,7 +392,6 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
       <div class="flex items-center gap-2">
         <button type="button" id="btnInspectionPrint" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40">Print</button>
-        <a id="btnInspectionPdf" href="#" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Download PDF</a>
         <button type="button" id="btnCloseInspectionReport" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
@@ -481,7 +480,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const reportModal = document.getElementById('modalInspectionReport');
     const reportFrame = document.getElementById('inspectionReportFrame');
     const reportClose = document.getElementById('btnCloseInspectionReport');
-    const reportPdf = document.getElementById('btnInspectionPdf');
+    const reportPdf = null;
     const reportPrint = document.getElementById('btnInspectionPrint');
 
     function openReportModal(scheduleId) {
