@@ -14,11 +14,11 @@ if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 ?>
 
-<div class="mx-auto max-w-3xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
+<div class="mx-auto max-w-6xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Register Vehicle</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">To operate as a PUV: CR (ownership) + CMVI passed inspection + active franchise + OR + CTPL insurance.</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">Registering a vehicle requires a passed inspection, an approved/active franchise, and verified vehicle-record documents (CR, OR, CTPL, CMVI/PMVIC).</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="?page=module4/submodule1" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
@@ -97,54 +97,33 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
         </div>
 
-        <div id="regWrap" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
-          <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Step 2: LTO Registration (OR) + CTPL Insurance</div>
-          <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="docsWrap" class="hidden p-4 rounded-xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Number</label>
-              <input name="or_number" id="orNumber" inputmode="numeric" minlength="6" maxlength="12" pattern="^[0-9]{6,12}$" data-tmm-filter="digits" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
+              <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Vehicle Record Documents (Required)</div>
+              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Registration is allowed only if all required documents are uploaded and verified in Vehicle Records.</div>
             </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Date</label>
-              <input name="or_date" id="orDate" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Expiry Date</label>
-              <input name="or_expiry_date" id="orExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Registration Year</label>
-              <input name="registration_year" id="regYear" inputmode="numeric" maxlength="4" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" readonly>
-            </div>
-            <div class="sm:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR Document</label>
-              <div id="orExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
-                  <i data-lucide="file-check" class="w-4 h-4"></i>
-                  <span>OR file loaded</span>
-                </div>
-              </div>
-              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">OR missing/expired → cannot activate for PUV operations.</div>
-            </div>
-            <div>
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Expiry Date (CTPL)</label>
-              <input name="insurance_expiry_date" id="insExpiry" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-sm font-semibold" disabled>
-            </div>
-            <div class="sm:col-span-1">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Insurance Document (CTPL)</label>
-              <div id="insExistingBox" class="hidden mt-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                <div class="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
-                  <i data-lucide="file-check" class="w-4 h-4"></i>
-                  <span>Insurance file loaded</span>
-                </div>
-              </div>
-              <div class="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Insurance missing/expired → cannot activate for PUV operations.</div>
-            </div>
+            <a id="btnOpenVehDocs" href="#" class="inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+              <i data-lucide="upload" class="w-4 h-4"></i>
+              Upload / Verify Docs
+            </a>
+          </div>
+          <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
+                <tr class="text-left text-slate-500 dark:text-slate-400">
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Document</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Status</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">File</th>
+                </tr>
+              </thead>
+              <tbody id="docsTbody" class="divide-y divide-slate-200 dark:divide-slate-700"></tbody>
+            </table>
           </div>
           <div class="mt-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
             <div class="text-xs font-black text-slate-500 dark:text-slate-400">System-controlled Status</div>
             <div id="regStatusHint" class="mt-1 text-sm font-black text-slate-900 dark:text-white">Pending</div>
-            <div id="opStatusHint" class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">Activation requires: CR + CMVI Passed + Active Franchise + OR + CTPL Insurance.</div>
+            <div id="opStatusHint" class="mt-1 text-xs font-bold text-slate-500 dark:text-slate-400"></div>
           </div>
         </div>
 
@@ -169,7 +148,9 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnVehSearch = document.getElementById('btnVehSearch');
     const vehDropdownList = document.getElementById('vehDropdownList');
     const vehInfo = document.getElementById('vehInfo');
-    const regWrap = document.getElementById('regWrap');
+    const docsWrap = document.getElementById('docsWrap');
+    const docsTbody = document.getElementById('docsTbody');
+    const btnOpenVehDocs = document.getElementById('btnOpenVehDocs');
     const vehTitle = document.getElementById('vehTitle');
     const vehSub = document.getElementById('vehSub');
     const vehEngine = document.getElementById('vehEngine');
@@ -178,15 +159,6 @@ if ($rootUrl === '/') $rootUrl = '';
     const vehCrDate = document.getElementById('vehCrDate');
     const vehOwner = document.getElementById('vehOwner');
     const vehCrLoaded = document.getElementById('vehCrLoaded');
-    const orNumber = document.getElementById('orNumber');
-    const orDate = document.getElementById('orDate');
-    const orExpiry = document.getElementById('orExpiry');
-    const regYear = document.getElementById('regYear');
-    const orFile = document.getElementById('orFile');
-    const insExpiry = document.getElementById('insExpiry');
-    const insFile = document.getElementById('insFile');
-    const orExistingBox = document.getElementById('orExistingBox');
-    const insExistingBox = document.getElementById('insExistingBox');
     const regStatusHint = document.getElementById('regStatusHint');
     const opStatusHint = document.getElementById('opStatusHint');
 
@@ -220,42 +192,64 @@ if ($rootUrl === '/') $rootUrl = '';
       return vehDropdownPanel && !vehDropdownPanel.classList.contains('hidden');
     }
 
-    let existingOrPath = '';
-    let existingInsPath = '';
-
-    function computeStatus() {
-      const exp = (orExpiry && orExpiry.value) ? String(orExpiry.value) : '';
-      const hasOrFile = !!(orFile && orFile.files && orFile.files.length > 0) || !!existingOrPath;
-      const hasMeta = !!((orNumber && orNumber.value && orNumber.value.trim() !== '') || (orDate && orDate.value && orDate.value.trim() !== ''));
-      const today = new Date();
-      const todayYmd = today.toISOString().slice(0, 10);
-      if (exp && exp < todayYmd) return 'Expired';
-      if (hasOrFile || hasMeta) return 'Registered';
-      return 'Pending';
+    function badgeClass(kind) {
+      if (kind === 'Verified') return 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20';
+      if (kind === 'Pending') return 'bg-amber-100 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/20';
+      return 'bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-400';
     }
 
-    function updateStatusHint() {
-      if (!regStatusHint) return;
-      const st = computeStatus();
-      regStatusHint.textContent = st;
+    function isExpired(exp) {
+      const e = (exp || '').toString().slice(0, 10);
+      if (!e) return false;
+      const today = new Date().toISOString().slice(0, 10);
+      return e < today;
     }
 
-    if (orNumber) orNumber.addEventListener('input', updateStatusHint);
-    if (orDate) orDate.addEventListener('change', updateStatusHint);
-    if (orExpiry) orExpiry.addEventListener('change', updateStatusHint);
-    if (orFile) orFile.addEventListener('change', updateStatusHint);
-    if (insExpiry) insExpiry.addEventListener('change', updateStatusHint);
-    if (insFile) insFile.addEventListener('change', updateStatusHint);
-    if (regYear) regYear.addEventListener('input', () => { regYear.value = String(regYear.value || '').replace(/\D+/g,'').slice(0,4); });
+    function renderDocs(plate, slots) {
+      if (!docsTbody) return { ok: false };
+      const defs = [
+        ['cr', 'Certificate of Registration (CR)'],
+        ['or', 'Official Receipt (OR)'],
+        ['insurance', 'CTPL Insurance'],
+        ['emission', 'CMVI / PMVIC Certificate'],
+      ];
+      let allOk = true;
+      docsTbody.innerHTML = defs.map(([key, label]) => {
+        const s = slots && slots[key] ? slots[key] : null;
+        const fp = s ? String(s.file_path || '') : '';
+        const isV = s ? Number(s.is_verified || 0) === 1 : false;
+        const exp = s ? String(s.expiry_date || '') : '';
+        const missing = !fp;
+        const expBad = (key === 'or' || key === 'insurance') && exp && isExpired(exp);
+        let st = 'Missing';
+        if (!missing) st = isV ? 'Verified' : 'Pending';
+        if (!missing && expBad) st = 'Expired';
+        const cls = st === 'Expired' ? 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20' : badgeClass(st);
+        const href = fp ? (rootUrl + '/admin/uploads/' + encodeURIComponent(fp)) : '';
+        const fileHtml = fp ? `<a class="text-blue-700 dark:text-blue-400 font-semibold hover:underline" target="_blank" rel="noopener" href="${href}">${esc(fp.split('/').pop())}</a>` : `<span class="text-slate-500 dark:text-slate-400 italic">No uploaded document</span>`;
+        const expHtml = exp ? `<span class="ml-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">Exp: ${esc(exp.slice(0,10))}</span>` : '';
+        const rowOk = !missing && isV && !expBad;
+        if (!rowOk) allOk = false;
+        return `
+          <tr>
+            <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">${esc(label)}</td>
+            <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ring-1 ring-inset ${cls}">${esc(st)}</span>${expHtml}</td>
+            <td class="py-3 px-4">${fileHtml}</td>
+          </tr>
+        `;
+      }).join('');
+      return { ok: allOk };
+    }
+
+    function updateStatusHintFromDocs(docOk) {
+      if (regStatusHint) regStatusHint.textContent = docOk ? 'Ready' : 'Pending';
+    }
 
     async function loadVehicleInfo(vehicleId) {
-      existingOrPath = '';
-      existingInsPath = '';
       const res = await fetch(rootUrl + '/admin/api/module4/vehicle_info.php?vehicle_id=' + encodeURIComponent(String(vehicleId)));
       const data = await res.json().catch(() => null);
       if (!data || !data.ok || !data.data) throw new Error((data && data.error) ? data.error : 'load_failed');
       const v = data.data.vehicle || {};
-      const r = data.data.registration || {};
       if (vehTitle) vehTitle.textContent = String(v.plate_number || '-') + (v.vehicle_type ? (' • ' + String(v.vehicle_type)) : '');
       if (vehSub) vehSub.textContent = String(v.operator_name || '-');
       if (vehEngine) vehEngine.textContent = String(v.engine_no || '-');
@@ -266,27 +260,23 @@ if ($rootUrl === '/') $rootUrl = '';
       const crFp = String(v.cr_file_path || '');
       if (vehCrLoaded) vehCrLoaded.classList.toggle('hidden', !crFp);
 
-      existingOrPath = String(r.or_file_path || '');
-      existingInsPath = String(r.insurance_file_path || '');
-
-      if (orExistingBox) orExistingBox.classList.toggle('hidden', !existingOrPath);
-      if (insExistingBox) insExistingBox.classList.toggle('hidden', !existingInsPath);
-
-      if (orNumber) orNumber.value = String(r.or_number || '');
-      if (orDate) orDate.value = String(r.or_date || '');
-      if (orExpiry) orExpiry.value = String(r.or_expiry_date || '');
-      if (regYear) regYear.value = String(r.registration_year || '');
-      if (insExpiry) insExpiry.value = String(r.insurance_expiry_date || '');
       if (vehInfo) vehInfo.classList.remove('hidden');
-      if (regWrap) regWrap.classList.remove('hidden');
-      updateStatusHint();
+      if (docsWrap) docsWrap.classList.remove('hidden');
       if (opStatusHint) {
         const vs = String(v.status || '');
-        opStatusHint.textContent = vs ? ('Operation status: ' + vs) : '';
+        opStatusHint.textContent = vs ? ('Vehicle status: ' + vs) : '';
       }
       if (vehDropdownLabel) {
         const label = String(v.plate_number || '-') + ' • ' + String(v.operator_name || '-');
         vehDropdownLabel.textContent = label;
+      }
+      const plate = String(v.plate_number || '');
+      const slots = (data.data.docs && data.data.docs.slots) ? data.data.docs.slots : {};
+      const docOk = renderDocs(plate, slots).ok;
+      updateStatusHintFromDocs(docOk);
+      if (btnOpenVehDocs) {
+        const p = encodeURIComponent(plate || '');
+        btnOpenVehDocs.setAttribute('href', '?page=puv-database/vehicle-encoding&highlight_plate=' + p + '&open_docs=1');
       }
     }
 
@@ -369,9 +359,6 @@ if ($rootUrl === '/') $rootUrl = '';
         e.preventDefault();
         const vehicleId = Number(vehIdEl && vehIdEl.value ? vehIdEl.value : 0);
         if (!vehicleId) { showToast('Select a vehicle from PUV Database.', 'error'); return; }
-        if (orFile && orFile.files && orFile.files.length > 0) {
-          if (!orExpiry || !orExpiry.value) { showToast('OR expiry date is required when uploading OR.', 'error'); return; }
-        }
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const post = new FormData(form);
         post.set('vehicle_id', String(vehicleId));
@@ -381,7 +368,7 @@ if ($rootUrl === '/') $rootUrl = '';
           const res = await fetch(rootUrl + '/admin/api/module4/register_vehicle.php', { method: 'POST', body: post });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
-          showToast('Registration saved. Status: ' + String(data.registration_status || 'OK'));
+          showToast('Registration saved.');
           setTimeout(() => { window.location.href = '?page=module4/submodule1'; }, 400);
         } catch (err) {
           showToast(err.message || 'Failed', 'error');

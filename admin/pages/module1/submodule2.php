@@ -1762,7 +1762,21 @@ if ($resOpsList) {
         loadVehiclesTable(true);
       });
     }
-    loadVehiclesTable(false);
+    const autoOpenDocs = () => {
+      const params = new URLSearchParams(window.location.search || '');
+      const open = (params.get('open_docs') || '').toString();
+      const plate = (params.get('highlight_plate') || '').toString().toUpperCase().trim();
+      if (open !== '1' || !plate) return;
+      const btn = document.querySelector('[data-veh-docs="1"][data-plate="' + plate.replace(/"/g, '\\"') + '"]');
+      if (btn) btn.click();
+    };
+    loadVehiclesTable(false).then(() => {
+      const highlight = document.getElementById('veh-row-highlight');
+      if (highlight) {
+        setTimeout(() => { highlight.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+      }
+      setTimeout(autoOpenDocs, 250);
+    });
 
     const btnAdd = document.getElementById('btnOpenAddVehicle');
     if (btnAdd && canWrite) {
@@ -2531,9 +2545,5 @@ if ($resOpsList) {
       });
     }
 
-    const highlight = document.getElementById('veh-row-highlight');
-    if (highlight) {
-      setTimeout(() => { highlight.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
-    }
   })();
 </script>
