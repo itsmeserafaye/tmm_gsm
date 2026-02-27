@@ -184,7 +184,7 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 
   <div id="modalConduct" class="fixed inset-0 z-[220] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-    <div class="w-full max-w-5xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
+    <div class="w-full max-w-6xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5">
       <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
         <div class="text-lg font-black text-slate-900 dark:text-white">Conduct Inspection Checklist</div>
         <button type="button" id="btnCloseConduct" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
@@ -323,10 +323,10 @@ if ($rootUrl === '/') $rootUrl = '';
                   <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
                     <div class="text-sm font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($label); ?></div>
                     <input type="hidden" name="labels[<?php echo htmlspecialchars($code); ?>]" value="<?php echo htmlspecialchars($label); ?>">
-                    <?php $sel = strtoupper((string)($existing[$code] ?? 'NA')); ?>
+                    <?php $sel = strtoupper((string)($existing[$code] ?? '')); ?>
                     <div class="mt-3 flex items-center gap-2 flex-wrap">
                       <label class="inline-flex items-center">
-                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="Pass" <?php echo $sel === 'PASS' ? 'checked' : ''; ?> class="sr-only peer">
+                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="Pass" <?php echo $sel === 'PASS' ? 'checked' : ''; ?> required class="sr-only peer">
                         <span class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600">
                           ✓ Pass
                         </span>
@@ -335,12 +335,6 @@ if ($rootUrl === '/') $rootUrl = '';
                         <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="Fail" <?php echo $sel === 'FAIL' ? 'checked' : ''; ?> class="sr-only peer">
                         <span class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-600">
                           ✕ Fail
-                        </span>
-                      </label>
-                      <label class="inline-flex items-center">
-                        <input type="radio" name="items[<?php echo htmlspecialchars($code); ?>]" value="NA" <?php echo ($sel === 'NA' || $sel === '') ? 'checked' : ''; ?> class="sr-only peer">
-                        <span class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer peer-checked:bg-slate-200 peer-checked:text-slate-800 peer-checked:border-slate-300 dark:peer-checked:bg-slate-700 dark:peer-checked:text-slate-100 dark:peer-checked:border-slate-600">
-                          N/A
                         </span>
                       </label>
                     </div>
@@ -651,23 +645,31 @@ if ($rootUrl === '/') $rootUrl = '';
           const getVal = (code) => {
             const q = 'input[type="radio"][name="' + esc('items[' + code + ']') + '"]:checked';
             const el = form.querySelector(q);
-            return el ? String(el.value || '') : 'NA';
+            return el ? String(el.value || '') : '';
           };
           const codes = labelInputs.map((inp) => {
             const name = String(inp.getAttribute('name') || '');
             const m = name.match(/^labels\[(.+)\]$/);
             return m ? String(m[1] || '') : '';
           }).filter((c) => c);
+          const missingAny = [];
           codes.forEach((code) => {
             const v = getVal(code);
             if (required.has(code)) {
-              if (v === 'NA' || v === '') requiredMissing.push(code);
+              if (v === '') requiredMissing.push(code);
               else if (v !== 'Pass') requiredNotPass.push(code);
             }
-            if (!fd.has('items[' + code + ']')) fd.append('items[' + code + ']', v || 'NA');
+            if (v === '') missingAny.push(code);
+            if (!fd.has('items[' + code + ']')) fd.append('items[' + code + ']', v || '');
           });
+          if (missingAny.length) {
+            const names = missingAny.map((c) => codeToLabel[c] || c);
+            showToast('Please mark all checklist items as Pass or Fail: ' + names.join(', '), 'error');
+            btn.disabled = false; btn.textContent = 'Submit Result';
+            return;
+          }
           const anyFail = codes.some((code) => getVal(code) === 'Fail');
-          const allPassOrNA = codes.every((code) => getVal(code) !== 'Fail');
+          const allPass = codes.every((code) => getVal(code) === 'Pass');
           const docOnFile = window.__tmm_docOnFile || {};
           const docMissing = [];
           const docMap = [
@@ -701,7 +703,7 @@ if ($rootUrl === '/') $rootUrl = '';
             return;
           }
           if (overall === 'Passed' && anyFail) { showToast('Overall result is Passed but one or more checklist items are Fail.', 'error'); btn.disabled = false; btn.textContent = 'Submit Result'; return; }
-          if (overall === 'Failed' && allPassOrNA) { showToast('Overall result is Failed but checklist items have no Fail.', 'error'); btn.disabled = false; btn.textContent = 'Submit Result'; return; }
+          if (overall === 'Failed' && allPass) { showToast('Overall result is Failed but checklist items have no Fail.', 'error'); btn.disabled = false; btn.textContent = 'Submit Result'; return; }
 
           const res = await fetch(rootUrl + '/admin/api/module4/submit_checklist.php', { method: 'POST', body: fd });
           const data = await res.json();

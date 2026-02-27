@@ -208,13 +208,22 @@ try {
     ];
 
     $normalized = [];
+    $invalidStatus = [];
     foreach ($items as $code => $status) {
         $c = strtoupper(trim((string)$code));
         if ($c === '') continue;
         if (strpos($c, 'DOC_') === 0) continue;
         $v = normalize_item_status($status);
-        if ($v === '') $v = 'NA';
+        if ($v === 'NA' || $v === '') {
+            $invalidStatus[] = $c;
+            continue;
+        }
         $normalized[$c] = $v;
+    }
+    if ($invalidStatus) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'invalid_item_status', 'items' => array_values($invalidStatus)]);
+        exit;
     }
 
     $missingRequired = [];
@@ -230,6 +239,12 @@ try {
     }
 
     $doc = $docFlags($db, $vehicleId, $vehPlate);
+    $hasUploaded = function (string $field): bool {
+        if (!isset($_FILES[$field]) || !is_array($_FILES[$field])) return false;
+        $err = (int)($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE);
+        return $err === UPLOAD_ERR_OK;
+    };
+    if (!$doc['emission'] && $hasUploaded('doc_cmvi')) $doc['emission'] = true;
     $needDocs = ['cr', 'or', 'insurance', 'emission'];
     $missingDocs = [];
     foreach ($needDocs as $k) {
