@@ -108,6 +108,52 @@ if ($qFilter !== '') {
 }
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
 
+$permCountByTerminal = [];
+try {
+  $idSet = [];
+  foreach ($parkingRows as $r) {
+    $tid = (int)($r['id'] ?? 0);
+    if ($tid > 0) $idSet[$tid] = true;
+  }
+
+  if ($idSet) {
+    $chkDocs = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents' LIMIT 1");
+    if ($chkDocs && $chkDocs->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['type']) ? 'type' : (isset($cols['document_type']) ? 'document_type' : ''));
+      if ($tidCol !== '' && $typeCol !== '') {
+        $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM facility_documents WHERE LOWER(COALESCE($typeCol,'')) LIKE '%permit%' GROUP BY $tidCol");
+        if ($resPerm) {
+          while ($row = $resPerm->fetch_assoc()) {
+            $tid = (int)($row['tid'] ?? 0);
+            if ($tid > 0 && isset($idSet[$tid])) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + (int)($row['c'] ?? 0);
+          }
+        }
+      }
+    }
+
+    $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+    if ($chkPerm && $chkPerm->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      if ($tidCol !== '') {
+        $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM terminal_permits GROUP BY $tidCol");
+        if ($resPerm) {
+          while ($row = $resPerm->fetch_assoc()) {
+            $tid = (int)($row['tid'] ?? 0);
+            if ($tid > 0 && isset($idSet[$tid])) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + (int)($row['c'] ?? 0);
+          }
+        }
+      }
+    }
+  }
+} catch (Throwable $e) {}
+
 $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $rootUrl = '';
 $pos = strpos($scriptName, '/admin/');
@@ -333,7 +379,7 @@ if ($rootUrl === '/') $rootUrl = '';
               ]);
               $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
             ?>
-            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report">
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report" onclick="return window.tmmPrintLink && window.tmmPrintLink(this);">
               <i data-lucide="printer" class="w-4 h-4"></i>
             </a>
           <?php endif; ?>
@@ -355,7 +401,17 @@ if ($rootUrl === '/') $rootUrl = '';
           <?php if ($parkingRows): ?>
             <?php foreach ($parkingRows as $t): ?>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                <td class="py-4 px-6 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars((string)($t['name'] ?? '')); ?></td>
+                <td class="py-4 px-6 font-black text-slate-900 dark:text-white">
+                  <?php echo htmlspecialchars((string)($t['name'] ?? '')); ?>
+                  <?php
+                    $tidBadge = (int)($t['id'] ?? 0);
+                    $pc = (int)($permCountByTerminal[$tidBadge] ?? 0);
+                    $hasPermit = $pc > 0;
+                  ?>
+                  <span class="ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-black <?php echo $hasPermit ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300'; ?>">
+                    <?php echo $hasPermit ? 'Permit on file' : 'No permit'; ?>
+                  </span>
+                </td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">
                   <?php $owner = trim((string)($t['owner_name'] ?? '')); ?>
                   <?php if ($owner): ?>

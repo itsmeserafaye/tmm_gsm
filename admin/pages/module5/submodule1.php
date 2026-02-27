@@ -64,7 +64,7 @@ $taTerminalIdCol = isset($taCols['terminal_id']) ? 'terminal_id' : '';
 $taTerminalNameCol = isset($taCols['terminal_name']) ? 'terminal_name' : (isset($taCols['terminal']) ? 'terminal' : '');
 
 $termCols = [];
-$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category')");
+$termColRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminals' AND COLUMN_NAME IN ('city','address','category','status')");
 if ($termColRes) {
   while ($c = $termColRes->fetch_assoc()) {
     $termCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
@@ -73,6 +73,7 @@ if ($termColRes) {
 $termHasCity = isset($termCols['city']);
 $termHasAddress = isset($termCols['address']);
 $termHasCategory = isset($termCols['category']);
+$termHasStatus = isset($termCols['status']);
 
 $ownerNameExpr = "NULL";
 $faExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements' LIMIT 1")?->fetch_row());
@@ -94,8 +95,10 @@ if ($faExists && $foExists) {
 $qFilter = trim((string)($_GET['q'] ?? ''));
 $cityFilter = trim((string)($_GET['city'] ?? ''));
 $catFilter = trim((string)($_GET['category'] ?? ''));
+$statusFilter = trim((string)($_GET['status'] ?? ''));
 $cities = [];
 $categories = [];
+$statuses = [];
 if ($termHasCity) {
   $resCities = $db->query("SELECT DISTINCT TRIM(COALESCE(city,'')) AS city FROM terminals WHERE type <> 'Parking' AND COALESCE(city,'') <> '' ORDER BY city ASC LIMIT 200");
   if ($resCities) while ($r = $resCities->fetch_assoc()) { $c = trim((string)($r['city'] ?? '')); if ($c !== '') $cities[] = $c; }
@@ -103,6 +106,10 @@ if ($termHasCity) {
 if ($termHasCategory) {
   $resCats = $db->query("SELECT DISTINCT TRIM(COALESCE(category,'')) AS category FROM terminals WHERE type <> 'Parking' AND COALESCE(category,'') <> '' ORDER BY category ASC LIMIT 200");
   if ($resCats) while ($r = $resCats->fetch_assoc()) { $c = trim((string)($r['category'] ?? '')); if ($c !== '') $categories[] = $c; }
+}
+if ($termHasStatus) {
+  $resStats = $db->query("SELECT DISTINCT TRIM(COALESCE(status,'')) AS status FROM terminals WHERE type <> 'Parking' AND COALESCE(status,'') <> '' ORDER BY status ASC LIMIT 200");
+  if ($resStats) while ($r = $resStats->fetch_assoc()) { $s = trim((string)($r['status'] ?? '')); if ($s !== '') $statuses[] = $s; }
 }
 
 $assignCountByTerminalId = [];
@@ -151,6 +158,11 @@ if ($cityFilter !== '') {
 if ($catFilter !== '') {
   $sqlTerm .= " AND t.category = ?";
   $params[] = $catFilter;
+  $types .= 's';
+}
+if ($statusFilter !== '' && $termHasStatus) {
+  $sqlTerm .= " AND COALESCE(t.status,'') = ?";
+  $params[] = $statusFilter;
   $types .= 's';
 }
 
@@ -278,6 +290,7 @@ if ($rootUrl === '/') $rootUrl = '';
               'q' => $qFilter,
               'city' => $cityFilter,
               'category' => $catFilter,
+              'status' => $statusFilter,
               'type' => 'Terminal'
             ]);
             if (has_permission('reports.export')) {
@@ -320,7 +333,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Terminal name / location">
               </div>
             </div>
-            <div class="md:col-span-3">
+            <div class="md:col-span-2">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">City</label>
               <select name="city" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <option value="" <?php echo $cityFilter === '' ? 'selected' : ''; ?>>All Cities</option>
@@ -329,12 +342,21 @@ if ($rootUrl === '/') $rootUrl = '';
                 <?php endforeach; ?>
               </select>
             </div>
-            <div class="md:col-span-3">
+            <div class="md:col-span-2">
               <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Category</label>
               <select name="category" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                 <option value="" <?php echo $catFilter === '' ? 'selected' : ''; ?>>All Categories</option>
                 <?php foreach ($categories as $c): ?>
                   <option value="<?php echo htmlspecialchars($c); ?>" <?php echo $catFilter === $c ? 'selected' : ''; ?>><?php echo htmlspecialchars($c); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+              <select name="status" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" <?php echo $termHasStatus ? '' : 'disabled'; ?>>
+                <option value="" <?php echo $statusFilter === '' ? 'selected' : ''; ?>>All Status</option>
+                <?php foreach ($statuses as $s): ?>
+                  <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $statusFilter === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
