@@ -270,17 +270,49 @@ try {
   // Ensure terminal has at least one legal permit; if not, require upload now
   $hasPermit = null;
   try {
-    $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
-    if ($chkPerm && $chkPerm->fetch_row()) {
-      $stmtPc = $db->prepare("SELECT COUNT(*) AS c FROM terminal_permits WHERE terminal_id=?");
-      if ($stmtPc) {
-        $stmtPc->bind_param('i', $terminalId);
-        $stmtPc->execute();
-        $rowPc = $stmtPc->get_result()->fetch_assoc();
-        $stmtPc->close();
-        $hasPermit = ((int)($rowPc['c'] ?? 0)) > 0;
+    $hasPermit = false;
+    $foundAny = false;
+
+    $chkDocs = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents' LIMIT 1");
+    if ($chkDocs && $chkDocs->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['type']) ? 'type' : (isset($cols['document_type']) ? 'document_type' : ''));
+      if ($tidCol !== '' && $typeCol !== '') {
+        $foundAny = true;
+        $stmtPc = $db->prepare("SELECT COUNT(*) AS c FROM facility_documents WHERE $tidCol=? AND LOWER(COALESCE($typeCol,'')) LIKE '%permit%'");
+        if ($stmtPc) {
+          $stmtPc->bind_param('i', $terminalId);
+          $stmtPc->execute();
+          $rowPc = $stmtPc->get_result()->fetch_assoc();
+          $stmtPc->close();
+          if (((int)($rowPc['c'] ?? 0)) > 0) $hasPermit = true;
+        }
       }
     }
+
+    $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+    if (!$hasPermit && $chkPerm && $chkPerm->fetch_row()) {
+      $cols = [];
+      $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+      if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+      $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+      if ($tidCol !== '') {
+        $foundAny = true;
+        $stmtPc = $db->prepare("SELECT COUNT(*) AS c FROM terminal_permits WHERE $tidCol=?");
+        if ($stmtPc) {
+          $stmtPc->bind_param('i', $terminalId);
+          $stmtPc->execute();
+          $rowPc = $stmtPc->get_result()->fetch_assoc();
+          $stmtPc->close();
+          if (((int)($rowPc['c'] ?? 0)) > 0) $hasPermit = true;
+        }
+      }
+    }
+
+    if (!$foundAny) $hasPermit = null;
   } catch (Throwable $e) {
     $hasPermit = null;
   }
