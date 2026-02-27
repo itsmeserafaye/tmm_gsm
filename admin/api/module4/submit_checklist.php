@@ -89,6 +89,69 @@ try {
         }
     }
 
+    $hasTable = function (mysqli $db, string $table): bool {
+        $t = $db->real_escape_string($table);
+        $r = $db->query("SHOW TABLES LIKE '$t'");
+        return $r && (bool)$r->fetch_row();
+    };
+
+    $hasCol = function (mysqli $db, string $table, string $col): bool {
+        $t = $db->real_escape_string($table);
+        $c = $db->real_escape_string($col);
+        $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $r && $r->num_rows > 0;
+    };
+
+    $docFlags = function (mysqli $db, int $vehicleId, string $plate) use ($hasTable, $hasCol): array {
+        $flags = ['cr' => false, 'or' => false, 'insurance' => false, 'emission' => false];
+        if ($vehicleId <= 0 && $plate === '') return $flags;
+
+        if ($plate !== '' && $hasTable($db, 'documents') && $hasCol($db, 'documents', 'type') && $hasCol($db, 'documents', 'plate_number')) {
+            $stmt = $db->prepare("SELECT LOWER(type) AS t FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or','insurance')");
+            if ($stmt) {
+                $stmt->bind_param('s', $plate);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($res && ($row = $res->fetch_assoc())) {
+                    $t = (string)($row['t'] ?? '');
+                    if ($t === 'cr') $flags['cr'] = true;
+                    elseif ($t === 'or') $flags['or'] = true;
+                    elseif ($t === 'insurance') $flags['insurance'] = true;
+                }
+                $stmt->close();
+            }
+        }
+
+        if ($hasTable($db, 'vehicle_documents')) {
+            $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
+            $cols = [];
+            while ($colsRes && ($r = $colsRes->fetch_assoc())) {
+                $cols[strtolower((string)($r['Field'] ?? ''))] = true;
+            }
+            $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
+            $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
+            if ($idCol && $typeCol) {
+                $sql = "SELECT UPPER({$typeCol}) AS t FROM vehicle_documents WHERE {$idCol}=? ORDER BY 1";
+                $stmt2 = $db->prepare($sql);
+                if ($stmt2) {
+                    if ($idCol === 'vehicle_id') $stmt2->bind_param('i', $vehicleId);
+                    else $stmt2->bind_param('s', $plate);
+                    $stmt2->execute();
+                    $res2 = $stmt2->get_result();
+                    while ($res2 && ($row = $res2->fetch_assoc())) {
+                        $t = strtoupper(trim((string)($row['t'] ?? '')));
+                        if ($t === 'CR' || $t === 'ORCR') $flags['cr'] = true;
+                        if ($t === 'OR' || $t === 'ORCR') $flags['or'] = true;
+                        if ($t === 'INSURANCE') $flags['insurance'] = true;
+                        if ($t === 'EMISSION') $flags['emission'] = true;
+                    }
+                    $stmt2->close();
+                }
+            }
+        }
+        return $flags;
+    };
+
     $allowed = ['Passed', 'Failed', 'Pending', 'For Reinspection'];
     $overallFromPost = trim($_POST['overall_status'] ?? '');
     $overall = '';
@@ -141,13 +204,14 @@ try {
     $requiredCodes = [
         'RW_LIGHTS', 'RW_HORN', 'RW_BRAKES', 'RW_STEER', 'RW_TIRES',
         'RW_WIPERS', 'RW_MIRRORS', 'RW_LEAKS', 'PS_DOORS',
-        'SE_EXT', 'SE_EWD', 'DOC_CR', 'DOC_OR', 'DOC_CMVI', 'DOC_CTPL'
+        'SE_EXT', 'SE_EWD'
     ];
 
     $normalized = [];
     foreach ($items as $code => $status) {
         $c = strtoupper(trim((string)$code));
         if ($c === '') continue;
+        if (strpos($c, 'DOC_') === 0) continue;
         $v = normalize_item_status($status);
         if ($v === '') $v = 'NA';
         $normalized[$c] = $v;
@@ -162,6 +226,18 @@ try {
     if ($missingRequired) {
         http_response_code(400);
         echo json_encode(['ok' => false, 'error' => 'required_items_missing', 'required' => $missingRequired]);
+        exit;
+    }
+
+    $doc = $docFlags($db, $vehicleId, $vehPlate);
+    $needDocs = ['cr', 'or', 'insurance', 'emission'];
+    $missingDocs = [];
+    foreach ($needDocs as $k) {
+        if (empty($doc[$k])) $missingDocs[] = strtoupper($k);
+    }
+    if ($missingDocs) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'required_documents_missing', 'required' => $missingDocs]);
         exit;
     }
 
@@ -241,6 +317,7 @@ try {
             $codeStr = strtoupper(trim((string)$code));
             $statusStr = normalize_item_status($status);
             if ($codeStr === '') continue;
+            if (strpos($codeStr, 'DOC_') === 0) continue;
             if ($statusStr === '') $statusStr = 'NA';
             
             $label = $codeStr;

@@ -79,6 +79,7 @@ $vehHasOrDate = $hasCol('vehicles', 'or_date');
 $vehHasOrExp = $hasCol('vehicles', 'or_expiry_date');
 $vehHasRegYear = $hasCol('vehicles', 'registration_year');
 $vehHasInsExp = $hasCol('vehicles', 'insurance_expiry_date');
+$vehHasInsp = $hasCol('vehicles', 'inspection_status');
 
 $stmtV = $db->prepare("SELECT id, plate_number, operator_id" .
   ($vehHasOrNumber ? ", or_number" : ", '' AS or_number") .
@@ -86,6 +87,7 @@ $stmtV = $db->prepare("SELECT id, plate_number, operator_id" .
   ($vehHasOrExp ? ", or_expiry_date" : ", '' AS or_expiry_date") .
   ($vehHasRegYear ? ", registration_year" : ", '' AS registration_year") .
   ($vehHasInsExp ? ", insurance_expiry_date" : ", '' AS insurance_expiry_date") .
+  ($vehHasInsp ? ", inspection_status" : ", '' AS inspection_status") .
   " FROM vehicles WHERE id=? LIMIT 1");
 if (!$stmtV) {
   http_response_code(500);
@@ -107,6 +109,7 @@ $vehOrDate = trim((string)($veh['or_date'] ?? ''));
 $vehOrExpiry = trim((string)($veh['or_expiry_date'] ?? ''));
 $vehRegYear = trim((string)($veh['registration_year'] ?? ''));
 $vehInsExpiry = trim((string)($veh['insurance_expiry_date'] ?? ''));
+$vehInspStatus = trim((string)($veh['inspection_status'] ?? ''));
 
 if ($orNumber === '' && $vehOrNumber !== '') $orNumber = $vehOrNumber;
 if ($orDate === '' && $vehOrDate !== '') $orDate = $vehOrDate;
@@ -117,6 +120,13 @@ $operatorId = (int)($veh['operator_id'] ?? 0);
 if ($operatorId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'vehicle_not_linked_to_operator']);
+  exit;
+}
+
+$inspOk = $vehHasInsp ? (strcasecmp($vehInspStatus, 'Passed') === 0) : true;
+if (!$inspOk) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'inspection_not_passed']);
   exit;
 }
 
@@ -226,10 +236,11 @@ if ((!$hasOrExisting || !$hasInsuranceExisting)) {
 $hasOrDoc = $hasOrUploadFile || $hasOrExisting;
 $hasInsuranceDoc = $hasInsuranceUploadFile || $hasInsuranceExisting;
 
+$frOk = false;
 $stmtF = $db->prepare("SELECT f.franchise_id
                        FROM franchises f
                        JOIN franchise_applications a ON a.application_id=f.application_id
-                       WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved')
+                       WHERE a.operator_id=? AND a.status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active')
                          AND f.status='Active'
                          AND (f.expiry_date IS NULL OR f.expiry_date >= CURDATE())
                        LIMIT 1");
@@ -238,11 +249,26 @@ if ($stmtF) {
   $stmtF->execute();
   $fr = $stmtF->get_result()->fetch_assoc();
   $stmtF->close();
-  if (!$fr) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
-    exit;
+  if ($fr) $frOk = true;
+}
+if (!$frOk) {
+  $stmtA = $db->prepare("SELECT application_id
+                         FROM franchise_applications
+                         WHERE operator_id=? AND status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued','Active')
+                         ORDER BY application_id DESC
+                         LIMIT 1");
+  if ($stmtA) {
+    $stmtA->bind_param('i', $operatorId);
+    $stmtA->execute();
+    $rowA = $stmtA->get_result()->fetch_assoc();
+    $stmtA->close();
+    if ($rowA) $frOk = true;
   }
+}
+if (!$frOk) {
+  http_response_code(400);
+  echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
+  exit;
 }
 
 $hasCol = function (string $table, string $col) use ($db): bool {
