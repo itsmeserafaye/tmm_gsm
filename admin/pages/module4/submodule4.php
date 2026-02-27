@@ -85,7 +85,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Inspection outcomes recorded from the checklist.</div>
         </div>
       </div>
-      <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6 border-b border-slate-200 dark:border-slate-700 pb-6">
+      <form id="conductedFilterForm" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6 border-b border-slate-200 dark:border-slate-700 pb-6">
         <input type="hidden" name="page" value="module4/submodule4">
         <div class="md:col-span-4">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
@@ -112,9 +112,9 @@ if ($rootUrl === '/') $rootUrl = '';
         </div>
         <div class="md:col-span-2 flex items-center gap-2">
           <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
-          <a href="?page=module4/submodule4" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
+          <button type="button" id="btnResetConductedFilters" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-          </a>
+          </button>
         </div>
       </form>
       <div class="overflow-x-auto">
@@ -130,7 +130,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+          <tbody id="conductedTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
             <?php if (!empty($conductedRows)): ?>
               <?php foreach ($conductedRows as $r): ?>
                 <?php
@@ -401,6 +401,9 @@ if ($rootUrl === '/') $rootUrl = '';
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const conductedForm = document.getElementById('conductedFilterForm');
+    const conductedTbody = document.getElementById('conductedTbody');
+    const btnResetConducted = document.getElementById('btnResetConductedFilters');
     const form = document.getElementById('formConduct');
     const btn = document.getElementById('btnSubmit');
     const btnViewReport = document.getElementById('btnViewReport');
@@ -466,6 +469,63 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.classList.add('opacity-0'); el.style.transition = 'opacity 250ms'; }, 2600);
       setTimeout(() => { el.remove(); }, 3000);
     }
+
+    async function loadConductedTable(pushState) {
+      if (!conductedForm || !conductedTbody) return;
+      conductedTbody.innerHTML = '<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
+      try {
+        const fd = new FormData(conductedForm);
+        const qs = new URLSearchParams();
+        const q = (fd.get('q') || '').toString().trim();
+        const r = (fd.get('result') || '').toString().trim();
+        const f = (fd.get('from') || '').toString().trim();
+        const t = (fd.get('to') || '').toString().trim();
+        if (q) qs.set('q', q);
+        if (r) qs.set('result', r);
+        if (f) qs.set('from', f);
+        if (t) qs.set('to', t);
+        const res = await fetch(rootUrl + '/admin/api/module4/conducted_inspections_table.php?' + qs.toString(), { credentials: 'same-origin' });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        conductedTbody.innerHTML = (data.html || '').toString();
+        if (window.lucide) window.lucide.createIcons();
+        if (pushState) {
+          const params = new URLSearchParams(window.location.search || '');
+          params.set('page', 'module4/submodule4');
+          params.delete('q'); params.delete('result'); params.delete('from'); params.delete('to');
+          if (q) params.set('q', q);
+          if (r) params.set('result', r);
+          if (f) params.set('from', f);
+          if (t) params.set('to', t);
+          history.replaceState(null, '', '?' + params.toString());
+        }
+      } catch (e) {
+        conductedTbody.innerHTML = '<tr><td colspan="7" class="py-10 text-center text-rose-600 font-semibold">Failed to load inspections.</td></tr>';
+        showToast('Failed to load inspections.', 'error');
+      }
+    }
+
+    if (conductedForm) {
+      conductedForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadConductedTable(true);
+      });
+    }
+    if (btnResetConducted && conductedForm) {
+      btnResetConducted.addEventListener('click', () => {
+        const q = conductedForm.querySelector('input[name="q"]');
+        const r = conductedForm.querySelector('select[name="result"]');
+        const f = conductedForm.querySelector('input[name="from"]');
+        const t = conductedForm.querySelector('input[name="to"]');
+        if (q) q.value = '';
+        if (r) r.value = '';
+        if (f) f.value = '';
+        if (t) t.value = '';
+        loadConductedTable(true);
+      });
+    }
+
+    loadConductedTable(false);
 
     function getScheduleId() {
       if (!scheduleSelect) return '';

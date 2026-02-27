@@ -131,6 +131,115 @@ if (!$inspOk) {
 }
 
 $plate = (string)($veh['plate_number'] ?? '');
+
+$hasTable = function (string $table) use ($db): bool {
+  $t = $db->real_escape_string($table);
+  $r = $db->query("SHOW TABLES LIKE '$t'");
+  return $r && (bool)$r->fetch_row();
+};
+
+$docReq = function (int $vehicleId, string $plate) use ($db, $hasCol, $hasTable): array {
+  $today = date('Y-m-d');
+  $out = [
+    'ok' => false,
+    'missing' => [],
+    'unverified' => [],
+    'expired' => [],
+    'details' => [],
+  ];
+  $need = ['CR' => 'cr', 'OR' => 'or', 'INSURANCE' => 'insurance', 'EMISSION' => 'emission'];
+  $found = [];
+
+  if ($hasTable('vehicle_documents')) {
+    $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
+    $cols = [];
+    while ($colsRes && ($r = $colsRes->fetch_assoc())) {
+      $cols[strtolower((string)($r['Field'] ?? ''))] = true;
+    }
+    $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
+    $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
+    $pathCol = isset($cols['file_path']) ? 'file_path' : null;
+    $verCol = isset($cols['is_verified']) ? 'is_verified' : (isset($cols['verified']) ? 'verified' : (isset($cols['isapproved']) ? 'isApproved' : null));
+    $expCol = isset($cols['expiry_date']) ? 'expiry_date' : (isset($cols['expiration_date']) ? 'expiration_date' : null);
+    $dateCol = isset($cols['uploaded_at']) ? 'uploaded_at' : (isset($cols['created_at']) ? 'created_at' : null);
+    if ($idCol && $typeCol && $pathCol) {
+      $orderSql = $dateCol ? " ORDER BY {$dateCol} DESC" : "";
+      $sql = "SELECT UPPER({$typeCol}) AS t, {$pathCol} AS fp, " .
+             ($verCol ? "COALESCE({$verCol},0)" : "0") . " AS is_verified, " .
+             ($expCol ? "{$expCol}" : "NULL") . " AS exp
+              FROM vehicle_documents
+              WHERE {$idCol}=? AND UPPER({$typeCol}) IN ('CR','OR','ORCR','INSURANCE','EMISSION'){$orderSql}";
+      $stmt = $db->prepare($sql);
+      if ($stmt) {
+        if ($idCol === 'vehicle_id') $stmt->bind_param('i', $vehicleId);
+        else $stmt->bind_param('s', $plate);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($res && ($row = $res->fetch_assoc())) {
+          $t = strtoupper(trim((string)($row['t'] ?? '')));
+          $fp = trim((string)($row['fp'] ?? ''));
+          $isV = (int)($row['is_verified'] ?? 0);
+          $exp = (string)($row['exp'] ?? '');
+          if ($fp === '') continue;
+          if ($t === 'ORCR') {
+            if (!isset($found['CR'])) $found['CR'] = ['is_verified' => $isV, 'expiry_date' => '', 'file_path' => $fp, 'source' => 'vehicle_documents'];
+            if (!isset($found['OR'])) $found['OR'] = ['is_verified' => $isV, 'expiry_date' => $exp, 'file_path' => $fp, 'source' => 'vehicle_documents'];
+            continue;
+          }
+          if (!isset($need[$t])) continue;
+          if (!isset($found[$t])) {
+            $found[$t] = ['is_verified' => $isV, 'expiry_date' => $exp, 'file_path' => $fp, 'source' => 'vehicle_documents'];
+          }
+        }
+        $stmt->close();
+      }
+    }
+  }
+
+  if ($hasTable('documents') && $plate !== '' && $hasCol('documents','plate_number') && $hasCol('documents','type') && $hasCol('documents','file_path')) {
+    $hasVerified = $hasCol('documents', 'verified');
+    $hasExpiry = $hasCol('documents', 'expiry_date');
+    $stmt = $db->prepare("SELECT LOWER(type) AS t, file_path, " .
+                          ($hasVerified ? "COALESCE(verified,0)" : "0") . " AS is_verified, " .
+                          ($hasExpiry ? "expiry_date" : "NULL") . " AS exp
+                          FROM documents WHERE plate_number=? AND LOWER(type) IN ('cr','or','insurance')
+                          ORDER BY " . ($hasCol('documents','uploaded_at') ? "uploaded_at DESC" : "id DESC"));
+    if ($stmt) {
+      $stmt->bind_param('s', $plate);
+      $stmt->execute();
+      $res = $stmt->get_result();
+      while ($res && ($row = $res->fetch_assoc())) {
+        $t = strtolower(trim((string)($row['t'] ?? '')));
+        $fp = trim((string)($row['file_path'] ?? ''));
+        $isV = (int)($row['is_verified'] ?? 0);
+        $exp = (string)($row['exp'] ?? '');
+        if ($fp === '') continue;
+        $map = ['cr' => 'CR', 'or' => 'OR', 'insurance' => 'INSURANCE'];
+        if (!isset($map[$t])) continue;
+        $k = $map[$t];
+        if (!isset($found[$k])) {
+          $found[$k] = ['is_verified' => $isV, 'expiry_date' => $exp, 'file_path' => $fp, 'source' => 'documents'];
+        }
+      }
+      $stmt->close();
+    }
+  }
+
+  foreach ($need as $k => $slot) {
+    if (!isset($found[$k])) {
+      $out['missing'][] = $k;
+      continue;
+    }
+    $d = $found[$k];
+    $out['details'][$slot] = $d;
+    if ((int)($d['is_verified'] ?? 0) !== 1) $out['unverified'][] = $k;
+    $exp = (string)($d['expiry_date'] ?? '');
+    if (($k === 'OR' || $k === 'INSURANCE') && $exp !== '' && $exp < $today) $out['expired'][] = $k;
+  }
+
+  $out['ok'] = !$out['missing'] && !$out['unverified'] && !$out['expired'];
+  return $out;
+};
 $opNameResolved = '';
 $stmtOp = $db->prepare("SELECT name, full_name FROM operators WHERE id=? LIMIT 1");
 if ($stmtOp) {
@@ -143,98 +252,23 @@ if ($stmtOp) {
     if ($opNameResolved === '') $opNameResolved = trim((string)($op['full_name'] ?? ''));
   }
 }
-$hasCr = false;
-$stmtCr = $db->prepare("SELECT id FROM documents WHERE plate_number=? AND LOWER(type)='cr' LIMIT 1");
-if ($stmtCr) {
-  $stmtCr->bind_param('s', $plate);
-  $stmtCr->execute();
-  $hasCr = (bool)$stmtCr->get_result()->fetch_assoc();
-  $stmtCr->close();
-}
-if (!$hasCr) {
-  $vd = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
-  if ($vd && $vd->fetch_row()) {
-    $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
-    $cols = [];
-    while ($colsRes && ($r = $colsRes->fetch_assoc())) {
-      $cols[strtolower((string)($r['Field'] ?? ''))] = true;
-    }
-    $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
-    $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
-    if ($idCol && $typeCol) {
-      $sql = "SELECT 1 FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol})='CR' LIMIT 1";
-      $stmtVd = $db->prepare($sql);
-      if ($stmtVd) {
-        if ($idCol === 'vehicle_id') $stmtVd->bind_param('i', $vehicleId);
-        else $stmtVd->bind_param('s', $plate);
-        $stmtVd->execute();
-        $hasCr = (bool)$stmtVd->get_result()->fetch_row();
-        $stmtVd->close();
-      }
-    }
-  }
-}
-if (!$hasCr) {
+$doc = $docReq($vehicleId, $plate);
+if (!$doc['ok']) {
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'cr_not_found_in_puv_db']);
+  $err = $doc['missing'] ? 'required_documents_missing' : ($doc['expired'] ? 'required_documents_expired' : 'required_documents_not_verified');
+  echo json_encode([
+    'ok' => false,
+    'error' => $err,
+    'missing' => $doc['missing'],
+    'unverified' => $doc['unverified'],
+    'expired' => $doc['expired'],
+    'details' => $doc['details'],
+  ]);
   exit;
 }
 
-$hasOrExisting = false;
-$stmtOr = $db->prepare("SELECT id FROM documents WHERE plate_number=? AND LOWER(type)='or' LIMIT 1");
-if ($stmtOr) {
-  $stmtOr->bind_param('s', $plate);
-  $stmtOr->execute();
-  $hasOrExisting = (bool)$stmtOr->get_result()->fetch_assoc();
-  $stmtOr->close();
-}
-$hasInsuranceExisting = false;
-$stmtIns = $db->prepare("SELECT id FROM documents WHERE plate_number=? AND LOWER(type)='insurance' LIMIT 1");
-if ($stmtIns) {
-  $stmtIns->bind_param('s', $plate);
-  $stmtIns->execute();
-  $hasInsuranceExisting = (bool)$stmtIns->get_result()->fetch_assoc();
-  $stmtIns->close();
-}
-if ((!$hasOrExisting || !$hasInsuranceExisting)) {
-  $vd2 = $db->query("SHOW TABLES LIKE 'vehicle_documents'");
-  if ($vd2 && $vd2->fetch_row()) {
-  $colsRes = $db->query("SHOW COLUMNS FROM vehicle_documents");
-  $cols = [];
-  while ($colsRes && ($r = $colsRes->fetch_assoc())) {
-    $cols[strtolower((string)($r['Field'] ?? ''))] = true;
-  }
-  $idCol = isset($cols['vehicle_id']) ? 'vehicle_id' : (isset($cols['plate_number']) ? 'plate_number' : null);
-  $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
-  if ($idCol && $typeCol) {
-    if (!$hasOrExisting) {
-      $sql = "SELECT 1 FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol})='OR' LIMIT 1";
-      $st = $db->prepare($sql);
-      if ($st) {
-        if ($idCol === 'vehicle_id') $st->bind_param('i', $vehicleId);
-        else $st->bind_param('s', $plate);
-        $st->execute();
-        $hasOrExisting = (bool)$st->get_result()->fetch_row();
-        $st->close();
-      }
-    }
-    if (!$hasInsuranceExisting) {
-      $sql = "SELECT 1 FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol})='INSURANCE' LIMIT 1";
-      $st = $db->prepare($sql);
-      if ($st) {
-        if ($idCol === 'vehicle_id') $st->bind_param('i', $vehicleId);
-        else $st->bind_param('s', $plate);
-        $st->execute();
-        $hasInsuranceExisting = (bool)$st->get_result()->fetch_row();
-        $st->close();
-      }
-    }
-  }
-  }
-}
-
-$hasOrDoc = $hasOrUploadFile || $hasOrExisting;
-$hasInsuranceDoc = $hasInsuranceUploadFile || $hasInsuranceExisting;
+$hasOrDoc = true;
+$hasInsuranceDoc = true;
 
 $frOk = false;
 $stmtF = $db->prepare("SELECT f.franchise_id

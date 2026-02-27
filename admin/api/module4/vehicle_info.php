@@ -133,7 +133,15 @@ if ($stmtDoc) {
 }
 
 // Fallback to vehicle_documents if missing
-if (($crFile === '' || $orFile === '' || $insuranceFile === '') && $hasTable('vehicle_documents')) {
+// Also compute verified doc slots from vehicle_documents for use by Module 4 screens
+$docSlots = [
+  'cr' => null,
+  'or' => null,
+  'insurance' => null,
+  'emission' => null,
+];
+$docOnFile = ['cr' => false, 'or' => false, 'insurance' => false, 'emission' => false];
+if ($hasTable('vehicle_documents')) {
     $vdCols = $db->query("SHOW COLUMNS FROM vehicle_documents");
     $cols = [];
     while ($vdCols && ($r = $vdCols->fetch_assoc())) {
@@ -143,11 +151,15 @@ if (($crFile === '' || $orFile === '' || $insuranceFile === '') && $hasTable('ve
     $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['document_type']) ? 'document_type' : (isset($cols['type']) ? 'type' : null));
     $pathCol = isset($cols['file_path']) ? 'file_path' : null;
     $dateCol = isset($cols['uploaded_at']) ? 'uploaded_at' : null;
+    $verCol = isset($cols['is_verified']) ? 'is_verified' : (isset($cols['verified']) ? 'verified' : (isset($cols['isapproved']) ? 'isApproved' : null));
     $expCol = isset($cols['expiry_date']) ? 'expiry_date' : (isset($cols['expiration_date']) ? 'expiration_date' : null);
     
     if ($idCol && $typeCol && $pathCol) {
         $orderSql2 = $dateCol ? " ORDER BY $dateCol DESC" : " ORDER BY $pathCol DESC";
-        $sql = "SELECT {$typeCol} AS t, {$pathCol} AS fp" . ($expCol ? ", {$expCol} AS exp" : ", NULL AS exp") . " FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol}) IN ('CR','OR','INSURANCE') $orderSql2";
+        $sql = "SELECT {$typeCol} AS t, {$pathCol} AS fp" .
+               ($expCol ? ", {$expCol} AS exp" : ", NULL AS exp") .
+               ($verCol ? ", COALESCE({$verCol},0) AS is_verified" : ", 0 AS is_verified") .
+               " FROM vehicle_documents WHERE {$idCol}=? AND UPPER({$typeCol}) IN ('CR','OR','ORCR','INSURANCE','EMISSION') $orderSql2";
         $stmt2 = $db->prepare($sql);
         if ($stmt2) {
             if ($idCol === 'vehicle_id') $stmt2->bind_param('i', $vehicleId);
@@ -159,6 +171,7 @@ if (($crFile === '' || $orFile === '' || $insuranceFile === '') && $hasTable('ve
                 $t = strtoupper(trim((string)($d['t'] ?? '')));
                 $fp = trim((string)($d['fp'] ?? ''));
                 $exp = (string)($d['exp'] ?? '');
+                $isV = (int)($d['is_verified'] ?? 0);
                 if ($fp === '') continue;
                 
                 if ($t === 'CR' && $crFile === '') $crFile = $fp;
@@ -166,6 +179,21 @@ if (($crFile === '' || $orFile === '' || $insuranceFile === '') && $hasTable('ve
                 elseif ($t === 'INSURANCE' && $insuranceFile === '') $insuranceFile = $fp;
                 if ($t === 'OR' && $orExpiryDoc === '' && $exp !== '') $orExpiryDoc = $exp;
                 elseif ($t === 'INSURANCE' && $insExpiryDoc === '' && $exp !== '') $insExpiryDoc = $exp;
+
+                $slot = null;
+                if ($t === 'CR' || $t === 'ORCR') $slot = 'cr';
+                if ($t === 'OR' || $t === 'ORCR') $slot = 'or';
+                if ($t === 'INSURANCE') $slot = 'insurance';
+                if ($t === 'EMISSION') $slot = 'emission';
+                if ($slot !== null && $docSlots[$slot] === null) {
+                  $docOnFile[$slot] = true;
+                  $docSlots[$slot] = [
+                    'doc_type' => $t,
+                    'file_path' => $fp,
+                    'expiry_date' => $exp,
+                    'is_verified' => $isV,
+                  ];
+                }
             }
             $stmt2->close();
         }
@@ -207,6 +235,10 @@ echo json_encode(['ok' => true, 'data' => [
     'cr_issue_date' => (string)($row['cr_issue_date'] ?? ''),
     'registered_owner' => $ownerFallback,
     'cr_file_path' => $crFile,
+  ],
+  'docs' => [
+    'on_file' => $docOnFile,
+    'slots' => $docSlots,
   ],
   'registration' => [
     'registration_status' => (string)($row['registration_status'] ?? ''),

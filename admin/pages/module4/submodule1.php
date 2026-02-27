@@ -155,7 +155,7 @@ $res = $db->query($sql);
         </div>
       </div>
     </div>
-    <form class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
+    <form id="regFilterForm" class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="GET">
       <input type="hidden" name="page" value="module4/submodule1">
       <div class="flex-1 flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1 sm:max-w-sm group">
@@ -179,17 +179,17 @@ $res = $db->query($sql);
           <i data-lucide="filter" class="w-4 h-4"></i>
           Apply
         </button>
-        <a href="?page=module4/submodule1" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+        <button type="button" id="btnResetRegFilters" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
           Reset
-        </a>
+        </button>
       </div>
     </form>
     <div class="mt-4 flex flex-wrap items-center gap-2">
     <?php foreach (['Registered','Pending','Expired','Not Registered'] as $chip): ?>
-        <a href="?<?php echo http_build_query(['page'=>'module4/submodule1','q'=>$q,'status'=>$chip]); ?>"
+        <button type="button" data-chip-status="<?php echo htmlspecialchars($chip); ?>"
           class="<?php echo $status === $chip ? 'bg-slate-900 text-white border-slate-900 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'; ?> inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors">
           <?php echo htmlspecialchars($chip); ?>
-        </a>
+        </button>
       <?php endforeach; ?>
     </div>
   </div>
@@ -206,7 +206,7 @@ $res = $db->query($sql);
             <th class="py-4 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+        <tbody id="regTbody" class="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
           <?php if ($res && $res->num_rows > 0): ?>
             <?php while ($row = $res->fetch_assoc()): ?>
               <?php
@@ -288,6 +288,61 @@ $res = $db->query($sql);
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
+    const filterForm = document.getElementById('regFilterForm');
+    const tbody = document.getElementById('regTbody');
+    const btnReset = document.getElementById('btnResetRegFilters');
+
+    async function loadTable(pushState) {
+      if (!filterForm || !tbody) return;
+      tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
+      try {
+        const fd = new FormData(filterForm);
+        const qs = new URLSearchParams();
+        const q = (fd.get('q') || '').toString().trim();
+        const st = (fd.get('status') || '').toString().trim();
+        if (q) qs.set('q', q);
+        if (st) qs.set('status', st);
+        const res = await fetch(rootUrl + '/admin/api/module4/registrations_table.php?' + qs.toString(), { credentials: 'same-origin' });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        tbody.innerHTML = (data.html || '').toString();
+        if (window.lucide) window.lucide.createIcons();
+        if (pushState) {
+          const params = new URLSearchParams();
+          params.set('page', 'module4/submodule1');
+          if (q) params.set('q', q);
+          if (st) params.set('status', st);
+          history.replaceState(null, '', '?' + params.toString());
+        }
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-12 text-center text-rose-600 font-semibold">Failed to load records.</td></tr>';
+        showToast('Failed to load records.', 'error');
+      }
+    }
+
+    if (filterForm) {
+      filterForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadTable(true);
+      });
+    }
+    if (btnReset && filterForm) {
+      btnReset.addEventListener('click', () => {
+        const q = filterForm.querySelector('input[name="q"]');
+        const st = filterForm.querySelector('select[name="status"]');
+        if (q) q.value = '';
+        if (st) st.value = '';
+        loadTable(true);
+      });
+    }
+    document.querySelectorAll('[data-chip-status]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const st = b.getAttribute('data-chip-status') || '';
+        const sel = filterForm ? filterForm.querySelector('select[name="status"]') : null;
+        if (sel) sel.value = st;
+        loadTable(true);
+      });
+    });
 
     function showToast(message, type) {
       const container = document.getElementById('toast-container');
@@ -331,7 +386,7 @@ $res = $db->query($sql);
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'import_failed');
         showToast(`Import complete: ${data.inserted || 0} inserted, ${data.updated || 0} updated, ${data.skipped || 0} skipped.`);
         closeImport();
-        setTimeout(() => { window.location.reload(); }, 600);
+        setTimeout(() => { loadTable(false); }, 200);
       } catch (e) {
         showToast(e.message || 'Import failed', 'error');
         btnUpload.disabled = false;
