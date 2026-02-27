@@ -2246,15 +2246,21 @@ function db()
     $hasOverall = false;
     $hasRemarks = false;
     $hasSubmittedAt = false;
+    $hasInspOverride = false;
+    $hasValidOverride = false;
     while ($r = $resCols->fetch_assoc()) {
       $f = strtolower((string)$r['Field']);
       if ($f === 'overall_status') $hasOverall = true;
       if ($f === 'remarks') $hasRemarks = true;
       if ($f === 'submitted_at') $hasSubmittedAt = true;
+      if ($f === 'inspector_override') $hasInspOverride = true;
+      if ($f === 'valid_until_override') $hasValidOverride = true;
     }
     if (!$hasOverall) $conn->query("ALTER TABLE inspection_results ADD COLUMN overall_status ENUM('Passed','Failed','Pending','For Reinspection') DEFAULT 'Pending'");
     if (!$hasRemarks) $conn->query("ALTER TABLE inspection_results ADD COLUMN remarks VARCHAR(255) DEFAULT NULL");
     if (!$hasSubmittedAt) $conn->query("ALTER TABLE inspection_results ADD COLUMN submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    if (!$hasInspOverride) $conn->query("ALTER TABLE inspection_results ADD COLUMN inspector_override VARCHAR(128) DEFAULT NULL");
+    if (!$hasValidOverride) $conn->query("ALTER TABLE inspection_results ADD COLUMN valid_until_override DATE DEFAULT NULL");
   }
 
   // Ensure result_id is Primary Key and AUTO_INCREMENT

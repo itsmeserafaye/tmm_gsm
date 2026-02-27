@@ -323,10 +323,10 @@ if ($format !== 'pdf') {
             <div class="value"><?php echo htmlspecialchars($operatorName !== '' ? $operatorName : '-'); ?></div>
           </div>
           <div class="col">
-            <div class="label">Route</div>
+            <div class="label" style="margin-top:10px">Route</div>
             <div class="value"><?php echo htmlspecialchars($routeId !== '' ? $routeId : '-'); ?></div>
             <div class="label" style="margin-top:10px">Inspector</div>
-            <div class="value"><?php echo htmlspecialchars($inspectorName !== '' ? $inspectorName : '-'); ?></div>
+            <div class="value"><?php echo htmlspecialchars($inspectorName !== '' ? $inspectorName : 'To be assigned'); ?></div>
           </div>
           <div class="col">
             <div class="label">Location</div>
@@ -337,14 +337,6 @@ if ($format !== 'pdf') {
           <div class="col">
             <div class="label">Submitted At</div>
             <div class="value"><?php echo htmlspecialchars($submittedAt !== '' ? $submittedAt : '-'); ?></div>
-            <div class="label" style="margin-top:10px">Certificate Ref</div>
-            <div class="value"><?php echo htmlspecialchars($certRef !== '' ? $certRef : '-'); ?></div>
-          </div>
-          <div class="col">
-            <div class="label">Valid Until</div>
-            <div class="value"><?php echo htmlspecialchars(($certInfo && !empty($certInfo['valid_until'])) ? (string)$certInfo['valid_until'] : '-'); ?></div>
-            <div class="label" style="margin-top:10px">OR/CR</div>
-            <div class="value"><?php echo htmlspecialchars($reg ? (string)($reg['orcr_no'] ?? '-') : '-'); ?><?php if ($reg): ?> <span class="muted">• <?php echo htmlspecialchars((string)($reg['orcr_date'] ?? '-') ); ?></span><?php endif; ?></div>
           </div>
         </div>
       </div>
@@ -407,6 +399,18 @@ if ($format !== 'pdf') {
             if (!isset($flat[$cd])) $legacy[$cd] = $lb;
           }
           if ($legacy) $catalog['Other / Legacy Items'] = $legacy;
+          if (!$statusByCode) {
+            $ovUp = strtoupper(trim($overall));
+            $default = $ovUp === 'PASSED' ? 'PASS' : ($ovUp === 'FAILED' ? 'FAIL' : '');
+            if ($default !== '') {
+              foreach ($catalog as $cat => $items) {
+                foreach ($items as $code => $_lbl) {
+                  $codeU = strtoupper(trim((string)$code));
+                  if ($codeU !== '' && !isset($statusByCode[$codeU])) $statusByCode[$codeU] = $default;
+                }
+              }
+            }
+          }
         ?>
         <table>
           <thead>
@@ -665,11 +669,9 @@ $det = [];
 $det[] = ['Schedule', 'SCH-' . (int)$scheduleId . ($scheduleLabel !== '' ? (' • ' . $scheduleLabel) : '')];
 $det[] = ['Location', (string)($schedule['location'] ?? '-') ?: '-'];
 $det[] = ['Inspection Type', (string)($schedule['inspection_type'] ?? '-') ?: '-'];
-$det[] = ['Inspector', $inspectorName !== '' ? $inspectorName : '-'];
+$det[] = ['Inspector', $inspectorName !== '' ? $inspectorName : 'To be assigned'];
 $det[] = ['Schedule Status', $status !== '' ? $status : '-'];
 $det[] = ['Submitted At', $submittedAt !== '' ? $submittedAt : '-'];
-if ($certRef !== '') $det[] = ['Certificate Ref', $certRef];
-if ($certInfo && !empty($certInfo['valid_until'])) $det[] = ['Valid Until', (string)$certInfo['valid_until']];
 $kvBlock($det, 2);
 
 $sectionTitle('Checklist and Result');

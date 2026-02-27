@@ -365,6 +365,17 @@ if ($rootUrl === '/') $rootUrl = '';
           <textarea name="remarks" rows="3" maxlength="255" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., Failed brakes; repair required before retest."></textarea>
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Inspector (optional)</label>
+            <input name="insp_name" maxlength="128" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Inspector name for report">
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Valid Until (optional)</label>
+            <input name="valid_until" type="date" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+          </div>
+        </div>
+
         <div>
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Upload Photos (JPG/PNG)</label>
           <input name="photos[]" type="file" multiple accept=".jpg,.jpeg,.png,image/*" class="w-full text-sm">

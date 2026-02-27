@@ -34,6 +34,10 @@ try {
     $scheduleId = (int)($_POST['schedule_id'] ?? 0);
     $remarks = trim($_POST['remarks'] ?? '');
     $remarks = substr((string)$remarks, 0, 255);
+    $inspOverride = $clean($_POST['insp_name'] ?? '');
+    $inspOverride = substr((string)$inspOverride, 0, 128);
+    $validOverrideRaw = trim((string)($_POST['valid_until'] ?? ''));
+    $validOverride = $validOverrideRaw !== '' ? substr($validOverrideRaw, 0, 10) : null;
     $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : [];
     $labelsFromPost = isset($_POST['labels']) && is_array($_POST['labels']) ? $_POST['labels'] : [];
 
@@ -298,11 +302,11 @@ try {
     }
 
     if ($resultId > 0) {
-        $upRes = $db->prepare("UPDATE inspection_results SET overall_status=?, remarks=?, submitted_at=CURRENT_TIMESTAMP WHERE result_id=?");
+        $upRes = $db->prepare("UPDATE inspection_results SET overall_status=?, remarks=?, submitted_at=CURRENT_TIMESTAMP, inspector_override=?, valid_until_override=? WHERE result_id=?");
         if (!$upRes) {
             throw new Exception('db_prepare_failed');
         }
-        $upRes->bind_param('ssi', $overall, $remarks, $resultId);
+        $upRes->bind_param('ssssi', $overall, $remarks, $inspOverride !== '' ? $inspOverride : null, $validOverride, $resultId);
         if (!$upRes->execute()) {
             throw new Exception('update_failed');
         }
@@ -312,11 +316,11 @@ try {
             $delItems->execute();
         }
     } else {
-        $resStmt = $db->prepare("INSERT INTO inspection_results (schedule_id, overall_status, remarks) VALUES (?,?,?)");
+        $resStmt = $db->prepare("INSERT INTO inspection_results (schedule_id, overall_status, remarks, inspector_override, valid_until_override) VALUES (?,?,?,?,?)");
         if (!$resStmt) {
             throw new Exception('db_prepare_failed');
         }
-        $resStmt->bind_param('iss', $scheduleId, $overall, $remarks);
+        $resStmt->bind_param('issss', $scheduleId, $overall, $remarks, $inspOverride !== '' ? $inspOverride : null, $validOverride);
         if (!$resStmt->execute()) {
             $dbErr = $resStmt->error;
             $dbErrNo = $resStmt->errno;
