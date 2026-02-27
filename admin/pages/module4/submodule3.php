@@ -173,7 +173,7 @@ if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 ?>
 
-<div class="mx-auto max-w-4xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight"><?php echo $scheduleId > 0 ? 'Reschedule Inspection' : 'Schedule Inspection'; ?></h1>

@@ -257,12 +257,6 @@ if ($rootUrl === '/') $rootUrl = '';
         const data = await res.json();
         if (!data || !data.ok) throw new Error('load_failed');
         allRoutes = Array.isArray(data.data) ? data.data : [];
-        if (!allRoutes.length) {
-          allRoutes = [
-            { id: 90001, route_code: 'R-001', route_id: 'R-001', route_name: 'Bagumbong - Novaliches Bayan', origin: 'Bagumbong', destination: 'Novaliches Bayan', fare: 20, authorized_units: 15, active_units: 12 },
-            { id: 90002, route_code: 'R-003', route_id: 'R-003', route_name: 'Bagumbong - Deparo', origin: 'Bagumbong', destination: 'Deparo', fare: 20, authorized_units: 12, active_units: 10 },
-          ];
-        }
         applyFilter();
         if (!autoOpened && autoRouteId) {
           const exists = allRoutes.some(r => Number(r.id) === Number(autoRouteId));
@@ -277,10 +271,8 @@ if ($rootUrl === '/') $rootUrl = '';
           }
         }
       } catch (e) {
-        allRoutes = [
-          { id: 90001, route_code: 'R-001', route_id: 'R-001', route_name: 'Bagumbong - Novaliches Bayan', origin: 'Bagumbong', destination: 'Novaliches Bayan', fare: 20, authorized_units: 15, active_units: 12 },
-          { id: 90002, route_code: 'R-003', route_id: 'R-003', route_name: 'Bagumbong - Deparo', origin: 'Bagumbong', destination: 'Deparo', fare: 20, authorized_units: 12, active_units: 10 },
-        ];
+        allRoutes = [];
+        showToast('Failed to load routes.', 'error');
         applyFilter();
       }
     }
@@ -323,17 +315,8 @@ if ($rootUrl === '/') $rootUrl = '';
         rows = [];
       }
       if (!rows.length) {
-        const rid = Number(routeId || 0);
-        rows = rid === 90002
-          ? [
-              { plate_number: 'JEP-2041', vehicle_type: 'Jeepney', vehicle_status: 'Active', operator_name: 'Bagumbong Jeepney Operators Association', operator_type: 'Association', franchise_ref_number: 'FR-2026-0002', franchise_status: 'CPC Issued' },
-              { plate_number: 'JEP-2199', vehicle_type: 'Jeepney', vehicle_status: 'Active', operator_name: 'Bagumbong Jeepney Operators Association', operator_type: 'Association', franchise_ref_number: 'FR-2026-0002', franchise_status: 'CPC Issued' },
-            ]
-          : [
-              { plate_number: 'UVX-3105', vehicle_type: 'UV Express', vehicle_status: 'Active', operator_name: 'UV Express Operators Cooperative', operator_type: 'Cooperative', franchise_ref_number: 'FR-2026-0001', franchise_status: 'PA Issued' },
-              { plate_number: 'UVX-3188', vehicle_type: 'UV Express', vehicle_status: 'Active', operator_name: 'UV Express Operators Cooperative', operator_type: 'Cooperative', franchise_ref_number: 'FR-2026-0001', franchise_status: 'PA Issued' },
-              { plate_number: 'UVX-3220', vehicle_type: 'UV Express', vehicle_status: 'Active', operator_name: 'UV Express Operators Cooperative', operator_type: 'Cooperative', franchise_ref_number: 'FR-2026-0001', franchise_status: 'PA Issued' },
-            ];
+        assignedBody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No approved operators with registered vehicles for this route.</td></tr>';
+        return;
       }
       assignedBody.innerHTML = rows.map(r => {
         const plate = (r.plate_number || '-').toString();
