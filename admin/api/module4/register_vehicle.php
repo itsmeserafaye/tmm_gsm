@@ -80,14 +80,18 @@ $vehHasOrExp = $hasCol('vehicles', 'or_expiry_date');
 $vehHasRegYear = $hasCol('vehicles', 'registration_year');
 $vehHasInsExp = $hasCol('vehicles', 'insurance_expiry_date');
 $vehHasInsp = $hasCol('vehicles', 'inspection_status');
+$vehHasCurrentOp = $hasCol('vehicles', 'current_operator_id');
+$vehHasFranchiseId = $hasCol('vehicles', 'franchise_id');
 
 $stmtV = $db->prepare("SELECT id, plate_number, operator_id" .
+  ($vehHasCurrentOp ? ", current_operator_id" : ", 0 AS current_operator_id") .
   ($vehHasOrNumber ? ", or_number" : ", '' AS or_number") .
   ($vehHasOrDate ? ", or_date" : ", '' AS or_date") .
   ($vehHasOrExp ? ", or_expiry_date" : ", '' AS or_expiry_date") .
   ($vehHasRegYear ? ", registration_year" : ", '' AS registration_year") .
   ($vehHasInsExp ? ", insurance_expiry_date" : ", '' AS insurance_expiry_date") .
   ($vehHasInsp ? ", inspection_status" : ", '' AS inspection_status") .
+  ($vehHasFranchiseId ? ", franchise_id" : ", '' AS franchise_id") .
   " FROM vehicles WHERE id=? LIMIT 1");
 if (!$stmtV) {
   http_response_code(500);
@@ -116,7 +120,8 @@ if ($orDate === '' && $vehOrDate !== '') $orDate = $vehOrDate;
 if ($orExpiry === '' && $vehOrExpiry !== '') $orExpiry = $vehOrExpiry;
 if ($regYear === '' && $vehRegYear !== '') $regYear = $vehRegYear;
 if ($insuranceExpiry === '' && $vehInsExpiry !== '') $insuranceExpiry = $vehInsExpiry;
-$operatorId = (int)($veh['operator_id'] ?? 0);
+$operatorId = $vehHasCurrentOp ? (int)($veh['current_operator_id'] ?? 0) : 0;
+if ($operatorId <= 0) $operatorId = (int)($veh['operator_id'] ?? 0);
 if ($operatorId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'vehicle_not_linked_to_operator']);
@@ -270,53 +275,47 @@ if (!$doc['ok']) {
 $hasOrDoc = true;
 $hasInsuranceDoc = true;
 
+$vehicleFranchiseRef = trim((string)($veh['franchise_id'] ?? ''));
 $frOk = false;
-// 1) Active franchise application for this operator
-$stmtA = $db->prepare("SELECT application_id
-                       FROM franchise_applications
-                       WHERE operator_id=? AND status='Active'
-                       ORDER BY application_id DESC
-                       LIMIT 1");
-if ($stmtA) {
-  $stmtA->bind_param('i', $operatorId);
-  $stmtA->execute();
-  $rowA = $stmtA->get_result()->fetch_assoc();
-  $stmtA->close();
-  if ($rowA) $frOk = true;
+$stmtFrOp = $db->prepare("SELECT application_id FROM franchise_applications WHERE operator_id=? AND UPPER(TRIM(status))='ACTIVE' ORDER BY application_id DESC LIMIT 1");
+if ($stmtFrOp) {
+  $stmtFrOp->bind_param('i', $operatorId);
+  $stmtFrOp->execute();
+  $row = $stmtFrOp->get_result()->fetch_assoc();
+  $stmtFrOp->close();
+  if ($row) $frOk = true;
 }
-// 2) Active franchise application referenced by this vehicle's franchise_id
-if (!$frOk && $hasCol('vehicles', 'franchise_id')) {
-  $stmtFv = $db->prepare("SELECT franchise_id FROM vehicles WHERE id=? LIMIT 1");
-  if ($stmtFv) {
-    $stmtFv->bind_param('i', $vehicleId);
-    $stmtFv->execute();
-    $rowFv = $stmtFv->get_result()->fetch_assoc();
-    $stmtFv->close();
-    $frRef = trim((string)($rowFv['franchise_id'] ?? ''));
-    if ($frRef !== '') {
-      $stmtFa = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? AND status='Active' LIMIT 1");
-      if ($stmtFa) {
-        $stmtFa->bind_param('s', $frRef);
-        $stmtFa->execute();
-        $fa = $stmtFa->get_result()->fetch_assoc();
-        $stmtFa->close();
-        if ($fa) $frOk = true;
-      }
-    }
+if (!$frOk && $vehicleFranchiseRef !== '') {
+  $stmtFrRef = $db->prepare("SELECT application_id FROM franchise_applications WHERE franchise_ref_number=? AND UPPER(TRIM(status))='ACTIVE' LIMIT 1");
+  if ($stmtFrRef) {
+    $stmtFrRef->bind_param('s', $vehicleFranchiseRef);
+    $stmtFrRef->execute();
+    $row = $stmtFrRef->get_result()->fetch_assoc();
+    $stmtFrRef->close();
+    if ($row) $frOk = true;
+  }
+}
+if (!$frOk && $opNameResolved !== '') {
+  $stmtFrName = $db->prepare("SELECT fa.application_id
+                              FROM franchise_applications fa
+                              JOIN operators o ON o.id=fa.operator_id
+                              WHERE UPPER(TRIM(fa.status))='ACTIVE'
+                                AND LOWER(TRIM(COALESCE(NULLIF(o.name,''), o.full_name)))=LOWER(TRIM(?))
+                              ORDER BY fa.application_id DESC
+                              LIMIT 1");
+  if ($stmtFrName) {
+    $stmtFrName->bind_param('s', $opNameResolved);
+    $stmtFrName->execute();
+    $row = $stmtFrName->get_result()->fetch_assoc();
+    $stmtFrName->close();
+    if ($row) $frOk = true;
   }
 }
 if (!$frOk) {
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'franchise_not_active']);
+  echo json_encode(['ok' => false, 'error' => 'franchise_not_active', 'operator_id' => $operatorId, 'operator_name' => $opNameResolved, 'vehicle_franchise_id' => $vehicleFranchiseRef]);
   exit;
 }
-
-$hasCol = function (string $table, string $col) use ($db): bool {
-  $t = $db->real_escape_string($table);
-  $c = $db->real_escape_string($col);
-  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
-  return $r && $r->num_rows > 0;
-};
 
 $ensureRegCols = function () use ($db, $hasCol): void {
   if (!$hasCol('vehicle_registrations', 'or_number')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_number VARCHAR(64) NULL"); }
@@ -512,7 +511,7 @@ try {
       $v2 = $stmtV2->get_result()->fetch_assoc();
       $stmtV2->close();
       $insp = (string)($v2['inspection_status'] ?? '');
-      $frRef = trim((string)($v2['franchise_id'] ?? ''));
+    $frRef = trim((string)($v2['franchise_id'] ?? ''));
     }
     $frOk = false;
     if ($frRef !== '') {
@@ -522,7 +521,7 @@ try {
         $stmtFa->execute();
         $fa = $stmtFa->get_result()->fetch_assoc();
         $stmtFa->close();
-        $frOk = $fa && in_array((string)($fa['status'] ?? ''), ['Approved','LTFRB-Approved'], true);
+        $frOk = $fa && (strtoupper(trim((string)($fa['status'] ?? ''))) === 'ACTIVE');
       }
     }
     $next = null;
