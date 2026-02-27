@@ -77,86 +77,58 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-    <div class="lg:col-span-4">
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 space-y-4">
-          <div>
-            <div class="text-sm font-black text-slate-900 dark:text-white">Quick Actions</div>
-            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Start a checklist or review generated results.</div>
-          </div>
-          <div class="grid grid-cols-1 gap-3">
-            <button type="button" id="btnOpenConduct2" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
-              <i data-lucide="check-square" class="w-4 h-4"></i>
-              Conduct Checklist
-            </button>
-            <a href="?page=module4/submodule3" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-              <i data-lucide="calendar-plus" class="w-4 h-4"></i>
-              Schedule Inspection
-            </a>
-            <a href="?page=module4/submodule1" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-              <i data-lucide="list" class="w-4 h-4"></i>
-              Vehicle Registration List
-            </a>
-          </div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">View includes the generated inspection report and PDF download.</div>
-        </div>
+  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+    <div class="p-6 space-y-4">
+      <div>
+        <div class="text-sm font-black text-slate-900 dark:text-white">Conducted Inspections</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Filter and view completed inspection results.</div>
       </div>
-    </div>
-
-    <div class="lg:col-span-8">
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 space-y-4">
-          <div>
-            <div class="text-sm font-black text-slate-900 dark:text-white">Conducted Inspections</div>
-            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Filter and view completed inspection results.</div>
+      <form id="conductedFilterForm" method="GET" class="flex flex-col lg:flex-row lg:items-end gap-4 border-b border-slate-200 dark:border-slate-700 pb-6">
+        <input type="hidden" name="page" value="module4/submodule4">
+        <div class="flex-1 min-w-[240px]">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+            <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Plate / Location">
           </div>
-          <form id="conductedFilterForm" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end border-b border-slate-200 dark:border-slate-700 pb-6">
-            <input type="hidden" name="page" value="module4/submodule4">
-            <div class="md:col-span-4">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-              <div class="relative">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Plate / Location">
-              </div>
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Result</label>
-              <select name="result" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-                <option value="" <?php echo $resultFilter === '' ? 'selected' : ''; ?>>All Results</option>
-                <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
-                <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
-              </select>
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From Date</label>
-              <input type="date" name="from" value="<?php echo htmlspecialchars($from); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            </div>
-            <div class="md:col-span-2">
-              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To Date</label>
-              <input type="date" name="to" value="<?php echo htmlspecialchars($to); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            </div>
-            <div class="md:col-span-2 flex items-center gap-2">
-              <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
-              <button type="button" id="btnResetConductedFilters" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
-                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-              </button>
-            </div>
-          </form>
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-                <tr class="text-left text-slate-500 dark:text-slate-400">
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Inspection</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Scheduled</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Result</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Inspected At</th>
-                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody id="conductedTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
+        </div>
+        <div class="w-full lg:w-44">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Result</label>
+          <select name="result" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $resultFilter === '' ? 'selected' : ''; ?>>All Results</option>
+            <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
+            <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
+          </select>
+        </div>
+        <div class="w-full sm:w-52">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From Date</label>
+          <input type="date" name="from" value="<?php echo htmlspecialchars($from); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="w-full sm:w-52">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To Date</label>
+          <input type="date" name="to" value="<?php echo htmlspecialchars($to); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+        </div>
+        <div class="flex items-center gap-2 w-full lg:w-auto pt-1">
+          <button class="flex-1 lg:flex-none px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+          <button type="button" id="btnResetConductedFilters" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </form>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+            <tr class="text-left text-slate-500 dark:text-slate-400">
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Inspection</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Scheduled</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Result</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Inspected At</th>
+              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="conductedTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
                 <?php if (!empty($conductedRows)): ?>
                   <?php foreach ($conductedRows as $r): ?>
                     <?php
@@ -190,10 +162,8 @@ if ($rootUrl === '/') $rootUrl = '';
                 <?php else: ?>
                   <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No inspections recorded yet.</td></tr>
                 <?php endif; ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -414,13 +384,14 @@ if ($rootUrl === '/') $rootUrl = '';
 </div>
 
 <div id="modalInspectionReport" class="fixed inset-0 z-[260] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-  <div class="w-full max-w-6xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5 flex flex-col max-h-[92vh]">
+  <div class="w-full max-w-7xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5 flex flex-col h-[92vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
       <div>
         <div class="text-lg font-black text-slate-900 dark:text-white">Inspection Result</div>
         <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Generated report preview with PDF download.</div>
       </div>
       <div class="flex items-center gap-2">
+        <button type="button" id="btnInspectionPrint" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800/40">Print</button>
         <a id="btnInspectionPdf" href="#" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Download PDF</a>
         <button type="button" id="btnCloseInspectionReport" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -511,6 +482,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const reportFrame = document.getElementById('inspectionReportFrame');
     const reportClose = document.getElementById('btnCloseInspectionReport');
     const reportPdf = document.getElementById('btnInspectionPdf');
+    const reportPrint = document.getElementById('btnInspectionPrint');
 
     function openReportModal(scheduleId) {
       if (!reportModal || !reportFrame) return;
@@ -544,6 +516,18 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (reportClose) reportClose.addEventListener('click', closeReportModal);
+    if (reportPrint) {
+      reportPrint.addEventListener('click', () => {
+        try {
+          if (!reportFrame || !reportFrame.contentWindow) throw new Error('Report is not ready yet.');
+          reportFrame.contentWindow.focus();
+          reportFrame.contentWindow.print();
+        } catch (e) {
+          const msg = (e && e.message) ? String(e.message) : 'Unable to print.';
+          showToast(msg, 'error');
+        }
+      });
+    }
     if (reportModal) {
       reportModal.addEventListener('click', (e) => {
         if (e && e.target === reportModal) closeReportModal();
