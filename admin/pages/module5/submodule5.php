@@ -197,12 +197,19 @@ if ($rootUrl === '/') $rootUrl = '';
     if (btnRefresh) btnRefresh.addEventListener('click', load);
     if (q) q.addEventListener('input', () => { load(); });
     if (type) type.addEventListener('change', () => { load(); });
-    if (btnPrint) btnPrint.addEventListener('click', () => {
+    if (btnPrint) btnPrint.addEventListener('click', (e) => {
       const qs = new URLSearchParams();
       qs.set('type', (type && type.value) ? type.value : 'Terminal');
       if (q && q.value.trim() !== '') qs.set('q', q.value.trim());
-      btnPrint.setAttribute('data-print-url', rootUrl + '/admin/api/module5/print_occupancy.php?' + qs.toString());
-    }, { capture: true });
+      const url = rootUrl + '/admin/api/module5/print_occupancy.php?' + qs.toString();
+      btnPrint.setAttribute('data-print-url', url);
+      if (window.tmmPrintLink) {
+        e.preventDefault();
+        window.tmmPrintLink(btnPrint);
+      } else {
+        window.open(url, '_blank');
+      }
+    });
     load();
     schedule();
   })();

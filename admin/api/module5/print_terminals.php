@@ -14,6 +14,7 @@ $type = $type === 'Parking' ? 'Parking' : 'Terminal';
 $q = trim((string)($_GET['q'] ?? ''));
 $city = trim((string)($_GET['city'] ?? ''));
 $cat = trim((string)($_GET['category'] ?? ''));
+$status = trim((string)($_GET['status'] ?? ''));
 $ownerFilter = trim((string)($_GET['owner'] ?? ''));
 $operatorFilter = trim((string)($_GET['operator'] ?? ''));
 $permitStatusFilter = trim((string)($_GET['permit_status'] ?? ''));
@@ -29,6 +30,7 @@ $ownerCol = isset($termCols['owner_name']) ? 'owner_name' : (isset($termCols['ow
 $operatorCol = isset($termCols['operator_name']) ? 'operator_name' : (isset($termCols['operator']) ? 'operator' : (isset($termCols['managed_by']) ? 'managed_by' : ''));
 $hasCityCol = isset($termCols['city']);
 $hasCategoryCol = isset($termCols['category']);
+$hasStatusCol = isset($termCols['status']);
 
 // Discover permit columns in terminal_permits
 $permCols = [];
@@ -70,6 +72,11 @@ if ($cat !== '' && $hasCategoryCol) {
   $where .= " AND COALESCE(t.category,'') = ?";
   $types .= 's';
   $params[] = $cat;
+}
+if ($status !== '' && $hasStatusCol) {
+  $where .= " AND COALESCE(t.status,'') = ?";
+  $types .= 's';
+  $params[] = $status;
 }
 if ($ownerFilter !== '' && $ownerCol !== '') { $where .= " AND COALESCE(t.$ownerCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $ownerFilter . '%'; }
 if ($operatorFilter !== '' && $operatorCol !== '') { $where .= " AND COALESCE(t.$operatorCol,'') LIKE ?"; $types .= 's'; $params[] = '%' . $operatorFilter . '%'; }
@@ -122,6 +129,7 @@ $filterParts[] = 'Type: ' . $type;
 if ($q !== '') $filterParts[] = 'Search: ' . $q;
 if ($city !== '') $filterParts[] = 'City: ' . $city;
 if ($cat !== '') $filterParts[] = 'Category: ' . $cat;
+if ($status !== '') $filterParts[] = 'Status: ' . $status;
 if ($ownerFilter !== '') $filterParts[] = 'Owner: ' . $ownerFilter;
 if ($operatorFilter !== '') $filterParts[] = 'Operator: ' . $operatorFilter;
 if ($permitStatusFilter !== '') $filterParts[] = 'Permit Status: ' . $permitStatusFilter;
