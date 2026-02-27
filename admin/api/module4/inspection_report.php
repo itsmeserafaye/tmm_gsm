@@ -118,6 +118,19 @@ if ($result && isset($result['result_id'])) {
     while ($row = $resC->fetch_assoc()) $checklist[] = $row;
     $stmtC->close();
   }
+  if (!$checklist) {
+    $stmtCF = $db->prepare("SELECT i.item_code, i.item_label, i.status
+                            FROM inspection_checklist_items i
+                            JOIN inspection_results r ON r.result_id=i.result_id
+                            WHERE r.schedule_id=? ORDER BY i.item_id ASC");
+    if ($stmtCF) {
+      $stmtCF->bind_param('i', $scheduleId);
+      $stmtCF->execute();
+      $resCF = $stmtCF->get_result();
+      while ($row = $resCF->fetch_assoc()) $checklist[] = $row;
+      $stmtCF->close();
+    }
+  }
 
   $stmtP = $db->prepare("SELECT photo_id, file_path, uploaded_at FROM inspection_photos WHERE result_id=? ORDER BY photo_id ASC");
   if ($stmtP) {
@@ -336,39 +349,7 @@ if ($format !== 'pdf') {
         </div>
       </div>
 
-      <div class="card">
-        <div class="sectionTitle">Document Presentation</div>
-        <div class="muted" style="font-size:12px">Status reflects uploads in Vehicle Records.</div>
-        <table>
-          <thead>
-            <tr><th style="width:28%">Document</th><th style="width:32%">Status</th><th>File</th></tr>
-          </thead>
-          <tbody>
-            <?php
-              $docRows = [
-                'cr' => 'Certificate of Registration (CR)',
-                'or' => 'Official Receipt (OR)',
-                'emission' => 'CMVI / PMVIC Certificate',
-                'insurance' => 'CTPL Insurance',
-              ];
-              foreach ($docRows as $k => $lbl):
-                $m = $docMeta[$k];
-                $on = !empty($docOnFile[$k]);
-                $isV = $m && ((int)($m['is_verified'] ?? 0) === 1);
-                $cls = $on ? ($isV ? 'pill docok' : 'pill docpend') : 'pill docmiss';
-                $txt = $on ? ($isV ? 'On file • Verified' : 'On file • Pending verification') : 'Missing';
-                $path = $m ? (string)($m['file_path'] ?? '') : '';
-                $url = $path !== '' ? ($rootUrl . '/admin/uploads/' . ltrim($path, '/')) : '';
-            ?>
-              <tr>
-                <td style="font-weight:900"><?php echo htmlspecialchars($lbl); ?></td>
-                <td><span class="<?php echo $cls; ?>"><?php echo htmlspecialchars($txt); ?></span></td>
-                <td><?php echo $url !== '' ? ('<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">' . htmlspecialchars(basename($path)) . '</a>') : '<span class="muted">-</span>'; ?></td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
+      <!-- Document Presentation intentionally removed; view documents in Vehicle Records -->
 
       <div class="card">
         <div class="sectionTitle">Checklist</div>
