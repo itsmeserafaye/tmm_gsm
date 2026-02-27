@@ -193,29 +193,6 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-    <div class="md:col-span-4">
-      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div class="p-6 space-y-4">
-          <div>
-            <div class="text-sm font-black text-slate-900 dark:text-white">Schedule Actions</div>
-            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Create, reschedule, and review inspection status.</div>
-          </div>
-          <button type="button" id="btnOpenScheduleModal2" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
-            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
-            <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
-          </button>
-          <button type="button" id="btnOpenOverdueList" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
-            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-            Overdue / No-Show
-            <span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"><?php echo (int)count($overdueRows); ?></span>
-          </button>
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Viewing results opens in a modal with the generated report and PDF download.</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="md:col-span-8">
   <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
     <div class="p-6 space-y-4">
       <div class="space-y-3">
@@ -223,6 +200,17 @@ if ($rootUrl === '/') $rootUrl = '';
           <div>
             <div class="text-sm font-black text-slate-900 dark:text-white">Scheduled Inspections</div>
             <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">View schedule assignments, overdue items, and inspection readiness.</div>
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button type="button" id="btnOpenOverdueList" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+              Overdue / No-Show
+              <span class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-black bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"><?php echo (int)count($overdueRows); ?></span>
+            </button>
+            <button type="button" id="btnOpenScheduleModal" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 hover:bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+              <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+              <?php echo $scheduleId > 0 ? 'Reschedule' : 'Schedule'; ?>
+            </button>
           </div>
         </div>
         <?php if (has_permission('reports.export')): ?>
@@ -244,11 +232,11 @@ if ($rootUrl === '/') $rootUrl = '';
             ]], ['mb' => 'mb-0']);
           ?>
         <?php endif; ?>
-        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end mb-6">
+        <form id="scheduleFilterForm" data-tmm-no-auto-filter="1" method="GET" class="flex flex-col lg:flex-row lg:items-end gap-4 mb-6">
           <input type="hidden" name="page" value="module4/submodule3">
           
           <!-- Search -->
-          <div class="md:col-span-2 lg:col-span-2">
+          <div class="flex-1 min-w-[240px]">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
             <div class="relative group">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -259,7 +247,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Status -->
-          <div>
+          <div class="w-full sm:w-52">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
             <div class="relative">
               <select name="list_status" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -276,7 +264,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Month -->
-          <div>
+          <div class="w-full sm:w-52">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Month</label>
             <div class="relative">
               <select name="month" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -292,7 +280,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Year -->
-          <div>
+          <div class="w-full sm:w-44">
             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Year</label>
             <div class="relative">
               <select name="year" class="block w-full pl-3 pr-10 py-2.5 text-sm font-semibold border-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer">
@@ -308,14 +296,14 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
 
           <!-- Buttons -->
-          <div class="md:col-span-2 lg:col-span-1 flex items-center gap-2">
-            <button type="submit" class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
+          <div class="flex items-center gap-2 w-full lg:w-auto pt-1">
+            <button type="submit" class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm">
               <i data-lucide="filter" class="w-4 h-4"></i>
               Apply
             </button>
-            <a href="?page=module4/submodule3" class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
+            <button type="button" id="btnResetScheduleFilters" class="inline-flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all shadow-sm" title="Reset">
               <i data-lucide="x" class="w-4 h-4"></i>
-            </a>
+            </button>
           </div>
         </form>
       </div>
@@ -414,8 +402,6 @@ if ($rootUrl === '/') $rootUrl = '';
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
     </div>
   </div>
 
@@ -610,6 +596,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const btnOpenScheduleModal2 = document.getElementById('btnOpenScheduleModal2');
     const btnCloseScheduleModal = document.getElementById('btnCloseScheduleModal');
     const filterForm = document.getElementById('scheduleFilterForm');
+    const btnResetScheduleFilters = document.getElementById('btnResetScheduleFilters');
     const scheduledTbody = document.getElementById('scheduledTbody');
     const overdueTbody = document.getElementById('overdueTbody');
     const scheduleDate = document.getElementById('scheduleDate');
@@ -934,8 +921,12 @@ if ($rootUrl === '/') $rootUrl = '';
       const qs = new URLSearchParams();
       const q = (fd.get('q') || '').toString().trim();
       const st = (fd.get('list_status') || '').toString().trim();
+      const month = (fd.get('month') || '').toString().trim();
+      const year = (fd.get('year') || '').toString().trim();
       if (q) qs.set('q', q);
       if (st) qs.set('list_status', st);
+      if (month && month !== '0') qs.set('month', month);
+      if (year && year !== '0') qs.set('year', year);
       scheduledTbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
       overdueTbody.innerHTML = `<tr><td colspan="3" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>`;
       try {
@@ -950,6 +941,8 @@ if ($rootUrl === '/') $rootUrl = '';
           urlParams.set('page', 'module4/submodule3');
           if (q) urlParams.set('q', q);
           if (st) urlParams.set('list_status', st);
+          if (month && month !== '0') urlParams.set('month', month);
+          if (year && year !== '0') urlParams.set('year', year);
           history.replaceState(null, '', '?' + urlParams.toString());
         }
       } catch (e) {
@@ -960,6 +953,19 @@ if ($rootUrl === '/') $rootUrl = '';
     if (filterForm) {
       filterForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        reloadSchedulesTable(true);
+      });
+    }
+    if (btnResetScheduleFilters && filterForm) {
+      btnResetScheduleFilters.addEventListener('click', () => {
+        const q = filterForm.querySelector('input[name="q"]');
+        const st = filterForm.querySelector('select[name="list_status"]');
+        const month = filterForm.querySelector('select[name="month"]');
+        const year = filterForm.querySelector('select[name="year"]');
+        if (q) q.value = '';
+        if (st) st.value = '';
+        if (month) month.value = '0';
+        if (year) year.value = '0';
         reloadSchedulesTable(true);
       });
     }

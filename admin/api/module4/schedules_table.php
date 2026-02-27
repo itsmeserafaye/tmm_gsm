@@ -8,6 +8,8 @@ require_permission('module4.schedule');
 
 $q = trim((string)($_GET['q'] ?? ''));
 $listStatus = trim((string)($_GET['list_status'] ?? ''));
+$month = (int)($_GET['month'] ?? 0);
+$year = (int)($_GET['year'] ?? 0);
 
 $hasCol = function (string $table, string $col) use ($db): bool {
   $t = $db->real_escape_string($table);
@@ -16,6 +18,7 @@ $hasCol = function (string $table, string $col) use ($db): bool {
   return $r && $r->num_rows > 0;
 };
 $schHasRemarks = $hasCol('inspection_schedules', 'status_remarks');
+$schHasOverdueAt = $hasCol('inspection_schedules', 'overdue_marked_at');
 $resHasOverall = $hasCol('inspection_results', 'overall_status');
 
 $scheduleRows = [];
@@ -29,6 +32,12 @@ $sqlL = "SELECT s.schedule_id, s.plate_number, s.location, s.status, COALESCE(s.
 if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $sqlL .= " AND s.plate_number LIKE '%$qv%'";
+}
+if ($year > 0) {
+  $sqlL .= " AND YEAR(COALESCE(s.schedule_date, s.scheduled_at))=" . (int)$year;
+}
+if ($month > 0 && $month <= 12) {
+  $sqlL .= " AND MONTH(COALESCE(s.schedule_date, s.scheduled_at))=" . (int)$month;
 }
 if ($listStatus !== '') {
   $sv = $db->real_escape_string($listStatus);
@@ -55,7 +64,14 @@ if ($q !== '') {
   $qv = $db->real_escape_string($q);
   $sqlO .= " AND s.plate_number LIKE '%$qv%'";
 }
-$sqlO .= " ORDER BY COALESCE(s.overdue_marked_at, s.schedule_date, s.scheduled_at) DESC LIMIT 200";
+$dtExpr = $schHasOverdueAt ? "COALESCE(s.overdue_marked_at, s.schedule_date, s.scheduled_at)" : "COALESCE(s.schedule_date, s.scheduled_at)";
+if ($year > 0) {
+  $sqlO .= " AND YEAR($dtExpr)=" . (int)$year;
+}
+if ($month > 0 && $month <= 12) {
+  $sqlO .= " AND MONTH($dtExpr)=" . (int)$month;
+}
+$sqlO .= " ORDER BY $dtExpr DESC LIMIT 200";
 $resO = $db->query($sqlO);
 if ($resO) while ($r = $resO->fetch_assoc()) $overdueRows[] = $r;
 
