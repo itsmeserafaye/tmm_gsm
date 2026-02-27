@@ -264,7 +264,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <a href="?page=parking/list" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset">
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
           </a>
-          <?php if (has_permission('reports.export')): ?>
+          <?php if (has_permission('reports.export') || has_permission('module5.manage_terminal')): ?>
             <?php
               $qs = http_build_query([
                 'type' => 'Parking',
@@ -300,15 +300,22 @@ if ($rootUrl === '/') $rootUrl = '';
                   <?php if ($owner): ?>
                     <div class="flex items-center gap-2">
                       <span><?php echo htmlspecialchars($owner); ?></span>
-                      <button type="button" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" data-terminal-info="<?php echo (int)($t['id'] ?? 0); ?>" title="View Agreement & Docs">
+                      <button type="button" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" data-terminal-info="<?php echo (int)($t['id'] ?? 0); ?>" title="View Details">
                         <i data-lucide="info" class="w-4 h-4"></i>
                       </button>
+                      <?php if ($canManage): ?>
+                        <button type="button" class="text-slate-600 hover:text-blue-700 dark:text-slate-300 dark:hover:text-blue-300 transition-colors" data-terminal-agreement="<?php echo (int)($t['id'] ?? 0); ?>" title="Edit Details">
+                          <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                      <?php endif; ?>
                     </div>
                   <?php else: ?>
                     <span class="text-slate-400 italic text-xs">Unspecified</span>
-                    <button type="button" class="ml-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" data-terminal-info="<?php echo (int)($t['id'] ?? 0); ?>" title="Add Details">
-                      <i data-lucide="plus-circle" class="w-4 h-4 inline"></i>
-                    </button>
+                    <?php if ($canManage): ?>
+                      <button type="button" class="ml-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" data-terminal-agreement="<?php echo (int)($t['id'] ?? 0); ?>" title="Add Details">
+                        <i data-lucide="plus-circle" class="w-4 h-4 inline"></i>
+                      </button>
+                    <?php endif; ?>
                   <?php endif; ?>
                 </td>
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? ($t['address'] ?? ''))); ?></td>
@@ -354,6 +361,128 @@ if ($rootUrl === '/') $rootUrl = '';
     </div>
   </div>
 </div>
+
+<?php if ($canManage): ?>
+<div id="parkingAgreementModal" class="fixed inset-0 z-[210] hidden">
+  <div data-modal-backdrop class="absolute inset-0 bg-black/40"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-sm font-black text-slate-900 dark:text-white">Parking Agreement</div>
+          <div id="parkingAgreementSub" class="text-xs text-slate-500 dark:text-slate-400 font-semibold"></div>
+        </div>
+        <button type="button" data-modal-close class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto">
+        <form id="formParkingAgreement" class="grid grid-cols-1 md:grid-cols-12 gap-4" novalidate enctype="multipart/form-data">
+          <input type="hidden" name="terminal_id" value="">
+          <input type="hidden" name="agreement_id" value="">
+          <div class="md:col-span-6">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Owner Information</div>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div class="md:col-span-12">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner Name *</label>
+                <input name="owner_name" required maxlength="255" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Type</label>
+                <select name="owner_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="Person">Person</option>
+                  <option value="Cooperative">Cooperative</option>
+                  <option value="Company">Company</option>
+                  <option value="Government">Government</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contact</label>
+                <input name="owner_contact" maxlength="255" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+            </div>
+          </div>
+          <div class="md:col-span-6">
+            <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Agreement</div>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Type</label>
+                <select name="agreement_type" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="MOA">MOA</option>
+                  <option value="Lease Contract">Lease Contract</option>
+                  <option value="Rental Agreement">Rental Agreement</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Ref No.</label>
+                <input name="agreement_reference_no" maxlength="100" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Rent Amount</label>
+                <input name="rent_amount" type="number" step="0.01" min="0" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Frequency</label>
+                <select name="rent_frequency" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="Monthly">Monthly</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Annual">Annual</option>
+                  <option value="One-time">One-time</option>
+                </select>
+              </div>
+              <div class="md:col-span-4">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                <select name="agreement_status" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="Active">Active</option>
+                  <option value="Expiring Soon">Expiring Soon</option>
+                  <option value="Expired">Expired</option>
+                  <option value="Terminated">Terminated</option>
+                </select>
+              </div>
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Start Date *</label>
+                <input name="start_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+              <div class="md:col-span-6">
+                <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">End Date *</label>
+                <input name="end_date" type="date" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+              </div>
+            </div>
+          </div>
+          <div class="md:col-span-12">
+            <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Terms Summary</label>
+            <textarea name="terms_summary" rows="3" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold"></textarea>
+          </div>
+          <div class="md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">MOA</label>
+              <input name="moa_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-3 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-blue-800">
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Contract</label>
+              <input name="contract_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-3 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-blue-800">
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Permit</label>
+              <input name="permit_file" type="file" accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-3 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-blue-800">
+            </div>
+            <div class="md:col-span-12">
+              <label class="block text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Other Attachments</label>
+              <input name="other_attachments[]" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" class="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-blue-700 file:px-3 file:py-2 file:text-xs file:font-black file:text-white hover:file:bg-blue-800">
+            </div>
+          </div>
+          <div class="md:col-span-12 flex items-center justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button type="button" data-modal-cancel class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 font-semibold">Cancel</button>
+            <button id="btnSaveParkingAgreement" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Save Details</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
   (function () {
@@ -512,6 +641,102 @@ if ($rootUrl === '/') $rootUrl = '';
        const btn = e.target.closest('[data-terminal-info]');
        if (btn) showTerminalInfo(btn.getAttribute('data-terminal-info'));
     });
+
+    const agreeModal = document.getElementById('parkingAgreementModal');
+    const agreeSub = document.getElementById('parkingAgreementSub');
+    const agreeForm = document.getElementById('formParkingAgreement');
+    const agreeSaveBtn = document.getElementById('btnSaveParkingAgreement');
+    function closeAgreeModal() { if (agreeModal) agreeModal.classList.add('hidden'); }
+    function openAgreeModal() { if (agreeModal) agreeModal.classList.remove('hidden'); if (window.lucide) window.lucide.createIcons(); }
+    if (agreeModal) {
+      const closeBtn = agreeModal.querySelector('[data-modal-close]');
+      const cancelBtn = agreeModal.querySelector('[data-modal-cancel]');
+      const bd = agreeModal.querySelector('[data-modal-backdrop]');
+      if (closeBtn) closeBtn.addEventListener('click', closeAgreeModal);
+      if (cancelBtn) cancelBtn.addEventListener('click', closeAgreeModal);
+      if (bd) bd.addEventListener('click', closeAgreeModal);
+    }
+
+    function setAgreeValue(name, value) {
+      if (!agreeForm) return;
+      const el = agreeForm.querySelector(`[name="${name}"]`);
+      if (!el) return;
+      el.value = (value === null || value === undefined) ? '' : String(value);
+    }
+
+    async function loadAgreementIntoModal(terminalId) {
+      if (!agreeForm) return;
+      setAgreeValue('terminal_id', terminalId);
+      setAgreeValue('agreement_id', '');
+      setAgreeValue('owner_name', '');
+      setAgreeValue('owner_type', 'Other');
+      setAgreeValue('owner_contact', '');
+      setAgreeValue('agreement_type', 'MOA');
+      setAgreeValue('agreement_reference_no', '');
+      setAgreeValue('rent_amount', '');
+      setAgreeValue('rent_frequency', 'Monthly');
+      setAgreeValue('agreement_status', 'Active');
+      setAgreeValue('start_date', '');
+      setAgreeValue('end_date', '');
+      setAgreeValue('terms_summary', '');
+      if (agreeSub) agreeSub.textContent = 'Parking ID: ' + String(terminalId);
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/get_terminal_details.php?id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json();
+        if (data && data.success) {
+          const t = data.terminal || {};
+          const a = data.agreement || {};
+          if (agreeSub) agreeSub.textContent = (t.name ? String(t.name) : 'Parking') + ' • Agreement';
+          if (a && a.id) {
+            setAgreeValue('agreement_id', a.id);
+            setAgreeValue('agreement_type', a.agreement_type);
+            setAgreeValue('agreement_reference_no', a.reference_no);
+            setAgreeValue('rent_amount', a.rent_amount);
+            setAgreeValue('rent_frequency', a.rent_frequency);
+            setAgreeValue('agreement_status', a.status);
+            setAgreeValue('start_date', a.start_date);
+            setAgreeValue('end_date', a.end_date);
+            setAgreeValue('terms_summary', a.terms_summary);
+          }
+          setAgreeValue('owner_name', a.owner_name);
+          setAgreeValue('owner_type', a.owner_type || 'Other');
+          setAgreeValue('owner_contact', a.owner_contact);
+        }
+      } catch (_) {}
+    }
+
+    if (canManage) {
+      document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-terminal-agreement]');
+        if (!btn) return;
+        const id = Number(btn.getAttribute('data-terminal-agreement') || 0);
+        if (!id) return;
+        await loadAgreementIntoModal(id);
+        openAgreeModal();
+      });
+    }
+
+    if (agreeForm && agreeSaveBtn) {
+      agreeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!agreeForm.checkValidity()) { agreeForm.reportValidity(); return; }
+        agreeSaveBtn.disabled = true;
+        const prev = agreeSaveBtn.textContent;
+        agreeSaveBtn.textContent = 'Saving...';
+        try {
+          const res = await fetch(rootUrl + '/admin/api/module5/save_terminal_agreement.php', { method: 'POST', body: new FormData(agreeForm) });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.message) ? data.message : 'save_failed');
+          showToast('Details saved.');
+          closeAgreeModal();
+          setTimeout(() => { window.location.reload(); }, 350);
+        } catch (err) {
+          showToast(err.message || 'Failed', 'error');
+          agreeSaveBtn.disabled = false;
+          agreeSaveBtn.textContent = prev;
+        }
+      });
+    }
 
     // Edit Logic
     document.addEventListener('click', async (e) => {
