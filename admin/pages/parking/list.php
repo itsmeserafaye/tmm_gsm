@@ -67,13 +67,24 @@ $db->query("CREATE TABLE IF NOT EXISTS `facility_documents` (
 $canManage = has_permission('module5.manage_terminal');
 
 $qFilter = trim((string)($_GET['q'] ?? ''));
+$ownerFilter = trim((string)($_GET['owner'] ?? ''));
+$locationFilter = trim((string)($_GET['location'] ?? ''));
+$permitFilter = trim((string)($_GET['permit'] ?? ''));
+$statusFilter = trim((string)($_GET['status'] ?? ''));
+$capacityFilter = trim((string)($_GET['capacity'] ?? ''));
 
 $statParkingAreas = (int)($db->query("SELECT COUNT(*) AS c FROM terminals WHERE type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingSlotsFree = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Free' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingSlotsOccupied = (int)($db->query("SELECT COUNT(*) AS c FROM parking_slots ps JOIN terminals t ON t.id=ps.terminal_id WHERE ps.status='Occupied' AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 $statParkingPaymentsToday = (int)($db->query("SELECT COUNT(*) AS c FROM parking_payments pp JOIN parking_slots ps ON ps.slot_id=pp.slot_id JOIN terminals t ON t.id=ps.terminal_id WHERE DATE(pp.paid_at)=CURDATE() AND t.type='Parking'")->fetch_assoc()['c'] ?? 0);
 
+$owners = [];
+$locations = [];
+$statuses = [];
+$capacities = [];
+
 $ownerNameExpr = "NULL";
+$faTidCol = '';
 $faExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements' LIMIT 1")?->fetch_row());
 $foExists = (bool)($db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_owners' LIMIT 1")?->fetch_row());
 if ($faExists && $foExists) {
@@ -81,6 +92,7 @@ if ($faExists && $foExists) {
   $resCols = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_agreements'");
   if ($resCols) while ($c = $resCols->fetch_assoc()) $faCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
   $tidCol = isset($faCols['terminal_id']) ? 'terminal_id' : (isset($faCols['facility_id']) ? 'facility_id' : '');
+  $faTidCol = $tidCol;
   $statusCol = isset($faCols['status']) ? 'status' : '';
   $createdCol = isset($faCols['created_at']) ? 'created_at' : '';
   if ($tidCol !== '') {
@@ -91,20 +103,86 @@ if ($faExists && $foExists) {
 }
 if ($ownerNameExpr !== 'NULL') $ownerNameExpr = str_replace('t.id', 'terminals.id', $ownerNameExpr);
 
+$resLoc = $db->query("SELECT DISTINCT TRIM(COALESCE(location,'')) AS location FROM terminals WHERE type='Parking' AND COALESCE(location,'')<>'' ORDER BY location ASC LIMIT 500");
+if ($resLoc) while ($r = $resLoc->fetch_assoc()) { $l = trim((string)($r['location'] ?? '')); if ($l !== '') $locations[] = $l; }
+$resCap = $db->query("SELECT DISTINCT COALESCE(capacity,0) AS capacity FROM terminals WHERE type='Parking' ORDER BY COALESCE(capacity,0) ASC LIMIT 500");
+if ($resCap) while ($r = $resCap->fetch_assoc()) { $capacities[] = (int)($r['capacity'] ?? 0); }
+$capacities = array_values(array_unique($capacities));
+$resStats = $db->query("SELECT DISTINCT COALESCE(NULLIF(TRIM(status),''),'Active') AS status FROM terminals WHERE type='Parking' ORDER BY status ASC LIMIT 200");
+if ($resStats) {
+  $set = ['Active' => true, 'Inactive' => true, 'Archived' => true];
+  while ($r = $resStats->fetch_assoc()) { $s = trim((string)($r['status'] ?? '')); if ($s !== '') $set[$s] = true; }
+  $statuses = array_keys($set);
+  sort($statuses, SORT_NATURAL | SORT_FLAG_CASE);
+}
+if ($foExists) {
+  $resOwners = $db->query("SELECT DISTINCT TRIM(COALESCE(name,'')) AS name FROM facility_owners WHERE COALESCE(name,'')<>'' ORDER BY name ASC LIMIT 500");
+  if ($resOwners) while ($r = $resOwners->fetch_assoc()) { $n = trim((string)($r['name'] ?? '')); if ($n !== '') $owners[] = $n; }
+}
+
+$permitAnyExpr = '';
+try {
+  $parts = [];
+  $chkDocs = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents' LIMIT 1");
+  if ($chkDocs && $chkDocs->fetch_row()) {
+    $cols = [];
+    $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents'");
+    if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    $dTidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+    $dTypeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['type']) ? 'type' : (isset($cols['document_type']) ? 'document_type' : ''));
+    if ($dTidCol !== '' && $dTypeCol !== '') $parts[] = "EXISTS (SELECT 1 FROM facility_documents d WHERE d.$dTidCol=terminals.id AND LOWER(COALESCE(d.$dTypeCol,'')) LIKE '%permit%')";
+  }
+  $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
+  if ($chkPerm && $chkPerm->fetch_row()) {
+    $cols = [];
+    $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+    if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    $pTidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+    if ($pTidCol !== '') $parts[] = "EXISTS (SELECT 1 FROM terminal_permits p2 WHERE p2.$pTidCol=terminals.id)";
+  }
+  if ($parts) $permitAnyExpr = '(' . implode(' OR ', $parts) . ')';
+} catch (Throwable $e) {}
+
 $parkingRows = [];
+$where = "type='Parking'";
+$params = [];
+$types = '';
 if ($qFilter !== '') {
-  $sql = "SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE type='Parking' AND (name LIKE ? OR COALESCE(location,'') LIKE ? OR COALESCE(address,'') LIKE ?) ORDER BY name ASC LIMIT 500";
+  $where .= " AND (name LIKE ? OR COALESCE(location,'') LIKE ? OR COALESCE(address,'') LIKE ?)";
+  $like = '%' . $qFilter . '%';
+  $types .= 'sss';
+  $params[] = $like; $params[] = $like; $params[] = $like;
+}
+if ($ownerFilter !== '' && $faExists && $foExists && $faTidCol !== '') {
+  $where .= " AND EXISTS (SELECT 1 FROM facility_agreements fa JOIN facility_owners fo ON fa.owner_id=fo.id WHERE fa.$faTidCol=terminals.id AND fo.name=?)";
+  $types .= 's';
+  $params[] = $ownerFilter;
+}
+if ($locationFilter !== '') { $where .= " AND COALESCE(location,'') = ?"; $types .= 's'; $params[] = $locationFilter; }
+if ($statusFilter !== '') {
+  if (strcasecmp($statusFilter, 'Active') === 0) $where .= " AND COALESCE(NULLIF(TRIM(status),''),'Active')='Active'";
+  else { $where .= " AND COALESCE(NULLIF(TRIM(status),''),'Active')=?"; $types .= 's'; $params[] = $statusFilter; }
+}
+if ($capacityFilter !== '') { $where .= " AND COALESCE(capacity,0)=?"; $types .= 'i'; $params[] = (int)$capacityFilter; }
+if ($permitFilter !== '' && $permitAnyExpr !== '') {
+  $pv = strtolower($permitFilter);
+  if ($pv === 'yes' || $pv === 'permitted' || $pv === 'permit') $where .= " AND $permitAnyExpr";
+  if ($pv === 'no' || $pv === 'not_permitted' || $pv === 'n/a') $where .= " AND NOT $permitAnyExpr";
+}
+
+$sql = "SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE $where ORDER BY name ASC LIMIT 500";
+$resP = null;
+if ($types !== '') {
   $stmt = $db->prepare($sql);
   if ($stmt) {
-    $like = '%' . $qFilter . '%';
-    $stmt->bind_param('sss', $like, $like, $like);
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $resP = $stmt->get_result();
   } else {
     $resP = false;
   }
 } else {
-  $resP = $db->query("SELECT id, name, location, address, capacity, $ownerNameExpr as owner_name FROM terminals WHERE type='Parking' ORDER BY name ASC LIMIT 500");
+  $resP = $db->query($sql);
 }
 if ($resP) while ($r = $resP->fetch_assoc()) $parkingRows[] = $r;
 
@@ -359,23 +437,96 @@ if ($rootUrl === '/') $rootUrl = '';
     <div class="p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
       <form method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
         <input type="hidden" name="page" value="parking/list">
-        <div class="md:col-span-8">
+        <div class="md:col-span-6">
           <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
           <div class="relative">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
             <input name="q" value="<?php echo htmlspecialchars($qFilter); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="Parking name / location / address">
           </div>
         </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Owner</label>
+          <select name="owner" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" <?php echo ($faExists && $foExists && $faTidCol !== '') ? '' : 'disabled'; ?>>
+            <option value="" <?php echo $ownerFilter === '' ? 'selected' : ''; ?>>All Owners</option>
+            <?php foreach ($owners as $o): ?>
+              <option value="<?php echo htmlspecialchars($o); ?>" <?php echo $ownerFilter === $o ? 'selected' : ''; ?>><?php echo htmlspecialchars($o); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="md:col-span-3">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Location</label>
+          <select name="location" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $locationFilter === '' ? 'selected' : ''; ?>>All Locations</option>
+            <?php foreach ($locations as $l): ?>
+              <option value="<?php echo htmlspecialchars($l); ?>" <?php echo $locationFilter === $l ? 'selected' : ''; ?>><?php echo htmlspecialchars($l); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Permitted</label>
+          <select name="permit" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $permitFilter === '' ? 'selected' : ''; ?>>All</option>
+            <option value="yes" <?php echo strtolower($permitFilter) === 'yes' ? 'selected' : ''; ?>>Permitted</option>
+            <option value="no" <?php echo strtolower($permitFilter) === 'no' ? 'selected' : ''; ?>>No Permit</option>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Status</label>
+          <select name="status" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $statusFilter === '' ? 'selected' : ''; ?>>All Status</option>
+            <?php foreach ($statuses as $s): ?>
+              <option value="<?php echo htmlspecialchars($s); ?>" <?php echo $statusFilter === $s ? 'selected' : ''; ?>><?php echo htmlspecialchars($s); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Capacity</label>
+          <select name="capacity" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            <option value="" <?php echo $capacityFilter === '' ? 'selected' : ''; ?>>All Capacities</option>
+            <?php foreach ($capacities as $cap): ?>
+              <option value="<?php echo (int)$cap; ?>" <?php echo ((string)$capacityFilter !== '' && (int)$capacityFilter === (int)$cap) ? 'selected' : ''; ?>><?php echo (int)$cap; ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
         <div class="md:col-span-4 flex items-center gap-2">
           <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
           <a href="?page=parking/list" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset">
             <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
           </a>
-          <?php if (has_permission('reports.export') || has_permission('module5.manage_terminal')): ?>
+          <?php if (has_permission('reports.export')): ?>
             <?php
               $qs = http_build_query([
                 'type' => 'Parking',
                 'q' => $qFilter,
+                'owner' => $ownerFilter,
+                'location' => $locationFilter,
+                'permit' => $permitFilter,
+                'status' => $statusFilter,
+                'capacity' => $capacityFilter,
+              ]);
+              $csvUrl = $rootUrl . '/admin/api/module5/export_terminals_csv.php?' . $qs;
+              $excelUrl = $rootUrl . '/admin/api/module5/export_terminals_csv.php?' . $qs . '&format=excel';
+              $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
+            ?>
+            <a href="<?php echo htmlspecialchars($csvUrl); ?>" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Export CSV">
+              <i data-lucide="download" class="w-4 h-4"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars($excelUrl); ?>" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Export Excel">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Print Report" data-print-url="<?php echo htmlspecialchars($printUrl); ?>" data-report-name="Parking List Report" onclick="return window.tmmPrintLink && window.tmmPrintLink(this);">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+            </a>
+          <?php elseif (has_permission('module5.manage_terminal')): ?>
+            <?php
+              $qs = http_build_query([
+                'type' => 'Parking',
+                'q' => $qFilter,
+                'owner' => $ownerFilter,
+                'location' => $locationFilter,
+                'permit' => $permitFilter,
+                'status' => $statusFilter,
+                'capacity' => $capacityFilter,
               ]);
               $printUrl = $rootUrl . '/admin/api/module5/print_terminals.php?' . $qs;
             ?>
