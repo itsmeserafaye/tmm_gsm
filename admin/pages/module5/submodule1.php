@@ -177,14 +177,39 @@ $parkingRows = [];
 
 $permCountByTerminal = [];
 try {
+  $chkDocs = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents' LIMIT 1");
+  if ($chkDocs && $chkDocs->fetch_row()) {
+    $cols = [];
+    $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='facility_documents'");
+    if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+    $typeCol = isset($cols['doc_type']) ? 'doc_type' : (isset($cols['type']) ? 'type' : (isset($cols['document_type']) ? 'document_type' : ''));
+    if ($tidCol !== '' && $typeCol !== '') {
+      $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM facility_documents WHERE LOWER(COALESCE($typeCol,'')) LIKE '%permit%' GROUP BY $tidCol");
+      if ($resPerm) {
+        while ($row = $resPerm->fetch_assoc()) {
+          $tid = (int)($row['tid'] ?? 0);
+          $c = (int)($row['c'] ?? 0);
+          if ($tid > 0) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + $c;
+        }
+      }
+    }
+  }
+
   $chkPerm = $db->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits' LIMIT 1");
   if ($chkPerm && $chkPerm->fetch_row()) {
-    $resPerm = $db->query("SELECT terminal_id, COUNT(*) AS c FROM terminal_permits GROUP BY terminal_id");
-    if ($resPerm) {
-      while ($row = $resPerm->fetch_assoc()) {
-        $tid = (int)($row['terminal_id'] ?? 0);
-        $c = (int)($row['c'] ?? 0);
-        if ($tid > 0) $permCountByTerminal[$tid] = $c;
+    $cols = [];
+    $colRes = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_permits'");
+    if ($colRes) while ($c = $colRes->fetch_assoc()) $cols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+    $tidCol = isset($cols['terminal_id']) ? 'terminal_id' : (isset($cols['facility_id']) ? 'facility_id' : '');
+    if ($tidCol !== '') {
+      $resPerm = $db->query("SELECT $tidCol AS tid, COUNT(*) AS c FROM terminal_permits GROUP BY $tidCol");
+      if ($resPerm) {
+        while ($row = $resPerm->fetch_assoc()) {
+          $tid = (int)($row['tid'] ?? 0);
+          $c = (int)($row['c'] ?? 0);
+          if ($tid > 0) $permCountByTerminal[$tid] = ($permCountByTerminal[$tid] ?? 0) + $c;
+        }
       }
     }
   }

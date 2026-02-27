@@ -382,10 +382,12 @@ if ($rootUrl === '/') $rootUrl = '';
                 <td class="py-4 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars((string)($t['location'] ?? ($t['address'] ?? ''))); ?></td>
                 <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold"><?php echo (int)($t['capacity'] ?? 0); ?></td>
                 <td class="py-4 px-4 text-right">
-                  <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2" data-parking-edit="<?php echo (int)($t['id'] ?? 0); ?>">
-                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                    <span class="sr-only">Edit</span>
-                  </button>
+                  <?php if ($canManage): ?>
+                    <button type="button" title="Edit" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2" data-parking-edit="<?php echo (int)($t['id'] ?? 0); ?>">
+                      <i data-lucide="pencil" class="w-4 h-4"></i>
+                      <span class="sr-only">Edit</span>
+                    </button>
+                  <?php endif; ?>
                   <a title="Slots" aria-label="Slots" href="?page=parking/slots-payments&<?php echo http_build_query(['terminal_id'=>(int)($t['id'] ?? 0),'tab'=>'slots']); ?>" class="inline-flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mr-2">
                     <i data-lucide="layout-grid" class="w-4 h-4"></i>
                     <span class="sr-only">Slots</span>
@@ -819,9 +821,15 @@ if ($rootUrl === '/') $rootUrl = '';
     document.addEventListener('click', async (e) => {
        const btn = e.target.closest('[data-parking-edit]');
        if (!btn) return;
+       if (!canManage) { showToast('You do not have permission to edit parking areas.', 'error'); return; }
        const id = btn.getAttribute('data-parking-edit');
        if (!id) return;
        
+       if (panelCreate && panelCreate.classList.contains('hidden')) {
+          if (btnToggle) btnToggle.click();
+          else panelCreate.classList.remove('hidden');
+       }
+
        if (form) {
           form.scrollIntoView({ behavior: 'smooth' });
           form.reset();
@@ -868,13 +876,17 @@ if ($rootUrl === '/') $rootUrl = '';
                    set('terms_summary', a.terms_summary);
                 }
                 
-                const title = document.querySelector('h2');
+                const title = document.querySelector('#btnToggleCreateParking h2');
                 if (title) title.textContent = 'Edit Parking Area';
+             } else {
+                throw new Error((data && data.message) ? data.message : 'Failed to load parking details.');
              }
           } catch (err) {
-             console.error(err);
+             showToast((err && err.message) ? err.message : 'Failed to load details.', 'error');
              if (saveBtn) saveBtn.textContent = originalText;
           }
+       } else {
+          showToast('Edit form is not available on this page.', 'error');
        }
     });
   })();
