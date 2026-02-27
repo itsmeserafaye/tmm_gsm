@@ -63,10 +63,6 @@ if ($resC->num_rows <= 0) {
       : 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
     $schedText = $dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-';
     $insText = $insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-';
-    $newUrl = '?'. http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]);
-    $viewUrl = $rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid;
-    $pdfUrl = $rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid;
-    $regUrl = '?'. http_build_query(['page' => 'module4/submodule2', 'vehicle_id' => $vid]);
     $html .= '<tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">';
     $html .= '<td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-' . $sid . '</td>';
     $html .= '<td class="py-3 px-4 font-black text-slate-900 dark:text-white">' . htmlspecialchars($pid) . '</td>';
@@ -74,14 +70,11 @@ if ($resC->num_rows <= 0) {
     $html .= '<td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold">' . htmlspecialchars($loc !== '' ? $loc : '-') . '</td>';
     $html .= '<td class="py-3 px-4"><span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ' . $badge . '">' . htmlspecialchars($res !== '' ? $res : '-') . '</span></td>';
     $html .= '<td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold">' . htmlspecialchars($insText) . '</td>';
-    $html .= '<td class="py-3 px-4 text-right"><div class="flex items-center justify-end gap-1">';
-    if ($res === 'Passed' && $vid > 0) {
-      $html .= '<a href="' . htmlspecialchars($regUrl, ENT_QUOTES) . '" class="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors" title="Register Vehicle"><i data-lucide="file-plus-2" class="w-4 h-4"></i></a>';
-    }
-    $html .= '<a href="' . htmlspecialchars($newUrl, ENT_QUOTES) . '" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors" title="New Result"><i data-lucide="plus-circle" class="w-4 h-4"></i></a>';
-    $html .= '<a href="' . htmlspecialchars($viewUrl, ENT_QUOTES) . '" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="View Report"><i data-lucide="eye" class="w-4 h-4"></i></a>';
-    $html .= '<a href="' . htmlspecialchars($pdfUrl, ENT_QUOTES) . '" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="Download PDF"><i data-lucide="file-down" class="w-4 h-4"></i></a>';
-    $html .= '</div></td>';
+    $html .= '<td class="py-3 px-4 text-right">';
+    $html .= '<button type="button" data-inspection-view="1" data-schedule-id="' . $sid . '" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-bold">';
+    $html .= '<i data-lucide="eye" class="w-4 h-4"></i> View';
+    $html .= '</button>';
+    $html .= '</td>';
     $html .= '</tr>';
   }
 }

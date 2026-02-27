@@ -53,7 +53,7 @@ if ($pos !== false) $rootUrl = substr($scriptName, 0, $pos);
 if ($rootUrl === '/') $rootUrl = '';
 ?>
 
-<div class="mx-auto max-w-5xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 md:px-8 mt-6 font-sans text-slate-900 dark:text-slate-100 space-y-6">
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-slate-700 pb-6">
     <div>
       <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Conduct Inspection</h1>
@@ -77,108 +77,123 @@ if ($rootUrl === '/') $rootUrl = '';
 
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 z-[500] flex flex-col gap-3 pointer-events-none"></div>
 
-  <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-    <div class="p-6 space-y-4">
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <div class="text-sm font-black text-slate-900 dark:text-white">Conducted Inspections</div>
-          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Inspection outcomes recorded from the checklist.</div>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="lg:col-span-4">
+      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6 space-y-4">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Quick Actions</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Start a checklist or review generated results.</div>
+          </div>
+          <div class="grid grid-cols-1 gap-3">
+            <button type="button" id="btnOpenConduct2" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 hover:bg-blue-800 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.98]">
+              <i data-lucide="check-square" class="w-4 h-4"></i>
+              Conduct Checklist
+            </button>
+            <a href="?page=module4/submodule3" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+              <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+              Schedule Inspection
+            </a>
+            <a href="?page=module4/submodule1" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/40 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-colors">
+              <i data-lucide="list" class="w-4 h-4"></i>
+              Vehicle Registration List
+            </a>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold">View includes the generated inspection report and PDF download.</div>
         </div>
       </div>
-      <form id="conductedFilterForm" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6 border-b border-slate-200 dark:border-slate-700 pb-6">
-        <input type="hidden" name="page" value="module4/submodule4">
-        <div class="md:col-span-4">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
-          <div class="relative">
-            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-            <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Plate / Location">
+    </div>
+
+    <div class="lg:col-span-8">
+      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6 space-y-4">
+          <div>
+            <div class="text-sm font-black text-slate-900 dark:text-white">Conducted Inspections</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">Filter and view completed inspection results.</div>
+          </div>
+          <form id="conductedFilterForm" method="GET" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end border-b border-slate-200 dark:border-slate-700 pb-6">
+            <input type="hidden" name="page" value="module4/submodule4">
+            <div class="md:col-span-4">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Search</label>
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input name="q" value="<?php echo htmlspecialchars($q); ?>" class="w-full pl-9 pr-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="Plate / Location">
+              </div>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Result</label>
+              <select name="result" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                <option value="" <?php echo $resultFilter === '' ? 'selected' : ''; ?>>All Results</option>
+                <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
+                <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From Date</label>
+              <input type="date" name="from" value="<?php echo htmlspecialchars($from); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To Date</label>
+              <input type="date" name="to" value="<?php echo htmlspecialchars($to); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+            </div>
+            <div class="md:col-span-2 flex items-center gap-2">
+              <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
+              <button type="button" id="btnResetConductedFilters" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </form>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
+                <tr class="text-left text-slate-500 dark:text-slate-400">
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Inspection</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Scheduled</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Result</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Inspected At</th>
+                  <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="conductedTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
+                <?php if (!empty($conductedRows)): ?>
+                  <?php foreach ($conductedRows as $r): ?>
+                    <?php
+                      $sid = (int)($r['schedule_id'] ?? 0);
+                      $pid = (string)($r['plate_number'] ?? '');
+                      $dt = (string)($r['sched_dt'] ?? '');
+                      $loc = (string)($r['location'] ?? '');
+                      $res = (string)($r['result'] ?? '');
+                      $insAt = (string)($r['inspected_at'] ?? '');
+                      $badge = $res === 'Passed'
+                        ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
+                        : 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
+                    ?>
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
+                      <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($pid); ?></td>
+                      <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?></td>
+                      <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
+                      <td class="py-3 px-4">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($res !== '' ? $res : '-'); ?></span>
+                      </td>
+                      <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-'); ?></td>
+                      <td class="py-3 px-4 text-right">
+                        <button type="button" data-inspection-view="1" data-schedule-id="<?php echo $sid; ?>" class="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-bold">
+                          <i data-lucide="eye" class="w-4 h-4"></i>
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No inspections recorded yet.</td></tr>
+                <?php endif; ?>
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="md:col-span-2">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Result</label>
-          <select name="result" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-            <option value="" <?php echo $resultFilter === '' ? 'selected' : ''; ?>>All Results</option>
-            <option value="Passed" <?php echo $resultFilter === 'Passed' ? 'selected' : ''; ?>>Passed</option>
-            <option value="Failed" <?php echo $resultFilter === 'Failed' ? 'selected' : ''; ?>>Failed</option>
-          </select>
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">From Date</label>
-          <input type="date" name="from" value="<?php echo htmlspecialchars($from); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">To Date</label>
-          <input type="date" name="to" value="<?php echo htmlspecialchars($to); ?>" class="w-full px-4 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
-        </div>
-        <div class="md:col-span-2 flex items-center gap-2">
-          <button class="flex-1 px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm">Apply</button>
-          <button type="button" id="btnResetConductedFilters" class="px-4 py-2.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-sm font-semibold transition-colors hover:bg-slate-50 dark:hover:bg-slate-700" title="Reset Filters">
-            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </form>
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
-            <tr class="text-left text-slate-500 dark:text-slate-400">
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Inspection</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Plate</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Scheduled</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden md:table-cell">Location</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs">Result</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs hidden sm:table-cell">Inspected At</th>
-              <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="conductedTbody" class="divide-y divide-slate-200 dark:divide-slate-700">
-            <?php if (!empty($conductedRows)): ?>
-              <?php foreach ($conductedRows as $r): ?>
-                <?php
-                  $sid = (int)($r['schedule_id'] ?? 0);
-                  $pid = (string)($r['plate_number'] ?? '');
-                  $dt = (string)($r['sched_dt'] ?? '');
-                  $loc = (string)($r['location'] ?? '');
-                  $res = (string)($r['result'] ?? '');
-                  $insAt = (string)($r['inspected_at'] ?? '');
-                  $vid = (int)($r['vehicle_id'] ?? 0);
-                  $badge = $res === 'Passed'
-                    ? 'bg-emerald-100 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/20'
-                    : 'bg-rose-100 text-rose-700 ring-rose-600/20 dark:bg-rose-900/30 dark:text-rose-400 dark:ring-rose-500/20';
-                ?>
-                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white">SCH-<?php echo $sid; ?></td>
-                  <td class="py-3 px-4 font-black text-slate-900 dark:text-white"><?php echo htmlspecialchars($pid); ?></td>
-                  <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($dt !== '' ? date('M d, Y H:i', strtotime($dt)) : '-'); ?></td>
-                  <td class="py-3 px-4 hidden md:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($loc !== '' ? $loc : '-'); ?></td>
-                  <td class="py-3 px-4">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset <?php echo $badge; ?>"><?php echo htmlspecialchars($res !== '' ? $res : '-'); ?></span>
-                  </td>
-                  <td class="py-3 px-4 hidden sm:table-cell text-slate-600 dark:text-slate-300 font-semibold"><?php echo htmlspecialchars($insAt !== '' ? date('M d, Y H:i', strtotime($insAt)) : '-'); ?></td>
-                  <td class="py-3 px-4 text-right">
-                    <div class="flex items-center justify-end gap-1">
-                      <?php if ($res === 'Passed' && $vid > 0): ?>
-                        <a href="?page=module4/submodule2&vehicle_id=<?php echo $vid; ?>" class="p-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors" title="Register Vehicle">
-                          <i data-lucide="file-plus-2" class="w-4 h-4"></i>
-                        </a>
-                      <?php endif; ?>
-                      <a href="?<?php echo http_build_query(['page' => 'module4/submodule4', 'schedule_id' => $sid]); ?>" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors" title="New Result">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                      </a>
-                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=html&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="View Report">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                      </a>
-                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' . $sid, ENT_QUOTES); ?>" target="_blank" rel="noopener" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors" title="Download PDF">
-                        <i data-lucide="file-down" class="w-4 h-4"></i>
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">No inspections recorded yet.</td></tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -398,6 +413,26 @@ if ($rootUrl === '/') $rootUrl = '';
   </div>
 </div>
 
+<div id="modalInspectionReport" class="fixed inset-0 z-[260] hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="w-full max-w-6xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-slate-900/5 flex flex-col max-h-[92vh]">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+      <div>
+        <div class="text-lg font-black text-slate-900 dark:text-white">Inspection Result</div>
+        <div class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Generated report preview with PDF download.</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a id="btnInspectionPdf" href="#" target="_blank" rel="noopener" class="px-4 py-2.5 rounded-md bg-slate-900 dark:bg-slate-700 text-white font-semibold text-sm">Download PDF</a>
+        <button type="button" id="btnCloseInspectionReport" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 bg-slate-50 dark:bg-slate-950">
+      <iframe id="inspectionReportFrame" title="Inspection Report" class="w-full h-full" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+
 <script>
   (function(){
     const rootUrl = <?php echo json_encode($rootUrl); ?>;
@@ -412,6 +447,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const scheduleSelect = form ? form.querySelector('select[name="schedule_id"]') : null;
     const modal = document.getElementById('modalConduct');
     const btnOpen = document.getElementById('btnOpenConduct');
+    const btnOpen2 = document.getElementById('btnOpenConduct2');
     const btnClose = document.getElementById('btnCloseConduct');
     const initialScheduleId = <?php echo json_encode($scheduleId); ?>;
     const docStatus = {
@@ -444,6 +480,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnOpen2) btnOpen2.addEventListener('click', openModal);
     if (btnClose) btnClose.addEventListener('click', closeModal);
     if (modal) {
       modal.addEventListener('click', (e) => {
@@ -470,6 +507,52 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
+    const reportModal = document.getElementById('modalInspectionReport');
+    const reportFrame = document.getElementById('inspectionReportFrame');
+    const reportClose = document.getElementById('btnCloseInspectionReport');
+    const reportPdf = document.getElementById('btnInspectionPdf');
+
+    function openReportModal(scheduleId) {
+      if (!reportModal || !reportFrame) return;
+      const sid = String(scheduleId || '').trim();
+      reportFrame.src = rootUrl + '/admin/api/module4/inspection_report.php?format=html&schedule_id=' + encodeURIComponent(sid);
+      if (reportPdf) reportPdf.setAttribute('href', rootUrl + '/admin/api/module4/inspection_report.php?format=pdf&schedule_id=' + encodeURIComponent(sid));
+      reportModal.classList.remove('hidden');
+      reportModal.classList.add('flex');
+      try { document.body.style.overflow = 'hidden'; } catch (_) {}
+    }
+
+    function closeReportModal() {
+      if (!reportModal) return;
+      reportModal.classList.add('hidden');
+      reportModal.classList.remove('flex');
+      if (reportFrame) reportFrame.src = 'about:blank';
+      try { document.body.style.overflow = ''; } catch (_) {}
+    }
+
+    function bindConductedActions(scope) {
+      const root = scope || document;
+      root.querySelectorAll('[data-inspection-view="1"]').forEach((b) => {
+        if (b.getAttribute('data-bound') === '1') return;
+        b.setAttribute('data-bound', '1');
+        b.addEventListener('click', () => {
+          const sid = b.getAttribute('data-schedule-id') || '';
+          if (!sid) return;
+          openReportModal(sid);
+        });
+      });
+    }
+
+    if (reportClose) reportClose.addEventListener('click', closeReportModal);
+    if (reportModal) {
+      reportModal.addEventListener('click', (e) => {
+        if (e && e.target === reportModal) closeReportModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e && e.key === 'Escape' && !reportModal.classList.contains('hidden')) closeReportModal();
+      });
+    }
+
     async function loadConductedTable(pushState) {
       if (!conductedForm || !conductedTbody) return;
       conductedTbody.innerHTML = '<tr><td colspan="7" class="py-10 text-center text-slate-500 font-medium italic">Loading...</td></tr>';
@@ -489,6 +572,7 @@ if ($rootUrl === '/') $rootUrl = '';
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         conductedTbody.innerHTML = (data.html || '').toString();
         if (window.lucide) window.lucide.createIcons();
+        bindConductedActions(conductedTbody);
         if (pushState) {
           const params = new URLSearchParams(window.location.search || '');
           params.set('page', 'module4/submodule4');
@@ -526,6 +610,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     loadConductedTable(false);
+    bindConductedActions(document);
 
     function getScheduleId() {
       if (!scheduleSelect) return '';
