@@ -353,64 +353,86 @@ if ($format !== 'pdf') {
 
       <div class="card">
         <div class="sectionTitle">Checklist</div>
-    <?php if (!$checklist): ?>
-      <div class="muted">No checklist data.</div>
-    <?php else: ?>
-      <div class="muted" style="font-size:12px">LGU operational inspection checklist record.</div>
-      <?php if (strtolower($overall) === 'failed'): ?>
-        <div style="margin-top:10px"><a href="<?php echo htmlspecialchars($rootUrl . '/admin/index.php?page=module4/submodule3&reinspect_of=' . (int)$scheduleId); ?>">Reschedule Reinspection</a></div>
-      <?php endif; ?>
-      <table>
-        <thead>
-          <tr><th>Item</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          <?php
-            $grouped = [];
-            foreach ($checklist as $c) {
-              $code = (string)($c['item_code'] ?? '');
-              if (strpos(strtoupper(trim($code)), 'DOC_') === 0) continue;
-              $cat = $catFor($code);
-              if (!isset($grouped[$cat])) $grouped[$cat] = [];
-              $grouped[$cat][] = $c;
-            }
-            $order = [
-              'Roadworthiness (Visual Check)',
-              'Passenger Safety',
-              'Safety Equipment (LGU Check)',
-              'Operational Compliance (LGU)'
-            ];
-            // Sort grouped keys based on $order, putting others at the end
-            uksort($grouped, function($a, $b) use ($order) {
-              $ia = array_search($a, $order);
-              $ib = array_search($b, $order);
-              if ($ia !== false && $ib !== false) return $ia - $ib;
-              if ($ia !== false) return -1;
-              if ($ib !== false) return 1;
-              return strcasecmp($a, $b);
-            });
-          ?>
-          <?php foreach ($grouped as $cat => $rows): ?>
-            <tr><th colspan="2" style="background:#f8fafc"><?php echo htmlspecialchars($cat); ?></th></tr>
-            <?php foreach ($rows as $c): ?>
-              <?php
-                $label = (string)($c['item_label'] ?? '');
-                if ($label === '') $label = (string)($c['item_code'] ?? '');
-                $stRaw = strtoupper(trim((string)($c['status'] ?? '')));
-                $stClass = 'pill na';
-                $stText = $stRaw !== '' ? $stRaw : 'NA';
-                if ($stRaw === 'PASS') $stClass = 'pill pass';
-                elseif ($stRaw === 'FAIL') $stClass = 'pill fail';
-              ?>
-              <tr>
-                <td><?php echo htmlspecialchars($label); ?></td>
-                <td><span class="<?php echo $stClass; ?>"><?php echo htmlspecialchars($stText); ?></span></td>
-              </tr>
+        <div class="muted" style="font-size:12px">LGU operational inspection checklist record.</div>
+        <?php if (strtolower($overall) === 'failed'): ?>
+          <div style="margin-top:10px"><a href="<?php echo htmlspecialchars($rootUrl . '/admin/index.php?page=module4/submodule3&reinspect_of=' . (int)$scheduleId); ?>">Reschedule Reinspection</a></div>
+        <?php endif; ?>
+        <?php
+          $statusByCode = [];
+          foreach ($checklist as $c) {
+            $code = strtoupper(trim((string)($c['item_code'] ?? '')));
+            if ($code === '' || strpos($code, 'DOC_') === 0) continue;
+            $statusByCode[$code] = strtoupper(trim((string)($c['status'] ?? '')));
+          }
+          $labelsByCode = [];
+          foreach ($checklist as $c) {
+            $code = strtoupper(trim((string)($c['item_code'] ?? '')));
+            if ($code === '') continue;
+            $lbl = (string)($c['item_label'] ?? '');
+            if ($lbl === '') $lbl = $code;
+            if (!isset($labelsByCode[$code])) $labelsByCode[$code] = $lbl;
+          }
+          $catalog = [
+            'Roadworthiness (Visual Check)' => [
+              'RW_LIGHTS' => 'Lights / Signals Functioning',
+              'RW_HORN' => 'Horn Working',
+              'RW_BRAKES' => 'Brakes Adequate',
+              'RW_STEER' => 'Steering / Linkage Secure',
+              'RW_TIRES' => 'Tire Condition / Depth',
+              'RW_WIPERS' => 'Wipers / Windshield Visibility',
+              'RW_MIRRORS' => 'Mirrors Intact',
+              'RW_LEAKS' => 'No Fluid Leaks',
+            ],
+            'Passenger Safety' => [
+              'PS_DOORS' => 'Doors / Latches Operate Properly',
+            ],
+            'Safety Equipment (LGU Check)' => [
+              'SE_EXT' => 'Fire Extinguisher Present & Serviceable',
+              'SE_EWD' => 'Early Warning Device / Warning Triangles',
+              'SE_FIRSTAID' => 'First Aid Kit Present',
+              'SE_REFLECT' => 'Reflectors / Visibility Markings',
+            ],
+            'Operational Compliance (LGU)' => [
+              'LGU_SIGN' => 'Route/Line Signage Displayed',
+              'LGU_BODYNO' => 'Body Number / Unit Markings Visible',
+              'LGU_CAP' => 'Capacity Label / No Excess Seats',
+              'LGU_CLEAN' => 'Cleanliness / Passenger Area Condition',
+            ],
+          ];
+          $flat = [];
+          foreach ($catalog as $cat => $items) foreach ($items as $cd => $lb) $flat[$cd] = $lb;
+          $legacy = [];
+          foreach ($labelsByCode as $cd => $lb) {
+            if (strpos($cd, 'DOC_') === 0) continue;
+            if (!isset($flat[$cd])) $legacy[$cd] = $lb;
+          }
+          if ($legacy) $catalog['Other / Legacy Items'] = $legacy;
+        ?>
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <?php foreach ($catalog as $cat => $items): ?>
+              <tr><th colspan="2" style="background:#f8fafc"><?php echo htmlspecialchars($cat); ?></th></tr>
+              <?php foreach ($items as $code => $label): ?>
+                <?php
+                  $codeU = strtoupper(trim((string)$code));
+                  $lbl = isset($labelsByCode[$codeU]) ? (string)$labelsByCode[$codeU] : (string)$label;
+                  $stRaw = strtoupper(trim((string)($statusByCode[$codeU] ?? '')));
+                  $stClass = 'pill na';
+                  $stText = $stRaw !== '' ? $stRaw : 'NA';
+                  if ($stRaw === 'PASS') $stClass = 'pill pass';
+                  elseif ($stRaw === 'FAIL') $stClass = 'pill fail';
+                ?>
+                <tr>
+                  <td><?php echo htmlspecialchars($lbl); ?></td>
+                  <td><span class="<?php echo $stClass; ?>"><?php echo htmlspecialchars($stText); ?></span></td>
+                </tr>
+              <?php endforeach; ?>
             <?php endforeach; ?>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    <?php endif; ?>
+          </tbody>
+        </table>
       </div>
 
       <div class="card">
