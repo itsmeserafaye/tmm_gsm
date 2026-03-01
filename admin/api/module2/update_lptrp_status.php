@@ -47,7 +47,7 @@ if ($status === 'Approved') {
   $stmtA = $db->prepare("UPDATE franchise_applications SET approved_route_ids=?, approved_vehicle_count=? WHERE application_id=?");
   if ($stmtA) {
     $routeDbId = $approvedRouteDbId > 0 ? $approvedRouteDbId : $routeId;
-    $rid = $routeDbId > 0 ? ('ROUTE:' . (string)$routeDbId) : null;
+    $rid = $routeDbId > 0 ? (string)$routeDbId : null;
     $stmtA->bind_param('sii', $rid, $approvedUnits, $id);
     $stmtA->execute();
     $stmtA->close();
