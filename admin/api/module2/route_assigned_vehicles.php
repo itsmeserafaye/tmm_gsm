@@ -62,7 +62,7 @@ FROM (
     SELECT operator_id, MAX(application_id) AS max_id
     FROM franchise_applications
     WHERE {$routeMatchSql}
-      AND status IN ('Approved','LTFRB-Approved','PA Issued','CPC Issued')
+      AND status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
     GROUP BY operator_id
   ) x ON x.max_id=fa1.application_id
 ) fa
