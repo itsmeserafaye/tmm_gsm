@@ -7,7 +7,9 @@ header('Content-Type: application/json');
 require_permission('module4.schedule');
 
 $vehicleId = (int)($_GET['vehicle_id'] ?? 0);
-$plate = strtoupper(trim((string)($_GET['plate'] ?? '')));
+$plateRaw = (string)($_GET['plate'] ?? '');
+$plate = strtoupper(trim($plateRaw));
+$plate = preg_replace('/[^A-Z0-9\-]/', '', $plate);
 if ($vehicleId <= 0 && $plate !== '') {
   $stmtP = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
   if ($stmtP) {
@@ -20,7 +22,7 @@ if ($vehicleId <= 0 && $plate !== '') {
 }
 if ($vehicleId <= 0) {
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'missing_vehicle_id', 'hint' => 'Provide ?vehicle_id= or ?plate=']);
+  echo json_encode(['ok' => false, 'error' => 'missing_vehicle_id', 'hint' => 'Provide ?vehicle_id= or ?plate=', 'plate_in' => $plateRaw, 'plate_clean' => $plate]);
   exit;
 }
 
