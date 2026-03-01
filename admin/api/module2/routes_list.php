@@ -90,6 +90,7 @@ if ($res) {
   while ($r = $res->fetch_assoc()) {
     $r['kind'] = 'route';
     $r['id'] = $r['route_db_id'];
+    $r['active_units'] = $r['used_units'];
     $rows[] = $r;
   }
 }
@@ -137,6 +138,7 @@ if ($db->query("SHOW TABLES LIKE 'tricycle_service_areas'") && ($db->query("SHOW
       $fm = $a['fare_min'];
       $fx = $a['fare_max'];
       $a['fare'] = ($fm === null && $fx === null) ? null : (($fx === null || abs((float)$fm - (float)$fx) < 0.001) ? (string)($fm ?? $fx) : ((string)$fm . ' - ' . (string)$fx));
+      $a['active_units'] = $a['used_units'];
       $rows[] = $a;
     }
   }
