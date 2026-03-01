@@ -280,13 +280,14 @@ $hasInsuranceDoc = true;
 
 $vehicleFranchiseRef = trim((string)($veh['franchise_id'] ?? ''));
 $frOk = false;
-  $isActiveStatus = function ($st): bool {
+  $isEligibleFranchiseStatus = function ($st): bool {
     $s = strtoupper((string)$st);
-    $s = preg_replace('/\s+/u', '', $s);
     $s = str_replace(["\r", "\n", "\t", "\xc2\xa0"], '', $s);
-    return $s === 'ACTIVE';
+    $s = preg_replace('/\s+/u', '', $s);
+    $s = preg_replace('/[^A-Z0-9]+/', '', $s);
+    return in_array($s, ['ACTIVE', 'LGUENDORSED', 'ENDORSED', 'APPROVED', 'LTFRBAPPROVED'], true);
   };
-  $hasActiveByOperator = function (int $opId) use ($db, $isActiveStatus): bool {
+  $hasActiveByOperator = function (int $opId) use ($db, $isEligibleFranchiseStatus): bool {
     if ($opId <= 0) return false;
     $stmt = $db->prepare("SELECT status FROM franchise_applications WHERE operator_id=? ORDER BY application_id DESC LIMIT 25");
     if (!$stmt) return false;
@@ -294,12 +295,12 @@ $frOk = false;
     $stmt->execute();
     $res = $stmt->get_result();
     while ($res && ($r = $res->fetch_assoc())) {
-      if ($isActiveStatus($r['status'] ?? '')) { $stmt->close(); return true; }
+      if ($isEligibleFranchiseStatus($r['status'] ?? '')) { $stmt->close(); return true; }
     }
     $stmt->close();
     return false;
   };
-  $hasActiveByRef = function (string $ref) use ($db, $isActiveStatus): bool {
+  $hasActiveByRef = function (string $ref) use ($db, $isEligibleFranchiseStatus): bool {
     $ref = trim($ref);
     if ($ref === '') return false;
     $stmt = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? ORDER BY application_id DESC LIMIT 25");
@@ -308,7 +309,7 @@ $frOk = false;
     $stmt->execute();
     $res = $stmt->get_result();
     while ($res && ($r = $res->fetch_assoc())) {
-      if ($isActiveStatus($r['status'] ?? '')) { $stmt->close(); return true; }
+      if ($isEligibleFranchiseStatus($r['status'] ?? '')) { $stmt->close(); return true; }
     }
     $stmt->close();
     return false;
@@ -320,7 +321,7 @@ if (!$frOk && $opNameResolved !== '') {
   $stmtFrName = $db->prepare("SELECT fa.application_id
                               FROM franchise_applications fa
                               JOIN operators o ON o.id=fa.operator_id
-                              WHERE fa.status='Active'
+                              WHERE fa.status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved')
                                 AND LOWER(TRIM(COALESCE(NULLIF(o.name,''), o.full_name)))=LOWER(TRIM(?))
                               ORDER BY fa.application_id DESC
                               LIMIT 1");
@@ -344,7 +345,7 @@ if (!$frOk && $vehicleOperatorName !== '') {
   $stmtFix = $db->prepare("SELECT fa.operator_id, fa.application_id, COALESCE(NULLIF(o.name,''), o.full_name) AS op_name
                            FROM franchise_applications fa
                            JOIN operators o ON o.id=fa.operator_id
-                           WHERE fa.status='Active'
+                           WHERE fa.status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved')
                            ORDER BY fa.application_id DESC
                            LIMIT 200");
   if ($stmtFix) {
@@ -631,7 +632,12 @@ try {
         $stmtFa->execute();
         $fa = $stmtFa->get_result()->fetch_assoc();
         $stmtFa->close();
-        $frOk = $fa && (strtoupper(trim((string)($fa['status'] ?? ''))) === 'ACTIVE');
+        $st = (string)($fa['status'] ?? '');
+        $st = strtoupper($st);
+        $st = str_replace(["\r", "\n", "\t", "\xc2\xa0"], '', $st);
+        $st = preg_replace('/\s+/u', '', $st);
+        $st = preg_replace('/[^A-Z0-9]+/', '', $st);
+        $frOk = in_array($st, ['ACTIVE', 'LGUENDORSED', 'ENDORSED', 'APPROVED', 'LTFRBAPPROVED'], true);
       }
     }
     $next = null;
