@@ -280,29 +280,47 @@ $hasInsuranceDoc = true;
 
 $vehicleFranchiseRef = trim((string)($veh['franchise_id'] ?? ''));
 $frOk = false;
-$stmtFrOp = $db->prepare("SELECT application_id FROM franchise_applications WHERE operator_id=? AND UPPER(TRIM(status))='ACTIVE' ORDER BY application_id DESC LIMIT 1");
-if ($stmtFrOp) {
-  $stmtFrOp->bind_param('i', $operatorId);
-  $stmtFrOp->execute();
-  $row = $stmtFrOp->get_result()->fetch_assoc();
-  $stmtFrOp->close();
-  if ($row) $frOk = true;
-}
-if (!$frOk && $vehicleFranchiseRef !== '') {
-  $stmtFrRef = $db->prepare("SELECT application_id FROM franchise_applications WHERE franchise_ref_number=? AND UPPER(TRIM(status))='ACTIVE' LIMIT 1");
-  if ($stmtFrRef) {
-    $stmtFrRef->bind_param('s', $vehicleFranchiseRef);
-    $stmtFrRef->execute();
-    $row = $stmtFrRef->get_result()->fetch_assoc();
-    $stmtFrRef->close();
-    if ($row) $frOk = true;
-  }
-}
+  $isActiveStatus = function ($st): bool {
+    $s = strtoupper((string)$st);
+    $s = preg_replace('/\s+/u', '', $s);
+    $s = str_replace(["\r", "\n", "\t", "\xc2\xa0"], '', $s);
+    return $s === 'ACTIVE';
+  };
+  $hasActiveByOperator = function (int $opId) use ($db, $isActiveStatus): bool {
+    if ($opId <= 0) return false;
+    $stmt = $db->prepare("SELECT status FROM franchise_applications WHERE operator_id=? ORDER BY application_id DESC LIMIT 25");
+    if (!$stmt) return false;
+    $stmt->bind_param('i', $opId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) {
+      if ($isActiveStatus($r['status'] ?? '')) { $stmt->close(); return true; }
+    }
+    $stmt->close();
+    return false;
+  };
+  $hasActiveByRef = function (string $ref) use ($db, $isActiveStatus): bool {
+    $ref = trim($ref);
+    if ($ref === '') return false;
+    $stmt = $db->prepare("SELECT status FROM franchise_applications WHERE franchise_ref_number=? ORDER BY application_id DESC LIMIT 25");
+    if (!$stmt) return false;
+    $stmt->bind_param('s', $ref);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($res && ($r = $res->fetch_assoc())) {
+      if ($isActiveStatus($r['status'] ?? '')) { $stmt->close(); return true; }
+    }
+    $stmt->close();
+    return false;
+  };
+
+if ($hasActiveByOperator($operatorId)) $frOk = true;
+if (!$frOk && $vehicleFranchiseRef !== '' && $hasActiveByRef($vehicleFranchiseRef)) $frOk = true;
 if (!$frOk && $opNameResolved !== '') {
   $stmtFrName = $db->prepare("SELECT fa.application_id
                               FROM franchise_applications fa
                               JOIN operators o ON o.id=fa.operator_id
-                              WHERE UPPER(TRIM(fa.status))='ACTIVE'
+                              WHERE fa.status='Active'
                                 AND LOWER(TRIM(COALESCE(NULLIF(o.name,''), o.full_name)))=LOWER(TRIM(?))
                               ORDER BY fa.application_id DESC
                               LIMIT 1");
@@ -326,7 +344,7 @@ if (!$frOk && $vehicleOperatorName !== '') {
   $stmtFix = $db->prepare("SELECT fa.operator_id, fa.application_id, COALESCE(NULLIF(o.name,''), o.full_name) AS op_name
                            FROM franchise_applications fa
                            JOIN operators o ON o.id=fa.operator_id
-                           WHERE UPPER(TRIM(fa.status))='ACTIVE'
+                           WHERE fa.status='Active'
                            ORDER BY fa.application_id DESC
                            LIMIT 200");
   if ($stmtFix) {
