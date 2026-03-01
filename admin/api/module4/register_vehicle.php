@@ -315,19 +315,33 @@ if (!$frOk && $opNameResolved !== '') {
   }
 }
 if (!$frOk && $vehicleOperatorName !== '') {
-  $stmtFix = $db->prepare("SELECT fa.operator_id, fa.application_id
+  $norm = function (string $s): string {
+    $s = strtolower(trim($s));
+    $s = preg_replace('/[^a-z0-9]+/i', ' ', $s);
+    $s = preg_replace('/\s+/', ' ', trim((string)$s));
+    return (string)$s;
+  };
+  $vehKey = $norm($vehicleOperatorName);
+
+  $stmtFix = $db->prepare("SELECT fa.operator_id, fa.application_id, COALESCE(NULLIF(o.name,''), o.full_name) AS op_name
                            FROM franchise_applications fa
                            JOIN operators o ON o.id=fa.operator_id
                            WHERE UPPER(TRIM(fa.status))='ACTIVE'
-                             AND LOWER(TRIM(COALESCE(NULLIF(o.name,''), o.full_name)))=LOWER(TRIM(?))
                            ORDER BY fa.application_id DESC
-                           LIMIT 1");
+                           LIMIT 200");
   if ($stmtFix) {
-    $stmtFix->bind_param('s', $vehicleOperatorName);
     $stmtFix->execute();
-    $fix = $stmtFix->get_result()->fetch_assoc();
+    $resFix = $stmtFix->get_result();
+    $fixedOpId = 0;
+    while ($resFix && ($r = $resFix->fetch_assoc())) {
+      $opName = (string)($r['op_name'] ?? '');
+      $appKey = $norm($opName);
+      if ($vehKey !== '' && ($appKey === $vehKey || strpos($appKey, $vehKey) !== false || strpos($vehKey, $appKey) !== false)) {
+        $fixedOpId = (int)($r['operator_id'] ?? 0);
+        break;
+      }
+    }
     $stmtFix->close();
-    $fixedOpId = (int)($fix['operator_id'] ?? 0);
     if ($fixedOpId > 0 && $fixedOpId !== $operatorId) {
       if ($vehHasCurrentOp) {
         $stmtU = $db->prepare("UPDATE vehicles SET current_operator_id=? WHERE id=?");
