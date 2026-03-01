@@ -7,9 +7,20 @@ header('Content-Type: application/json');
 require_permission('module4.schedule');
 
 $vehicleId = (int)($_GET['vehicle_id'] ?? 0);
+$plate = strtoupper(trim((string)($_GET['plate'] ?? '')));
+if ($vehicleId <= 0 && $plate !== '') {
+  $stmtP = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? LIMIT 1");
+  if ($stmtP) {
+    $stmtP->bind_param('s', $plate);
+    $stmtP->execute();
+    $r = $stmtP->get_result()->fetch_assoc();
+    $stmtP->close();
+    $vehicleId = (int)($r['id'] ?? 0);
+  }
+}
 if ($vehicleId <= 0) {
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'missing_vehicle_id']);
+  echo json_encode(['ok' => false, 'error' => 'missing_vehicle_id', 'hint' => 'Provide ?vehicle_id= or ?plate=']);
   exit;
 }
 
