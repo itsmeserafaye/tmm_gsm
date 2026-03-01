@@ -432,8 +432,10 @@ $ensureRegCols = function () use ($db, $hasCol): void {
   if ($hasCol('vehicle_registrations', 'orcr_no')) { @$db->query("ALTER TABLE vehicle_registrations MODIFY COLUMN orcr_no VARCHAR(64) NULL"); }
   if ($hasCol('vehicle_registrations', 'orcr_date')) { @$db->query("ALTER TABLE vehicle_registrations MODIFY COLUMN orcr_date DATE NULL"); }
   if (!$hasCol('vehicle_registrations', 'or_number')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_number VARCHAR(64) NULL"); }
-  if (!$hasCol('vehicle_registrations', 'or_date')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_date DATE NULL"); }
-  if (!$hasCol('vehicle_registrations', 'or_expiry_date')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_expiry_date DATE NULL"); }
+  if ($hasCol('vehicle_registrations', 'or_date')) { @$db->query("ALTER TABLE vehicle_registrations MODIFY COLUMN or_date DATE NULL"); }
+  else { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_date DATE NULL"); }
+  if ($hasCol('vehicle_registrations', 'or_expiry_date')) { @$db->query("ALTER TABLE vehicle_registrations MODIFY COLUMN or_expiry_date DATE NULL"); }
+  else { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN or_expiry_date DATE NULL"); }
   if (!$hasCol('vehicle_registrations', 'registration_year')) { @$db->query("ALTER TABLE vehicle_registrations ADD COLUMN registration_year VARCHAR(4) NULL"); }
   $idx = @$db->query("SHOW INDEX FROM vehicle_registrations WHERE Key_name='uniq_vehicle_id'");
   if (!$idx || $idx->num_rows == 0) { @$db->query("ALTER TABLE vehicle_registrations ADD UNIQUE KEY uniq_vehicle_id (vehicle_id)"); }
@@ -551,6 +553,8 @@ try {
   if ($orDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $orDate)) $orDate = '';
   if ($orExpiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $orExpiry)) $orExpiry = '';
   if ($insuranceExpiry !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $insuranceExpiry)) $insuranceExpiry = '';
+  $orDateIns = $orDate !== '' ? $orDate : null;
+  $orExpiryIns = $orExpiry !== '' ? $orExpiry : null;
 
   $stmtUp = $db->prepare("INSERT INTO vehicle_registrations (vehicle_id, orcr_no, orcr_date, registration_status, created_at, or_number, or_date, or_expiry_date, registration_year)
                           VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?)
@@ -563,7 +567,7 @@ try {
                             or_expiry_date=CASE WHEN VALUES(or_expiry_date)<>'' THEN VALUES(or_expiry_date) ELSE or_expiry_date END,
                             registration_year=CASE WHEN VALUES(registration_year)<>'' THEN VALUES(registration_year) ELSE registration_year END");
   if (!$stmtUp) throw new Exception('db_prepare_failed');
-  $stmtUp->bind_param('isssssss', $vehicleId, $orcrNoLegacy, $orcrDateLegacy, $registrationStatus, $orNumber, $orDate, $orExpiry, $regYear);
+  $stmtUp->bind_param('isssssss', $vehicleId, $orcrNoLegacy, $orcrDateLegacy, $registrationStatus, $orNumber, $orDateIns, $orExpiryIns, $regYear);
   if (!$stmtUp->execute()) throw new Exception('insert_failed:' . (string)$stmtUp->errno . ':' . (string)$stmtUp->error);
   $stmtUp->close();
 
