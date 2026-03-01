@@ -82,9 +82,11 @@ $vehHasInsExp = $hasCol('vehicles', 'insurance_expiry_date');
 $vehHasInsp = $hasCol('vehicles', 'inspection_status');
 $vehHasCurrentOp = $hasCol('vehicles', 'current_operator_id');
 $vehHasFranchiseId = $hasCol('vehicles', 'franchise_id');
+$vehHasOpName = $hasCol('vehicles', 'operator_name');
 
 $stmtV = $db->prepare("SELECT id, plate_number, operator_id" .
   ($vehHasCurrentOp ? ", current_operator_id" : ", 0 AS current_operator_id") .
+  ($vehHasOpName ? ", operator_name" : ", '' AS operator_name") .
   ($vehHasOrNumber ? ", or_number" : ", '' AS or_number") .
   ($vehHasOrDate ? ", or_date" : ", '' AS or_date") .
   ($vehHasOrExp ? ", or_expiry_date" : ", '' AS or_expiry_date") .
@@ -122,6 +124,7 @@ if ($regYear === '' && $vehRegYear !== '') $regYear = $vehRegYear;
 if ($insuranceExpiry === '' && $vehInsExpiry !== '') $insuranceExpiry = $vehInsExpiry;
 $operatorId = $vehHasCurrentOp ? (int)($veh['current_operator_id'] ?? 0) : 0;
 if ($operatorId <= 0) $operatorId = (int)($veh['operator_id'] ?? 0);
+$vehicleOperatorName = trim((string)($veh['operator_name'] ?? ''));
 if ($operatorId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'vehicle_not_linked_to_operator']);
@@ -311,9 +314,84 @@ if (!$frOk && $opNameResolved !== '') {
     if ($row) $frOk = true;
   }
 }
+if (!$frOk && $vehicleOperatorName !== '') {
+  $stmtFix = $db->prepare("SELECT fa.operator_id, fa.application_id
+                           FROM franchise_applications fa
+                           JOIN operators o ON o.id=fa.operator_id
+                           WHERE UPPER(TRIM(fa.status))='ACTIVE'
+                             AND LOWER(TRIM(COALESCE(NULLIF(o.name,''), o.full_name)))=LOWER(TRIM(?))
+                           ORDER BY fa.application_id DESC
+                           LIMIT 1");
+  if ($stmtFix) {
+    $stmtFix->bind_param('s', $vehicleOperatorName);
+    $stmtFix->execute();
+    $fix = $stmtFix->get_result()->fetch_assoc();
+    $stmtFix->close();
+    $fixedOpId = (int)($fix['operator_id'] ?? 0);
+    if ($fixedOpId > 0 && $fixedOpId !== $operatorId) {
+      if ($vehHasCurrentOp) {
+        $stmtU = $db->prepare("UPDATE vehicles SET current_operator_id=? WHERE id=?");
+        if ($stmtU) {
+          $stmtU->bind_param('ii', $fixedOpId, $vehicleId);
+          $stmtU->execute();
+          $stmtU->close();
+        }
+      }
+      $stmtU2 = $db->prepare("UPDATE vehicles SET operator_id=CASE WHEN COALESCE(operator_id,0)=0 THEN ? ELSE operator_id END WHERE id=?");
+      if ($stmtU2) {
+        $stmtU2->bind_param('ii', $fixedOpId, $vehicleId);
+        $stmtU2->execute();
+        $stmtU2->close();
+      }
+      $operatorId = $fixedOpId;
+      $frOk = true;
+    }
+  }
+}
 if (!$frOk) {
+  $opRow = null;
+  $appsOp = [];
+  $appsRef = [];
+  $stmtOp2 = $db->prepare("SELECT id, name, full_name, status, workflow_status, verification_status FROM operators WHERE id=? LIMIT 1");
+  if ($stmtOp2) {
+    $stmtOp2->bind_param('i', $operatorId);
+    $stmtOp2->execute();
+    $opRow = $stmtOp2->get_result()->fetch_assoc();
+    $stmtOp2->close();
+  }
+  $stmtApps = $db->prepare("SELECT application_id, franchise_ref_number, status, submitted_channel, submitted_at FROM franchise_applications WHERE operator_id=? ORDER BY application_id DESC LIMIT 10");
+  if ($stmtApps) {
+    $stmtApps->bind_param('i', $operatorId);
+    $stmtApps->execute();
+    $resApps = $stmtApps->get_result();
+    while ($resApps && ($r = $resApps->fetch_assoc())) $appsOp[] = $r;
+    $stmtApps->close();
+  }
+  if ($vehicleFranchiseRef !== '') {
+    $stmtRef = $db->prepare("SELECT application_id, operator_id, franchise_ref_number, status, submitted_channel, submitted_at FROM franchise_applications WHERE franchise_ref_number=? ORDER BY application_id DESC LIMIT 10");
+    if ($stmtRef) {
+      $stmtRef->bind_param('s', $vehicleFranchiseRef);
+      $stmtRef->execute();
+      $resRef = $stmtRef->get_result();
+      while ($resRef && ($r = $resRef->fetch_assoc())) $appsRef[] = $r;
+      $stmtRef->close();
+    }
+  }
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'franchise_not_active', 'operator_id' => $operatorId, 'operator_name' => $opNameResolved, 'vehicle_franchise_id' => $vehicleFranchiseRef]);
+  echo json_encode([
+    'ok' => false,
+    'error' => 'franchise_not_active',
+    'operator_id' => $operatorId,
+    'operator_name' => $opNameResolved,
+    'vehicle_franchise_id' => $vehicleFranchiseRef,
+    'debug' => [
+      'vehicle_operator_id' => (int)($veh['operator_id'] ?? 0),
+      'vehicle_current_operator_id' => (int)($veh['current_operator_id'] ?? 0),
+      'operator_row' => $opRow,
+      'apps_by_operator' => $appsOp,
+      'apps_by_franchise_ref' => $appsRef,
+    ],
+  ]);
   exit;
 }
 
