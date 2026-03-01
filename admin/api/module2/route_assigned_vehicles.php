@@ -32,8 +32,8 @@ $opHasVerify = $hasCol('operators', 'verification_status');
 $hasVehicleRegs = $hasTable('vehicle_registrations') && $hasCol('vehicle_registrations', 'registration_status') && $hasCol('vehicles', 'id');
 
 $routeMatchParts = ["fa1.route_id=?"];
-if ($faHasApprovedRoutes) $routeMatchParts[] = "FIND_IN_SET(?, COALESCE(NULLIF(fa1.approved_route_ids,''), ''))";
-if ($faHasRouteIds) $routeMatchParts[] = "FIND_IN_SET(?, COALESCE(NULLIF(fa1.route_ids,''), ''))";
+if ($faHasApprovedRoutes) $routeMatchParts[] = "FIND_IN_SET(?, REPLACE(COALESCE(NULLIF(fa1.approved_route_ids,''), ''), 'ROUTE:', ''))";
+if ($faHasRouteIds) $routeMatchParts[] = "FIND_IN_SET(?, REPLACE(COALESCE(NULLIF(fa1.route_ids,''), ''), 'ROUTE:', ''))";
 $routeMatchSql = '(' . implode(' OR ', $routeMatchParts) . ')';
 
 $opFilterParts = [];
