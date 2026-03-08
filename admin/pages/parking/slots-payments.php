@@ -178,7 +178,7 @@ if ($rootUrl === '/') $rootUrl = '';
               </div>
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
-                <input id="orInput" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123">
+                <input id="orInput" name="or_no" required minlength="3" maxlength="40" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123" title="Letters, numbers, hyphen">
                 <button type="button" id="btnGenOR" class="mt-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">Generate OR</button>
                 <input id="paidAtInput" type="hidden" name="paid_at" value="">
                 <input id="exportedToTreasuryInput" type="hidden" name="exported_to_treasury" value="0">
@@ -366,7 +366,7 @@ if ($rootUrl === '/') $rootUrl = '';
                 <div class="font-black text-slate-800 dark:text-white">${plate}</div>
                 <div class="flex items-center gap-2">
                   <div class="font-black text-emerald-700">${amt}</div>
-                  ${slotId ? `<button type="button" data-view-slot="${String(slotId)}" class="px-3 py-1.5 rounded-md text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">View</button>` : ''}
+                  ${slotId ? `<button type="button" data-view-slot="${String(slotId)}" class="px-3 py-1.5 rounded-md text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"><i data-lucide="eye" class="w-4 h-4 mr-1"></i><span>View</span></button>` : ''}
                 </div>
               </div>
               <div class="mt-1 text-xs text-slate-500 font-semibold">${when}${slot ? (' • Slot ' + slot) : ''}</div>
@@ -381,6 +381,7 @@ if ($rootUrl === '/') $rootUrl = '';
             catch (e) { showToast((e && e.message) ? e.message : 'Failed', 'error'); }
           });
         });
+        if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
       } catch (e) {
         wrap.innerHTML = '<div class="text-rose-600 font-semibold">Failed to load payments.</div>';
       }
