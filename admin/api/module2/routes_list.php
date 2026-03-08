@@ -29,6 +29,12 @@ if ($faHasRouteIds) $faRouteMatch .= " OR FIND_IN_SET(r2.id, REPLACE(COALESCE(NU
 $faRouteMatch = '(' . $faRouteMatch . ')';
 
 if ($useAlloc) {
+  $allocBase = "CASE
+    WHEN a.vehicle_type IN ('UV','UV Express','Shuttle Van') THEN 'UV'
+    WHEN a.vehicle_type IN ('Jeepney','Modern Jeepney') THEN 'Jeepney'
+    WHEN a.vehicle_type IN ('Bus','City Bus','Mini-bus') THEN 'Bus'
+    ELSE a.vehicle_type
+  END";
   $sql = "SELECT
   r.id AS route_db_id,
   r.route_id,
@@ -50,12 +56,14 @@ if ($useAlloc) {
   FROM routes r
   JOIN route_vehicle_types a ON a.route_id=r.id AND a.status='Active' AND a.vehicle_type<>'Tricycle'
   LEFT JOIN (
-    SELECT r2.id AS route_id, fa.vehicle_type, COALESCE(SUM(COALESCE(fa.approved_vehicle_count, fa.vehicle_count)),0) AS used_units
+    SELECT r2.id AS route_id,
+           COALESCE(NULLIF(fa.vehicle_type,''), 'UV') AS base_vehicle_type,
+           COALESCE(SUM(COALESCE(fa.approved_vehicle_count, fa.vehicle_count)),0) AS used_units
     FROM routes r2
     JOIN franchise_applications fa ON {$faRouteMatch}
     WHERE fa.status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
-    GROUP BY r2.id, fa.vehicle_type
-  ) u ON u.route_id=r.id AND u.vehicle_type=a.vehicle_type
+    GROUP BY r2.id, COALESCE(NULLIF(fa.vehicle_type,''), 'UV')
+  ) u ON u.route_id=r.id AND u.base_vehicle_type={$allocBase}
   WHERE r.status='Active' AND r.route_id NOT LIKE 'R-%'
   ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC, a.vehicle_type ASC
   LIMIT 2000";

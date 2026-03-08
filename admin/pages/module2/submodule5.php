@@ -368,10 +368,24 @@ if ($rootUrl === '/') $rootUrl = '';
       }
       openModal();
       loadAssigned(routeId).catch(() => {});
+      loadRoutes().then(() => {
+        if (!activeRouteId || Number(activeRouteId) !== Number(routeId)) return;
+        const rr = allRoutes.find(x => Number(x.id) === Number(routeId));
+        if (routeModalAuthorized) routeModalAuthorized.textContent = String(Number(rr && rr.authorized_units || 0));
+        if (routeModalActive) routeModalActive.textContent = String(Number(rr && rr.active_units || 0));
+      }).catch(() => {});
       if (window.lucide) window.lucide.createIcons();
     }
 
-    if (btnRefreshAssigned) btnRefreshAssigned.addEventListener('click', () => { if (activeRouteId) loadAssigned(activeRouteId).catch(() => {}); });
+    if (btnRefreshAssigned) btnRefreshAssigned.addEventListener('click', () => {
+      if (!activeRouteId) return;
+      loadRoutes().then(() => {
+        const rr = allRoutes.find(x => Number(x.id) === Number(activeRouteId));
+        if (routeModalAuthorized) routeModalAuthorized.textContent = String(Number(rr && rr.authorized_units || 0));
+        if (routeModalActive) routeModalActive.textContent = String(Number(rr && rr.active_units || 0));
+        loadAssigned(activeRouteId).catch(() => {});
+      }).catch(() => { loadAssigned(activeRouteId).catch(() => {}); });
+    });
 
     function buildPrintUrl() {
       const qs = new URLSearchParams();
