@@ -87,10 +87,10 @@ try {
     $stmtS->execute();
     $slot = $stmtS->get_result()->fetch_assoc();
     $stmtS->close();
-    if (!$slot) throw new Exception('no_free_slots');
+    if (!$slot) throw new Exception('no_free_slots_auto_tid_' . $terminalId);
     $slotId = (int)($slot['slot_id'] ?? 0);
     $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
-    if ($slotId <= 0) throw new Exception('no_free_slots');
+    if ($slotId <= 0) throw new Exception('no_free_slots_invalid_id');
   }
 
   if ($slotTerminalId > 0) {
@@ -239,8 +239,8 @@ try {
 } catch (Throwable $e) {
   $db->rollback();
   $err = (string)$e->getMessage();
-  $clientErrors = ['slot_not_found', 'slot_not_free', 'no_free_slots', 'vehicle_restricted_to_assigned_terminals', 'route_not_allowed_in_terminal', 'operator_no_approved_routes'];
-  if (in_array($err, $clientErrors, true)) {
+  $clientErrors = ['slot_not_found', 'slot_not_free', 'no_free_slots', 'no_free_slots_auto_tid_' . $terminalId, 'no_free_slots_invalid_id', 'vehicle_restricted_to_assigned_terminals', 'route_not_allowed_in_terminal', 'operator_no_approved_routes'];
+  if (in_array($err, $clientErrors, true) || strpos($err, 'no_free_slots') !== false) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $err]);
   } else {
