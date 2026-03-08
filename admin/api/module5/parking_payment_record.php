@@ -110,6 +110,94 @@ try {
         }
       }
     }
+
+    // Enforce route-based restriction: vehicle/operator must have approved route allowed in this terminal
+    $operatorId = 0;
+    $vehicleRouteRef = '';
+    $stmtVehInfo = $db->prepare("SELECT operator_id, route_id FROM vehicles WHERE id=? LIMIT 1");
+    if ($stmtVehInfo) {
+      $stmtVehInfo->bind_param('i', $vehicleId);
+      $stmtVehInfo->execute();
+      $rowVI = $stmtVehInfo->get_result()->fetch_assoc();
+      $stmtVehInfo->close();
+      $operatorId = (int)($rowVI['operator_id'] ?? 0);
+      $vehicleRouteRef = trim((string)($rowVI['route_id'] ?? ''));
+    }
+
+    $hasTable = function (string $table) use ($db): bool {
+      $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? LIMIT 1");
+      if (!$stmt) return false;
+      $stmt->bind_param('s', $table);
+      $stmt->execute();
+      $ok = (bool)($stmt->get_result()->fetch_row());
+      $stmt->close();
+      return $ok;
+    };
+
+    if ($operatorId > 0 && $hasTable('franchise_applications') && $hasTable('routes') && $hasTable('terminal_routes')) {
+      $routeDbIds = [];
+      $stmtF = $db->prepare("SELECT DISTINCT route_id FROM franchise_applications WHERE operator_id=? AND route_id IS NOT NULL AND route_id>0 AND status IN ('Approved','LTFRB-Approved')");
+      if ($stmtF) {
+        $stmtF->bind_param('i', $operatorId);
+        $stmtF->execute();
+        $resF = $stmtF->get_result();
+        while ($resF && ($r = $resF->fetch_assoc())) {
+          $rid = (int)($r['route_id'] ?? 0);
+          if ($rid > 0) $routeDbIds[] = $rid;
+        }
+        $stmtF->close();
+      }
+
+      // Fallback: resolve vehicle's route reference to route DB id if no approved list found
+      if (!$routeDbIds && $vehicleRouteRef !== '') {
+        $stmtResolve = $db->prepare("SELECT id FROM routes WHERE route_id=? OR route_code=? LIMIT 1");
+        if ($stmtResolve) {
+          $stmtResolve->bind_param('ss', $vehicleRouteRef, $vehicleRouteRef);
+          $stmtResolve->execute();
+          $rowR = $stmtResolve->get_result()->fetch_assoc();
+          $stmtResolve->close();
+          $rid = (int)($rowR['id'] ?? 0);
+          if ($rid > 0) $routeDbIds[] = $rid;
+        }
+      }
+
+      $routeDbIds = array_values(array_unique($routeDbIds));
+      if ($routeDbIds) {
+        $idList = implode(',', array_map('intval', $routeDbIds));
+        $routeRefs = [];
+        $resR = $db->query("SELECT route_id, route_code FROM routes WHERE id IN ($idList)");
+        if ($resR) {
+          while ($r = $resR->fetch_assoc()) {
+            $rid = trim((string)($r['route_id'] ?? ''));
+            $rcode = trim((string)($r['route_code'] ?? ''));
+            if ($rid !== '') $routeRefs[] = $rid;
+            if ($rcode !== '') $routeRefs[] = $rcode;
+          }
+        }
+        $routeRefs = array_values(array_unique(array_filter($routeRefs, fn($x) => $x !== '')));
+        if ($routeRefs) {
+          $in = implode(',', array_map(function ($s) use ($db) {
+            return "'" . $db->real_escape_string($s) . "'";
+          }, $routeRefs));
+          $okTerm = false;
+          $stmtTr = $db->prepare("SELECT 1 FROM terminal_routes WHERE terminal_id=? AND route_id IN ($in) LIMIT 1");
+          if ($stmtTr) {
+            $stmtTr->bind_param('i', $slotTerminalId);
+            $stmtTr->execute();
+            $resTr = $stmtTr->get_result();
+            $okTerm = (bool)($resTr && $resTr->fetch_row());
+            $stmtTr->close();
+          }
+          if (!$okTerm) {
+            throw new Exception('route_not_allowed_in_terminal');
+          }
+        } else {
+          throw new Exception('operator_no_approved_routes');
+        }
+      } else {
+        throw new Exception('operator_no_approved_routes');
+      }
+    }
   }
 
   if ($paidAt !== null) {
@@ -151,7 +239,7 @@ try {
 } catch (Throwable $e) {
   $db->rollback();
   $err = (string)$e->getMessage();
-  $clientErrors = ['slot_not_found', 'slot_not_free', 'no_free_slots', 'vehicle_restricted_to_assigned_terminals'];
+  $clientErrors = ['slot_not_found', 'slot_not_free', 'no_free_slots', 'vehicle_restricted_to_assigned_terminals', 'route_not_allowed_in_terminal', 'operator_no_approved_routes'];
   if (in_array($err, $clientErrors, true)) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => $err]);

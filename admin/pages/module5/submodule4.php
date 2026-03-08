@@ -229,6 +229,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <div>
                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
                 <input id="orInput" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123">
+                <button type="button" id="btnGenOR" class="mt-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">Generate OR</button>
                 <input id="paidAtInput" type="hidden" name="paid_at" value="">
                 <input id="exportedToTreasuryInput" type="hidden" name="exported_to_treasury" value="0">
                 <input id="exportedAtInput" type="hidden" name="exported_at" value="">
@@ -423,6 +424,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const paidAtInput = document.getElementById('paidAtInput');
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
+    const btnGenOR = document.getElementById('btnGenOR');
     let assignedVehicles = [];
     const queueBody = document.getElementById('queueBody');
     const formQueueAdd = document.getElementById('formQueueAdd');
@@ -441,6 +443,27 @@ if ($rootUrl === '/') $rootUrl = '';
     const payFilterFrom = document.getElementById('payFilterFrom');
     const payFilterTo = document.getElementById('payFilterTo');
     const payFilterQ = document.getElementById('payFilterQ');
+
+    function pad(n) { return n.toString().padStart(2, '0'); }
+    function genOrNo() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      const ss = pad(d.getSeconds());
+      const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `OR-${yyyy}${mm}${dd}-${hh}${mi}${ss}-${rand}`;
+    }
+    if (btnGenOR && orInput) {
+      btnGenOR.addEventListener('click', () => {
+        const v = genOrNo();
+        orInput.value = v.toString().toUpperCase();
+        try { orInput.dataset.manual = '1'; orInput.dataset.autofilled = '1'; } catch (_) {}
+        setPaymentButtons('record');
+      });
+    }
 
     if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
     if (orInput) {
@@ -1016,7 +1039,7 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadSlotsTable();
           await loadPaySlots();
           await loadPayments();
-          setPaymentButtons('treasury');
+          setPaymentButtons('record');
         } catch (err) {
           showToast(err.message || 'Failed', 'error');
         } finally {
@@ -1130,7 +1153,7 @@ if ($rootUrl === '/') $rootUrl = '';
       loadAssignedVehicles().catch(() => {});
       loadPayments().catch(() => {});
       if (canSlots) loadSlotsTable().catch(() => {});
-      setPaymentButtons((orInput && (orInput.value || '').trim() !== '') ? 'record' : 'treasury');
+      setPaymentButtons('record');
     }
 
     const btnRefreshPayments = document.getElementById('btnRefreshPayments');
