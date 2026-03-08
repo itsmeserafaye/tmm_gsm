@@ -477,7 +477,10 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPaySlots();
           await loadPayments();
         } catch (err) {
-          showToast((err && err.message) ? err.message : 'Failed', 'error');
+          const msg = (err && err.message) ? err.message : 'Failed';
+          if (msg === 'no_free_slots') showToast('No free slots available.', 'error');
+          else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
+          else showToast(msg, 'error');
         } finally {
           btnPay.disabled = false;
           btnPay.textContent = originalText;
