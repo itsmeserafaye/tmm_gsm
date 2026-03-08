@@ -35,6 +35,12 @@ if ($useAlloc) {
     WHEN a.vehicle_type IN ('Bus','City Bus','Mini-bus') THEN 'Bus'
     ELSE a.vehicle_type
   END";
+  $vehBase = "CASE
+    WHEN COALESCE(NULLIF(v.vehicle_type,''),'') IN ('UV','UV Express','Shuttle Van') THEN 'UV'
+    WHEN COALESCE(NULLIF(v.vehicle_type,''),'') IN ('Jeepney','Modern Jeepney') THEN 'Jeepney'
+    WHEN COALESCE(NULLIF(v.vehicle_type,''),'') IN ('Bus','City Bus','Mini-bus') THEN 'Bus'
+    ELSE COALESCE(NULLIF(v.vehicle_type,''),'')
+  END";
   $sql = "SELECT
   r.id AS route_db_id,
   r.route_id,
@@ -52,7 +58,8 @@ if ($useAlloc) {
   END AS fare,
   COALESCE(a.authorized_units, 0) AS authorized_units,
   COALESCE(u.used_units, 0) AS used_units,
-  GREATEST(COALESCE(a.authorized_units,0) - COALESCE(u.used_units,0), 0) AS remaining_units
+  COALESCE(av.active_units, 0) AS active_units,
+  GREATEST(COALESCE(a.authorized_units,0) - COALESCE(av.active_units,0), 0) AS remaining_units
   FROM routes r
   JOIN route_vehicle_types a ON a.route_id=r.id AND a.status='Active' AND a.vehicle_type<>'Tricycle'
   LEFT JOIN (
@@ -64,6 +71,19 @@ if ($useAlloc) {
     WHERE fa.status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
     GROUP BY r2.id, COALESCE(NULLIF(fa.vehicle_type,''), 'UV')
   ) u ON u.route_id=r.id AND u.base_vehicle_type={$allocBase}
+  LEFT JOIN (
+    SELECT r2.id AS route_id,
+           {$vehBase} AS base_vehicle_type,
+           COUNT(DISTINCT v.id) AS active_units
+    FROM routes r2
+    JOIN franchise_applications fa ON {$faRouteMatch}
+    JOIN vehicles v ON COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=fa.operator_id
+    LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id
+    WHERE fa.status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+      AND COALESCE(v.record_status,'') <> 'Archived'
+      AND (COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active') OR COALESCE(NULLIF(vr.registration_status,''),'') IN ('Registered','Recorded'))
+    GROUP BY r2.id, {$vehBase}
+  ) av ON av.route_id=r.id AND av.base_vehicle_type={$allocBase}
   WHERE r.status='Active' AND r.route_id NOT LIKE 'R-%'
   ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC, a.vehicle_type ASC
   LIMIT 2000";
@@ -99,9 +119,21 @@ if ($useAlloc) {
     END AS fare,
     COALESCE(r.authorized_units, r.max_vehicle_limit, 0) AS authorized_units,
     COALESCE(SUM(COALESCE(fa.approved_vehicle_count, fa.vehicle_count)),0) AS used_units,
-    GREATEST(COALESCE(r.authorized_units, r.max_vehicle_limit, 0) - COALESCE(SUM(COALESCE(fa.approved_vehicle_count, fa.vehicle_count)),0), 0) AS remaining_units
+    COALESCE(av.active_units,0) AS active_units,
+    GREATEST(COALESCE(r.authorized_units, r.max_vehicle_limit, 0) - COALESCE(av.active_units,0), 0) AS remaining_units
   FROM routes r
   LEFT JOIN franchise_applications fa ON ({$faRouteMatch}) AND fa.status IN ('Pending Review','Approved','Active','Endorsed','LGU-Endorsed','LTFRB-Approved','PA Issued','CPC Issued')
+  LEFT JOIN (
+    SELECT r2.id AS route_id, COUNT(DISTINCT v.id) AS active_units
+    FROM routes r2
+    JOIN franchise_applications fa2 ON {$faRouteMatch}
+    JOIN vehicles v ON COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=fa2.operator_id
+    LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id
+    WHERE fa2.status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
+      AND COALESCE(v.record_status,'') <> 'Archived'
+      AND (COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active') OR COALESCE(NULLIF(vr.registration_status,''),'') IN ('Registered','Recorded'))
+    GROUP BY r2.id
+  ) av ON av.route_id=r.id
   WHERE r.status='Active' AND COALESCE(r.vehicle_type,'')<>'Tricycle' AND r.route_id NOT LIKE 'R-%'
   GROUP BY r.id
   ORDER BY COALESCE(NULLIF(r.route_name,''), COALESCE(NULLIF(r.route_code,''), r.route_id)) ASC
@@ -114,7 +146,7 @@ if ($res) {
   while ($r = $res->fetch_assoc()) {
     $r['kind'] = 'route';
     $r['id'] = $r['route_db_id'];
-    $r['active_units'] = $r['used_units'];
+    if (!isset($r['active_units'])) $r['active_units'] = $r['used_units'];
     $rows[] = $r;
   }
 }
