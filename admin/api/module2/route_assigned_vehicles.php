@@ -30,6 +30,8 @@ $faHasRouteIds = $hasCol('franchise_applications', 'route_ids');
 $opHasWorkflow = $hasCol('operators', 'workflow_status');
 $opHasVerify = $hasCol('operators', 'verification_status');
 $opHasRegName = $hasCol('operators', 'registered_name');
+$opHasName = $hasCol('operators', 'name');
+$opHasFullName = $hasCol('operators', 'full_name');
 $opHasType = $hasCol('operators', 'operator_type');
 $hasVehicleRegs = $hasTable('vehicle_registrations') && $hasCol('vehicle_registrations', 'registration_status') && $hasCol('vehicles', 'id');
 $vehHasCurOp = $hasCol('vehicles', 'current_operator_id');
@@ -51,11 +53,12 @@ $regFilterSql = $hasVehicleRegs
   ? "(COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active') OR COALESCE(NULLIF(vr.registration_status,''),'') IN ('Registered','Recorded'))"
   : "(COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active'))";
 
-$opNameParts = ["NULLIF(o.name,'')"];
+$opNameParts = [];
+if ($opHasName) $opNameParts[] = "NULLIF(o.name,'')";
 if ($opHasRegName) $opNameParts[] = "NULLIF(o.registered_name,'')";
-$opNameParts[] = "NULLIF(o.full_name,'')";
+if ($opHasFullName) $opNameParts[] = "NULLIF(o.full_name,'')";
 if ($vehHasOpName) $opNameParts[] = "NULLIF(v.operator_name,'')";
-$opNameExpr = "COALESCE(" . implode(", ", $opNameParts) . ", '-')";
+$opNameExpr = "COALESCE(" . ($opNameParts ? implode(", ", $opNameParts) : "'-'") . ", '-')";
 
 $opTypeExpr = $opHasType
   ? "COALESCE(NULLIF(o.operator_type,''), 'Individual')"

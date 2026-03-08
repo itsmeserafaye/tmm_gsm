@@ -119,7 +119,7 @@ if ($rootUrl === '/') $rootUrl = '';
           </div>
           <div class="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40">
             <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Fare</div>
-            <input id="routeFareInput" type="text" disabled class="mt-2 w-full px-3 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="₱ 0.00">
+            <input id="routeFareInput" type="text" disabled class="mt-2 w-full px-3 py-2.5 rounded-md bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="&#8369; 0.00">
           </div>
         </div>
 
