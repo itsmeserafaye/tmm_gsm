@@ -255,7 +255,7 @@ $res = $db->query($sql);
                     if ($od !== '') $parts[] = $od;
                     if ($oe !== '') $parts[] = 'Exp: ' . $oe;
                     if ($ry !== '') $parts[] = 'Year: ' . $ry;
-                    echo htmlspecialchars($parts ? implode(' • ', $parts) : '-');
+                    echo $parts ? implode(' &bull; ', array_map('htmlspecialchars', $parts)) : '-';
                   ?>
                 </td>
                 <td class="py-4 px-4">
