@@ -13,6 +13,38 @@ if ($terminalId <= 0) {
   exit;
 }
 
+// Daily reset: ensure slots without a payment today are set to Free
+try {
+  $stmtReset = $db->prepare("UPDATE parking_slots ps
+                             SET ps.status='Free'
+                             WHERE ps.terminal_id=?
+                               AND COALESCE(ps.status,'Free') <> 'Free'
+                               AND NOT EXISTS (
+                                 SELECT 1
+                                 FROM parking_payments pp
+                                 WHERE pp.slot_id=ps.slot_id
+                                   AND DATE(pp.paid_at)=CURDATE()
+                               )");
+  if ($stmtReset) {
+    $stmtReset->bind_param('i', $terminalId);
+    $stmtReset->execute();
+    $stmtReset->close();
+  }
+  // Close any open events from previous days
+  $stmtCloseEvents = $db->prepare("UPDATE parking_slot_events e
+                                   SET e.time_out=IFNULL(e.time_out, CONCAT(CURDATE(),' 00:00:00'))
+                                   WHERE e.terminal_id=?
+                                     AND e.time_out IS NULL
+                                     AND DATE(e.time_in) < CURDATE()");
+  if ($stmtCloseEvents) {
+    $stmtCloseEvents->bind_param('i', $terminalId);
+    $stmtCloseEvents->execute();
+    $stmtCloseEvents->close();
+  }
+} catch (Throwable $e) {
+  // ignore reset errors to avoid breaking listing
+}
+
 $capacity = 0;
 $stmtCap = $db->prepare("SELECT COALESCE(capacity, 0) AS capacity FROM terminals WHERE id=? LIMIT 1");
 if ($stmtCap) {
