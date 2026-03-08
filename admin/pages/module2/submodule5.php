@@ -196,7 +196,7 @@ if ($rootUrl === '/') $rootUrl = '';
         if (r.fare !== null && r.fare !== undefined && String(r.fare).trim() !== '') {
           const fv = String(r.fare).trim();
           const n = Number(fv);
-          fare = Number.isNaN(n) ? ('₱' + fv) : ('₱' + n.toFixed(2));
+          fare = Number.isNaN(n) ? ('\u20B1' + fv) : ('\u20B1' + n.toFixed(2));
         }
         const auth = Number(r.authorized_units || 0);
         const active = Number(r.active_units || 0);
@@ -354,14 +354,14 @@ if ($rootUrl === '/') $rootUrl = '';
       activeRouteId = routeId;
       const r = allRoutes.find(x => Number(x.id) === Number(routeId));
       if (routeModalTitle) routeModalTitle.textContent = r ? ((r.route_name || r.route_code || r.route_id) || 'Route') : 'Route';
-      if (routeModalSub) routeModalSub.textContent = r ? ((r.origin || '-') + ' → ' + (r.destination || '-') ) : '';
+      if (routeModalSub) routeModalSub.textContent = r ? ((r.origin || '-') + ' \u2192 ' + (r.destination || '-') ) : '';
       if (routeModalAuthorized) routeModalAuthorized.textContent = String(Number(r && r.authorized_units || 0));
       if (routeModalActive) routeModalActive.textContent = String(Number(r && r.active_units || 0));
       if (routeFareInput) {
         if (r && r.fare !== null && r.fare !== undefined && String(r.fare).trim() !== '') {
           const fv = String(r.fare).trim();
           const n = Number(fv);
-          routeFareInput.value = Number.isNaN(n) ? ('₱ ' + fv) : ('₱ ' + n.toFixed(2));
+          routeFareInput.value = Number.isNaN(n) ? ('\u20B1 ' + fv) : ('\u20B1 ' + n.toFixed(2));
         } else {
           routeFareInput.value = '';
         }

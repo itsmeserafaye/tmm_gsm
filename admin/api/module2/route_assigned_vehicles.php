@@ -81,7 +81,7 @@ FROM (
   FROM franchise_applications fa1
   JOIN (
     SELECT operator_id, MAX(application_id) AS max_id
-    FROM franchise_applications
+    FROM franchise_applications fa1
     WHERE {$routeMatchSql}
       AND status IN ('Active','LGU-Endorsed','Endorsed','Approved','LTFRB-Approved','PA Issued','CPC Issued')
     GROUP BY operator_id

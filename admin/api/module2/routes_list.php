@@ -173,7 +173,7 @@ if ($db->query("SHOW TABLES LIKE 'tricycle_service_areas'") && ($db->query("SHOW
     GROUP BY service_area_id
   ) u ON u.service_area_id=a.id
   LEFT JOIN (
-    SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' • ') AS points
+    SELECT area_id, GROUP_CONCAT(point_name ORDER BY sort_order ASC, point_id ASC SEPARATOR ' | ') AS points
     FROM tricycle_service_area_points
     GROUP BY area_id
   ) p ON p.area_id=a.id
