@@ -1046,7 +1046,13 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPayments();
           setPaymentButtons('record');
         } catch (err) {
-          showToast(err.message || 'Failed', 'error');
+          const msg = (err && err.message) ? err.message : 'Failed';
+          if (msg === 'no_free_slots') showToast('No free slots available.', 'error');
+          else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
+          else if (msg === 'vehicle_restricted_to_assigned_terminals') showToast('Vehicle not assigned to this terminal.', 'error');
+          else if (msg === 'route_not_allowed_in_terminal') showToast('Route not allowed in this terminal.', 'error');
+          else if (msg === 'operator_no_approved_routes') showToast('Operator has no approved routes.', 'error');
+          else showToast(msg, 'error');
         } finally {
           btnPay.disabled = false;
           btnPay.textContent = 'Record Payment';
