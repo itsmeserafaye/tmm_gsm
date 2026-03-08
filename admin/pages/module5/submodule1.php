@@ -154,10 +154,10 @@ $sqlTerm = "SELECT
   t.capacity,
   $ownerNameExpr AS owner_name,
   COALESCE(GROUP_CONCAT(DISTINCT COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) ORDER BY COALESCE(NULLIF(r.route_name,''), $routeLabelExpr) SEPARATOR ', '), '') AS routes_served,
-  COUNT(DISTINCT tr.route_id) AS route_count
+  COUNT(DISTINCT COALESCE(NULLIF(r.route_code,''), r.route_id)) AS route_count
 FROM terminals t
 LEFT JOIN terminal_routes tr ON tr.terminal_id=t.id
-LEFT JOIN routes r ON r.route_id=tr.route_id
+LEFT JOIN routes r ON (r.route_id=tr.route_id OR r.route_code=tr.route_id) " . ($hasRouteStatus ? "AND COALESCE(r.status,'Active')='Active'" : "") . "
 WHERE t.type <> 'Parking'";
 
 $params = [];
