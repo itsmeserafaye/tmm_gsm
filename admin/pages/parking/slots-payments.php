@@ -456,13 +456,14 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formPay && btnPay) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
-        ensureSlotSelected();
+        const sid = ensureSlotSelected();
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         const originalText = btnPay.textContent;
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
+          if (sid) fd.set('slot_id', String(sid));
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');

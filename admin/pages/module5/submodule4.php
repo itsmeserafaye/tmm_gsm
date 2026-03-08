@@ -1024,12 +1024,14 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formPay && btnPay) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
-        ensureSlotSelected();
+        const sid = ensureSlotSelected();
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         btnPay.textContent = 'Saving...';
         try {
-          const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: new FormData(formPay) });
+          const fd = new FormData(formPay);
+          if (sid) fd.set('slot_id', String(sid));
+          const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
           showToast('Payment saved.');
