@@ -29,7 +29,12 @@ $faHasApprovedRoutes = $hasCol('franchise_applications', 'approved_route_ids');
 $faHasRouteIds = $hasCol('franchise_applications', 'route_ids');
 $opHasWorkflow = $hasCol('operators', 'workflow_status');
 $opHasVerify = $hasCol('operators', 'verification_status');
+$opHasRegName = $hasCol('operators', 'registered_name');
+$opHasType = $hasCol('operators', 'operator_type');
 $hasVehicleRegs = $hasTable('vehicle_registrations') && $hasCol('vehicle_registrations', 'registration_status') && $hasCol('vehicles', 'id');
+$vehHasCurOp = $hasCol('vehicles', 'current_operator_id');
+$vehHasOpName = $hasCol('vehicles', 'operator_name');
+$vehHasCoopName = $hasCol('vehicles', 'coop_name');
 
 $routeMatchParts = ["fa1.route_id=?"];
 if ($faHasApprovedRoutes) $routeMatchParts[] = "FIND_IN_SET(?, REPLACE(COALESCE(NULLIF(fa1.approved_route_ids,''), ''), 'ROUTE:', ''))";
@@ -46,13 +51,29 @@ $regFilterSql = $hasVehicleRegs
   ? "(COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active') OR COALESCE(NULLIF(vr.registration_status,''),'') IN ('Registered','Recorded'))"
   : "(COALESCE(NULLIF(v.status,''),'') IN ('Registered','Active'))";
 
+$opNameParts = ["NULLIF(o.name,'')"];
+if ($opHasRegName) $opNameParts[] = "NULLIF(o.registered_name,'')";
+$opNameParts[] = "NULLIF(o.full_name,'')";
+if ($vehHasOpName) $opNameParts[] = "NULLIF(v.operator_name,'')";
+$opNameExpr = "COALESCE(" . implode(", ", $opNameParts) . ", '-')";
+
+$opTypeExpr = $opHasType
+  ? "COALESCE(NULLIF(o.operator_type,''), 'Individual')"
+  : (($vehHasCoopName)
+      ? "CASE WHEN COALESCE(NULLIF(v.coop_name,''), '') <> '' THEN 'Cooperative' ELSE 'Individual' END"
+      : "'Individual'");
+
+$vehJoinKey = $vehHasCurOp
+  ? "COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)"
+  : "COALESCE(NULLIF(v.operator_id,0), 0)";
+
 $sql = "SELECT
   v.id AS vehicle_id,
   v.plate_number,
   v.vehicle_type,
   v.status AS vehicle_status,
-  COALESCE(NULLIF(o.name,''), NULLIF(o.registered_name,''), NULLIF(o.full_name,''), NULLIF(v.operator_name,''), '-') AS operator_name,
-  COALESCE(NULLIF(o.operator_type,''), CASE WHEN COALESCE(NULLIF(v.coop_name,''), '') <> '' THEN 'Cooperative' ELSE 'Individual' END) AS operator_type,
+  {$opNameExpr} AS operator_name,
+  {$opTypeExpr} AS operator_type,
   fa.franchise_ref_number,
   fa.status AS franchise_status
 FROM (
@@ -66,7 +87,7 @@ FROM (
     GROUP BY operator_id
   ) x ON x.max_id=fa1.application_id
 ) fa
-JOIN vehicles v ON COALESCE(NULLIF(v.current_operator_id,0), NULLIF(v.operator_id,0), 0)=fa.operator_id
+JOIN vehicles v ON {$vehJoinKey}=fa.operator_id
 LEFT JOIN operators o ON o.id=fa.operator_id " . ($hasVehicleRegs ? "LEFT JOIN vehicle_registrations vr ON vr.vehicle_id=v.id " : "") . "
 WHERE COALESCE(v.record_status,'') <> 'Archived'
   AND {$opFilterSql}
