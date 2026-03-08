@@ -155,6 +155,45 @@ if ($rootUrl === '/') $rootUrl = '';
       </div>
     <?php else: ?>
       <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div class="p-6 space-y-5">
+          <form id="formPay" class="space-y-5" novalidate>
+            <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Slot</label>
+                <select id="slotSelect" name="slot_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
+                  <option value="">Select slot</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Amount</label>
+                <input id="amountInput" name="amount" type="number" min="0.01" step="0.01" value="20.00" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold" placeholder="e.g., 50.00">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Plate No</label>
+                <input id="plateInput" name="plate_no" required minlength="7" maxlength="8" pattern="^[A-Za-z]{3}-[0-9]{3,4}$" autocapitalize="characters" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="ABC-1234">
+              </div>
+              <div>
+                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">OR No</label>
+                <input id="orInput" name="or_no" required minlength="3" maxlength="40" pattern="^(?:[0-9A-Za-z/]|-){3,40}$" class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold uppercase" placeholder="e.g., OR-2026-000123">
+                <button type="button" id="btnGenOR" class="mt-2 px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-xs font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">Generate OR</button>
+                <input id="paidAtInput" type="hidden" name="paid_at" value="">
+                <input id="exportedToTreasuryInput" type="hidden" name="exported_to_treasury" value="0">
+                <input id="exportedAtInput" type="hidden" name="exported_at" value="">
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+              <button id="btnPay" class="px-4 py-2.5 rounded-md bg-blue-700 hover:bg-blue-800 text-white font-semibold">Record Payment</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         <div class="p-6">
           <div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Payments</div>
           <div id="paymentsWrap" class="text-sm text-slate-500 dark:text-slate-400">Loading...</div>
@@ -320,19 +359,128 @@ if ($rootUrl === '/') $rootUrl = '';
           const amt = p.amount ? String(p.amount) : '';
           const plate = (p.plate_number || '').toString();
           const slot = (p.slot_no || '').toString();
+          const slotId = (p.slot_id || null);
           return `
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 mb-2">
               <div class="flex items-center justify-between gap-3">
                 <div class="font-black text-slate-800 dark:text-white">${plate}</div>
-                <div class="font-black text-emerald-700">${amt}</div>
+                <div class="flex items-center gap-2">
+                  <div class="font-black text-emerald-700">${amt}</div>
+                  ${slotId ? `<button type="button" data-view-slot="${String(slotId)}" class="px-3 py-1.5 rounded-md text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">View</button>` : ''}
+                </div>
               </div>
               <div class="mt-1 text-xs text-slate-500 font-semibold">${when}${slot ? (' • Slot ' + slot) : ''}</div>
             </div>
           `;
         }).join('');
+        wrap.querySelectorAll('[data-view-slot]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const slotId = btn.getAttribute('data-view-slot') || '';
+            if (!slotId) return;
+            try { await openSlotOccupantModal(Number(slotId)); }
+            catch (e) { showToast((e && e.message) ? e.message : 'Failed', 'error'); }
+          });
+        });
       } catch (e) {
         wrap.innerHTML = '<div class="text-rose-600 font-semibold">Failed to load payments.</div>';
       }
+    }
+
+    const formPay = document.getElementById('formPay');
+    const slotSelect = document.getElementById('slotSelect');
+    const btnPay = document.getElementById('btnPay');
+    const amountInput = document.getElementById('amountInput');
+    const plateInput = document.getElementById('plateInput');
+    const orInput = document.getElementById('orInput');
+    const btnGenOR = document.getElementById('btnGenOR');
+    const paidAtInput = document.getElementById('paidAtInput');
+    const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
+    const exportedAtInput = document.getElementById('exportedAtInput');
+
+    function pad(n) { return n.toString().padStart(2, '0'); }
+    function genOrNo() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
+      const hh = pad(d.getHours());
+      const mi = pad(d.getMinutes());
+      const ss = pad(d.getSeconds());
+      const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `OR-${yyyy}${mm}${dd}-${hh}${mi}${ss}-${rand}`;
+    }
+    if (btnGenOR && orInput) {
+      btnGenOR.addEventListener('click', () => {
+        const v = genOrNo();
+        orInput.value = v.toString().toUpperCase();
+      });
+    }
+    if (orInput) orInput.addEventListener('input', () => { orInput.value = (orInput.value || '').toString().toUpperCase().replace(/\s+/g, ''); });
+
+    async function loadPaySlots() {
+      if (!slotSelect) return;
+      slotSelect.innerHTML = '<option value="">Loading...</option>';
+      try {
+        const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        const slots = (data.data || [])
+          .filter(s => String(s.status || '').toLowerCase() !== 'occupied')
+          .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+        if (!slots.length) {
+          slotSelect.innerHTML = '<option value="">No free slots</option>';
+          return;
+        }
+        slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
+        if (!slotSelect.value && slotSelect.options.length > 1) {
+          slotSelect.selectedIndex = 1;
+        }
+      } catch (_) {
+        slotSelect.innerHTML = '<option value="">Failed to load</option>';
+      }
+    }
+
+    function ensureSlotSelected() {
+      if (!slotSelect) return '';
+      let v = (slotSelect.value || '').toString().trim();
+      if (/^\d+$/.test(v)) return v;
+      const opt = Array.from(slotSelect.options).find(o => /^\d+$/.test((o.value || '').toString().trim()));
+      if (opt) {
+        slotSelect.value = opt.value;
+        v = (slotSelect.value || '').toString().trim();
+      }
+      return /^\d+$/.test(v) ? v : '';
+    }
+
+    if (formPay && btnPay) {
+      formPay.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        ensureSlotSelected();
+        if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
+        btnPay.disabled = true;
+        const originalText = btnPay.textContent;
+        btnPay.textContent = 'Saving...';
+        try {
+          const fd = new FormData(formPay);
+          const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
+          const data = await res.json().catch(() => null);
+          if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
+          showToast('Payment saved.');
+          if (plateInput) plateInput.value = '';
+          if (orInput) orInput.value = '';
+          if (paidAtInput) paidAtInput.value = '';
+          if (exportedToTreasuryInput) exportedToTreasuryInput.value = '0';
+          if (exportedAtInput) exportedAtInput.value = '';
+          await loadSlots();
+          await loadPaySlots();
+          await loadPayments();
+        } catch (err) {
+          showToast((err && err.message) ? err.message : 'Failed', 'error');
+        } finally {
+          btnPay.disabled = false;
+          btnPay.textContent = originalText;
+        }
+      });
     }
 
     const formAdd = document.getElementById('formAddSlot');
@@ -362,7 +510,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (tab === 'slots' && canSlots) loadSlots();
-    if (tab === 'payments' && canPay) loadPayments();
+    if (tab === 'payments' && canPay) { loadPayments(); loadPaySlots(); }
     if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
   })();
 </script>
