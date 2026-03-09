@@ -83,12 +83,28 @@ $vehicleId = (int)($veh['id'] ?? 0);
 $db->begin_transaction();
 try {
   $slotTerminalId = 0;
+  // Try by slot_id first, then fallback by slot_no against terminal if not found
+  $slot = null;
   $stmtS = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE slot_id=? LIMIT 1 FOR UPDATE");
   if (!$stmtS) throw new Exception('db_prepare_failed');
   $stmtS->bind_param('i', $slotId);
   $stmtS->execute();
   $slot = $stmtS->get_result()->fetch_assoc();
   $stmtS->close();
+  if (!$slot) {
+    $slotNoCandidate = $slotNoRaw !== '' ? $slotNoRaw : (string)$slotId;
+    if ($terminalId > 0 && $slotNoCandidate !== '') {
+      $stmtS2 = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE terminal_id=? AND slot_no=? LIMIT 1 FOR UPDATE");
+      if (!$stmtS2) throw new Exception('db_prepare_failed');
+      $stmtS2->bind_param('is', $terminalId, $slotNoCandidate);
+      $stmtS2->execute();
+      $slot = $stmtS2->get_result()->fetch_assoc();
+      $stmtS2->close();
+      if ($slot && isset($slot['slot_id'])) {
+        $slotId = (int)$slot['slot_id'];
+      }
+    }
+  }
   if (!$slot) throw new Exception('slot_not_found');
   $slotStatus = strtolower(trim((string)($slot['status'] ?? '')));
   if ($slotStatus === 'occupied' || $slotStatus === '1') throw new Exception('slot_not_free');
