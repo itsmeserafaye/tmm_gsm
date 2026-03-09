@@ -83,8 +83,46 @@ if ($slotId <= 0 && $terminalId > 0 && $slotNoRaw !== '') {
 }
 
 if ($slotId <= 0) {
+  $dbg = [
+    'terminal_id' => $terminalId,
+    'slot_id_raw' => $slotIdRaw,
+    'slot_no_raw' => $slotNoRaw,
+    'slot_id_resolved' => $slotId
+  ];
+  try {
+    $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=?");
+    if ($stmtC) {
+      $stmtC->bind_param('i', $terminalId);
+      $stmtC->execute();
+      $rowC = $stmtC->get_result()->fetch_assoc();
+      $stmtC->close();
+      $dbg['slots_in_terminal'] = (int)($rowC['c'] ?? 0);
+    }
+    if ($terminalId > 0 && $slotNoRaw !== '') {
+      $stmtM = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=? AND (slot_no=? OR TRIM(slot_no)=?)");
+      if ($stmtM) {
+        $slotNoTrimmed2 = trim($slotNoRaw);
+        $stmtM->bind_param('iss', $terminalId, $slotNoRaw, $slotNoTrimmed2);
+        $stmtM->execute();
+        $rowM = $stmtM->get_result()->fetch_assoc();
+        $stmtM->close();
+        $dbg['matching_slotno_rows'] = (int)($rowM['c'] ?? 0);
+      }
+      if (ctype_digit($slotNoRaw)) {
+        $slotNoInt2 = (int)$slotNoRaw;
+        $stmtM2 = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=? AND CAST(TRIM(slot_no) AS UNSIGNED)=?");
+        if ($stmtM2) {
+          $stmtM2->bind_param('ii', $terminalId, $slotNoInt2);
+          $stmtM2->execute();
+          $rowM2 = $stmtM2->get_result()->fetch_assoc();
+          $stmtM2->close();
+          $dbg['matching_slotno_cast_rows'] = (int)($rowM2['c'] ?? 0);
+        }
+      }
+    }
+  } catch (Throwable $e) { }
   http_response_code(400);
-  echo json_encode(['ok' => false, 'error' => 'slot_required']);
+  echo json_encode(['ok' => false, 'error' => 'slot_required', 'debug' => $dbg]);
   exit;
 }
 if ($plate === '' || $terminalId <= 0 || $amount <= 0 || $orNo === '') {
@@ -291,8 +329,37 @@ try {
   $err = (string)$e->getMessage();
   $clientErrors = ['slot_required', 'slot_not_found', 'slot_not_free', 'slot_terminal_mismatch', 'vehicle_restricted_to_assigned_terminals', 'route_not_allowed_in_terminal', 'operator_no_approved_routes'];
   if (in_array($err, $clientErrors, true)) {
+    $dbg = [
+      'terminal_id' => $terminalId,
+      'slot_id_raw' => $slotIdRaw,
+      'slot_no_raw' => $slotNoRaw,
+      'slot_id_resolved' => $slotId
+    ];
+    if ($err === 'slot_not_found') {
+      try {
+        $stmtC = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=?");
+        if ($stmtC) {
+          $stmtC->bind_param('i', $terminalId);
+          $stmtC->execute();
+          $rowC = $stmtC->get_result()->fetch_assoc();
+          $stmtC->close();
+          $dbg['slots_in_terminal'] = (int)($rowC['c'] ?? 0);
+        }
+        if ($terminalId > 0 && $slotNoRaw !== '') {
+          $stmtM = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=? AND (slot_no=? OR TRIM(slot_no)=?)");
+          if ($stmtM) {
+            $slotNoTrimmed3 = trim($slotNoRaw);
+            $stmtM->bind_param('iss', $terminalId, $slotNoRaw, $slotNoTrimmed3);
+            $stmtM->execute();
+            $rowM = $stmtM->get_result()->fetch_assoc();
+            $stmtM->close();
+            $dbg['matching_slotno_rows'] = (int)($rowM['c'] ?? 0);
+          }
+        }
+      } catch (Throwable $e2) { }
+    }
     http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => $err]);
+    echo json_encode(['ok' => false, 'error' => $err, 'debug' => $dbg]);
   } else {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'db_error']);
