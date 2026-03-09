@@ -19,34 +19,62 @@ if (php_sapi_name() === 'cli') {
 require_role(['SuperAdmin']);
 header('Content-Type: text/plain; charset=utf-8');
 
+function tmm_ai_demo_has_table(mysqli $db, string $table): bool {
+  $t = $db->real_escape_string($table);
+  $r = $db->query("SHOW TABLES LIKE '$t'");
+  return $r && (bool)$r->fetch_row();
+}
+
+function tmm_ai_demo_has_col(mysqli $db, string $table, string $col): bool {
+  $t = $db->real_escape_string($table);
+  $c = $db->real_escape_string($col);
+  $r = $db->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return $r && $r->num_rows > 0;
+}
+
 function tmm_ai_demo_ensure_terminals(mysqli $db): void {
   $db->query("CREATE TABLE IF NOT EXISTS terminals (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    city VARCHAR(100),
-    address TEXT,
-    type ENUM('Terminal', 'Parking', 'LoadingBay') DEFAULT 'Terminal',
+    location VARCHAR(255) DEFAULT NULL,
     capacity INT DEFAULT 0,
-    status ENUM('Active', 'Inactive', 'Suspended') DEFAULT 'Active',
+    type VARCHAR(50) DEFAULT 'Terminal',
+    category VARCHAR(100) DEFAULT NULL,
+    city VARCHAR(100) DEFAULT NULL,
+    address TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
+  $adds = [
+    'location' => "VARCHAR(255) DEFAULT NULL",
+    'capacity' => "INT DEFAULT 0",
+    'type' => "VARCHAR(50) DEFAULT 'Terminal'",
+    'category' => "VARCHAR(100) DEFAULT NULL",
+    'city' => "VARCHAR(100) DEFAULT NULL",
+    'address' => "TEXT",
+  ];
+  foreach ($adds as $col => $def) {
+    if (!tmm_ai_demo_has_col($db, 'terminals', $col)) $db->query("ALTER TABLE terminals ADD COLUMN $col $def");
+  }
 }
 
 function tmm_ai_demo_ensure_routes(mysqli $db): void {
   $db->query("CREATE TABLE IF NOT EXISTS routes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     route_id VARCHAR(64) UNIQUE,
-    route_name VARCHAR(255) NOT NULL,
+    route_name VARCHAR(128),
     max_vehicle_limit INT DEFAULT 50,
-    origin VARCHAR(100),
-    destination VARCHAR(100),
     status VARCHAR(32) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB");
-  foreach (['origin' => "VARCHAR(100)", 'destination' => "VARCHAR(100)"] as $col => $def) {
-    $check = $db->query("SHOW COLUMNS FROM routes LIKE '" . $db->real_escape_string($col) . "'");
-    if ($check && $check->num_rows === 0) $db->query("ALTER TABLE routes ADD COLUMN $col $def");
+  $adds = [
+    'route_code' => "VARCHAR(64) DEFAULT NULL",
+    'origin' => "VARCHAR(100) DEFAULT NULL",
+    'destination' => "VARCHAR(100) DEFAULT NULL",
+    'authorized_units' => "INT DEFAULT NULL",
+  ];
+  foreach ($adds as $col => $def) {
+    if (!tmm_ai_demo_has_col($db, 'routes', $col)) $db->query("ALTER TABLE routes ADD COLUMN $col $def");
   }
 }
 
@@ -199,15 +227,32 @@ $resT = $db->query("SELECT COUNT(*) AS c FROM terminals");
 $tCount = 0;
 if ($resT && ($r = $resT->fetch_assoc())) $tCount = (int)($r['c'] ?? 0);
 if ($tCount === 0) {
-  $db->query("INSERT INTO terminals (name, city, address, type, capacity, status) VALUES
-    ('Central Integrated Terminal', 'Caloocan City', 'Rizal Ave Ext, Caloocan City', 'Terminal', 500, 'Active'),
-    ('North Bound Terminal', 'Caloocan City', 'EDSA Extension, Caloocan City', 'Terminal', 320, 'Active'),
-    ('Barangay 101 Tricycle Hub', 'Caloocan City', 'Brgy 101, Caloocan City', 'Terminal', 80, 'Active')
-  ");
+  $cols = [];
+  foreach (['name','location','city','address','capacity','type','category'] as $c) {
+    if (tmm_ai_demo_has_col($db, 'terminals', $c)) $cols[] = $c;
+  }
+  $colSql = $cols ? ('(' . implode(',', $cols) . ')') : '';
+  $rows = [
+    ['name' => '5th Avenue Tricycle Terminal', 'location' => '5th Avenue', 'city' => 'Caloocan City', 'address' => '5th Avenue, Caloocan City', 'capacity' => 120, 'type' => 'Terminal', 'category' => 'Barangay Transport Terminal'],
+    ['name' => 'Deparo UV Express Terminal', 'location' => 'Deparo', 'city' => 'Caloocan City', 'address' => 'Deparo, Caloocan City', 'capacity' => 260, 'type' => 'Terminal', 'category' => 'District Transport Terminal'],
+    ['name' => 'Monumento Carousel Terminal', 'location' => 'Monumento', 'city' => 'Caloocan City', 'address' => 'EDSA Carousel - Monumento', 'capacity' => 420, 'type' => 'Terminal', 'category' => 'City Transport Hub'],
+    ['name' => 'SM City Caloocan Terminal', 'location' => 'North Caloocan', 'city' => 'Caloocan City', 'address' => 'SM City Caloocan', 'capacity' => 300, 'type' => 'Terminal', 'category' => 'District Transport Terminal'],
+  ];
+  $valuesSql = [];
+  foreach ($rows as $r) {
+    $vals = [];
+    foreach ($cols as $c) $vals[] = "'" . $db->real_escape_string((string)($r[$c] ?? '')) . "'";
+    $valuesSql[] = '(' . implode(',', $vals) . ')';
+  }
+  if ($valuesSql && $colSql !== '') {
+    $db->query("INSERT INTO terminals $colSql VALUES " . implode(',', $valuesSql));
+  }
 }
 
 $terminals = [];
-$resTerminals = $db->query("SELECT id, name, city, address, capacity FROM terminals WHERE status IS NULL OR status='Active' ORDER BY name");
+$termWhere = "1=1";
+if (tmm_ai_demo_has_col($db, 'terminals', 'type')) $termWhere = "COALESCE(NULLIF(type,''),'Terminal') <> 'Parking'";
+$resTerminals = $db->query("SELECT id, name, city, address, capacity FROM terminals WHERE $termWhere ORDER BY capacity DESC, name ASC");
 while ($resTerminals && ($r = $resTerminals->fetch_assoc())) {
   $terminals[] = [
     'ref' => (string)$r['id'],
@@ -219,69 +264,84 @@ while ($resTerminals && ($r = $resTerminals->fetch_assoc())) {
 }
 
 $routes = [];
-$resRoutes = $db->query("SELECT route_id, route_name, origin, destination, max_vehicle_limit FROM routes WHERE status IS NULL OR status='Active' ORDER BY route_name");
+$routeCols = [];
+foreach (['status','authorized_units','max_vehicle_limit','origin','destination','route_code'] as $c) $routeCols[$c] = tmm_ai_demo_has_col($db, 'routes', $c);
+$routeStatusWhere = $routeCols['status'] ? "(status IS NULL OR status='Active')" : "1=1";
+$capExpr = $routeCols['authorized_units'] ? "COALESCE(NULLIF(authorized_units,0), NULLIF(max_vehicle_limit,0), 50)" : "COALESCE(NULLIF(max_vehicle_limit,0), 50)";
+$resRoutes = $db->query("SELECT route_id, route_name, origin, destination, max_vehicle_limit, " . $capExpr . " AS cap FROM routes WHERE $routeStatusWhere ORDER BY cap DESC, route_name ASC");
 while ($resRoutes && ($r = $resRoutes->fetch_assoc())) {
   $routes[] = [
     'ref' => (string)$r['route_id'],
     'label' => (string)$r['route_name'],
     'origin' => (string)($r['origin'] ?? ''),
     'destination' => (string)($r['destination'] ?? ''),
-    'capacity' => (int)($r['max_vehicle_limit'] ?? 0),
+    'capacity' => (int)($r['cap'] ?? ($r['max_vehicle_limit'] ?? 0)),
   ];
 }
 
 if (empty($routes)) {
-  $db->query("INSERT IGNORE INTO routes (route_id, route_name, max_vehicle_limit, origin, destination, status) VALUES
-    ('R-01','Monumento – City Hall Corridor',45,'Monumento, Caloocan City','Caloocan City Hall, Caloocan City','Active'),
-    ('R-02','EDSA North Loop',38,'Balintawak, Quezon City','Monumento, Caloocan City','Active'),
-    ('R-03','Bagong Silang – Monumento Express',55,'Bagong Silang, Caloocan City','Monumento, Caloocan City','Active'),
-    ('R-04','University Belt Link',32,'Caloocan City','University Belt, Manila','Active'),
-    ('R-05','Divisoria Market Run',40,'Monumento, Caloocan City','Divisoria, Manila','Active'),
-    ('R-06','South Station Connector',28,'Caloocan City','EDSA, Pasay City','Active')
-  ");
+  $rCols = [];
+  foreach (['route_id','route_code','route_name','origin','destination','max_vehicle_limit','authorized_units','status'] as $c) {
+    if (tmm_ai_demo_has_col($db, 'routes', $c)) $rCols[] = $c;
+  }
+  $colSql = $rCols ? ('(' . implode(',', $rCols) . ')') : '';
+  $rows = [
+    ['route_id' => 'UV-DEPARO-CUBAO', 'route_code' => 'UV-DEPARO-CUBAO', 'route_name' => 'Deparo - Cubao', 'origin' => 'Deparo, Caloocan City', 'destination' => 'Cubao, Quezon City', 'max_vehicle_limit' => 60, 'authorized_units' => 40, 'status' => 'Active'],
+    ['route_id' => 'UV-BAGUMBONG-SM', 'route_code' => 'UV-BAGUMBONG-SM', 'route_name' => 'Bagumbong - SM Fairview', 'origin' => 'Bagumbong, Caloocan City', 'destination' => 'SM City Fairview, Quezon City', 'max_vehicle_limit' => 50, 'authorized_units' => 30, 'status' => 'Active'],
+    ['route_id' => 'JEEP-SANGANDAAN-CITYHALL', 'route_code' => 'JEEP-SANGANDAAN-CITYHALL', 'route_name' => 'Sangandaan - City Hall', 'origin' => 'Sangandaan, Caloocan City', 'destination' => 'Caloocan City Hall', 'max_vehicle_limit' => 45, 'authorized_units' => 25, 'status' => 'Active'],
+    ['route_id' => 'TRI-5THAVE-GRACEPARK', 'route_code' => 'TRI-5THAVE-GRACEPARK', 'route_name' => '5th Avenue - Grace Park', 'origin' => '5th Avenue, Caloocan City', 'destination' => 'Grace Park, Caloocan City', 'max_vehicle_limit' => 80, 'authorized_units' => 50, 'status' => 'Active'],
+  ];
+  $valuesSql = [];
+  foreach ($rows as $r) {
+    $vals = [];
+    foreach ($rCols as $c) {
+      $v = $r[$c] ?? null;
+      if ($v === null) $vals[] = "NULL";
+      elseif (is_int($v) || is_float($v)) $vals[] = (string)$v;
+      else $vals[] = "'" . $db->real_escape_string((string)$v) . "'";
+    }
+    $valuesSql[] = '(' . implode(',', $vals) . ')';
+  }
+  if ($valuesSql && $colSql !== '') $db->query("INSERT IGNORE INTO routes $colSql VALUES " . implode(',', $valuesSql));
   $routes = [];
-  $resRoutes = $db->query("SELECT route_id, route_name, origin, destination, max_vehicle_limit FROM routes WHERE status IS NULL OR status='Active' ORDER BY route_name");
+  $resRoutes = $db->query("SELECT route_id, route_name, origin, destination, max_vehicle_limit, " . $capExpr . " AS cap FROM routes WHERE $routeStatusWhere ORDER BY cap DESC, route_name ASC");
   while ($resRoutes && ($r = $resRoutes->fetch_assoc())) {
     $routes[] = [
       'ref' => (string)$r['route_id'],
       'label' => (string)$r['route_name'],
       'origin' => (string)($r['origin'] ?? ''),
       'destination' => (string)($r['destination'] ?? ''),
-      'capacity' => (int)($r['max_vehicle_limit'] ?? 0),
+      'capacity' => (int)($r['cap'] ?? ($r['max_vehicle_limit'] ?? 0)),
     ];
   }
 }
 
-if (!empty($routes)) {
-  foreach ($routes as $rt) {
-    $rid = $rt['ref'];
-    $stmt = $db->prepare("UPDATE routes SET origin=COALESCE(NULLIF(origin,''), ?), destination=COALESCE(NULLIF(destination,''), ?) WHERE route_id=?");
-    if ($stmt) {
-      $origin = 'City Center';
-      $dest = 'North District';
-      $name = strtolower($rt['label']);
-      if (strpos($name, 'east') !== false) { $origin = 'City Center'; $dest = 'East District'; }
-      elseif (strpos($name, 'north') !== false) { $origin = 'City Center'; $dest = 'North District'; }
-      elseif (strpos($name, 'loop') !== false) { $origin = 'City Center'; $dest = 'City Center'; }
-      $stmt->bind_param('sss', $origin, $dest, $rid);
-      $stmt->execute();
-      $stmt->close();
-    }
-  }
-}
-
-$daysBack = (int)($_GET['days'] ?? 180);
-if ($daysBack < 30) $daysBack = 30;
+$daysBack = (int)($_GET['days'] ?? 90);
+if ($daysBack < 14) $daysBack = 14;
 if ($daysBack > 365) $daysBack = 365;
-$source = trim((string)($_GET['source'] ?? 'synthetic'));
+$source = trim((string)($_GET['source'] ?? 'operational_demo'));
 $source = preg_replace('/[^a-zA-Z0-9_\-]/', '', $source);
 if ($source === '') $source = 'synthetic';
 $wipe = ((string)($_GET['wipe'] ?? '')) === '1';
+$seed = trim((string)($_GET['seed'] ?? date('Y-m')));
+if ($seed === '') $seed = date('Y-m');
+$maxTerminals = (int)($_GET['max_terminals'] ?? 12);
+$maxRoutes = (int)($_GET['max_routes'] ?? 25);
+if ($maxTerminals < 1) $maxTerminals = 1;
+if ($maxTerminals > 50) $maxTerminals = 50;
+if ($maxRoutes < 1) $maxRoutes = 1;
+if ($maxRoutes > 200) $maxRoutes = 200;
+$missingRate = (float)($_GET['missing_rate'] ?? 0.015);
+if (!is_finite($missingRate)) $missingRate = 0.015;
+$missingRate = max(0.0, min(0.10, $missingRate));
 
 $hours = range(0, 23);
 $end = new DateTimeImmutable(date('Y-m-d'));
 $start = $end->modify('-' . $daysBack . ' days');
 $hourW = tmm_ai_demo_hour_weights();
+
+$terminals = array_slice($terminals, 0, $maxTerminals);
+$routes = array_slice($routes, 0, $maxRoutes);
 
 if ($wipe) {
   $stmtDel = $db->prepare("DELETE FROM puv_demand_observations WHERE source=?");
@@ -301,12 +361,17 @@ if (!$stmtUpsert) {
 }
 
 $inserted = 0;
+$skipped = 0;
+$missInt = (int)round($missingRate * 10000.0);
 for ($d = $start; $d <= $end; $d = $d->modify('+1 day')) {
   $dateYmd = $d->format('Y-m-d');
   foreach ($terminals as $t) {
     foreach ($hours as $h) {
       $observedAt = $dateYmd . ' ' . str_pad((string)$h, 2, '0', STR_PAD_LEFT) . ':00:00';
+      $miss = tmm_ai_demo_noise('miss|' . $seed . '|terminal|' . (string)$t['ref'] . '|' . $observedAt, 0, 9999);
+      if ($missInt > 0 && $miss < $missInt) { $skipped++; continue; }
       $cnt = tmm_ai_demo_demand('terminal', (string)$t['label'], (int)($t['capacity'] ?? 0), $dateYmd, (int)$h, $hourW);
+      $cnt = (int)round($cnt * tmm_ai_demo_noise_f('scale|' . $seed . '|terminal|' . (string)$t['ref'], 0.88, 1.18));
       $type = 'terminal';
       $stmtUpsert->bind_param('sssis', $type, $t['ref'], $observedAt, $cnt, $source);
       if ($stmtUpsert->execute()) $inserted++;
@@ -315,7 +380,10 @@ for ($d = $start; $d <= $end; $d = $d->modify('+1 day')) {
   foreach ($routes as $r) {
     foreach ($hours as $h) {
       $observedAt = $dateYmd . ' ' . str_pad((string)$h, 2, '0', STR_PAD_LEFT) . ':00:00';
+      $miss = tmm_ai_demo_noise('miss|' . $seed . '|route|' . (string)$r['ref'] . '|' . $observedAt, 0, 9999);
+      if ($missInt > 0 && $miss < $missInt) { $skipped++; continue; }
       $cnt = tmm_ai_demo_demand('route', (string)$r['label'], (int)($r['capacity'] ?? 0), $dateYmd, (int)$h, $hourW);
+      $cnt = (int)round($cnt * tmm_ai_demo_noise_f('scale|' . $seed . '|route|' . (string)$r['ref'], 0.85, 1.22));
       $type = 'route';
       $stmtUpsert->bind_param('sssis', $type, $r['ref'], $observedAt, $cnt, $source);
       if ($stmtUpsert->execute()) $inserted++;
@@ -326,7 +394,9 @@ for ($d = $start; $d <= $end; $d = $d->modify('+1 day')) {
 $stmtUpsert->close();
 
 echo "Seeded/updated $inserted hourly demand observations.\n";
+echo "Skipped (missing hours): $skipped\n";
 echo "Source: $source\n";
+echo "Seed: $seed\n";
 echo "Range: " . $start->format('Y-m-d') . " to " . $end->format('Y-m-d') . "\n";
 echo "Terminals: " . count($terminals) . "\n";
 echo "Routes: " . count($routes) . "\n";
