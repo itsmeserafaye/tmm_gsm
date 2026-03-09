@@ -433,9 +433,7 @@ if ($rootUrl === '/') $rootUrl = '';
         }));
         const freeLike = new Set(['', '0', 'free', 'available', 'vacant', 'open', 'unoccupied', 'idle']);
         const occupiedLike = new Set(['occupied', 'in-use', 'in use', 'busy']);
-        const valid = norm
-          .filter(s => Number(String(s.slot_id || '').trim()) > 0)
-          .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+        const valid = norm.filter(s => String(s.slot_no || '').trim() !== '');
         let slots = valid.filter(s => {
           const st = String(s.status || '').trim().toLowerCase();
           return freeLike.has(st);
@@ -453,7 +451,13 @@ if ($rootUrl === '/') $rootUrl = '';
           slotSelect.innerHTML = '<option value="">No free slots</option>';
           return;
         }
-        slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
+        slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => {
+          const sid = String(s.slot_id || '').trim();
+          const value = (/^\d+$/.test(sid) && Number(sid) > 0)
+            ? sid
+            : ('slotno:' + String(s.slot_no || '').trim());
+          return `<option value="${value}">${s.slot_no}</option>`;
+        }).join('');
       } catch (_) {
         slotSelect.innerHTML = '<option value="">Failed to load</option>';
       }
@@ -461,8 +465,7 @@ if ($rootUrl === '/') $rootUrl = '';
 
     function ensureSlotSelected() {
       if (!slotSelect) return '';
-      let v = (slotSelect.value || '').toString().trim();
-      return /^\d+$/.test(v) ? v : '';
+      return (slotSelect.value || '').toString().trim();
     }
 
     if (formPay && btnPay && slotSelect) {
@@ -476,7 +479,8 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
-          fd.set('slot_id', String(sid));
+          if (/^\d+$/.test(String(sid))) fd.set('slot_id', String(sid));
+          else fd.set('slot_id', '');
           const selectedOption = slotSelect.options[slotSelect.selectedIndex];
           if (selectedOption && selectedOption.textContent) {
             fd.set('slot_no', selectedOption.textContent.trim());
