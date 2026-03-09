@@ -846,20 +846,11 @@ if ($rootUrl === '/') $rootUrl = '';
         return;
       }
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
-      if (!slotSelect.value && slotSelect.options.length > 1) {
-        slotSelect.selectedIndex = 1;
-      }
     }
 
     function ensureSlotSelected() {
       if (!slotSelect) return '';
       let v = (slotSelect.value || '').toString().trim();
-      if (/^\d+$/.test(v)) return v;
-      const opt = Array.from(slotSelect.options).find(o => /^\d+$/.test((o.value || '').toString().trim()));
-      if (opt) {
-        slotSelect.value = opt.value;
-        v = (slotSelect.value || '').toString().trim();
-      }
       return /^\d+$/.test(v) ? v : '';
     }
 
@@ -1047,8 +1038,9 @@ if ($rootUrl === '/') $rootUrl = '';
           setPaymentButtons('record');
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
-          if (msg === 'no_free_slots') showToast('No free slots available.', 'error');
+          if (msg === 'slot_required') showToast('Select an available slot.', 'error');
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
+          else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
           else if (msg === 'vehicle_restricted_to_assigned_terminals') showToast('Vehicle not assigned to this terminal.', 'error');
           else if (msg === 'route_not_allowed_in_terminal') showToast('Route not allowed in this terminal.', 'error');
           else if (msg === 'operator_no_approved_routes') showToast('Operator has no approved routes.', 'error');
@@ -1065,7 +1057,7 @@ if ($rootUrl === '/') $rootUrl = '';
         const slotId = ensureSlotSelected();
         const plate = plateSelect ? (plateSelect.value || '').trim() : '';
         const amt = amountInput ? Number(amountInput.value || 0) : 0;
-        if (!slotId) { showToast('No free slots available.', 'error'); return; }
+        if (!slotId) { showToast('Select an available slot.', 'error'); return; }
         if (!plate) { showToast('Enter plate number first.', 'error'); return; }
         if (!amt || amt <= 0) { showToast('Enter a valid amount first.', 'error'); return; }
 
