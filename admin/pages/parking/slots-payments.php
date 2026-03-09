@@ -425,13 +425,25 @@ if ($rootUrl === '/') $rootUrl = '';
         const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-        const slots = (data.data || [])
+        const raw = Array.isArray(data.data) ? data.data : [];
+        const norm = raw.map(s => ({
+          slot_id: (s && (s.slot_id ?? s.id ?? s.slotId)) ?? '',
+          slot_no: (s && (s.slot_no ?? s.slotNo)) ?? '',
+          status: (s && (s.status ?? s.slot_status ?? s.slotStatus)) ?? ''
+        }));
+        let slots = norm
           .filter(s => {
-            const st = String((s && s.status) ? s.status : '').trim().toLowerCase();
+            const st = String(s.status || '').trim().toLowerCase();
             return st === '' || st === '0' || st === 'free' || st === 'available';
           })
           .filter(s => Number(String(s.slot_id || '').trim()) > 0)
           .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+        if (!slots.length && norm.length) {
+          slots = norm
+            .filter(s => String(s.status || '').trim().toLowerCase() !== 'occupied')
+            .filter(s => Number(String(s.slot_id || '').trim()) > 0)
+            .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+        }
         if (!slots.length) {
           slotSelect.innerHTML = '<option value="">No free slots</option>';
           return;

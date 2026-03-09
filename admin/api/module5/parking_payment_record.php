@@ -107,7 +107,7 @@ try {
   }
   if (!$slot) throw new Exception('slot_not_found');
   $slotStatus = strtolower(trim((string)($slot['status'] ?? '')));
-  if ($slotStatus !== '' && $slotStatus !== 'free') throw new Exception('slot_not_free');
+  if ($slotStatus === 'occupied') throw new Exception('slot_not_free');
   $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
   if ($slotTerminalId <= 0 || $slotTerminalId !== $terminalId) throw new Exception('slot_terminal_mismatch');
 
