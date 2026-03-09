@@ -561,8 +561,8 @@ if ($rootUrl === '/') $rootUrl = '';
           const plate = esc(r.plate_number || '-');
           const slot = esc(r.slot_no || '-');
           const orNo = esc(r.or_no || '-');
-          const amt = (r.amount === null || r.amount === undefined) ? '-' : ('₱' + Number(r.amount || 0).toFixed(2));
-          const by = [r.occupied_by || '', r.released_by || ''].filter(Boolean).join(' → ');
+          const amt = (r.amount === null || r.amount === undefined) ? '-' : ('\u20B1' + Number(r.amount || 0).toFixed(2));
+          const by = [r.occupied_by || '', r.released_by || ''].filter(Boolean).join(' \u2192 ');
           return `
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
               <td class="py-4 px-6 text-slate-700 dark:text-slate-200 font-semibold">${esc(tin)}</td>
@@ -813,7 +813,7 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       const slot = data.slot || {};
       const occ = data.occupant || null;
-      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' • ' + (slot.status || '');
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' \u2022 ' + (slot.status || '');
       if (!slotOccModalBody) return;
       if (!occ) {
         slotOccModalBody.innerHTML = '<div class="text-slate-500 dark:text-slate-400 font-semibold">No payment found for this slot.</div>';
@@ -826,7 +826,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Type</div><div class="font-semibold">${(occ.vehicle_type || '-')}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Paid</div><div class="font-semibold">${fmtDate(occ.paid_at)}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR</div><div class="font-semibold">${(occ.or_no || '-')}</div></div>
-          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">₱${Number(occ.amount || 0).toFixed(2)}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">\u20B1${Number(occ.amount || 0).toFixed(2)}</div></div>
         </div>
       `;
       if (window.lucide) window.lucide.createIcons();
@@ -836,10 +836,11 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!slotSelect) return;
       slotSelect.innerHTML = '<option value="">Loading...</option>';
       const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
-      const data = await res.json();
-      if (!data || !data.ok) throw new Error('load_failed');
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       const slots = (data.data || [])
-        .filter(s => String(s.status || '').toLowerCase() !== 'occupied')
+        .filter(s => String(s.status || '').trim().toLowerCase() === 'free')
+        .filter(s => Number(String(s.slot_id || '').trim()) > 0)
         .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
       if (!slots.length) {
         slotSelect.innerHTML = '<option value="">No free slots</option>';
@@ -851,7 +852,8 @@ if ($rootUrl === '/') $rootUrl = '';
     function ensureSlotSelected() {
       if (!slotSelect) return '';
       let v = (slotSelect.value || '').toString().trim();
-      return /^\d+$/.test(v) ? v : '';
+      if (!/^\d+$/.test(v)) return '';
+      return Number(v) > 0 ? v : '';
     }
 
     async function loadAssignedVehicles() {
@@ -870,7 +872,7 @@ if ($rootUrl === '/') $rootUrl = '';
               (r.plate_number || '').toString(),
               (r.vehicle_type || '').toString(),
               (r.operator_name || '').toString(),
-            ].filter(Boolean).join(' • ')
+            ].filter(Boolean).join(' \u2022 ')
           }))
           .filter(v => v.plate !== '');
         if (!assignedVehicles.length) {
@@ -951,7 +953,7 @@ if ($rootUrl === '/') $rootUrl = '';
               <td class="py-4 px-4 font-black text-slate-900 dark:text-white">${(r.plate_number || '-')}</td>
               <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.slot_no || '-')}</td>
               <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.or_no || '-')}</td>
-              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">₱${Number(r.amount || 0).toFixed(2)}</td>
+              <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">\u20B1${Number(r.amount || 0).toFixed(2)}</td>
               <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${bText}</span></td>
               <td class="py-4 px-4 text-right"></td>
             </tr>
@@ -979,7 +981,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <td class="py-4 px-4 font-black text-slate-900 dark:text-white">${(r.plate_number || '-')}</td>
             <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.slot_no || '-')}</td>
             <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.or_no || '-')}</td>
-            <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">₱${Number(r.amount || 0).toFixed(2)}</td>
+            <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">\u20B1${Number(r.amount || 0).toFixed(2)}</td>
             <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${bText.trim() || (exported ? 'Exported' : 'Pending')}</span></td>
             <td class="py-4 px-4 text-right">${action}</td>
           </tr>
@@ -1016,20 +1018,19 @@ if ($rootUrl === '/') $rootUrl = '';
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sid = ensureSlotSelected();
+        if (!sid) { showToast('Select an available slot.', 'error'); return; }
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
-          if (sid) {
-            fd.set('slot_id', String(sid));
-            const selectedOption = slotSelect.options[slotSelect.selectedIndex];
-            if (selectedOption && selectedOption.textContent) {
-              fd.set('slot_no', selectedOption.textContent.trim());
-            }
+          fd.set('slot_id', String(sid));
+          const selectedOption = slotSelect.options[slotSelect.selectedIndex];
+          if (selectedOption && selectedOption.textContent) {
+            fd.set('slot_no', selectedOption.textContent.trim());
           }
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
-          const data = await res.json();
+          const data = await res.json().catch(() => null);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
           showToast('Payment saved.');
           if (plateSelect) plateSelect.value = '';
@@ -1094,7 +1095,7 @@ if ($rootUrl === '/') $rootUrl = '';
             const extras = [];
             if (d && d.db_errno) extras.push('errno ' + String(d.db_errno));
             if (d && d.db_error) extras.push(String(d.db_error).slice(0, 160));
-            throw new Error(extras.length ? (base + ' (' + extras.join(' • ') + ')') : base);
+            throw new Error(extras.length ? (base + ' (' + extras.join(' \u2022 ') + ')') : base);
           }
           const txId = String(d.transaction_id);
           const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
