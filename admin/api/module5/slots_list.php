@@ -112,6 +112,29 @@ if ($capacity > 0) {
       }
     }
   }
+} else {
+  try {
+    $stmtCount = $db->prepare("SELECT COUNT(*) AS c FROM parking_slots WHERE terminal_id=?");
+    if ($stmtCount) {
+      $stmtCount->bind_param('i', $terminalId);
+      $stmtCount->execute();
+      $rowCount = $stmtCount->get_result()->fetch_assoc();
+      $stmtCount->close();
+      $slotCount = (int)($rowCount['c'] ?? 0);
+      if ($slotCount === 0) {
+        $stmtIns2 = $db->prepare("INSERT IGNORE INTO parking_slots (terminal_id, slot_no, status) VALUES (?, ?, 'Free')");
+        if ($stmtIns2) {
+          $defaultCount = 20;
+          for ($j = 1; $j <= $defaultCount; $j++) {
+            $slotNo2 = (string)$j;
+            $stmtIns2->bind_param('is', $terminalId, $slotNo2);
+            $stmtIns2->execute();
+          }
+          $stmtIns2->close();
+        }
+      }
+    }
+  } catch (Throwable $e) { }
 }
 
 $res = $db->query("SELECT slot_id, slot_id AS id, terminal_id, slot_no, status
