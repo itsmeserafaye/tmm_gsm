@@ -724,6 +724,9 @@ if ($rootUrl === '/') $rootUrl = '';
       setTimeout(() => { el.remove(); }, 3000);
     }
 
+    let slotCacheTerminalId = 0;
+    let slotCache = [];
+
     async function loadSlotsTable() {
       const body = document.getElementById('slotsBody');
       if (!body) return;
@@ -731,6 +734,8 @@ if ($rootUrl === '/') $rootUrl = '';
       const data = await res.json();
       if (!data || !data.ok) throw new Error('load_failed');
       let rows = (data.data || []);
+      slotCacheTerminalId = Number(terminalId || 0);
+      slotCache = Array.isArray(rows) ? rows : [];
       const qv = slotFilterQ ? slotFilterQ.value.trim().toUpperCase() : '';
       const st = slotFilterStatus ? slotFilterStatus.value.trim() : '';
       if (qv !== '') rows = rows.filter((r) => String(r.slot_no || '').toUpperCase().includes(qv));
@@ -835,16 +840,34 @@ if ($rootUrl === '/') $rootUrl = '';
     async function loadPaySlots() {
       if (!slotSelect) return;
       slotSelect.innerHTML = '<option value="">Loading...</option>';
-      const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
-      const data = await res.json().catch(() => null);
-      if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
-      const slots = (data.data || [])
+      let raw = [];
+      if (Number(slotCacheTerminalId || 0) === Number(terminalId || 0) && Array.isArray(slotCache) && slotCache.length) {
+        raw = slotCache;
+      } else {
+        const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
+        raw = Array.isArray(data.data) ? data.data : [];
+      }
+
+      const norm = raw.map(s => ({
+        slot_id: (s && (s.slot_id ?? s.id ?? s.slotId)) ?? '',
+        slot_no: (s && (s.slot_no ?? s.slotNo)) ?? '',
+        status: (s && (s.status ?? s.slot_status ?? s.slotStatus)) ?? ''
+      }));
+
+      let slots = norm
         .filter(s => {
-          const st = String((s && s.status) ? s.status : '').trim().toLowerCase();
+          const st = String(s.status || '').trim().toLowerCase();
           return st === '' || st === '0' || st === 'free' || st === 'available';
         })
-        .filter(s => Number(String(s.slot_id || '').trim()) > 0)
-        .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+        .filter(s => Number(String(s.slot_id || '').trim()) > 0);
+
+      if (!slots.length && norm.length) {
+        slots = norm
+          .filter(s => String(s.status || '').trim().toLowerCase() !== 'occupied')
+          .filter(s => Number(String(s.slot_id || '').trim()) > 0);
+      }
       if (!slots.length) {
         slotSelect.innerHTML = '<option value="">No free slots</option>';
         return;
@@ -1160,12 +1183,16 @@ if ($rootUrl === '/') $rootUrl = '';
       });
     }
     if (activeTab === 'payments' && canPay) {
-      loadPaySlots().catch(() => {
-        if (slotSelect) slotSelect.innerHTML = '<option value="">Failed to load</option>';
-      });
+      const failSlots = () => { if (slotSelect) slotSelect.innerHTML = '<option value="">Failed to load</option>'; };
+      if (canSlots) {
+        loadSlotsTable()
+          .then(() => loadPaySlots())
+          .catch(() => loadPaySlots().catch(failSlots));
+      } else {
+        loadPaySlots().catch(failSlots);
+      }
       loadAssignedVehicles().catch(() => {});
       loadPayments().catch(() => {});
-      if (canSlots) loadSlotsTable().catch(() => {});
       setPaymentButtons('record');
     }
 
