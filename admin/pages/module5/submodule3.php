@@ -355,7 +355,7 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       const slot = data.slot || {};
       const occ = data.occupant || null;
-      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' • ' + (slot.status || '');
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' \u2022 ' + (slot.status || '');
       if (!slotOccModalBody) return;
       if (!occ) {
         slotOccModalBody.innerHTML = '<div class="text-slate-500 dark:text-slate-400 font-semibold">No payment found for this slot.</div>';
@@ -483,7 +483,7 @@ if ($rootUrl === '/') $rootUrl = '';
             <td class="py-4 px-4 font-black text-slate-900 dark:text-white">${(r.plate_number || '-')}</td>
             <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.slot_no || '-')}</td>
             <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-semibold">${(r.or_no || '-')}</td>
-            <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">₱${Number(r.amount || 0).toFixed(2)}</td>
+            <td class="py-4 px-4 text-slate-700 dark:text-slate-200 font-bold">\u20B1${Number(r.amount || 0).toFixed(2)}</td>
             <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badge}">${bText.trim() || (exported ? 'Exported' : 'Pending')}</span></td>
             <td class="py-4 px-4 text-right">${action}</td>
           </tr>
