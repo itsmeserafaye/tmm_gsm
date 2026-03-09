@@ -397,6 +397,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const paidAtInput = document.getElementById('paidAtInput');
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
+    const debugSlot = new URLSearchParams(window.location.search || '').get('debug_slot') === '1';
 
     function pad(n) { return n.toString().padStart(2, '0'); }
     function genOrNo() {
@@ -462,6 +463,12 @@ if ($rootUrl === '/') $rootUrl = '';
         slotSelect.innerHTML = '<option value="">Failed to load</option>';
       }
     }
+    function showPayDebug(tag, payload) {
+      if (!debugSlot) return;
+      const text = String(tag || '') + ': ' + JSON.stringify(payload || {});
+      showToast(text.length > 220 ? (text.slice(0, 220) + '...') : text, 'error');
+      try { console.log('[slot-debug]', tag, payload); } catch (_) {}
+    }
 
     function ensureSlotSelected() {
       if (!slotSelect) return '';
@@ -486,8 +493,19 @@ if ($rootUrl === '/') $rootUrl = '';
           const selectedOption = slotSelect.options[slotSelect.selectedIndex];
           const slotNoFromLabel = selectedOption && selectedOption.textContent ? selectedOption.textContent.trim() : '';
           fd.set('slot_no', sidFromSlotNo !== '' ? sidFromSlotNo : slotNoFromLabel);
+          showPayDebug('pay_req', {
+            terminal_id: String(fd.get('terminal_id') || ''),
+            slot_id: String(fd.get('slot_id') || ''),
+            slot_no: String(fd.get('slot_no') || ''),
+            sid: sidStr
+          });
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
+          showPayDebug('pay_res', {
+            status: Number(res.status || 0),
+            ok: !!(data && data.ok),
+            error: String((data && data.error) ? data.error : '')
+          });
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
           showToast('Payment saved.');
           if (plateInput) plateInput.value = '';
