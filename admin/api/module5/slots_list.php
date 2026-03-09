@@ -15,7 +15,18 @@ if ($terminalId <= 0) {
 
 // Status reconciliation: reflect open occupancy events and free released ones
 try {
-  // 1) Ensure any slot with an open occupancy event is marked Occupied
+  // 1) Close any lingering open events from previous days
+  $stmtCloseEvents = $db->prepare("UPDATE parking_slot_events
+                                   SET time_out=IFNULL(time_out, CONCAT(CURDATE(),' 00:00:00'))
+                                   WHERE terminal_id=?
+                                     AND time_out IS NULL
+                                     AND DATE(time_in) < CURDATE()");
+  if ($stmtCloseEvents) {
+    $stmtCloseEvents->bind_param('i', $terminalId);
+    $stmtCloseEvents->execute();
+    $stmtCloseEvents->close();
+  }
+  // 2) Ensure any slot with an open occupancy event is marked Occupied
   $stmtOcc = $db->prepare("UPDATE parking_slots ps
                            SET ps.status='Occupied'
                            WHERE ps.terminal_id=?
@@ -30,7 +41,7 @@ try {
     $stmtOcc->execute();
     $stmtOcc->close();
   }
-  // 2) Free any slot marked Occupied that no longer has an open event
+  // 3) Free any slot marked Occupied that no longer has an open event
   $stmtFree = $db->prepare("UPDATE parking_slots ps
                             SET ps.status='Free'
                             WHERE ps.terminal_id=?
@@ -45,17 +56,6 @@ try {
     $stmtFree->bind_param('i', $terminalId);
     $stmtFree->execute();
     $stmtFree->close();
-  }
-  // 3) Close any lingering open events from previous days
-  $stmtCloseEvents = $db->prepare("UPDATE parking_slot_events
-                                   SET time_out=IFNULL(time_out, CONCAT(CURDATE(),' 00:00:00'))
-                                   WHERE terminal_id=?
-                                     AND time_out IS NULL
-                                     AND DATE(time_in) < CURDATE()");
-  if ($stmtCloseEvents) {
-    $stmtCloseEvents->bind_param('i', $terminalId);
-    $stmtCloseEvents->execute();
-    $stmtCloseEvents->close();
   }
 } catch (Throwable $e) {
   // ignore reconciliation errors to avoid breaking listing

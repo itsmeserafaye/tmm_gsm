@@ -324,7 +324,7 @@ if ($rootUrl === '/') $rootUrl = '';
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       const slot = data.slot || {};
       const occ = data.occupant || null;
-      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' • ' + (slot.status || '');
+      if (slotOccModalSub) slotOccModalSub.textContent = 'Slot ' + (slot.slot_no || '') + ' \u2022 ' + (slot.status || '');
       if (!slotOccModalBody) return;
       if (!occ) {
         slotOccModalBody.innerHTML = '<div class="text-slate-500 dark:text-slate-400 font-semibold">No payment found for this slot.</div>';
@@ -338,7 +338,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Type</div><div class="font-semibold">${(occ.vehicle_type || '-')}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Paid</div><div class="font-semibold">${fmtDate(occ.paid_at)}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR</div><div class="font-semibold">${(occ.or_no || '-')}</div></div>
-          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">₱${Number(occ.amount || 0).toFixed(2)}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">\u20B1${Number(occ.amount || 0).toFixed(2)}</div></div>
         </div>
       `;
       if (window.lucide) window.lucide.createIcons();
@@ -369,7 +369,7 @@ if ($rootUrl === '/') $rootUrl = '';
                   ${slotId ? `<button type="button" data-view-slot="${String(slotId)}" class="px-3 py-1.5 rounded-md text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"><i data-lucide="eye" class="w-4 h-4 mr-1"></i><span>View</span></button>` : ''}
                 </div>
               </div>
-              <div class="mt-1 text-xs text-slate-500 font-semibold">${when}${slot ? (' • Slot ' + slot) : ''}</div>
+              <div class="mt-1 text-xs text-slate-500 font-semibold">${when}${slot ? (' \u2022 Slot ' + slot) : ''}</div>
             </div>
           `;
         }).join('');
@@ -426,7 +426,8 @@ if ($rootUrl === '/') $rootUrl = '';
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
         const slots = (data.data || [])
-          .filter(s => String(s.status || '').toLowerCase() !== 'occupied')
+          .filter(s => String(s.status || '').trim().toLowerCase() === 'free')
+          .filter(s => Number(String(s.slot_id || '').trim()) > 0)
           .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
         if (!slots.length) {
           slotSelect.innerHTML = '<option value="">No free slots</option>';
@@ -448,18 +449,17 @@ if ($rootUrl === '/') $rootUrl = '';
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sid = ensureSlotSelected();
+        if (!sid) { showToast('Select an available slot.', 'error'); return; }
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         const originalText = btnPay.textContent;
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
-          if (sid) {
-            fd.set('slot_id', String(sid));
-            const selectedOption = slotSelect.options[slotSelect.selectedIndex];
-            if (selectedOption && selectedOption.textContent) {
-              fd.set('slot_no', selectedOption.textContent.trim());
-            }
+          fd.set('slot_id', String(sid));
+          const selectedOption = slotSelect.options[slotSelect.selectedIndex];
+          if (selectedOption && selectedOption.textContent) {
+            fd.set('slot_no', selectedOption.textContent.trim());
           }
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
