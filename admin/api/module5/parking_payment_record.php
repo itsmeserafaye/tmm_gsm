@@ -25,6 +25,7 @@ if ($plate !== '' && strpos($plate, '-') === false) {
 }
 $terminalId = (int)($_POST['terminal_id'] ?? 0);
 $slotId = (int)($_POST['slot_id'] ?? 0);
+$slotNoRaw = trim((string)($_POST['slot_no'] ?? ''));
 $amount = (float)($_POST['amount'] ?? 0);
 $orNo = trim((string)($_POST['or_no'] ?? ''));
 $paidAtRaw = trim((string)($_POST['paid_at'] ?? ''));
@@ -45,6 +46,18 @@ if ($exportedToTreasury === 1) {
     if ($ts2 !== false) $exportedAt = date('Y-m-d H:i:s', $ts2);
   }
   if ($exportedAt === null) $exportedAt = $paidAt !== null ? $paidAt : date('Y-m-d H:i:s');
+}
+
+// Fallback: resolve slot_id from slot_no if not provided
+if ($slotId <= 0 && $terminalId > 0 && $slotNoRaw !== '') {
+  $stmtResolveSlot = $db->prepare("SELECT slot_id FROM parking_slots WHERE terminal_id=? AND slot_no=? LIMIT 1");
+  if ($stmtResolveSlot) {
+    $stmtResolveSlot->bind_param('is', $terminalId, $slotNoRaw);
+    $stmtResolveSlot->execute();
+    $rowRS = $stmtResolveSlot->get_result()->fetch_assoc();
+    $stmtResolveSlot->close();
+    $slotId = (int)($rowRS['slot_id'] ?? 0);
+  }
 }
 
 if ($slotId <= 0) {
