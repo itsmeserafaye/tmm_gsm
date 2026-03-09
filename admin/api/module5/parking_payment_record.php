@@ -131,12 +131,38 @@ if ($plate === '' || $terminalId <= 0 || $amount <= 0 || $orNo === '') {
   exit;
 }
 
+$terminalType = '';
+$stmtTerm = $db->prepare("SELECT COALESCE(type,'') AS type FROM terminals WHERE id=? LIMIT 1");
+if ($stmtTerm) {
+  $stmtTerm->bind_param('i', $terminalId);
+  $stmtTerm->execute();
+  $rowT = $stmtTerm->get_result()->fetch_assoc();
+  $stmtTerm->close();
+  $terminalType = trim((string)($rowT['type'] ?? ''));
+}
+$isParkingTerminal = strtolower($terminalType) === 'parking';
+
 $stmtV = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
 if (!$stmtV) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'db_prepare_failed']); exit; }
 $stmtV->bind_param('ss', $plate, $plateNoDash);
 $stmtV->execute();
 $veh = $stmtV->get_result()->fetch_assoc();
 $stmtV->close();
+if (!$veh && $isParkingTerminal) {
+  $stmtInsV = $db->prepare("INSERT IGNORE INTO vehicles (plate_number) VALUES (?)");
+  if ($stmtInsV) {
+    $stmtInsV->bind_param('s', $plate);
+    $stmtInsV->execute();
+    $stmtInsV->close();
+  }
+  $stmtV2 = $db->prepare("SELECT id FROM vehicles WHERE plate_number=? OR REPLACE(plate_number,'-','')=? LIMIT 1");
+  if ($stmtV2) {
+    $stmtV2->bind_param('ss', $plate, $plateNoDash);
+    $stmtV2->execute();
+    $veh = $stmtV2->get_result()->fetch_assoc();
+    $stmtV2->close();
+  }
+}
 if (!$veh) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'vehicle_not_found']); exit; }
 $vehicleId = (int)($veh['id'] ?? 0);
 
@@ -181,7 +207,7 @@ try {
   $slotTerminalId = (int)($slot['terminal_id'] ?? 0);
   if ($slotTerminalId <= 0 || $slotTerminalId !== $terminalId) throw new Exception('slot_terminal_mismatch');
 
-  if ($slotTerminalId > 0) {
+  if ($slotTerminalId > 0 && !$isParkingTerminal) {
     $stmtAssign = $db->prepare("SELECT terminal_id FROM terminal_assignments WHERE vehicle_id=?");
     if ($stmtAssign) {
       $stmtAssign->bind_param('i', $vehicleId);

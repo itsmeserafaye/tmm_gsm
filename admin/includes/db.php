@@ -544,6 +544,99 @@ function db()
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
     FOREIGN KEY (payment_id) REFERENCES parking_payments(payment_id) ON DELETE SET NULL
   ) ENGINE=InnoDB");
+
+  $colSlots = $conn->query("SELECT COLUMN_NAME, EXTRA, COLUMN_TYPE, COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slots'");
+  $slotCols = [];
+  if ($colSlots) {
+    while ($c = $colSlots->fetch_assoc()) {
+      $slotCols[(string)($c['COLUMN_NAME'] ?? '')] = [
+        'extra' => (string)($c['EXTRA'] ?? ''),
+        'type' => (string)($c['COLUMN_TYPE'] ?? ''),
+        'default' => $c['COLUMN_DEFAULT'],
+        'nullable' => (string)($c['IS_NULLABLE'] ?? ''),
+      ];
+    }
+  }
+  if ($slotCols) {
+    $hasPk = false;
+    $pkRes = $conn->query("SELECT 1 FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slots' AND CONSTRAINT_NAME='PRIMARY' LIMIT 1");
+    if ($pkRes && $pkRes->fetch_row()) $hasPk = true;
+    if (!isset($slotCols['slot_id'])) {
+      $conn->query("ALTER TABLE parking_slots ADD COLUMN slot_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST");
+      $hasPk = true;
+    } else {
+      $extra = strtolower((string)($slotCols['slot_id']['extra'] ?? ''));
+      if (strpos($extra, 'auto_increment') === false) {
+        $conn->query("ALTER TABLE parking_slots MODIFY COLUMN slot_id INT NOT NULL AUTO_INCREMENT");
+      }
+      if (!$hasPk) {
+        $conn->query("ALTER TABLE parking_slots ADD PRIMARY KEY (slot_id)");
+        $hasPk = true;
+      }
+    }
+    if (isset($slotCols['status'])) {
+      $t = strtolower((string)($slotCols['status']['type'] ?? ''));
+      if (strpos($t, "enum('free','occupied')") === false) {
+        $conn->query("ALTER TABLE parking_slots MODIFY COLUMN status ENUM('Free','Occupied') NOT NULL DEFAULT 'Free'");
+      }
+    } else {
+      $conn->query("ALTER TABLE parking_slots ADD COLUMN status ENUM('Free','Occupied') NOT NULL DEFAULT 'Free'");
+    }
+    $idxUniq = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slots' AND INDEX_NAME='uniq_terminal_slot' LIMIT 1");
+    if (!$idxUniq || !$idxUniq->fetch_row()) {
+      $conn->query("ALTER TABLE parking_slots ADD UNIQUE KEY uniq_terminal_slot (terminal_id, slot_no)");
+    }
+    $idxTerm = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slots' AND COLUMN_NAME='terminal_id' LIMIT 1");
+    if (!$idxTerm || !$idxTerm->fetch_row()) {
+      $conn->query("ALTER TABLE parking_slots ADD INDEX idx_parking_slots_terminal (terminal_id)");
+    }
+  }
+
+  $colPay = $conn->query("SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_payments'");
+  $payCols = [];
+  if ($colPay) {
+    while ($c = $colPay->fetch_assoc()) {
+      $payCols[(string)($c['COLUMN_NAME'] ?? '')] = strtolower((string)($c['EXTRA'] ?? ''));
+    }
+  }
+  if ($payCols) {
+    $hasPkP = false;
+    $pkResP = $conn->query("SELECT 1 FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_payments' AND CONSTRAINT_NAME='PRIMARY' LIMIT 1");
+    if ($pkResP && $pkResP->fetch_row()) $hasPkP = true;
+    if (isset($payCols['payment_id'])) {
+      if (strpos($payCols['payment_id'], 'auto_increment') === false) {
+        $conn->query("ALTER TABLE parking_payments MODIFY COLUMN payment_id INT NOT NULL AUTO_INCREMENT");
+      }
+      if (!$hasPkP) $conn->query("ALTER TABLE parking_payments ADD PRIMARY KEY (payment_id)");
+    }
+    $idxVeh = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_payments' AND COLUMN_NAME='vehicle_id' LIMIT 1");
+    if (!$idxVeh || !$idxVeh->fetch_row()) $conn->query("ALTER TABLE parking_payments ADD INDEX idx_parking_payments_vehicle (vehicle_id)");
+    $idxSlot = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_payments' AND COLUMN_NAME='slot_id' LIMIT 1");
+    if (!$idxSlot || !$idxSlot->fetch_row()) $conn->query("ALTER TABLE parking_payments ADD INDEX idx_parking_payments_slot (slot_id)");
+  }
+
+  $colEv = $conn->query("SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slot_events'");
+  $evCols = [];
+  if ($colEv) {
+    while ($c = $colEv->fetch_assoc()) {
+      $evCols[(string)($c['COLUMN_NAME'] ?? '')] = strtolower((string)($c['EXTRA'] ?? ''));
+    }
+  }
+  if ($evCols) {
+    $hasPkE = false;
+    $pkResE = $conn->query("SELECT 1 FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slot_events' AND CONSTRAINT_NAME='PRIMARY' LIMIT 1");
+    if ($pkResE && $pkResE->fetch_row()) $hasPkE = true;
+    if (isset($evCols['event_id'])) {
+      if (strpos($evCols['event_id'], 'auto_increment') === false) {
+        $conn->query("ALTER TABLE parking_slot_events MODIFY COLUMN event_id INT NOT NULL AUTO_INCREMENT");
+      }
+      if (!$hasPkE) $conn->query("ALTER TABLE parking_slot_events ADD PRIMARY KEY (event_id)");
+    }
+    $idxT = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slot_events' AND INDEX_NAME='idx_terminal_timein' LIMIT 1");
+    if (!$idxT || !$idxT->fetch_row()) $conn->query("ALTER TABLE parking_slot_events ADD INDEX idx_terminal_timein (terminal_id, time_in)");
+    $idxOpen = $conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='$name' AND TABLE_NAME='parking_slot_events' AND INDEX_NAME='idx_slot_open' LIMIT 1");
+    if (!$idxOpen || !$idxOpen->fetch_row()) $conn->query("ALTER TABLE parking_slot_events ADD INDEX idx_slot_open (slot_id, time_out)");
+  }
   $conn->query("CREATE TABLE IF NOT EXISTS routes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     route_id VARCHAR(64) UNIQUE,
