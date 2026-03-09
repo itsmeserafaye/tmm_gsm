@@ -433,9 +433,6 @@ if ($rootUrl === '/') $rootUrl = '';
           return;
         }
         slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
-        if (!slotSelect.value && slotSelect.options.length > 1) {
-          slotSelect.selectedIndex = 1;
-        }
       } catch (_) {
         slotSelect.innerHTML = '<option value="">Failed to load</option>';
       }
@@ -444,16 +441,10 @@ if ($rootUrl === '/') $rootUrl = '';
     function ensureSlotSelected() {
       if (!slotSelect) return '';
       let v = (slotSelect.value || '').toString().trim();
-      if (/^\d+$/.test(v)) return v;
-      const opt = Array.from(slotSelect.options).find(o => /^\d+$/.test((o.value || '').toString().trim()));
-      if (opt) {
-        slotSelect.value = opt.value;
-        v = (slotSelect.value || '').toString().trim();
-      }
       return /^\d+$/.test(v) ? v : '';
     }
 
-    if (formPay && btnPay) {
+    if (formPay && btnPay && slotSelect) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
         const sid = ensureSlotSelected();
@@ -463,7 +454,13 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
-          if (sid) fd.set('slot_id', String(sid));
+          if (sid) {
+            fd.set('slot_id', String(sid));
+            const selectedOption = slotSelect.options[slotSelect.selectedIndex];
+            if (selectedOption && selectedOption.textContent) {
+              fd.set('slot_no', selectedOption.textContent.trim());
+            }
+          }
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
@@ -478,8 +475,9 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPayments();
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
-          if (msg === 'no_free_slots') showToast('No free slots available.', 'error');
+          if (msg === 'slot_required') showToast('Select an available slot.', 'error');
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
+          else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
           else showToast(msg, 'error');
         } finally {
           btnPay.disabled = false;

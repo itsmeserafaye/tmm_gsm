@@ -13,25 +13,40 @@ if ($terminalId <= 0) {
   exit;
 }
 
-// Daily reset: ensure slots without a payment today are set to Free
+// Status reconciliation: reflect open occupancy events and free released ones
 try {
-  // Use standard UPDATE without alias in the UPDATE clause for broader compatibility
-  $stmtReset = $db->prepare("UPDATE parking_slots
-                             SET status='Free'
-                             WHERE terminal_id=?
-                               AND COALESCE(status,'Free') <> 'Free'
-                               AND NOT EXISTS (
-                                 SELECT 1
-                                 FROM parking_payments pp
-                                 WHERE pp.slot_id=parking_slots.slot_id
-                                   AND DATE(pp.paid_at)=CURDATE()
-                               )");
-  if ($stmtReset) {
-    $stmtReset->bind_param('i', $terminalId);
-    $stmtReset->execute();
-    $stmtReset->close();
+  // 1) Ensure any slot with an open occupancy event is marked Occupied
+  $stmtOcc = $db->prepare("UPDATE parking_slots ps
+                           SET ps.status='Occupied'
+                           WHERE ps.terminal_id=?
+                             AND EXISTS (
+                               SELECT 1
+                               FROM parking_slot_events e
+                               WHERE e.slot_id=ps.slot_id
+                                 AND e.time_out IS NULL
+                             )");
+  if ($stmtOcc) {
+    $stmtOcc->bind_param('i', $terminalId);
+    $stmtOcc->execute();
+    $stmtOcc->close();
   }
-  // Close any open events from previous days
+  // 2) Free any slot marked Occupied that no longer has an open event
+  $stmtFree = $db->prepare("UPDATE parking_slots ps
+                            SET ps.status='Free'
+                            WHERE ps.terminal_id=?
+                              AND COALESCE(ps.status,'Free') <> 'Free'
+                              AND NOT EXISTS (
+                                SELECT 1
+                                FROM parking_slot_events e
+                                WHERE e.slot_id=ps.slot_id
+                                  AND e.time_out IS NULL
+                              )");
+  if ($stmtFree) {
+    $stmtFree->bind_param('i', $terminalId);
+    $stmtFree->execute();
+    $stmtFree->close();
+  }
+  // 3) Close any lingering open events from previous days
   $stmtCloseEvents = $db->prepare("UPDATE parking_slot_events
                                    SET time_out=IFNULL(time_out, CONCAT(CURDATE(),' 00:00:00'))
                                    WHERE terminal_id=?
@@ -43,7 +58,7 @@ try {
     $stmtCloseEvents->close();
   }
 } catch (Throwable $e) {
-  // ignore reset errors to avoid breaking listing
+  // ignore reconciliation errors to avoid breaking listing
 }
 
 $capacity = 0;
