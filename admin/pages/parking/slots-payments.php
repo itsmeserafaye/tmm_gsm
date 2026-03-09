@@ -160,7 +160,14 @@ if ($rootUrl === '/') $rootUrl = '';
             <input type="hidden" name="terminal_id" value="<?php echo (int)$terminalId; ?>">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Slot</label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Slot</label>
+                  <?php if ($canSlots): ?>
+                    <button type="button" id="btnSyncSlots" class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                      Sync
+                    </button>
+                  <?php endif; ?>
+                </div>
                 <select id="slotSelect" name="slot_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
                   <option value="">Select slot</option>
                 </select>
@@ -397,6 +404,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const paidAtInput = document.getElementById('paidAtInput');
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
+    const btnSyncSlots = document.getElementById('btnSyncSlots');
 
     function pad(n) { return n.toString().padStart(2, '0'); }
     function genOrNo() {
@@ -462,6 +470,28 @@ if ($rootUrl === '/') $rootUrl = '';
         slotSelect.innerHTML = '<option value="">Failed to load</option>';
       }
     }
+
+    async function syncSlotsFromCapacity() {
+      if (!canSlots || !btnSyncSlots) return;
+      btnSyncSlots.disabled = true;
+      btnSyncSlots.textContent = 'Syncing';
+      try {
+        const fd = new FormData();
+        fd.set('terminal_id', String(terminalId));
+        const res = await fetch(rootUrl + '/admin/api/module5/terminal_slots_sync.php', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'sync_failed');
+        showToast(`Slots synced. Added ${Number(data.added || 0)}. Total ${Number(data.slot_count || 0)}.`);
+        await loadSlots();
+        await loadPaySlots();
+      } catch (e) {
+        showToast((e && e.message) ? e.message : 'Sync failed', 'error');
+      } finally {
+        btnSyncSlots.disabled = false;
+        btnSyncSlots.textContent = 'Sync';
+      }
+    }
+    if (btnSyncSlots) btnSyncSlots.addEventListener('click', () => syncSlotsFromCapacity());
     function ensureSlotSelected() {
       if (!slotSelect) return '';
       return (slotSelect.value || '').toString().trim();
@@ -500,7 +530,9 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPayments();
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
-          if (msg === 'slot_required') showToast('Select an available slot.', 'error');
+          if (msg === 'slot_required' || msg === 'slot_not_found') {
+            showToast(canSlots ? 'Slot not found in DB for this terminal. Click Sync then try again.' : 'Slot not found in DB for this terminal.', 'error');
+          }
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
           else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
           else showToast(msg, 'error');
