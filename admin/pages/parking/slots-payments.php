@@ -433,9 +433,6 @@ if ($rootUrl === '/') $rootUrl = '';
           return;
         }
         slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
-        if (!slotSelect.value && slotSelect.options.length > 1) {
-          slotSelect.selectedIndex = 1;
-        }
       } catch (_) {
         slotSelect.innerHTML = '<option value="">Failed to load</option>';
       }
@@ -444,12 +441,6 @@ if ($rootUrl === '/') $rootUrl = '';
     function ensureSlotSelected() {
       if (!slotSelect) return '';
       let v = (slotSelect.value || '').toString().trim();
-      if (/^\d+$/.test(v)) return v;
-      const opt = Array.from(slotSelect.options).find(o => /^\d+$/.test((o.value || '').toString().trim()));
-      if (opt) {
-        slotSelect.value = opt.value;
-        v = (slotSelect.value || '').toString().trim();
-      }
       return /^\d+$/.test(v) ? v : '';
     }
 
@@ -478,8 +469,9 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPayments();
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
-          if (msg === 'no_free_slots') showToast('No free slots available.', 'error');
+          if (msg === 'slot_required') showToast('Select an available slot.', 'error');
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
+          else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
           else showToast(msg, 'error');
         } finally {
           btnPay.disabled = false;
