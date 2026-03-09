@@ -6,13 +6,14 @@ $db = db();
 header('Content-Type: application/json');
 require_permission('module5.manage_terminal');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if ($method !== 'POST' && $method !== 'GET') {
   http_response_code(405);
   echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
   exit;
 }
 
-$terminalId = (int)($_POST['terminal_id'] ?? 0);
+$terminalId = (int)(($method === 'POST') ? ($_POST['terminal_id'] ?? 0) : ($_GET['terminal_id'] ?? 0));
 if ($terminalId <= 0) {
   http_response_code(400);
   echo json_encode(['ok' => false, 'error' => 'missing_terminal_id']);

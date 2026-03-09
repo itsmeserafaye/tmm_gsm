@@ -211,9 +211,14 @@ if ($rootUrl === '/') $rootUrl = '';
                 <div class="flex items-center justify-between mb-1">
                   <label class="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Slot</label>
                   <?php if ($canSlots): ?>
-                    <button type="button" id="btnSyncSlots" class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                      Sync
-                    </button>
+                    <div class="flex items-center gap-2">
+                      <button type="button" data-sync-slots="1" class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                        Sync
+                      </button>
+                      <a href="<?php echo htmlspecialchars($rootUrl . '/admin/api/module5/terminal_slots_sync.php?terminal_id=' . (int)$terminalId); ?>" target="_blank" class="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white">
+                        Open
+                      </a>
+                    </div>
                   <?php endif; ?>
                 </div>
                 <select id="slotSelect" name="slot_id" required class="w-full px-4 py-2.5 rounded-md bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-600 text-sm font-semibold">
@@ -432,7 +437,7 @@ if ($rootUrl === '/') $rootUrl = '';
     const exportedToTreasuryInput = document.getElementById('exportedToTreasuryInput');
     const exportedAtInput = document.getElementById('exportedAtInput');
     const btnGenOR = document.getElementById('btnGenOR');
-    const btnSyncSlots = document.getElementById('btnSyncSlots');
+    const syncBtns = Array.from(document.querySelectorAll('[data-sync-slots="1"]'));
     let assignedVehicles = [];
     const queueBody = document.getElementById('queueBody');
     const formQueueAdd = document.getElementById('formQueueAdd');
@@ -493,27 +498,27 @@ if ($rootUrl === '/') $rootUrl = '';
       btnPayTreasury.classList.remove('hidden');
     }
 
-    async function syncSlotsFromCapacity() {
-      if (!canSlots || !btnSyncSlots) return;
-      btnSyncSlots.disabled = true;
-      btnSyncSlots.textContent = 'Syncing';
+    async function syncSlotsFromCapacity(silent) {
+      if (!canSlots || syncBtns.length === 0) return null;
+      syncBtns.forEach((b) => { try { b.disabled = true; b.textContent = 'Syncing'; } catch (_) {} });
       try {
         const fd = new FormData();
         fd.set('terminal_id', String(terminalId));
         const res = await fetch(rootUrl + '/admin/api/module5/terminal_slots_sync.php', { method: 'POST', body: fd });
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'sync_failed');
-        showToast(`Slots synced. Added ${Number(data.added || 0)}. Total ${Number(data.slot_count || 0)}.`);
+        if (!silent) showToast(`Slots synced. Added ${Number(data.added || 0)}. Total ${Number(data.slot_count || 0)}.`);
         await loadSlotsTable();
         await loadPaySlots();
+        return data;
       } catch (e) {
-        showToast((e && e.message) ? e.message : 'Sync failed', 'error');
+        if (!silent) showToast((e && e.message) ? e.message : 'Sync failed', 'error');
+        return null;
       } finally {
-        btnSyncSlots.disabled = false;
-        btnSyncSlots.textContent = 'Sync';
+        syncBtns.forEach((b) => { try { b.disabled = false; b.textContent = 'Sync'; } catch (_) {} });
       }
     }
-    if (btnSyncSlots) btnSyncSlots.addEventListener('click', () => syncSlotsFromCapacity());
+    if (syncBtns.length) syncBtns.forEach((b) => b.addEventListener('click', () => syncSlotsFromCapacity(false)));
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -1079,8 +1084,7 @@ if ($rootUrl === '/') $rootUrl = '';
     }
 
     if (formPay && btnPay && slotSelect) {
-      formPay.addEventListener('submit', async (e) => {
-        e.preventDefault();
+      async function submitPayment(retried) {
         const sid = ensureSlotSelected();
         if (!sid) { showToast('Select an available slot.', 'error'); return; }
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
@@ -1112,8 +1116,12 @@ if ($rootUrl === '/') $rootUrl = '';
           setPaymentButtons('record');
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
+          if ((msg === 'slot_required' || msg === 'slot_not_found') && canSlots && !retried) {
+            const synced = await syncSlotsFromCapacity(true);
+            if (synced) return await submitPayment(true);
+          }
           if (msg === 'slot_required' || msg === 'slot_not_found') {
-            showToast(canSlots ? 'Slot not found in DB for this terminal. Click Sync then try again.' : 'Slot not found in DB for this terminal.', 'error');
+            showToast(canSlots ? 'Slot not found in DB for this terminal. Click Sync (or Open) then try again.' : 'Slot not found in DB for this terminal.', 'error');
           }
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
           else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
@@ -1125,6 +1133,10 @@ if ($rootUrl === '/') $rootUrl = '';
           btnPay.disabled = false;
           btnPay.textContent = 'Record Payment';
         }
+      }
+      formPay.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitPayment(false);
       });
     }
 
