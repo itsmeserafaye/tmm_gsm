@@ -1088,6 +1088,7 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
+          fd.set('terminal_id', String(terminalId));
           const sidStr = String(sid || '').trim();
           if (/^\d+$/.test(sidStr)) fd.set('slot_id', sidStr);
           else fd.set('slot_id', '');
