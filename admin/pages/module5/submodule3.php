@@ -368,7 +368,7 @@ if ($rootUrl === '/') $rootUrl = '';
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Type</div><div class="font-semibold">${(occ.vehicle_type || '-')}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Paid</div><div class="font-semibold">${fmtDate(occ.paid_at)}</div></div>
           <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">OR</div><div class="font-semibold">${(occ.or_no || '-')}</div></div>
-          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">₱${Number(occ.amount || 0).toFixed(2)}</div></div>
+          <div class="flex items-center justify-between gap-3"><div class="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Amount</div><div class="font-black">\u20B1${Number(occ.amount || 0).toFixed(2)}</div></div>
         </div>
       `;
       if (window.lucide) window.lucide.createIcons();
@@ -671,6 +671,7 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
+          fd.set('terminal_id', String(terminalId));
           const sidStr = String(sid || '').trim();
           if (/^\d+$/.test(sidStr)) fd.set('slot_id', sidStr);
           else fd.set('slot_id', '');
@@ -742,7 +743,7 @@ if ($rootUrl === '/') $rootUrl = '';
             const extras = [];
             if (d && d.db_errno) extras.push('errno ' + String(d.db_errno));
             if (d && d.db_error) extras.push(String(d.db_error).slice(0, 160));
-            throw new Error(extras.length ? (base + ' (' + extras.join(' • ') + ')') : base);
+            throw new Error(extras.length ? (base + ' (' + extras.join(' \u2022 ') + ')') : base);
           }
           const txId = String(d.transaction_id);
           const url = (window.TMM_ADMIN_BASE_URL || '') + `/treasury/pay.php?kind=parking&transaction_id=${encodeURIComponent(txId)}`;
