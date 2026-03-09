@@ -308,14 +308,19 @@ if ($rootUrl === '/') $rootUrl = '';
       let rows = [];
       try {
         const res = await fetch(rootUrl + '/admin/api/module2/route_assigned_vehicles.php?route_id=' + encodeURIComponent(String(routeId)));
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error('load_failed');
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || !data.ok) {
+          const msg = (data && data.error) ? String(data.error) : ('HTTP ' + String(res.status));
+          const more = (data && (data.db_error || data.debug)) ? (': ' + String(data.db_error || data.debug)) : '';
+          throw new Error(msg + more);
+        }
         rows = Array.isArray(data.data) ? data.data : [];
-      } catch (_) {
+      } catch (e) {
         rows = [];
+        showToast('Failed to load assigned vehicles: ' + ((e && e.message) ? e.message : 'load_failed'), 'error');
       }
       if (!rows.length) {
-        assignedBody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No approved operators with registered vehicles for this route.</td></tr>';
+        assignedBody.innerHTML = '<tr><td colspan="6" class="py-10 text-center text-slate-500 font-medium italic">No registered vehicles found for this route.</td></tr>';
         return;
       }
       assignedBody.innerHTML = rows.map(r => {
