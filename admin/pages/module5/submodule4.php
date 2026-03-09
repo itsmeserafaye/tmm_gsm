@@ -856,17 +856,22 @@ if ($rootUrl === '/') $rootUrl = '';
         status: (s && (s.status ?? s.slot_status ?? s.slotStatus)) ?? ''
       }));
 
-      let slots = norm
-        .filter(s => {
-          const st = String(s.status || '').trim().toLowerCase();
-          return st === '' || st === '0' || st === 'free' || st === 'available';
-        })
-        .filter(s => Number(String(s.slot_id || '').trim()) > 0);
+      const freeLike = new Set(['', '0', 'free', 'available', 'vacant', 'open', 'unoccupied', 'idle']);
+      const occupiedLike = new Set(['occupied', 'in-use', 'in use', 'busy']);
+      const valid = norm.filter(s => Number(String(s.slot_id || '').trim()) > 0);
+      let slots = valid.filter(s => {
+        const st = String(s.status || '').trim().toLowerCase();
+        return freeLike.has(st);
+      });
 
-      if (!slots.length && norm.length) {
-        slots = norm
-          .filter(s => String(s.status || '').trim().toLowerCase() !== 'occupied')
-          .filter(s => Number(String(s.slot_id || '').trim()) > 0);
+      if (!slots.length && valid.length) {
+        slots = valid.filter(s => {
+          const st = String(s.status || '').trim().toLowerCase();
+          return !occupiedLike.has(st);
+        });
+      }
+      if (!slots.length && valid.length) {
+        slots = valid.slice();
       }
       if (!slots.length) {
         slotSelect.innerHTML = '<option value="">No free slots</option>';
