@@ -381,21 +381,45 @@ if ($rootUrl === '/') $rootUrl = '';
       const res = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
       const data = await res.json();
       if (!data || !data.ok) throw new Error('load_failed');
-      const slots = (data.data || [])
-        .filter(s => String(s.status || '').toLowerCase() !== 'occupied')
-        .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
+      const raw = Array.isArray(data.data) ? data.data : [];
+      const norm = raw.map(s => ({
+        slot_id: (s && (s.slot_id ?? s.id ?? s.slotId)) ?? '',
+        slot_no: (s && (s.slot_no ?? s.slotNo)) ?? '',
+        status: (s && (s.status ?? s.slot_status ?? s.slotStatus)) ?? ''
+      }));
+      const freeLike = new Set(['', '0', 'free', 'available', 'vacant', 'open', 'unoccupied', 'idle']);
+      const occupiedLike = new Set(['occupied', 'in-use', 'in use', 'busy']);
+      const valid = norm.filter(s => String(s.slot_no || '').trim() !== '');
+      let slots = valid.filter(s => {
+        const st = String(s.status || '').trim().toLowerCase();
+        return freeLike.has(st);
+      });
+      if (!slots.length && valid.length) {
+        slots = valid.filter(s => {
+          const st = String(s.status || '').trim().toLowerCase();
+          return !occupiedLike.has(st);
+        });
+      }
+      if (!slots.length && valid.length) {
+        slots = valid.slice();
+      }
       if (!slots.length) {
         slotSelect.innerHTML = '<option value="">No free slots</option>';
         return;
       }
-      slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => `<option value="${s.slot_id}">${s.slot_no}</option>`).join('');
+      slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => {
+        const sid = String(s.slot_id || '').trim();
+        const slotNo = String(s.slot_no || '').trim();
+        const safeSid = (/^\d+$/.test(sid) && Number(sid) > 0) ? sid : '';
+        const value = safeSid !== '' ? safeSid : ('slotno:' + slotNo);
+        return `<option value="${value}" data-slot-no="${slotNo}">${slotNo}</option>`;
+      }).join('');
     }
 
     function ensureSlotSelected() {
       const slotSelect = document.getElementById('slotSelect');
       if (!slotSelect) return '';
-      let v = (slotSelect.value || '').toString().trim();
-      return /^\d+$/.test(v) ? v : '';
+      return (slotSelect.value || '').toString().trim();
     }
 
     function fmtDate(v) {
@@ -609,12 +633,23 @@ if ($rootUrl === '/') $rootUrl = '';
     if (formPay && btnPay) {
       formPay.addEventListener('submit', async (e) => {
         e.preventDefault();
-        ensureSlotSelected();
+        const sid = ensureSlotSelected();
+        if (!sid) { showToast('Select an available slot.', 'error'); return; }
         if (!formPay.checkValidity()) { formPay.reportValidity(); return; }
         btnPay.disabled = true;
         btnPay.textContent = 'Saving...';
         try {
-          const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: new FormData(formPay) });
+          const fd = new FormData(formPay);
+          const sidStr = String(sid || '').trim();
+          if (/^\d+$/.test(sidStr)) fd.set('slot_id', sidStr);
+          else fd.set('slot_id', '');
+          const slotSelect = document.getElementById('slotSelect');
+          const selectedOption = slotSelect ? slotSelect.options[slotSelect.selectedIndex] : null;
+          const optSlotNo = selectedOption ? String(selectedOption.getAttribute('data-slot-no') || '').trim() : '';
+          const sidFromSlotNo = sidStr.startsWith('slotno:') ? sidStr.slice(7).trim() : '';
+          const slotNoFromLabel = selectedOption && selectedOption.textContent ? selectedOption.textContent.trim() : '';
+          fd.set('slot_no', optSlotNo || sidFromSlotNo || slotNoFromLabel);
+          const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json();
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
           showToast('Payment saved.');
@@ -629,7 +664,7 @@ if ($rootUrl === '/') $rootUrl = '';
           await loadPayments();
         } catch (err) {
           const msg = (err && err.message) ? err.message : 'Failed';
-          if (msg === 'slot_required') showToast('Select an available slot.', 'error');
+          if (msg === 'slot_required' || msg === 'slot_not_found') showToast('Slot not found in DB for this terminal. Click Sync (or Open) then try again.', 'error');
           else if (msg === 'slot_not_free') showToast('Selected slot is occupied.', 'error');
           else if (msg === 'slot_terminal_mismatch') showToast('Selected slot does not belong to this terminal.', 'error');
           else showToast(msg, 'error');
