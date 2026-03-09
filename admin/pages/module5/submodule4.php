@@ -1059,12 +1059,13 @@ if ($rootUrl === '/') $rootUrl = '';
         btnPay.textContent = 'Saving...';
         try {
           const fd = new FormData(formPay);
-          if (/^\d+$/.test(String(sid))) fd.set('slot_id', String(sid));
+          const sidStr = String(sid || '').trim();
+          const sidFromSlotNo = sidStr.startsWith('slotno:') ? sidStr.slice(7).trim() : '';
+          if (/^\d+$/.test(sidStr)) fd.set('slot_id', sidStr);
           else fd.set('slot_id', '');
           const selectedOption = slotSelect.options[slotSelect.selectedIndex];
-          if (selectedOption && selectedOption.textContent) {
-            fd.set('slot_no', selectedOption.textContent.trim());
-          }
+          const slotNoFromLabel = selectedOption && selectedOption.textContent ? selectedOption.textContent.trim() : '';
+          fd.set('slot_no', sidFromSlotNo !== '' ? sidFromSlotNo : slotNoFromLabel);
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');

@@ -26,6 +26,9 @@ if ($plate !== '' && strpos($plate, '-') === false) {
 $terminalId = (int)($_POST['terminal_id'] ?? 0);
 $slotId = (int)($_POST['slot_id'] ?? 0);
 $slotNoRaw = trim((string)($_POST['slot_no'] ?? ''));
+if (stripos($slotNoRaw, 'slotno:') === 0) {
+  $slotNoRaw = trim((string)substr($slotNoRaw, 7));
+}
 $amount = (float)($_POST['amount'] ?? 0);
 $orNo = trim((string)($_POST['or_no'] ?? ''));
 $paidAtRaw = trim((string)($_POST['paid_at'] ?? ''));
@@ -50,13 +53,25 @@ if ($exportedToTreasury === 1) {
 
 // Fallback: resolve slot_id from slot_no if not provided
 if ($slotId <= 0 && $terminalId > 0 && $slotNoRaw !== '') {
-  $stmtResolveSlot = $db->prepare("SELECT slot_id FROM parking_slots WHERE terminal_id=? AND slot_no=? LIMIT 1");
+  $stmtResolveSlot = $db->prepare("SELECT slot_id FROM parking_slots WHERE terminal_id=? AND (slot_no=? OR TRIM(slot_no)=?) LIMIT 1");
   if ($stmtResolveSlot) {
-    $stmtResolveSlot->bind_param('is', $terminalId, $slotNoRaw);
+    $slotNoTrimmed = trim($slotNoRaw);
+    $stmtResolveSlot->bind_param('iss', $terminalId, $slotNoRaw, $slotNoTrimmed);
     $stmtResolveSlot->execute();
     $rowRS = $stmtResolveSlot->get_result()->fetch_assoc();
     $stmtResolveSlot->close();
     $slotId = (int)($rowRS['slot_id'] ?? 0);
+  }
+  if ($slotId <= 0 && ctype_digit($slotNoRaw)) {
+    $slotNoInt = (int)$slotNoRaw;
+    $stmtResolveSlot2 = $db->prepare("SELECT slot_id FROM parking_slots WHERE terminal_id=? AND CAST(TRIM(slot_no) AS UNSIGNED)=? LIMIT 1");
+    if ($stmtResolveSlot2) {
+      $stmtResolveSlot2->bind_param('ii', $terminalId, $slotNoInt);
+      $stmtResolveSlot2->execute();
+      $rowRS2 = $stmtResolveSlot2->get_result()->fetch_assoc();
+      $stmtResolveSlot2->close();
+      $slotId = (int)($rowRS2['slot_id'] ?? 0);
+    }
   }
 }
 
@@ -94,12 +109,22 @@ try {
   if (!$slot) {
     $slotNoCandidate = $slotNoRaw !== '' ? $slotNoRaw : (string)$slotId;
     if ($terminalId > 0 && $slotNoCandidate !== '') {
-      $stmtS2 = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE terminal_id=? AND slot_no=? LIMIT 1 FOR UPDATE");
+      $stmtS2 = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE terminal_id=? AND (slot_no=? OR TRIM(slot_no)=?) LIMIT 1 FOR UPDATE");
       if (!$stmtS2) throw new Exception('db_prepare_failed');
-      $stmtS2->bind_param('is', $terminalId, $slotNoCandidate);
+      $slotNoCandidateTrimmed = trim($slotNoCandidate);
+      $stmtS2->bind_param('iss', $terminalId, $slotNoCandidate, $slotNoCandidateTrimmed);
       $stmtS2->execute();
       $slot = $stmtS2->get_result()->fetch_assoc();
       $stmtS2->close();
+      if (!$slot && ctype_digit($slotNoCandidateTrimmed)) {
+        $slotNoInt = (int)$slotNoCandidateTrimmed;
+        $stmtS3 = $db->prepare("SELECT slot_id, status, terminal_id FROM parking_slots WHERE terminal_id=? AND CAST(TRIM(slot_no) AS UNSIGNED)=? LIMIT 1 FOR UPDATE");
+        if (!$stmtS3) throw new Exception('db_prepare_failed');
+        $stmtS3->bind_param('ii', $terminalId, $slotNoInt);
+        $stmtS3->execute();
+        $slot = $stmtS3->get_result()->fetch_assoc();
+        $stmtS3->close();
+      }
       if ($slot && isset($slot['slot_id'])) {
         $slotId = (int)$slot['slot_id'];
       }
