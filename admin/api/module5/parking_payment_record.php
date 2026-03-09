@@ -24,8 +24,15 @@ if ($plate !== '' && strpos($plate, '-') === false) {
   }
 }
 $terminalId = (int)($_POST['terminal_id'] ?? 0);
-$slotId = (int)($_POST['slot_id'] ?? 0);
+$slotIdRaw = trim((string)($_POST['slot_id'] ?? ''));
+$slotId = (int)$slotIdRaw;
 $slotNoRaw = trim((string)($_POST['slot_no'] ?? ''));
+if ($slotNoRaw === '' && stripos($slotIdRaw, 'slotno:') === 0) {
+  $slotNoRaw = trim((string)substr($slotIdRaw, 7));
+}
+if ($slotNoRaw === '' && $slotId <= 0 && $slotIdRaw !== '') {
+  $slotNoRaw = $slotIdRaw;
+}
 if (stripos($slotNoRaw, 'slotno:') === 0) {
   $slotNoRaw = trim((string)substr($slotNoRaw, 7));
 }
