@@ -181,6 +181,31 @@ if (!$stmt->execute()) {
 }
 $terminalId = $terminalPk > 0 ? $terminalPk : (int)$stmt->insert_id;
 
+if ($terminalId > 0 && $capacity > 0) {
+  $existing = [];
+  $stmtSlots = $db->prepare("SELECT slot_no FROM parking_slots WHERE terminal_id=?");
+  if ($stmtSlots) {
+    $stmtSlots->bind_param('i', $terminalId);
+    $stmtSlots->execute();
+    $resSlots = $stmtSlots->get_result();
+    while ($resSlots && ($row = $resSlots->fetch_assoc())) {
+      $sn = trim((string)($row['slot_no'] ?? ''));
+      if ($sn !== '') $existing[$sn] = true;
+    }
+    $stmtSlots->close();
+  }
+  $ins = $db->prepare("INSERT IGNORE INTO parking_slots (terminal_id, slot_no, status) VALUES (?, ?, 'Free')");
+  if ($ins) {
+    for ($i = 1; $i <= $capacity; $i++) {
+      $sn = (string)$i;
+      if (isset($existing[$sn])) continue;
+      $ins->bind_param('is', $terminalId, $sn);
+      $ins->execute();
+    }
+    $ins->close();
+  }
+}
+
 function tmm_table_exists(mysqli $db, string $table): bool {
   $stmt = $db->prepare("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? LIMIT 1");
   if (!$stmt) return false;

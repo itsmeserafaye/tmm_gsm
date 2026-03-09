@@ -879,8 +879,9 @@ if ($rootUrl === '/') $rootUrl = '';
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => {
         const sid = String(s.slot_id || '').trim();
         const slotNo = String(s.slot_no || '').trim();
-        const dataSid = (/^\d+$/.test(sid) && Number(sid) > 0) ? sid : '';
-        return `<option value="slotno:${slotNo}" data-slot-id="${dataSid}">${slotNo}</option>`;
+        const safeSid = (/^\d+$/.test(sid) && Number(sid) > 0) ? sid : '';
+        const value = safeSid !== '' ? safeSid : ('slotno:' + slotNo);
+        return `<option value="${value}" data-slot-no="${slotNo}">${slotNo}</option>`;
       }).join('');
     }
 
@@ -1058,13 +1059,13 @@ if ($rootUrl === '/') $rootUrl = '';
         try {
           const fd = new FormData(formPay);
           const sidStr = String(sid || '').trim();
-          const selectedOption = slotSelect.options[slotSelect.selectedIndex];
-          const selectedSlotId = selectedOption ? String(selectedOption.getAttribute('data-slot-id') || '').trim() : '';
-          const sidFromSlotNo = sidStr.startsWith('slotno:') ? sidStr.slice(7).trim() : '';
-          if (/^\d+$/.test(selectedSlotId)) fd.set('slot_id', selectedSlotId);
+          if (/^\d+$/.test(sidStr)) fd.set('slot_id', sidStr);
           else fd.set('slot_id', '');
+          const selectedOption = slotSelect.options[slotSelect.selectedIndex];
+          const optSlotNo = selectedOption ? String(selectedOption.getAttribute('data-slot-no') || '').trim() : '';
+          const sidFromSlotNo = sidStr.startsWith('slotno:') ? sidStr.slice(7).trim() : '';
           const slotNoFromLabel = selectedOption && selectedOption.textContent ? selectedOption.textContent.trim() : '';
-          fd.set('slot_no', sidFromSlotNo !== '' ? sidFromSlotNo : slotNoFromLabel);
+          fd.set('slot_no', optSlotNo || sidFromSlotNo || slotNoFromLabel);
           const res = await fetch(rootUrl + '/admin/api/module5/parking_payment_record.php', { method: 'POST', body: fd });
           const data = await res.json().catch(() => null);
           if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'save_failed');
