@@ -839,7 +839,10 @@ if ($rootUrl === '/') $rootUrl = '';
       const data = await res.json().catch(() => null);
       if (!data || !data.ok) throw new Error((data && data.error) ? data.error : 'load_failed');
       const slots = (data.data || [])
-        .filter(s => String(s.status || '').trim().toLowerCase() === 'free')
+        .filter(s => {
+          const st = String((s && s.status) ? s.status : '').trim().toLowerCase();
+          return st === '' || st === '0' || st === 'free' || st === 'available';
+        })
         .filter(s => Number(String(s.slot_id || '').trim()) > 0)
         .filter(s => /^\d+$/.test(String(s.slot_id || '').trim()));
       if (!slots.length) {

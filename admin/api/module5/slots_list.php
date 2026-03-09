@@ -26,6 +26,16 @@ try {
     $stmtCloseEvents->execute();
     $stmtCloseEvents->close();
   }
+  // 1b) Normalize blank/legacy statuses to Free
+  $stmtNorm = $db->prepare("UPDATE parking_slots
+                            SET status='Free'
+                            WHERE terminal_id=?
+                              AND (status IS NULL OR TRIM(COALESCE(status,''))='' OR TRIM(COALESCE(status,''))='0')");
+  if ($stmtNorm) {
+    $stmtNorm->bind_param('i', $terminalId);
+    $stmtNorm->execute();
+    $stmtNorm->close();
+  }
   // 2) Ensure any slot with an open occupancy event is marked Occupied
   $stmtOcc = $db->prepare("UPDATE parking_slots ps
                            SET ps.status='Occupied'
