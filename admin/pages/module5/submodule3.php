@@ -404,8 +404,39 @@ if ($rootUrl === '/') $rootUrl = '';
         slots = valid.slice();
       }
       if (!slots.length) {
-        slotSelect.innerHTML = '<option value="">No free slots</option>';
-        return;
+        try {
+          if (canSlots) {
+            const fd = new FormData();
+            fd.set('terminal_id', String(terminalId));
+            await fetch(rootUrl + '/admin/api/module5/terminal_slots_sync.php', { method: 'POST', body: fd });
+            const res2 = await fetch(rootUrl + '/admin/api/module5/slots_list.php?terminal_id=' + encodeURIComponent(String(terminalId)));
+            const data2 = await res2.json().catch(() => null);
+            const raw2 = (data2 && data2.ok && Array.isArray(data2.data)) ? data2.data : [];
+            const norm2 = raw2.map(s => ({
+              slot_id: (s && (s.slot_id ?? s.id ?? s.slotId)) ?? '',
+              slot_no: (s && (s.slot_no ?? s.slotNo)) ?? '',
+              status: (s && (s.status ?? s.slot_status ?? s.slotStatus)) ?? ''
+            }));
+            const valid2 = norm2.filter(s => String(s.slot_no || '').trim() !== '');
+            slots = valid2.filter(s => {
+              const st = String(s.status || '').trim().toLowerCase();
+              return freeLike.has(st);
+            });
+            if (!slots.length && valid2.length) {
+              slots = valid2.filter(s => {
+                const st = String(s.status || '').trim().toLowerCase();
+                return !occupiedLike.has(st);
+              });
+            }
+            if (!slots.length && valid2.length) {
+              slots = valid2.slice();
+            }
+          }
+        } catch (_) {}
+        if (!slots.length) {
+          slotSelect.innerHTML = '<option value="">No free slots</option>';
+          return;
+        }
       }
       slotSelect.innerHTML = '<option value="">Select slot</option>' + slots.map(s => {
         const sid = String(s.slot_id || '').trim();
