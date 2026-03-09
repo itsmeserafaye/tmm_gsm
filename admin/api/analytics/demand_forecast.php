@@ -422,6 +422,7 @@ foreach ($seriesObs as $k => $rows) {
   if (isset($knownRefs[(string)$k])) $seriesObsKnown[(string)$k] = $rows;
 }
 $useObservations = !empty($seriesObsKnown);
+$usedTerminalAssignmentsFallback = false;
 if ($useObservations) {
   $seriesByArea = $seriesObsKnown;
 } elseif ($areaType === 'route') {
@@ -494,6 +495,43 @@ if ($useObservations) {
       $key = (string)$r['area_ref'];
       if (!isset($seriesByArea[$key])) $seriesByArea[$key] = [];
       $seriesByArea[$key][] = ['hour_start' => (string)$r['hour_start'], 'cnt' => safe_int($r['cnt'])];
+    }
+  }
+
+  if (empty($seriesByArea) && ($db->query("SHOW TABLES LIKE 'terminal_assignments'")?->fetch_row())) {
+    $taCols = [];
+    $resC = $db->query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='terminal_assignments'");
+    while ($resC && ($c = $resC->fetch_assoc())) $taCols[(string)($c['COLUMN_NAME'] ?? '')] = true;
+
+    $timeCol = isset($taCols['assigned_at']) ? 'assigned_at' : (isset($taCols['created_at']) ? 'created_at' : '');
+    $hasTerminalId = isset($taCols['terminal_id']);
+    $hasTerminalName = isset($taCols['terminal_name']);
+
+    if ($timeCol !== '' && ($hasTerminalId || $hasTerminalName)) {
+      $idExpr = $hasTerminalId
+        ? "COALESCE(ta.terminal_id, t.id)"
+        : "t.id";
+      $joinTerm = $hasTerminalName ? "LEFT JOIN terminals t ON t.name=ta.terminal_name" : "LEFT JOIN terminals t ON t.id=ta.terminal_id";
+      $sqlTA = "
+        SELECT
+          $idExpr AS area_ref,
+          DATE_FORMAT(ta.$timeCol, '%Y-%m-%d %H:00:00') AS hour_start,
+          COUNT(*) AS cnt
+        FROM terminal_assignments ta
+        $joinTerm
+        WHERE ta.$timeCol >= '$startStr'
+          AND $idExpr IS NOT NULL
+        GROUP BY area_ref, hour_start
+      ";
+      $resTA = $db->query($sqlTA);
+      if ($resTA) {
+        while ($r = $resTA->fetch_assoc()) {
+          $key = (string)$r['area_ref'];
+          if (!isset($seriesByArea[$key])) $seriesByArea[$key] = [];
+          $seriesByArea[$key][] = ['hour_start' => (string)$r['hour_start'], 'cnt' => safe_int($r['cnt'])];
+        }
+        if (!empty($seriesByArea)) $usedTerminalAssignmentsFallback = true;
+      }
     }
   }
 }
@@ -713,7 +751,11 @@ $points = (int)($eval['points'] ?? 0);
 $accuracyTarget = 80.0;
 $accuracyOk = ($points >= 40) && ($accuracy >= $accuracyTarget);
 
-$dataSource = $useObservations ? 'puv_demand_observations' : ($areaType === 'route' ? 'terminal_assignments_and_vehicles' : 'parking_transactions_and_violations');
+$dataSource = $useObservations
+  ? 'puv_demand_observations'
+  : ($areaType === 'route'
+      ? 'terminal_assignments_and_vehicles'
+      : ($usedTerminalAssignmentsFallback ? 'terminal_assignments' : 'parking_transactions_and_violations'));
 
 $payload = [
   'ok' => true,

@@ -893,6 +893,23 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           };
         });
 
+        var hasSignal = chartData.some(function (d) {
+          return (Number(d.y || 0) > 0) || (Number(d.baseline || 0) > 0);
+        });
+        if (!hasSignal) {
+          if (forecastChartInstance) {
+            forecastChartInstance.destroy();
+            forecastChartInstance = null;
+          }
+          chartEl.innerHTML = '<div class="h-[350px] flex items-center justify-center text-center px-6">' +
+            '<div>' +
+            '<div class="text-sm font-bold text-slate-700 dark:text-slate-200">No AI demand data yet</div>' +
+            '<div class="mt-1 text-xs text-slate-500 dark:text-slate-400">Log a few demand observations below to start generating a forecast.</div>' +
+            '</div>' +
+            '</div>';
+          return;
+        }
+
         var isDark = document.documentElement.classList.contains('dark');
         var textColor = isDark ? '#94a3b8' : '#64748b';
         var gridColor = isDark ? '#334155' : '#e2e8f0';
@@ -1084,6 +1101,7 @@ if ($db->query("SHOW COLUMNS FROM tickets LIKE 'location'") && ($db->query("SHOW
           forecastChartInstance.destroy();
         }
 
+        chartEl.innerHTML = '';
         forecastChartInstance = new ApexCharts(document.querySelector("#forecastChart"), options);
       forecastChartInstance.render();
 
