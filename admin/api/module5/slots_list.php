@@ -114,7 +114,7 @@ if ($capacity > 0) {
   }
 }
 
-$res = $db->query("SELECT slot_id, terminal_id, slot_no, status
+$res = $db->query("SELECT slot_id, slot_id AS id, terminal_id, slot_no, status
                   FROM parking_slots
                   WHERE terminal_id=" . (int)$terminalId . "
                   ORDER BY (slot_no REGEXP '^[0-9]+$') DESC, CAST(slot_no AS UNSIGNED) ASC, slot_no ASC");
